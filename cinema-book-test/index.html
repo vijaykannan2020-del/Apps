@@ -239,7 +239,8 @@ body{background:radial-gradient(ellipse at 0 15%,var(--glow),transparent 55%),ra
 .chip{font-size:12px;min-height:42px;border:1px solid var(--line);padding:10px 14px}.chip.on{background:var(--tint-pink);border-color:var(--pink);color:var(--pink)}.inp{min-width:0;border-width:1px;border-radius:14px;padding:13px;font-size:16px}.btn{font-size:13px;border-radius:14px;min-height:46px}.btn.go{background:var(--primary);color:white;box-shadow:inset 0 1px 0 #ffffff44,0 6px 15px #7040c822}.choice button{border-width:1px;font-size:13px}.choice button.on{background:var(--tint-pink);border-color:var(--pink);color:var(--pink)}
 .panel,.tile,.box,.manual{border:1px solid var(--glass-edge);border-radius:24px;box-shadow:var(--shadow);padding:20px;background:var(--paper)}.panel{margin-top:14px}.panel h3,.box h3{font-size:17px}.tiles{gap:14px}.tile{position:relative;overflow:hidden;padding:24px 20px}.tile::after{content:"";position:absolute;right:-25px;bottom:-25px;width:90px;height:90px;border:15px solid var(--tint-pink);border-radius:50%;pointer-events:none}.tile b{font-size:45px;color:var(--pink);font-stretch:normal;letter-spacing:-.07em}.tile span{font-size:11px;position:relative;z-index:1}.bar div i{background:var(--pink);border-radius:6px}.note{font-size:12px;line-height:1.7}
 /* Full-width pinned glass dock, no left/right safe-area insets. */
-.nav{width:100%;background:var(--paper);border:1px solid var(--glass-edge);border-bottom:0;border-radius:26px 26px 0 0;padding:9px 8px calc(9px + env(safe-area-inset-bottom,0px));gap:3px;box-shadow:0 -8px 32px #29133712}.nav button{min-width:0;max-width:150px;font-size:10px;gap:5px;padding:10px 2px;border-radius:20px;font-weight:600}.nav button.on{background:var(--tint-pink);color:var(--pink);box-shadow:inset 0 1px 0 var(--glass-edge)}.nav svg{width:22px;height:22px;stroke-width:1.7}
+.nav{width:100%;background:var(--paper);border:1px solid var(--glass-edge);border-bottom:0;border-radius:26px 26px 0 0;padding:9px 8px calc(9px + env(safe-area-inset-bottom,0px));gap:3px;box-shadow:0 -8px 32px #29133712}.nav button{flex:1 1 0;min-width:0;max-width:none;font-size:10px;gap:5px;padding:10px 2px;border-radius:20px;font-weight:600}.nav button.on{background:var(--tint-pink);color:var(--pink);box-shadow:inset 0 1px 0 var(--glass-edge)}.nav svg{width:22px;height:22px;stroke-width:1.7}
+@media(min-width:751px){.nav button{flex:0 1 150px;max-width:150px}}
 .sheet{background:var(--paper);border:1px solid var(--glass-edge);border-radius:30px 30px 0 0;box-shadow:0 -20px 80px #0004}.sh-head{grid-template-columns:135px minmax(0,1fr);align-items:center}.sh-head h2{font-size:28px}.sh-head .banner{border-radius:18px}.x{border:1px solid var(--glass-edge);min-height:44px;background:var(--paper);box-shadow:var(--shadow)}.veil{background:#090511a8;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
 .gate{max-width:440px}.gate h1{font-size:43px;letter-spacing:-.06em;margin-bottom:16px}.gate p{line-height:1.7;font-size:14px}.gate .eyebrow{color:var(--pink);font-size:10px}.gate form{padding:22px;background:var(--paper);border:1px solid var(--glass-edge);border-radius:26px;box-shadow:var(--shadow)}
 @supports ((backdrop-filter:blur(20px)) or (-webkit-backdrop-filter:blur(20px))){.nav,.region,.search,.panel,.tile,.box,.manual,.stub,.feat,.res,.gate form,.x{background:var(--glass);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%)}.sheet{background:var(--glass);backdrop-filter:blur(32px) saturate(140%);-webkit-backdrop-filter:blur(32px) saturate(140%)}}
@@ -361,7 +362,7 @@ body{background:radial-gradient(ellipse at 0 15%,var(--glow),transparent 55%),ra
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 18</p>
+    <p class="note" style="text-align:center">Version 19</p>
   </section>
 </div>
 
@@ -417,7 +418,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=18;
+const APP_VERSION=19;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
