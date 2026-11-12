@@ -197,6 +197,15 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
 .prov img{width:48px;height:48px;border-radius:10px;display:block;margin:0 auto 4px}
 .grp{font-weight:700;font-size:14px;margin-top:6px}
 .setrow{display:flex;gap:8px}
+.picked{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center}
+.picked .banner{aspect-ratio:2/3;border-radius:6px}.picked .banner b{font-size:10px;padding:4px}
+.opt{display:block;width:100%;text-align:left;border:2px solid var(--line);background:var(--paper);border-radius:12px;padding:12px;margin-top:10px}
+.opt.on{border-color:var(--ink)}
+.opt small{color:var(--pink);font-weight:700}
+.opt strong{display:block;font-size:18px;margin:2px 0 4px}
+.opt span{color:var(--soft);font-size:15px}
+#pCanvas{width:100%;height:auto;border-radius:12px;display:block;background:var(--line)}
+.pres .res{background:var(--bg)}
 .mem{display:flex;justify-content:space-between;padding:8px 0;border-top:1.5px solid var(--bg)}
 .nav button{font-size:13px}
 </style>
@@ -260,6 +269,30 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
     <div id="statsOut"></div>
   </section>
 
+  <section id="v-post" class="hidden">
+    <div class="sec-h" style="margin-top:18px"><h2>Review post</h2></div>
+    <div class="panel"><h3>1. Pick the film</h3>
+      <div id="pPick"><form class="setrow" id="pForm"><input class="inp" id="pQ" placeholder="Type a movie or series" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Film to review"><button class="btn go" type="submit">Find</button></form><div id="pRes" class="pres" style="margin-top:10px"></div></div>
+      <div id="pPicked" class="hidden"></div></div>
+    <div class="panel"><h3>2. Your rating and thoughts</h3>
+      <div class="stars" id="pStars"></div>
+      <label class="fl" for="pNotes">What did you think?</label>
+      <textarea class="inp" id="pNotes" placeholder="Type it any way you like. Rough notes are fine."></textarea>
+      <button class="btn go" id="pWrite" type="button" style="width:100%;margin-top:12px">Write my review</button>
+      <div id="pOpts"></div></div>
+    <div class="panel"><h3>3. Edit the words</h3>
+      <label class="fl" for="pHead" style="margin-top:0">Headline</label><input class="inp" id="pHead" maxlength="70">
+      <label class="fl" for="pRev">Review on the image</label><textarea class="inp" id="pRev" maxlength="420"></textarea>
+      <label class="fl" for="pCap">Caption for Instagram</label><textarea class="inp" id="pCap" style="min-height:120px"></textarea>
+      <label class="fl" for="pHandle">Your Instagram name (optional)</label><input class="inp" id="pHandle" placeholder="@yourname" autocapitalize="off" autocorrect="off"></div>
+    <div class="panel"><h3>4. Your image</h3>
+      <div class="chips" id="pStyle" style="margin-bottom:12px"><button class="chip on" data-s="spot" type="button">Spotlight</button><button class="chip" data-s="split" type="button">Light</button><button class="chip" data-s="quote" type="button">Big quote</button></div>
+      <canvas id="pCanvas" width="1080" height="1350"></canvas>
+      <p class="note" id="pNote"></p>
+      <div class="acts"><button class="btn go" id="pShare" type="button">Share to Instagram</button></div>
+      <div class="acts" style="margin-top:10px"><button class="btn quiet" id="pSave" type="button">Save image</button><button class="btn quiet" id="pCopy" type="button">Copy caption</button></div></div>
+  </section>
+
   <section id="v-set" class="hidden">
     <div class="sec-h" style="margin-top:18px"><h2>Settings</h2></div>
     <div class="panel"><h3>My name</h3><div class="setrow"><input class="inp" id="setName" aria-label="My name"><button class="btn quiet" id="setNameBtn" type="button">Save</button></div></div>
@@ -267,9 +300,13 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
       <p class="note" style="margin:0 0 10px">This turns on search, posters and streaming info. Paste the API Read Access Token (or the API key) from themoviedb.org, Settings, API. Saved once for the whole family.</p>
       <div class="setrow"><input class="inp" id="setKey" placeholder="Paste key here" autocomplete="off" aria-label="TMDB key"><button class="btn go" id="setKeyBtn" type="button">Save</button></div>
       <p class="note" id="keyState"></p></div>
+    <div class="panel"><h3>AI key for review writing</h3>
+      <p class="note" style="margin:0 0 10px">Needed only for “Write my review” on the Post page. Paste a free Google Gemini key (from aistudio.google.com, Get API key) or a Claude API key. Saved once for the whole family.</p>
+      <div class="setrow"><input class="inp" id="setAi" placeholder="Paste key here" autocomplete="off" aria-label="AI key"><button class="btn go" id="setAiBtn" type="button">Save</button></div>
+      <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 4</p>
+    <p class="note" style="text-align:center">Version 5</p>
   </section>
 </div>
 
@@ -277,6 +314,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
   <button data-v="home" class="on" type="button"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
   <button data-v="book" type="button"><svg viewBox="0 0 24 24"><path d="M3 9V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v3a3 3 0 0 0 0 6v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a3 3 0 0 0 0-6z"/><path d="M15 5v14" stroke-dasharray="2 3"/></svg>My book</button>
   <button data-v="stats" type="button"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>Numbers</button>
+  <button data-v="post" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6"/></svg>Post</button>
   <button data-v="set" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Settings</button>
 </nav>
 
@@ -299,6 +337,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const ls=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||'null');localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}};
 const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
 const NS=window.APP_NS;
+let AIKEY='';
 let region=ls('cb_region')||'US', TOKEN='', col=null, userDoc=null, uid=null;
 let book={}, fam={}, cache={}, bookFilter='all', saving=false, cur=null, form=null, homeLoaded='';
 const WHERE=['Theatre','Netflix','Prime Video','JioHotstar','Aha','Sun NXT','ZEE5','SonyLIV','YouTube','TV','Other'];
@@ -339,6 +378,7 @@ auth.onAuthStateChanged(async u=>{
   unsubs.push(col.onSnapshot(s=>{const nb={};s.forEach(d=>{const v=d.data();if(v&&v.title)nb[d.id]={...v,key:d.id}});book=nb;renderAll()},
     ()=>notice('Your book could not be loaded. Check your connection, then close and reopen the app.')));
   unsubs.push(fs.doc(NS+'config/tmdb').onSnapshot(s=>{TOKEN=(s.exists&&s.data().token)||'';paintKey();loadHome()}));
+  unsubs.push(fs.doc(NS+'config/ai').onSnapshot(s=>{AIKEY=(s.exists&&s.data().key)||'';$('#aiState').textContent=AIKEY?'A key is saved.':'No key saved yet.'}));
   unsubs.push(fs.collection(NS+'users').onSnapshot(s=>{
     const mem=[];s.forEach(d=>mem.push({id:d.id,...d.data()}));
     $('#members').innerHTML=mem.map(m=>`<div class="mem"><strong>${esc(m.name||'Someone')}${m.id===uid?' (you)':''}</strong><span class="note" style="margin:0">${esc(m.email||'')}</span></div>`).join('');
@@ -353,6 +393,8 @@ $('#setNameBtn').onclick=async()=>{const n=$('#setName').value.trim();if(!n)retu
 $('#setKeyBtn').onclick=async()=>{const k=$('#setKey').value.trim();if(!k){toast('Paste the key first');return}
   try{TOKEN=k;await tm('/configuration');await fs.doc(NS+'config/tmdb').set({token:k});$('#setKey').value='';toast('Key saved')}
   catch(e){TOKEN='';paintKey();toast('TMDB did not accept that key')}};
+$('#setAiBtn').onclick=async()=>{const k=$('#setAi').value.trim();if(!k){toast('Paste the key first');return}
+  try{await fs.doc(NS+'config/ai').set({key:k});$('#setAi').value='';toast('AI key saved')}catch(e){toast('Not saved. Try again.')}};
 function paintKey(){$('#keyState').textContent=TOKEN?'A key is saved and working for everyone in the family.':'No key saved yet.';
   notice(TOKEN?'':'Search and posters are off until a TMDB key is added. Open Settings to paste it.')}
 
@@ -403,7 +445,7 @@ function loadSug(){
 function paintRegion(){$$('#region button').forEach(b=>b.classList.toggle('on',b.dataset.r===region))}
 $$('#region button').forEach(b=>b.onclick=()=>{region=b.dataset.r;ls('cb_region',region);paintRegion();toast('Streaming shown for '+(region==='IN'?'India':'USA'))});
 paintRegion();
-function show(v){$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));['home','book','stats','set'].forEach(x=>$('#v-'+x).classList.toggle('hidden',x!==v));window.scrollTo(0,0);if(v==='stats')renderStats()}
+function show(v){$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));['home','book','stats','post','set'].forEach(x=>$('#v-'+x).classList.toggle('hidden',x!==v));window.scrollTo(0,0);if(v==='stats')renderStats();if(v==='post')drawPost()}
 $$('#nav button').forEach(b=>b.onclick=()=>show(b.dataset.v));
 $('#seeAll').onclick=()=>show('book');
 
@@ -516,6 +558,152 @@ async function search(){
   }catch(e){paint(`<div class="notice">${esc(e.message)}</div>`+manual(false))}
 }
 
+
+/* ---- review post ---- */
+const post={film:null,rating:0,style:'spot',img:null,blob:null};
+const cv=$('#pCanvas'), cx=cv.getContext('2d');
+$('#pHandle').value=ls('cb_handle')||'';
+function paintPStars(){const st=$('#pStars');st.innerHTML=[1,2,3,4,5].map(i=>`<div class="star" data-i="${i}">★<i style="width:${Math.max(0,Math.min(1,post.rating-(i-1)))*100}%">★</i></div>`).join('')+`<output>${fmtR(post.rating)}</output>`}
+$('#pStars').onclick=e=>{const s=e.target.closest('.star');if(!s)return;const r=s.getBoundingClientRect(),v=+s.dataset.i-((e.clientX-r.left)<r.width/2?.5:0);post.rating=post.rating===v?0:v;paintPStars();drawPost()};
+paintPStars();
+function paintPicked(){
+  const f=post.film;$('#pPick').classList.toggle('hidden',!!f);$('#pPicked').classList.toggle('hidden',!f);
+  if(f)$('#pPicked').innerHTML=`<div class="picked">${banner(f)}<div><strong>${esc(f.title)}</strong><div class="note" style="margin:0">${esc([f.year,f.kind].filter(Boolean).join(', '))}</div></div><button class="link" id="pChange" type="button">Change</button></div>`;
+  if(f)$('#pChange').onclick=()=>{post.film=null;post.img=null;paintPicked();drawPost()};
+}
+function startPost(f,rating,notes){
+  post.film=f;post.rating=rating||0;post.img=null;$('#pNotes').value=notes||'';$('#pHead').value='';$('#pRev').value=notes||'';$('#pCap').value='';$('#pOpts').innerHTML='';
+  paintPStars();paintPicked();show('post');loadPoster();
+}
+function loadPoster(){
+  const f=post.film;if(!f||!f.poster){drawPost();return}
+  const im=new Image();im.crossOrigin='anonymous';
+  im.onload=()=>{if(post.film===f){post.img=im;drawPost()}};
+  im.onerror=()=>{$('#pNote').textContent='The poster could not be loaded, so the image uses plain artwork.';drawPost()};
+  im.src=IMG+'w780'+f.poster;drawPost();
+}
+let pPicks=[];
+$('#pForm').onsubmit=async e=>{e.preventDefault();const q=$('#pQ').value.trim();if(!q)return;$('#pQ').blur();
+  $('#pRes').innerHTML='<p class="hint"><span class="spin"></span>Searching</p>';
+  try{const r=await tm('/search/multi',{query:q,include_adult:'false'});pPicks=cards(r.results).slice(0,8);
+    $('#pRes').innerHTML=pPicks.length?pPicks.map((d,i)=>`<button class="res" type="button" data-pp="${i}">${banner(d)}<div><h3>${esc(d.title)}</h3><p>${esc([d.year,d.kind,d.original_language].filter(Boolean).join(', '))}</p></div></button>`).join(''):'<p class="hint">Nothing found. Check the spelling.</p>'}
+  catch(err){$('#pRes').innerHTML=`<div class="notice">${esc(err.message)}</div>`}};
+$('#pRes').onclick=async e=>{const b=e.target.closest('[data-pp]');if(!b)return;e.stopPropagation();const c=pPicks[+b.dataset.pp];
+  $('#pRes').innerHTML='<p class="hint"><span class="spin"></span>Loading</p>';
+  let d=c;try{d=await details(c.type,c.tmdbId)}catch(err){}
+  const en=book[d.key]||{};$('#pRes').innerHTML='';$('#pQ').value='';startPost(d,+en.rating||post.rating,en.notes||$('#pNotes').value)};
+
+/* AI rewrite */
+async function aiText(prompt){
+  if(!AIKEY)throw new Error('Add an AI key in Settings first. You can still type the words yourself below.');
+  if(AIKEY.startsWith('sk-ant')){
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':AIKEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:1500,messages:[{role:'user',content:prompt}]})});
+    if(!r.ok)throw new Error(r.status===401?'The AI key was rejected. Check it in Settings.':'The AI service did not answer ('+r.status+'). Try again.');
+    return ((await r.json()).content||[]).map(c=>c.text||'').join('');
+  }
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':AIKEY},
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:'application/json'}})});
+  if(!r.ok)throw new Error(r.status===400||r.status===403?'The AI key was rejected. Check it in Settings.':r.status===429?'The free AI limit was reached. Wait a minute and try again.':'The AI service did not answer ('+r.status+'). Try again.');
+  const j=await r.json();return (((j.candidates||[])[0]||{}).content||{}).parts.map(p=>p.text||'').join('');
+}
+let pOpts=[];
+$('#pWrite').onclick=async()=>{
+  const f=post.film, notes=$('#pNotes').value.trim();
+  if(!f){toast('Pick the film first');return} if(!notes){toast('Type a few words about the film first');return}
+  const b=$('#pWrite');b.disabled=true;b.innerHTML='<span class="spin"></span>Writing';
+  const prompt=`You are an editor for a film reviewer's Instagram page. Rewrite the reviewer's rough notes into polished, well-phrased English review text. Keep their opinion, their points and their rating exactly; do not add plot details, facts or praise they did not give; no spoilers.
+Film: ${f.title} (${f.year||''}), ${f.kind||''}. Genre: ${f.genre||'unknown'}. Director: ${f.director||'unknown'}. Cast: ${(f.cast||[]).join(', ')||'unknown'}.
+Reviewer's rating: ${post.rating?post.rating+' out of 5':'not given'}.
+Reviewer's rough notes: """${notes}"""
+Write 3 versions: "Classy" (elegant, measured, like a quality newspaper critic), "Punchy" (short, confident lines), "Personal" (warm first-person).
+Return ONLY JSON: {"options":[{"style":"Classy","headline":"at most 7 words, no quotes","review":"35 to 50 words for the image","caption":"70 to 100 words for the Instagram caption, then a blank line, then 6 to 8 relevant hashtags including the film title"}]}`;
+  try{
+    const t=await aiText(prompt), j=JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1));
+    pOpts=(j.options||[]).slice(0,3);
+    $('#pOpts').innerHTML=pOpts.map((o,i)=>`<button class="opt" type="button" data-o="${i}"><small>${esc(o.style||'Option '+(i+1))}</small><strong>${esc(o.headline)}</strong><span>${esc(o.review)}</span></button>`).join('');
+    if(pOpts.length)useOpt(0);
+  }catch(err){$('#pOpts').innerHTML=`<div class="notice" style="margin-top:12px">${esc(err instanceof SyntaxError?'The AI answer could not be read. Tap the button again.':err.message)}</div>`}
+  b.disabled=false;b.textContent='Write my review again';
+};
+function useOpt(i){const o=pOpts[i];if(!o)return;$$('#pOpts .opt').forEach((b,k)=>b.classList.toggle('on',k===i));$('#pHead').value=o.headline||'';$('#pRev').value=o.review||'';$('#pCap').value=o.caption||'';drawPost()}
+$('#pOpts').onclick=e=>{const b=e.target.closest('[data-o]');if(b)useOpt(+b.dataset.o)};
+['pHead','pRev','pHandle'].forEach(id=>$('#'+id).oninput=()=>{if(id==='pHandle')ls('cb_handle',$('#pHandle').value.trim());clearTimeout(drawPost._t);drawPost._t=setTimeout(drawPost,200)});
+$$('#pStyle .chip').forEach(b=>b.onclick=()=>{post.style=b.dataset.s;$$('#pStyle .chip').forEach(x=>x.classList.toggle('on',x===b));drawPost()});
+
+/* canvas drawing */
+const FONT=(w,sz)=>`${w} ${sz}px "Anek Tamil","Helvetica Neue",Arial,sans-serif`;
+function lines(text,maxW){const out=[];String(text||'').split(/\n+/).forEach(par=>{let l='';par.split(/\s+/).forEach(w=>{const t=l?l+' '+w:w;if(cx.measureText(t).width>maxW&&l){out.push(l);l=w}else l=t});if(l)out.push(l)});return out}
+function fit(text,maxW,maxLines,size,min,weight){let ls=[];for(;size>=min;size-=2){cx.font=FONT(weight,size);ls=lines(text,maxW);if(ls.length<=maxLines)break}
+  if(ls.length>maxLines){ls=ls.slice(0,maxLines);ls[maxLines-1]=ls[maxLines-1].replace(/\W*\w*$/,'')+'…'}return {size:Math.max(size,min),ls}}
+function para(text,x,y,maxW,maxLines,size,min,weight,color,align,lh){const f=fit(text,maxW,maxLines,size,min,weight);cx.font=FONT(weight,f.size);cx.fillStyle=color;cx.textAlign=align||'left';cx.textBaseline='top';
+  f.ls.forEach((l,i)=>cx.fillText(l,x,y+i*f.size*(lh||1.25)));return y+f.ls.length*f.size*(lh||1.25)}
+function rr(x,y,w,h,r){cx.beginPath();cx.moveTo(x+r,y);cx.arcTo(x+w,y,x+w,y+h,r);cx.arcTo(x+w,y+h,x,y+h,r);cx.arcTo(x,y+h,x,y,r);cx.arcTo(x,y,x+w,y,r);cx.closePath()}
+function cover(img,x,y,w,h){const s=Math.max(w/img.width,h/img.height),sw=w/s,sh=h/s;cx.drawImage(img,(img.width-sw)/2,(img.height-sh)/2,sw,sh,x,y,w,h)}
+function posterAt(x,y,w,h,r,title){
+  cx.save();cx.shadowColor='rgba(0,0,0,.45)';cx.shadowBlur=40;cx.shadowOffsetY=18;rr(x,y,w,h,r);cx.fillStyle='#2A2E38';cx.fill();cx.restore();
+  cx.save();rr(x,y,w,h,r);cx.clip();
+  if(post.img)cover(post.img,x,y,w,h);else{let hh=0;for(const c of String(title))hh=(hh*31+c.charCodeAt(0))>>>0;const pl=PAL[hh%PAL.length];cx.fillStyle=pl[0];cx.fillRect(x,y,w,h);para(title,x+w*.1,y+h*.55,w*.8,4,Math.round(w/7),18,800,pl[2],'left',1)}
+  cx.restore();
+}
+function starRow(x,y,size,on,off,align){
+  cx.font=FONT(400,size);cx.textBaseline='top';cx.textAlign='left';const w=size*1.02,total=w*5,x0=align==='center'?x-total/2:x;
+  for(let i=0;i<5;i++){cx.fillStyle=off;cx.fillText('★',x0+i*w,y);const f=Math.max(0,Math.min(1,post.rating-i));
+    if(f>0){cx.save();cx.beginPath();cx.rect(x0+i*w,y-4,w*f,size*1.4);cx.clip();cx.fillStyle=on;cx.fillText('★',x0+i*w,y);cx.restore()}}
+  return x0+total;
+}
+function drawPost(){
+  const W=1080,H=1350,f=post.film||{title:'Pick a film',year:'',director:''};
+  const head=$('#pHead').value.trim(), rev=$('#pRev').value.trim(), handle=$('#pHandle').value.trim();
+  const meta=[f.year,f.director?'Directed by '+f.director:''].filter(Boolean).join('   ');
+  cx.setTransform(1,0,0,1,0,0);cx.clearRect(0,0,W,H);cx.textAlign='left';
+  if(post.style==='spot'){
+    cx.fillStyle='#15171C';cx.fillRect(0,0,W,H);
+    if(post.img){const t=document.createElement('canvas');t.width=27;t.height=34;const tc=t.getContext('2d');const s=Math.max(27/post.img.width,34/post.img.height);tc.drawImage(post.img,(27-post.img.width*s)/2,(34-post.img.height*s)/2,post.img.width*s,post.img.height*s);
+      cx.imageSmoothingEnabled=true;cx.imageSmoothingQuality='high';cx.drawImage(t,0,0,W,H);cx.fillStyle='rgba(12,13,17,.74)';cx.fillRect(0,0,W,H)}
+    posterAt(330,64,420,630,18,f.title);
+    let y=para(f.title,W/2,740,940,2,62,40,800,'#FFFFFF','center',1.08);
+    if(meta)y=para(meta,W/2,y+8,940,1,28,22,400,'rgba(255,255,255,.7)','center')+4;
+    if(post.rating){starRow(W/2,y+14,50,'#F2A31B','rgba(255,255,255,.22)','center');y+=86}else y+=20;
+    if(head)y=para(head,W/2,y+6,920,2,44,32,700,'#F5D48A','center',1.15)+10;
+    para(rev,W/2,y+6,900,Math.max(2,Math.floor((1262-y)/44)),36,26,400,'rgba(255,255,255,.92)','center',1.32);
+    cx.font=FONT(600,26);cx.fillStyle='rgba(255,255,255,.6)';cx.textAlign='center';cx.textBaseline='top';cx.fillText(handle||'My review',W/2,1288);
+  }else if(post.style==='split'){
+    cx.fillStyle='#FAFAF8';cx.fillRect(0,0,W,H);cx.fillStyle='#B3122B';cx.fillRect(0,0,W,14);
+    posterAt(60,74,400,600,14,f.title);
+    let y=para(f.title,510,86,510,4,64,38,800,'#15171C','left',1.05);
+    if(meta)y=para([f.year,f.director].filter(Boolean).join(', '),510,y+12,510,2,28,22,400,'#667085','left');
+    if(post.rating){const ex=starRow(510,y+22,52,'#F2A31B','#DDE0E6');cx.font=FONT(800,44);cx.fillStyle='#15171C';cx.textBaseline='top';cx.fillText(fmtR(post.rating)+' / 5',510,y+96)}
+    y=730;if(head)y=para(head,60,y,960,2,54,36,800,'#B3122B','left',1.1)+16;
+    para(rev,60,y,960,Math.max(2,Math.floor((1250-y)/50)),40,28,400,'#15171C','left',1.32);
+    cx.fillStyle='#DDE0E6';cx.fillRect(60,1272,960,2);cx.font=FONT(600,26);cx.fillStyle='#667085';cx.textAlign='left';cx.textBaseline='top';cx.fillText(handle||'My review',60,1290);
+  }else{
+    let hh=0;for(const c of String(f.title))hh=(hh*31+c.charCodeAt(0))>>>0;const pl=PAL[hh%PAL.length];
+    cx.fillStyle=pl[0];cx.fillRect(0,0,W,H);
+    cx.font=FONT(800,300);cx.fillStyle=pl[1];cx.textBaseline='top';cx.fillText('“',40,-20);
+    let y=para(head||f.title,70,210,940,4,88,52,800,pl[2],'left',1.04)+30;
+    para(rev,70,y,940,Math.max(2,Math.floor((960-y)/50)),40,28,400,'rgba(255,255,255,.92)','left',1.32);
+    posterAt(70,1010,180,270,10,f.title);
+    let ty=para(f.title,280,1024,730,2,44,30,800,'#FFFFFF','left',1.08);
+    if(meta)ty=para([f.year,f.director].filter(Boolean).join(', '),280,ty+6,730,1,26,20,400,'rgba(255,255,255,.7)','left');
+    if(post.rating)starRow(280,ty+14,44,'#F2A31B','rgba(255,255,255,.25)');
+    cx.font=FONT(600,26);cx.fillStyle='rgba(255,255,255,.6)';cx.textAlign='right';cx.textBaseline='top';cx.fillText(handle||'My review',1010,1250);
+  }
+  post.blob=null;
+  try{cv.toBlob(b=>{post.blob=b},'image/jpeg',.92);if(post.img)$('#pNote').textContent=''}
+  catch(e){$('#pNote').textContent='This browser blocked saving the image with the poster. Take a screenshot of the picture instead.'}
+}
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(drawPost);
+$('#pCopy').onclick=async()=>{try{await navigator.clipboard.writeText($('#pCap').value);toast('Caption copied')}catch(e){toast('Copy did not work. Select the caption and copy it.')}};
+$('#pSave').onclick=()=>{if(!post.blob){toast('The image is not ready yet');return}const a=document.createElement('a');a.href=URL.createObjectURL(post.blob);a.download=(norm((post.film||{}).title)||'review')+'-review.jpg';document.body.appendChild(a);a.click();a.remove();toast('Image saved to Files')};
+$('#pShare').onclick=async()=>{
+  if(!post.blob){toast('The image is not ready yet');return}
+  const file=new File([post.blob],(norm((post.film||{}).title)||'review')+'-review.jpg',{type:'image/jpeg'});
+  if(!(navigator.canShare&&navigator.canShare({files:[file]}))){toast('Sharing is not available here. Use Save image.');return}
+  const cap=$('#pCap').value;if(cap){try{navigator.clipboard.writeText(cap)}catch(e){}}
+  try{await navigator.share({files:[file]});if(cap)toast('Caption copied. Paste it in Instagram.')}catch(e){}
+};
+
 /* ---- open a title ---- */
 const sheet=$('#sheet'), veil=$('#veil');
 function openVeil(){sheet.classList.add('open');veil.classList.add('open')}
@@ -547,6 +735,7 @@ function openSheet(d,toForm){
    ${d.synopsis?`<p style="margin:14px 0 0">${esc(d.synopsis)}</p>`:''}
    ${d.director||(d.cast||[]).length?`<p class="note">${d.director?(d.type==='tv'?'Created by ':'Directed by ')+esc(d.director)+'. ':''}${(d.cast||[]).length?'With '+esc(d.cast.join(', '))+'.':''}</p>`:''}
    ${d.trailer?`<a class="out" href="https://www.youtube.com/watch?v=${esc(d.trailer)}" target="_blank" rel="noopener">Watch the trailer</a>`:''}
+   ${d.full?'<button class="link" id="shPost" type="button" style="margin-top:10px;display:block">Make a review post for Instagram</button>':''}
 
    <div class="box" id="logBox"><h3>${e.status?'My entry':'Add to my book'}</h3>
      <div class="choice" id="fStatus"><button type="button" data-s="watched">I watched it</button><button type="button" data-s="watchlist">Want to watch</button></div>
@@ -569,6 +758,7 @@ function openSheet(d,toForm){
      ${d.full&&d.original_language!=='Tamil'?'<p class="note">Dubbed audio is not listed in this data. Check the audio options inside the streaming app.</p>':''}
    </div>`;
   openVeil();sheet.scrollTop=0;$('#shX').onclick=closeSheet;wireForm();
+  if($('#shPost'))$('#shPost').onclick=()=>{const f=d,en=book[d.key]||{};closeSheet();startPost(f,+en.rating||form.rating||0,en.notes||form.notes||'')};
   if(toForm)setTimeout(()=>$('#logBox').scrollIntoView({behavior:'smooth'}),260);
 }
 function wireForm(){
