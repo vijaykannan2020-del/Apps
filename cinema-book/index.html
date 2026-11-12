@@ -224,7 +224,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
 
   <section id="v-home">
     <form class="search" id="sForm">
-      <input id="sQ" type="text" placeholder="Search a movie or series" autocomplete="off" enterkeyhint="search" aria-label="Search a movie or series">
+      <input id="sQ" type="text" placeholder="Search a movie or series" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search a movie or series">
       <button type="submit">Search</button>
     </form>
     <div id="results" class="hidden sec"></div>
@@ -269,6 +269,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
       <p class="note" id="keyState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
+    <p class="note" style="text-align:center">Version 4</p>
   </section>
 </div>
 
@@ -496,15 +497,18 @@ async function search(){
    <button class="btn go" id="mAdd" type="button" style="margin-top:12px;width:100%">Add this title</button></div>`;
   paint(`<p class="hint"><span class="spin"></span>Searching for “${esc(q)}”</p>`);
   try{
-    const vars=[q];
-    if(/s$/i.test(q)&&q.length>3)vars.push(q.slice(0,-1)); else if(q.length>3)vars.push(q+'s');
-    const words=q.split(/\s+/);if(words.length>2)vars.push(words.slice(0,-1).join(' '));
-    const calls=[];vars.forEach((v,i)=>{calls.push(tm('/search/multi',{query:v,include_adult:'false'}));if(i===0)calls.push(tm('/search/multi',{query:v,include_adult:'false',page:2}))});
+    const base=q.replace(/\s+/g,' '), set=[base];
+    const add=v=>{v=v.trim();if(v.length>2&&!set.some(x=>x.toLowerCase()===v.toLowerCase()))set.push(v)};
+    add(/s$/i.test(base)?base.slice(0,-1):base+'s');
+    add(base.replace(/\s+/g,''));add(base.replace(/\s+/g,'').replace(/s$/i,''));
+    const words=base.split(' ');if(words.length>2)add(words.slice(0,-1).join(' '));
+    const calls=[];set.slice(0,5).forEach(v=>calls.push(tm('/search/multi',{query:v,include_adult:'false'})));
+    calls.push(tm('/search/multi',{query:base,include_adult:'false',page:2}));
     const rs=await Promise.allSettled(calls);
     if(rs[0].status==='rejected')throw rs[0].reason;
     if($('#sQ').value.trim()!==q)return;
     const seen={},raw=[];rs.forEach(x=>{if(x.status==='fulfilled')(x.value.results||[]).forEach(r=>{const k=r.media_type+'-'+r.id;if(!seen[k]){seen[k]=1;raw.push(r)}})});
-    const nq=norm(q),score=r=>{const t=norm(r.title||r.name);return (t===nq?3:t.startsWith(nq.replace(/s$/,''))?2:0)*1000+(r.popularity||0)};
+    const nq=norm(q),stem=nq.replace(/s$/,''),score=r=>{const t=norm(r.title||r.name);return (t===nq||t===stem?3:t.startsWith(stem)?2:t.includes(stem)?1:0)*1000+(r.popularity||0)};
     raw.sort((x,y)=>score(y)-score(x));
     const list=cards(raw).slice(0,30);
     paint(list.map(d=>{const mine=book[d.key];return `<button class="res" type="button" data-t="${d.type}" data-id="${d.tmdbId}">${banner(d)}<div><h3>${esc(d.title)}</h3>
