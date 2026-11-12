@@ -127,6 +127,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-12, ChatGPT: test copy Version 16, premium cinematic interface with purple accents, poster cards, modern typography and light/dark styling; preserves Firebase, diary features and Duo layout.
+
 - 2026-11-12, Claude: added this handoff file.
 - 2026-11-12, Claude: test copy Version 15, full-width bottom bar.
 - 2026-11-12, Claude: test copy Version 14 created, with Wikidata search,
