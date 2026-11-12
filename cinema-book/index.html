@@ -278,19 +278,29 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
       <div class="stars" id="pStars"></div>
       <label class="fl" for="pNotes">What did you think?</label>
       <textarea class="inp" id="pNotes" placeholder="Type it any way you like. Rough notes are fine."></textarea>
+      <label class="fl">Language of the review</label>
+      <div class="chips" id="pLang"><button class="chip on" data-l="match" type="button">Same as my words</button><button class="chip" data-l="tanglish" type="button">Tanglish</button><button class="chip" data-l="english" type="button">English</button></div>
       <button class="btn go" id="pWrite" type="button" style="width:100%;margin-top:12px">Write my review</button>
       <div id="pOpts"></div></div>
     <div class="panel"><h3>3. Edit the words</h3>
       <label class="fl" for="pHead" style="margin-top:0">Headline</label><input class="inp" id="pHead" maxlength="70">
       <label class="fl" for="pRev">Review on the image</label><textarea class="inp" id="pRev" maxlength="420"></textarea>
-      <label class="fl" for="pCap">Caption for Instagram</label><textarea class="inp" id="pCap" style="min-height:120px"></textarea>
-      <label class="fl" for="pHandle">Your Instagram name (optional)</label><input class="inp" id="pHandle" placeholder="@yourname" autocapitalize="off" autocorrect="off"></div>
+      <label class="fl" for="pHandle">Your Instagram name (optional)</label><input class="inp" id="pHandle" placeholder="@yourname" autocapitalize="off" autocorrect="off">
+      <button class="btn go" id="pKeep" type="button" style="width:100%;margin-top:16px">Save review and mark as watched</button>
+      <p class="note" id="pKeepNote"></p></div>
     <div class="panel"><h3>4. Your image</h3>
       <div class="chips" id="pStyle" style="margin-bottom:12px"><button class="chip on" data-s="spot" type="button">Spotlight</button><button class="chip" data-s="split" type="button">Light</button><button class="chip" data-s="quote" type="button">Big quote</button></div>
       <canvas id="pCanvas" width="1080" height="1350"></canvas>
       <p class="note" id="pNote"></p>
-      <div class="acts"><button class="btn go" id="pShare" type="button">Share to Instagram</button></div>
-      <div class="acts" style="margin-top:10px"><button class="btn quiet" id="pSave" type="button">Save image</button><button class="btn quiet" id="pCopy" type="button">Copy caption</button></div></div>
+      <div class="acts"><button class="btn quiet" id="pSave" type="button">Save image to my phone</button></div></div>
+    <div class="panel"><h3>5. Post it</h3>
+      <p class="note" style="margin:0 0 10px">One review, worded for each app. Pick where you are posting.</p>
+      <div class="chips" id="pPlat" style="margin-bottom:10px"></div>
+      <textarea class="inp" id="pT" style="min-height:170px" aria-label="Text for the chosen app"></textarea>
+      <p class="note" id="pTCount"></p>
+      <div class="acts"><button class="btn go" id="pShare" type="button">Share image and copy text</button></div>
+      <div class="acts" style="margin-top:10px"><button class="btn quiet" id="pOpenApp" type="button">Open app</button><button class="btn quiet" id="pCopy" type="button">Copy text</button></div>
+      <p class="note">“Share image and copy text” opens the iPhone share sheet with the picture. Choose the app there, then paste the text.</p></div>
   </section>
 
   <section id="v-set" class="hidden">
@@ -306,7 +316,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 6</p>
+    <p class="note" style="text-align:center">Version 9</p>
   </section>
 </div>
 
@@ -456,7 +466,7 @@ function stub(e,ser){
   const tone=wl?'sun':(e.where==='Theatre'||(e.where&&!WHERE.includes(e.where)))?'pink':'green';
   const line=wl?'Want to watch':[e.where,fmtDate(e.watchedOn),e.watchedLang].filter(Boolean).join(', ');
   return `<button class="stub ${tone}" type="button" data-key="${esc(e.key)}">${banner(e)}
-    <div class="stub-main"><h3>${esc(e.title)}</h3><p>${esc([e.year,e.kind].filter(Boolean).join(', '))}</p><p class="where">${esc(line)}</p></div>
+    <div class="stub-main"><h3>${esc(e.title)}</h3><p>${esc([e.year,e.kind].filter(Boolean).join(', '))}</p><p class="where">${esc(line)}</p>${e.reviewText?'<p>Review written</p>':''}</div>
     <div class="stub-tear">${wl?'<span>Not yet<br>watched</span>':e.rating?`<b>${fmtR(+e.rating)}</b><span>out of 5</span>`:'<span>No rating</span>'}<small>No. ${String(ser[e.key]||0).padStart(4,'0')}</small></div></button>`;
 }
 
@@ -572,7 +582,7 @@ function paintPicked(){
   if(f)$('#pChange').onclick=()=>{post.film=null;post.img=null;paintPicked();drawPost()};
 }
 function startPost(f,rating,notes){
-  post.film=f;post.rating=rating||0;post.img=null;$('#pNotes').value=notes||'';$('#pHead').value='';$('#pRev').value=notes||'';$('#pCap').value='';$('#pOpts').innerHTML='';
+  const sv=book[f.key]||{};post.film=f;post.rating=rating||0;post.img=null;post.optStyle=sv.reviewStyle||'';$('#pNotes').value=notes||'';$('#pHead').value=sv.reviewHead||'';$('#pRev').value=sv.reviewText||notes||'';post.texts=Object.assign({ig:sv.reviewCap||'',fb:sv.reviewCap||'',x:sv.reviewX||'',xthread:sv.reviewXThread||'',th:'',wa:''},sv.reviewTexts||{});paintPlat();$('#pOpts').innerHTML='';$('#pKeepNote').textContent=sv.reviewText?'A saved review for this film is loaded.':'';
   paintPStars();paintPicked();show('post');loadPoster();
 }
 function loadPoster(){
@@ -618,12 +628,17 @@ $('#pWrite').onclick=async()=>{
   const f=post.film, notes=$('#pNotes').value.trim();
   if(!f){toast('Pick the film first');return} if(!notes){toast('Type a few words about the film first');return}
   const b=$('#pWrite');b.disabled=true;b.innerHTML='<span class="spin"></span>Writing';
-  const prompt=`You are an editor for a film reviewer's Instagram page. Rewrite the reviewer's rough notes into polished, well-phrased English review text. Keep their opinion, their points and their rating exactly; do not add plot details, facts or praise they did not give; no spoilers.
+  const langRule={match:'Write in exactly the same language mix as the notes. If the notes are Tanglish (Tamil written in English letters, mixed with English words), the review must also be Tanglish with the same kind of mix; do NOT translate the Tamil words into English. If the notes are plain English, write English.',
+    tanglish:'Write in Tanglish: Tamil written in English letters, freely mixed with English words, the way Tamil film fans actually type on Instagram. Keep the reviewer\'s own Tamil words and phrases. Never use Tamil script.',
+    english:'Write in English. Tamil film terms the reviewer used (mass, BGM, thalaivar and so on) may stay.'}[post.lang||'match'];
+  const prompt=`You are helping a Tamil film fan tidy up their own review for their Instagram page. Rework their rough notes into clean, well-phrased review text that still sounds like THEM talking, not like an AI or a press release.
+${langRule}
+Rules: keep their opinion, their points and their rating exactly. Reuse their own words and expressions wherever they work. Do not add plot details, facts or praise they did not give. No spoilers. Plain everyday words; no fancy vocabulary such as "cinematic masterpiece", "tapestry", "rollercoaster", "tour de force", "a must-watch"; no em dashes; no emoji unless the notes used them; short natural sentences.
 Film: ${f.title} (${f.year||''}), ${f.kind||''}. Genre: ${f.genre||'unknown'}. Director: ${f.director||'unknown'}. Cast: ${(f.cast||[]).join(', ')||'unknown'}.
 Reviewer's rating: ${post.rating?post.rating+' out of 5':'not given'}.
 Reviewer's rough notes: """${notes}"""
-Write 3 versions: "Classy" (elegant, measured, like a quality newspaper critic), "Punchy" (short, confident lines), "Personal" (warm first-person).
-Return ONLY JSON: {"options":[{"style":"Classy","headline":"at most 7 words, no quotes","review":"35 to 50 words for the image","caption":"70 to 100 words for the Instagram caption, then a blank line, then 6 to 8 relevant hashtags including the film title"}]}`;
+Write 3 versions: "Classy" (calm, well put, a little polished), "Punchy" (short confident lines), "Personal" (warm, first person, like telling a friend).
+Return ONLY JSON: {"options":[{"style":"Classy","headline":"at most 7 words, no quotes","review":"35 to 50 words for the image","caption":"70 to 100 words for the Instagram caption in the same language mix, then a blank line, then 6 to 8 relevant hashtags including the film title","threads":"one post for Threads, at most 450 characters","whatsapp":"2 or 3 casual lines to send to friends and family on WhatsApp, with the rating","x_short":"one post for X, at most 250 characters in total including the rating and 2 hashtags","x_thread":["3 or 4 posts for a detailed X thread, each at most 250 characters, same language mix: first the overall verdict with the rating, then what worked, then what did not work (only if the notes mention it), then a closing line with 2 or 3 hashtags; use only points from the notes"]}]}`;
   try{
     const t=await aiText(prompt), j=JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1));
     pOpts=(j.options||[]).slice(0,3);
@@ -632,10 +647,44 @@ Return ONLY JSON: {"options":[{"style":"Classy","headline":"at most 7 words, no 
   }catch(err){$('#pOpts').innerHTML=`<div class="notice" style="margin-top:12px">${esc(err instanceof SyntaxError?'The AI answer could not be read. Tap the button again.':err.message)}</div>`}
   b.disabled=false;b.textContent='Write my review again';
 };
-function useOpt(i){const o=pOpts[i];if(!o)return;$$('#pOpts .opt').forEach((b,k)=>b.classList.toggle('on',k===i));$('#pHead').value=o.headline||'';$('#pRev').value=o.review||'';$('#pCap').value=o.caption||'';drawPost()}
+function useOpt(i){const o=pOpts[i];if(!o)return;post.optStyle=o.style||'';$$('#pOpts .opt').forEach((b,k)=>b.classList.toggle('on',k===i));$('#pHead').value=o.headline||'';$('#pRev').value=o.review||'';const th=Array.isArray(o.x_thread)?o.x_thread:[o.x_thread||''];post.texts={ig:o.caption||'',fb:o.caption||'',x:o.x_short||'',xthread:th.filter(Boolean).map((t,k,a)=>a.length>1?`${k+1}/${a.length} ${t}`:t).join('\n\n'),th:o.threads||String(o.caption||'').split(/\n\s*\n/)[0].slice(0,480),wa:o.whatsapp||o.x_short||''};paintPlat();drawPost()}
+$$('#pLang .chip').forEach(b=>b.onclick=()=>{post.lang=b.dataset.l;ls('cb_lang',post.lang);$$('#pLang .chip').forEach(x=>x.classList.toggle('on',x===b))});
+post.lang=ls('cb_lang')||'match';$$('#pLang .chip').forEach(x=>x.classList.toggle('on',x.dataset.l===post.lang));
 $('#pOpts').onclick=e=>{const b=e.target.closest('[data-o]');if(b)useOpt(+b.dataset.o)};
 ['pHead','pRev','pHandle'].forEach(id=>$('#'+id).oninput=()=>{if(id==='pHandle')ls('cb_handle',$('#pHandle').value.trim());clearTimeout(drawPost._t);drawPost._t=setTimeout(drawPost,200)});
 $$('#pStyle .chip').forEach(b=>b.onclick=()=>{post.style=b.dataset.s;$$('#pStyle .chip').forEach(x=>x.classList.toggle('on',x===b));drawPost()});
+
+$('#pKeep').onclick=async()=>{
+  const f=post.film;if(!f){toast('Pick the film first');return}
+  if(!$('#pRev').value.trim()&&!$('#pHead').value.trim()){toast('Write or choose the review first');return}
+  const old=book[f.key]||{},b=$('#pKeep');b.disabled=true;
+  const doc={title:f.title,year:f.year||'',kind:f.kind||'',type:f.type||'',tmdbId:f.tmdbId||0,poster:f.poster||'',genre:f.genre||'',original_language:f.original_language||'',minutes:+f.minutes||0,
+    status:'watched',rating:post.rating||+old.rating||0,where:old.where||'',watchedOn:old.watchedOn||today(),watchedLang:old.watchedLang||'',notes:old.notes||$('#pNotes').value.trim(),
+    reviewHead:$('#pHead').value.trim(),reviewText:$('#pRev').value.trim(),reviewCap:post.texts.ig||'',reviewTexts:post.texts,reviewStyle:post.optStyle||'',reviewAt:Date.now(),
+    addedAt:old.addedAt||Date.now(),updatedAt:Date.now()};
+  try{await col.doc(f.key).set(doc,{merge:true});toast('Review saved, marked as watched');$('#pKeepNote').textContent='Saved in My book. Open the film there to add where and when you watched it.'}
+  catch(e){toast('Not saved. Check your connection and try again.')}
+  b.disabled=false;
+};
+
+const enc=encodeURIComponent;
+const PLAT={ig:{n:'Instagram'},x:{n:'X',max:280,open:t=>'https://twitter.com/intent/tweet?text='+enc(t)},xthread:{n:'X thread',max:280,thread:true,open:t=>'https://twitter.com/intent/tweet?text='+enc(t)},
+  fb:{n:'Facebook'},th:{n:'Threads',max:500,open:t=>'https://www.threads.net/intent/post?text='+enc(t)},wa:{n:'WhatsApp',open:t=>'https://wa.me/?text='+enc(t)}};
+post.plat=ls('cb_plat')||'ig';post.texts={};
+$('#pPlat').innerHTML=Object.entries(PLAT).map(([k,v])=>`<button class="chip" data-p="${k}" type="button">${v.n}</button>`).join('');
+const pParts=()=>$('#pT').value.split(/\n\s*\n/).filter(x=>x.trim());
+function countT(){const P=PLAT[post.plat],t=$('#pT').value;let m='';
+  if(P.thread){const a=pParts();if(a.length)m=`${a.length} posts in this thread. Longest is ${Math.max(...a.map(x=>x.length))} of ${P.max} characters.${a.some(x=>x.length>P.max)?' Shorten the long one.':''}`}
+  else if(P.max&&t)m=`${t.length} of ${P.max} characters.${t.length>P.max?' Too long, shorten it.':''}`;
+  $('#pTCount').textContent=m}
+function paintPlat(){if(!PLAT[post.plat])post.plat='ig';const P=PLAT[post.plat];$$('#pPlat .chip').forEach(b=>b.classList.toggle('on',b.dataset.p===post.plat));$('#pT').value=post.texts[post.plat]||'';
+  $('#pOpenApp').classList.toggle('hidden',!P.open);$('#pOpenApp').textContent='Open '+P.n.replace(' thread','')+' with this text';countT()}
+$('#pPlat').onclick=e=>{const b=e.target.closest('[data-p]');if(!b)return;post.plat=b.dataset.p;ls('cb_plat',post.plat);paintPlat()};
+$('#pT').oninput=()=>{post.texts[post.plat]=$('#pT').value;countT()};
+paintPlat();
+$('#pOpenApp').onclick=()=>{const P=PLAT[post.plat],t=$('#pT').value.trim();if(!t){toast('Write the text first');return}
+  if(P.thread){const a=pParts();if(a.length>1){try{navigator.clipboard.writeText(a.slice(1).join('\n\n'))}catch(e){}toast('First post opens in X. The rest is copied for the replies.')}window.open(P.open(a[0]),'_blank');return}
+  window.open(P.open(t),'_blank')};
 
 /* canvas drawing */
 const FONT=(w,sz)=>`${w} ${sz}px "Anek Tamil","Helvetica Neue",Arial,sans-serif`;
@@ -700,14 +749,14 @@ function drawPost(){
   catch(e){$('#pNote').textContent='This browser blocked saving the image with the poster. Take a screenshot of the picture instead.'}
 }
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(drawPost);
-$('#pCopy').onclick=async()=>{try{await navigator.clipboard.writeText($('#pCap').value);toast('Caption copied')}catch(e){toast('Copy did not work. Select the caption and copy it.')}};
+$('#pCopy').onclick=async()=>{try{await navigator.clipboard.writeText($('#pT').value);toast('Text copied')}catch(e){toast('Copy did not work. Select the text and copy it.')}};
 $('#pSave').onclick=()=>{if(!post.blob){toast('The image is not ready yet');return}const a=document.createElement('a');a.href=URL.createObjectURL(post.blob);a.download=(norm((post.film||{}).title)||'review')+'-review.jpg';document.body.appendChild(a);a.click();a.remove();toast('Image saved to Files')};
 $('#pShare').onclick=async()=>{
   if(!post.blob){toast('The image is not ready yet');return}
   const file=new File([post.blob],(norm((post.film||{}).title)||'review')+'-review.jpg',{type:'image/jpeg'});
   if(!(navigator.canShare&&navigator.canShare({files:[file]}))){toast('Sharing is not available here. Use Save image.');return}
-  const cap=$('#pCap').value;if(cap){try{navigator.clipboard.writeText(cap)}catch(e){}}
-  try{await navigator.share({files:[file]});if(cap)toast('Caption copied. Paste it in Instagram.')}catch(e){}
+  const cap=$('#pT').value;if(cap){try{navigator.clipboard.writeText(cap)}catch(e){}}
+  try{await navigator.share({files:[file]});if(cap)toast(PLAT[post.plat].n+' text copied, ready to paste.')}catch(e){}
 };
 
 /* ---- open a title ---- */
@@ -756,6 +805,7 @@ function openSheet(d,toForm){
      <label class="fl" for="fNotes">Notes</label><textarea class="inp" id="fNotes" placeholder="What did you think? Who was with you?"></textarea>
      <div class="acts">${e.status?'<button class="btn danger" id="fDel" type="button">Remove</button>':''}<button class="btn go" id="fSave" type="button">Save to my book</button></div>
    </div>
+   ${e.reviewText||e.reviewHead?`<div class="box"><h3>My review</h3>${e.reviewHead?`<strong>${esc(e.reviewHead)}</strong>`:''}<p style="margin:6px 0 0">${esc(e.reviewText||'')}</p><button class="link" id="shRev" type="button" style="margin-top:10px">Open in Post to edit or share</button></div>`:''}
    ${famLines.length?`<div class="box"><h3>Family ratings</h3>${famLines.join('')}</div>`:''}
    <div class="box"><h3>Where to watch in ${region==='IN'?'India':'the USA'}</h3>
      ${d.full?(watch||'<p class="note" style="margin:0">Not on any streaming service in this country right now.</p>'):'<p class="note" style="margin:0">No streaming info for a title you added yourself.</p>'}
@@ -764,6 +814,7 @@ function openSheet(d,toForm){
      ${d.full&&d.original_language!=='Tamil'?'<p class="note">Dubbed audio is not listed in this data. Check the audio options inside the streaming app.</p>':''}
    </div>`;
   openVeil();sheet.scrollTop=0;$('#shX').onclick=closeSheet;wireForm();
+  if($('#shRev'))$('#shRev').onclick=()=>{const f=d,en=book[d.key]||{};closeSheet();startPost(f,+en.rating||0,en.notes||'')};
   if($('#shPost'))$('#shPost').onclick=()=>{const f=d,en=book[d.key]||{};closeSheet();startPost(f,+en.rating||form.rating||0,en.notes||form.notes||'')};
   if(toForm)setTimeout(()=>$('#logBox').scrollIntoView({behavior:'smooth'}),260);
 }
@@ -789,6 +840,7 @@ async function save(){
   const doc={title:d.title,year:d.year||'',kind:d.kind||'',type:d.type||'',tmdbId:d.tmdbId||0,poster:d.poster||'',genre:d.genre||'',original_language:d.original_language||'',minutes:+d.minutes||0,
     status:form.status,rating:w?form.rating:0,where:w?form.where:'',watchedOn:w?form.watchedOn:'',watchedLang:w?form.watchedLang:'',notes:form.notes||'',
     addedAt:(book[d.key]&&book[d.key].addedAt)||Date.now(),updatedAt:Date.now()};
+  const ex=book[d.key]||{};['reviewHead','reviewText','reviewCap','reviewTexts','reviewStyle','reviewX','reviewXThread','reviewAt'].forEach(k=>{if(ex[k])doc[k]=ex[k]});
   saving=true;$('#fSave').disabled=true;
   try{await col.doc(d.key).set(doc);toast(w?'Saved to my book':'Added to want to watch');closeSheet();
     if(!$('#results').classList.contains('hidden')){$('#sQ').value='';search()}}
