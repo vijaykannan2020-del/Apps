@@ -109,7 +109,7 @@ the top right and cover part of the page.
 
 ## Current state
 
-- Real app (`cinema-book/`): Version 13.
+- Real app (`cinema-book/`): Version 22 (moved from the test copy on 2026-11-12).
 - Test copy (`cinema-book-test/`): Version 22 (neutral black-and-white look, ticket stubs for the diary, floating glass tab bar). Adds over 13: Wikidata
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
@@ -127,6 +127,8 @@ the top right and cover part of the page.
 ## Change log
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-12, Claude: moved Version 22 from the test copy into the real app (`cinema-book/`) at Vijay's request. Real app and test copy are now the same version.
 
 - 2026-11-12, Claude: test copy Version 22, bottom tabs are now a floating glass capsule (position fixed, inset from the edges, max 520px wide and centred on the unfolded Duo, blurred translucent background, glass highlight on the selected tab). Page content scrolls behind it, so `.app` has extra bottom padding. Solid fallback when blur or transparency is unavailable.
 
