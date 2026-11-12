@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Cinema Test">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#F6F4FA">
+<meta name="theme-color" content="#F5F5F7">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
@@ -248,6 +248,21 @@ body{background:radial-gradient(ellipse at 0 15%,var(--glow),transparent 55%),ra
 @media(hover:hover) and (prefers-reduced-motion:no-preference){.feat,.mini,.stub,.res{transition:transform .2s,box-shadow .2s}.feat:hover,.mini:hover,.stub:hover{transform:translateY(-3px)}}
 @media(min-width:700px){.intro{margin-top:36px}.intro h2{font-size:62px}.nav button{font-size:12px}.feat{flex-basis:260px}}
 @media(max-width:360px){.top h1{font-size:23px}.brand-mark{width:28px;height:28px;margin-right:5px}.brandline{gap:5px}.test-badge{font-size:8px}.intro h2{font-size:34px}.sh-head{grid-template-columns:95px minmax(0,1fr)}.sh-head h2{font-size:23px}}
+
+/* Version 21: neutral streaming-app look. Black and white, system font, posters carry the colour. */
+:root{--bg:#F5F5F7;--paper:#FFFFFF;--ink:#1D1D1F;--soft:#6E6E73;--line:#D2D2D7;--pink:#1D1D1F;--green:#0F7A66;--sun:#8A6100;--red:#D70015;--star:#F2A31B;--tint-pink:#E8E8ED;--tint-green:#E6F0EC;--tint-sun:#F5EFDD;--tone-theatre:#F3E9EA;--on-ink:#FFFFFF;--primary:#1D1D1F;--primary-text:#FFFFFF;--glass:rgba(255,255,255,.72);--glass-edge:rgba(0,0,0,.08);--shadow:0 8px 24px #0000000f;--glow:transparent;--aqua:transparent;
+  --display:-apple-system,"SF Pro Display",system-ui,"Helvetica Neue","Anek Tamil",sans-serif;--body:-apple-system,"SF Pro Text",system-ui,"Helvetica Neue","Anek Tamil",sans-serif}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#000000;--paper:#1C1C1E;--ink:#FFFFFF;--soft:#98989F;--line:#2C2C2E;--pink:#FFFFFF;--green:#63D2B4;--sun:#E6C36A;--red:#FF6961;--star:#FFD60A;--tint-pink:#2C2C2E;--tint-green:#1B2623;--tint-sun:#2A2518;--tone-theatre:#2A2022;--on-ink:#000000;--primary:#FFFFFF;--primary-text:#000000;--glass:rgba(28,28,30,.72);--glass-edge:rgba(255,255,255,.1);--shadow:0 10px 30px #0006;--glow:transparent;--aqua:transparent;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#000000;--paper:#1C1C1E;--ink:#FFFFFF;--soft:#98989F;--line:#2C2C2E;--pink:#FFFFFF;--green:#63D2B4;--sun:#E6C36A;--red:#FF6961;--star:#FFD60A;--tint-pink:#2C2C2E;--tint-green:#1B2623;--tint-sun:#2A2518;--tone-theatre:#2A2022;--on-ink:#000000;--primary:#FFFFFF;--primary-text:#000000;--glass:rgba(28,28,30,.72);--glass-edge:rgba(255,255,255,.1);--shadow:0 10px 30px #0006;--glow:transparent;--aqua:transparent;color-scheme:dark}
+body{background:var(--bg)}
+h1,h2,h3{letter-spacing:-.02em}
+.brand-mark{background:var(--ink);color:var(--on-ink);box-shadow:none}
+.search button,.btn.go{background:var(--primary);color:var(--primary-text);box-shadow:none}
+.tag.theatres{background:var(--ink);color:var(--on-ink)}
+.stub.pink{--tone:var(--tone-theatre)}
+.eyebrow,.section-kicker{color:var(--soft)}
+.chip.on,.nav button.on,.region button.on{background:var(--tint-pink);color:var(--ink);border-color:transparent;box-shadow:none}
+.nav{box-shadow:none;border-color:var(--glass-edge)}
 </style>
 </head>
 <body>
@@ -362,7 +377,7 @@ body{background:radial-gradient(ellipse at 0 15%,var(--glow),transparent 55%),ra
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 20</p>
+    <p class="note" style="text-align:center">Version 21</p>
   </section>
 </div>
 
@@ -418,7 +433,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=20;
+const APP_VERSION=21;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -433,7 +448,7 @@ checkUpdate();document.addEventListener('visibilitychange',()=>{if(!document.hid
 /* ---- theme ---- */
 function paintTheme(){const t=ls('cb_theme')||'auto';$$('#setTheme .chip').forEach(b=>b.classList.toggle('on',b.dataset.th===t));
   if(t==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t;
-  const dark=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme:dark)').matches);const m=document.querySelector('meta[name=theme-color]');if(m)m.content=dark?'#100E17':'#F6F4FA'}
+  const dark=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme:dark)').matches);const m=document.querySelector('meta[name=theme-color]');if(m)m.content=dark?'#000000':'#F5F5F7'}
 $$('#setTheme .chip').forEach(b=>b.onclick=()=>{ls('cb_theme',b.dataset.th);paintTheme()});paintTheme();
 
 /* ---- sign in ---- */

@@ -109,7 +109,7 @@ the top right and cover part of the page.
 ## Current state
 
 - Real app (`cinema-book/`): Version 13.
-- Test copy (`cinema-book-test/`): Version 20 (Liquid Glass look, ticket stubs for the diary). Adds over 13: Wikidata
+- Test copy (`cinema-book-test/`): Version 21 (neutral black-and-white look, ticket stubs for the diary). Adds over 13: Wikidata
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
 
@@ -126,6 +126,8 @@ the top right and cover part of the page.
 ## Change log
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-12, Claude: test copy Version 21, neutral black-and-white streaming-app look at Vijay's request: black background in dark mode, white primary buttons, system font, no purple or background glow; subtle ticket tints kept. All in one "Version 21" block at the end of the style section, so it is easy to adjust or remove.
 
 - 2026-11-12, Claude: test copy Version 20, diary entries back to the ticket-stub layout (small poster left, details, tear-off rating on the right, tinted by where watched) inside the Liquid Glass look. Vijay prefers tickets for the diary; do not turn them back into poster cards.
 
