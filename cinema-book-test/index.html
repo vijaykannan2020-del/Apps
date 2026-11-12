@@ -361,7 +361,7 @@ body{background:radial-gradient(ellipse at 0 15%,var(--glow),transparent 55%),ra
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 17</p>
+    <p class="note" style="text-align:center">Version 18</p>
   </section>
 </div>
 
@@ -417,7 +417,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=17;
+const APP_VERSION=18;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -625,6 +625,27 @@ async function openWiki(it){
   }catch(err){openSheet({key:it.key,title:it.title,year:it.year,kind:it.kind,synopsis:it.desc,source:'wikidata'})}
 }
 let wPicks=[];
+
+/* ---- Post title picker: keep the form in-app instead of letting the browser reload Home ---- */
+let postPicks=[];
+$('#pForm').onsubmit=async e=>{
+  e.preventDefault();
+  const q=$('#pQ').value.trim(), box=$('#pRes');
+  if(!q){box.innerHTML='<p class="hint">Type a movie or series name first.</p>';return}
+  box.innerHTML='<p class="hint"><span class="spin"></span>Finding titles</p>';
+  try{
+    const r=await tm('/search/multi',{query:q,include_adult:'false'});
+    postPicks=cards(r.results).slice(0,8);
+    box.innerHTML=postPicks.length?postPicks.map((d,i)=>`<button class="res" type="button" data-post-pick="${i}">${banner(d)}<div><h3>${esc(d.title)}</h3><p>${esc([d.year,d.kind,d.original_language].filter(Boolean).join(', '))}</p></div></button>`).join(''):'<p class="hint">No matching title found. Try another spelling.</p>';
+  }catch(err){box.innerHTML=`<div class="notice">${esc(err.message)}</div>`}
+};
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-post-pick]');if(!b)return;
+  const d=postPicks[+b.dataset.postPick];if(!d)return;
+  $('#pPicked').innerHTML=`<div class="picked">${banner(d)}<div><strong>${esc(d.title)}</strong><p class="note" style="margin:3px 0 0">${esc([d.year,d.kind].filter(Boolean).join(', '))}</p></div><button class="link" type="button" id="pChange">Change</button></div>`;
+  $('#pPicked').classList.remove('hidden');$('#pPick').classList.add('hidden');
+  $('#pChange').onclick=()=>{$('#pPick').classList.remove('hidden');$('#pPicked').classList.add('hidden');$('#pQ').focus()};
+});
 
 /* ---- search ---- */
 $('#sForm').onsubmit=e=>{e.preventDefault();$('#sQ').blur();search()};
