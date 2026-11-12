@@ -101,7 +101,8 @@ the top right and cover part of the page.
 - Keep important buttons away from the top-right corner. The region switch
   and Close button stay on the left.
 - The page is a fixed shell: `body` is a full-height column that does not
-  scroll, `.app` scrolls inside it, `.nav` is pinned at the bottom.
+  scroll, `.app` scrolls inside it, `.nav` is pinned at the bottom (since Version 22 as a
+  floating capsule with `position:fixed`; it still never scrolls).
 - Use only top and bottom safe-area insets. Left and right insets squeezed
   the bottom bar and were removed in Version 15.
 - Check both light and dark mode after any colour change.
@@ -109,7 +110,7 @@ the top right and cover part of the page.
 ## Current state
 
 - Real app (`cinema-book/`): Version 13.
-- Test copy (`cinema-book-test/`): Version 21 (neutral black-and-white look, ticket stubs for the diary). Adds over 13: Wikidata
+- Test copy (`cinema-book-test/`): Version 22 (neutral black-and-white look, ticket stubs for the diary, floating glass tab bar). Adds over 13: Wikidata
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
 
@@ -126,6 +127,8 @@ the top right and cover part of the page.
 ## Change log
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-12, Claude: test copy Version 22, bottom tabs are now a floating glass capsule (position fixed, inset from the edges, max 520px wide and centred on the unfolded Duo, blurred translucent background, glass highlight on the selected tab). Page content scrolls behind it, so `.app` has extra bottom padding. Solid fallback when blur or transparency is unavailable.
 
 - 2026-11-12, Claude: test copy Version 21, neutral black-and-white streaming-app look at Vijay's request: black background in dark mode, white primary buttons, system font, no purple or background glow; subtle ticket tints kept. All in one "Version 21" block at the end of the style section, so it is easy to adjust or remove.
 

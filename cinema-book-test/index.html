@@ -263,6 +263,18 @@ h1,h2,h3{letter-spacing:-.02em}
 .eyebrow,.section-kicker{color:var(--soft)}
 .chip.on,.nav button.on,.region button.on{background:var(--tint-pink);color:var(--ink);border-color:transparent;box-shadow:none}
 .nav{box-shadow:none;border-color:var(--glass-edge)}
+
+/* Version 22: floating glass tab bar. Content scrolls behind it; the bar stays pinned. */
+:root{--dock:rgba(255,255,255,.62);--dock-edge:rgba(255,255,255,.75);--dock-on:rgba(0,0,0,.08);--dock-shadow:0 10px 30px #0000001f,0 2px 6px #00000014}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--dock:rgba(58,58,62,.5);--dock-edge:rgba(255,255,255,.16);--dock-on:rgba(255,255,255,.18);--dock-shadow:0 12px 34px #000000a0,0 2px 8px #00000066}}
+:root[data-theme="dark"]{--dock:rgba(58,58,62,.5);--dock-edge:rgba(255,255,255,.16);--dock-on:rgba(255,255,255,.18);--dock-shadow:0 12px 34px #000000a0,0 2px 8px #00000066}
+.app{padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}
+.nav{position:fixed;left:50%;transform:translateX(-50%);bottom:max(12px,env(safe-area-inset-bottom,0px));width:min(calc(100% - 28px),520px);padding:6px;gap:2px;border:1px solid var(--dock-edge);border-radius:999px;background:var(--paper);box-shadow:var(--dock-shadow),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.12)}
+.nav button,.nav button:nth-child(n){flex:1 1 0;min-width:0;max-width:none;border-radius:999px;padding:8px 2px 7px;font-size:10px;font-weight:600;gap:3px;color:var(--ink);opacity:.72;transition:background .25s,opacity .25s}
+.nav button.on{opacity:1;background:var(--dock-on);color:var(--ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 0 0 1px rgba(255,255,255,.06)}
+@supports ((backdrop-filter:blur(20px)) or (-webkit-backdrop-filter:blur(20px))){.nav{background:var(--dock);backdrop-filter:blur(26px) saturate(190%) brightness(1.08);-webkit-backdrop-filter:blur(26px) saturate(190%) brightness(1.08)}}
+@media(prefers-reduced-transparency:reduce){.nav{background:var(--paper);backdrop-filter:none;-webkit-backdrop-filter:none}}
+@media(prefers-reduced-motion:reduce){.nav button{transition:none}}
 </style>
 </head>
 <body>
@@ -377,7 +389,7 @@ h1,h2,h3{letter-spacing:-.02em}
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 21</p>
+    <p class="note" style="text-align:center">Version 22</p>
   </section>
 </div>
 
@@ -433,7 +445,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=21;
+const APP_VERSION=22;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
