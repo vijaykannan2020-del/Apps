@@ -1138,11 +1138,13 @@ function restoreFromFile(file){
   r.readAsText(file);
 }
 let pendingFile=null;
+let impStatus="";
+function setImp(t){impStatus=t;const m=document.getElementById("impMsg");if(m)m.textContent=t}
 function importCard(){
   const card=document.createElement("div");card.className="card";
   card.innerHTML=`<div class="exhead"><div><h3>Move data from the Claude version</h3><div class="meta">One time only. Pick the <b>plate-log-data.json</b> file Claude gave you. It copies both profiles' workouts, food, fasting, settings and backups into this account.</div></div></div>
-   <div class="bkbtns"><label class="bkfile">Choose file<input type="file" id="impIn" accept=".json,application/json"></label></div><div class="meta" id="impMsg" style="margin-top:8px"></div>`;
-  card.querySelector("#impIn").onchange=ev=>{const f=ev.target.files[0];if(!f)return;const msg=card.querySelector("#impMsg");
+   <div class="bkbtns"><label class="bkfile">Choose file<input type="file" id="impIn" accept=".json,application/json"></label></div><div class="meta" id="impMsg" style="margin-top:8px;font-weight:600">${impStatus}</div>`;
+  card.querySelector("#impIn").onchange=ev=>{const f=ev.target.files[0];if(!f)return;const msg={set textContent(t){setImp(t)}};
     if(!db){msg.textContent="Sign in first.";return}
     const r=new FileReader();r.onload=async()=>{try{const data=JSON.parse(r.result);if(!data.collections)throw new Error("Not a Plate Log data file");
       let n=0,tot=0;for(const c in data.collections)tot+=Object.keys(data.collections[c]).length;
@@ -2994,7 +2996,15 @@ let fbAuth=null,fbStarted=false,appMeta=null;
 })();
 async function startSync(fs,user){
   try{
-    const NS=window.APP_NS||"";db={doc:p=>fs.doc(NS+p),collection:c=>fs.collection(NS+c)};
+    // Firestore can't hold nested arrays, so each record is stored as JSON text (plus its simple top-level fields for queries)
+    const NS=window.APP_NS||"";
+    const enc=b=>{const o={j:JSON.stringify(b)};for(const k in b){const v=b[k];if(v===null||["string","number","boolean"].includes(typeof v))o["f_"+k]=v}return o};
+    const dec=d=>{if(!d)return d;if(typeof d.j==="string"){try{return JSON.parse(d.j)}catch(e){}}return d};
+    const wSnap=sn=>({id:sn.id,exists:sn.exists,data:()=>dec(sn.data())});
+    const wQ=q=>({docs:q.docs.map(wSnap)});
+    const wDoc=r=>({get:()=>r.get().then(wSnap),set:b=>r.set(enc(b)),delete:()=>r.delete()});
+    const wCol=c=>({get:()=>c.get().then(wQ),where:(f,op,v)=>({get:()=>c.where("f_"+f,op,v).get().then(wQ)}),onSnapshot:(fn,err)=>c.onSnapshot(q=>fn(wQ(q)),err)});
+    db={doc:p=>wDoc(fs.doc(NS+p)),collection:c=>wCol(fs.collection(NS+c))};
     $("#storeNote").innerHTML="Synced to your Plate Log account ("+user.email.replace(/[<>&]/g,"")+"). Each person's log is kept separately. <button class=\"signout\" id=\"signOut\">Sign out</button>";
     db.doc("meta/app").get().then(sn=>{appMeta=sn.exists?sn.data():{};safeRender()}).catch(()=>{appMeta={}});
     $("#signOut").onclick=()=>{if(confirm("Sign out of Plate Log on this device?"))fbAuth.signOut().then(()=>location.reload())};
