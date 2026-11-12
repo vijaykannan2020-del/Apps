@@ -7,27 +7,26 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Cinema Test">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#F3F4F6">
+<meta name="theme-color" content="#F6F4FA">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anek+Tamil:wdth,wght@75..125,300..800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Anek+Tamil:wdth,wght@75..125,300..800&display=swap" rel="stylesheet">
 <script>try{var t=JSON.parse(localStorage.getItem('cb_theme')||'null');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
-/* Layout idea: a book of cinema ticket stubs. Painted sunburst banners stand in for posters;
-   every logged film is a tear-off stub, tinted by where it was watched. Left aligned, one column. */
+/* A personal cinema journal. Existing class names retain all diary interactions. */
 :root{
   color-scheme:light; --on-ink:#FFFFFF;
-  --bg:#F3F4F6; --paper:#FFFFFF; --ink:#15171C; --soft:#667085; --line:#DDE0E6;
-  --pink:#B3122B; --green:#0F6E66; --sun:#A8610A; --red:#B91C1C; --star:#F2A31B;
-  --tint-pink:#F7E4E7; --tint-green:#E2EFEC; --tint-sun:#F3EDDF;
-  --display:"Anek Tamil","Arial Narrow",system-ui,sans-serif;
-  --body:"Anek Tamil",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bg:#F6F4FA; --paper:#FFFFFF; --ink:#211B30; --soft:#696176; --line:#E3DEEC;
+  --pink:#7040C8; --green:#167463; --sun:#93600C; --red:#B91C1C; --star:#F2A31B;
+  --tint-pink:#EEE6FC; --tint-green:#E4F2ED; --tint-sun:#F7EEDC;
+  --display:"Manrope","Anek Tamil",system-ui,sans-serif;
+  --body:"DM Sans","Anek Tamil",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1014;--paper:#191C23;--ink:#F1F2F4;--soft:#9CA3B0;--line:#2D323D;--pink:#E0496B;--green:#2AA595;--sun:#C98A2B;--red:#F0616D;--star:#F2A31B;--tint-pink:#3A2029;--tint-green:#17302C;--tint-sun:#332B1B;--on-ink:#14161A;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#0E1014;--paper:#191C23;--ink:#F1F2F4;--soft:#9CA3B0;--line:#2D323D;--pink:#E0496B;--green:#2AA595;--sun:#C98A2B;--red:#F0616D;--star:#F2A31B;--tint-pink:#3A2029;--tint-green:#17302C;--tint-sun:#332B1B;--on-ink:#14161A;color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#100E17;--paper:#1C1827;--ink:#F4F0FA;--soft:#B1A8C1;--line:#363043;--pink:#B89AFF;--green:#65C9AE;--sun:#E1B969;--red:#FF8D9A;--star:#F2BD60;--tint-pink:#302342;--tint-green:#18352E;--tint-sun:#362D1D;--on-ink:#161020;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#100E17;--paper:#1C1827;--ink:#F4F0FA;--soft:#B1A8C1;--line:#363043;--pink:#B89AFF;--green:#65C9AE;--sun:#E1B969;--red:#FF8D9A;--star:#F2BD60;--tint-pink:#302342;--tint-green:#18352E;--tint-sun:#362D1D;--on-ink:#161020;color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4}
 body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
@@ -36,7 +35,7 @@ button{cursor:pointer}
 :focus-visible{outline:3px solid var(--pink);outline-offset:2px}
 .hidden{display:none!important}
 .app{flex:1;min-height:0;width:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,calc((100% - 820px)/2)) 28px}
-.top{padding-right:env(safe-area-inset-right,0px);padding-left:env(safe-area-inset-left,0px)}
+.top{padding-right:0;padding-left:0}
 h1,h2,h3{font-family:var(--display);font-stretch:78%;font-weight:800;margin:0;line-height:1;text-wrap:balance}
 
 /* header */
@@ -214,10 +213,57 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
 .pres .res{background:var(--bg)}
 .mem{display:flex;justify-content:space-between;padding:8px 0;border-top:1.5px solid var(--bg)}
 .nav button{font-size:13px}
+
+/* Version 16 — cinematic presentation, with the Duo fixed shell preserved. */
+:root{--primary:#7040C8;--primary-text:#fff;--shadow:0 8px 28px #2411380b}
+h1,h2,h3{font-stretch:normal;line-height:1.2;letter-spacing:-.035em}
+.app{background:radial-gradient(ellipse at 0 0,var(--tint-pink),transparent 520px);padding-bottom:36px}
+.top{gap:16px;padding-top:8px}
+.brandline{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.top h1{font-size:28px;letter-spacing:-1.2px}
+.brand-mark{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:11px;background:var(--primary);color:white;font-size:19px;vertical-align:middle;margin-right:7px}
+.test-badge{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:5px 8px;background:var(--tint-pink);color:var(--pink);border:1px solid var(--line);border-radius:6px}
+.region{border:1px solid var(--line);padding:3px;gap:3px;box-shadow:var(--shadow)}
+.region button{min-height:36px;border-radius:999px;padding:6px 16px;font-size:12px}
+.region button.on{background:var(--tint-pink);color:var(--pink)}
+.intro{margin-top:26px;padding:26px 24px;border:1px solid #ffffff20;border-radius:24px;overflow:hidden;position:relative;background:radial-gradient(ellipse at 100% 0,#7953b366,transparent 65%),linear-gradient(125deg,#21162f,#35204b);color:#fff;box-shadow:0 16px 35px #26113d18}
+.intro::after{content:"";position:absolute;width:190px;height:190px;border:1px solid #ffffff12;border-radius:50%;right:-80px;bottom:-110px;box-shadow:0 0 0 30px #ffffff04,0 0 0 60px #ffffff03;pointer-events:none}
+.eyebrow{font-size:10px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;color:#D2BAFF;margin:0 0 10px}
+.intro h2{font-size:clamp(26px,6vw,40px);max-width:520px;font-weight:800;letter-spacing:-.04em}
+.intro p:last-child{font-size:13px;color:#D4C9E2;margin:12px 0 0;line-height:1.65;max-width:440px}
+.search{gap:8px;margin-top:20px}
+.search input{border:1px solid var(--line);border-radius:14px;font-size:16px;padding:15px;box-shadow:var(--shadow)}
+.search button,.btn.go{background:var(--primary);color:var(--primary-text);box-shadow:0 4px 12px #7040c822}
+.search button{padding:0 17px;font-size:14px}
+.sec{margin-top:30px}.sec-h{align-items:center;margin-bottom:16px}.sec-h h2{font-size:20px;letter-spacing:-.025em}.link{font-size:12px;text-decoration:none}
+.reel{gap:16px;padding-bottom:16px;padding-top:2px}.feat{flex-basis:min(44vw,200px)}
+.banner{border-radius:14px;background:linear-gradient(145deg,var(--a),var(--b));box-shadow:0 8px 20px #10081e22}
+.banner::before{inset:0;background:radial-gradient(ellipse at 25% 0,#ffffff20,transparent 65%)}
+.banner .emo{font-size:26cqw;top:22%;filter:grayscale(.35)}
+.banner b{font-size:clamp(14px,5cqw,32px);line-height:1.15;letter-spacing:-.035em}
+.poster-title{display:block;font-family:var(--display);font-size:14px;font-weight:800;color:var(--ink);margin-top:12px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feat .who,.mini span{font-size:11px;color:var(--soft);margin-top:4px}.mini .poster-title{font-size:12px;color:var(--ink);margin-top:10px}.mini{flex-basis:124px}.row{gap:14px;padding-bottom:16px;padding-top:2px}
+.stub{grid-template-columns:76px minmax(0,1fr) 68px;min-height:124px;background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+.stub .banner{margin:10px 0 10px 10px;border-radius:9px;aspect-ratio:2/3;align-self:start}
+.stub-main{padding:12px}.stub-main h3{font-size:16px;line-height:1.35}.stub-main p{font-size:11px;line-height:1.6}.stub-main .where{font-weight:500;color:var(--soft)}
+.stub-tear{border-left:1px solid var(--line);background:var(--tone);padding:10px 5px;gap:4px}.stub-tear::before,.stub-tear::after{display:none}.stub-tear b{font-size:27px;color:var(--pink);font-stretch:normal}.stub-tear span{font-size:10px;text-align:center}.stub-tear small{font-size:9px}
+.empty{border:1px dashed var(--line);border-radius:18px;padding:22px;font-size:13px;line-height:1.7}.empty strong{font-size:15px}.notice{border-left-width:3px;border-radius:10px;line-height:1.6}
+.res{border:1px solid var(--line);padding:12px;align-items:center;box-shadow:var(--shadow);border-radius:16px}.res h3{font-size:18px}.res p{font-size:12px;line-height:1.6}
+.chip{font-size:13px;padding:10px 14px;min-height:42px}.chip.on{background:var(--tint-pink);border-color:var(--pink);color:var(--pink)}
+.inp{min-width:0;border-radius:12px;padding:13px;border-width:1px}.btn{font-size:14px;min-height:46px;border-radius:12px}.choice button{font-size:14px;border-width:1px}.choice button.on{background:var(--tint-pink);border-color:var(--pink);color:var(--pink)}
+.panel,.tile,.box,.manual{border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:20px}.panel{margin-top:14px}.panel h3,.box h3{font-size:17px}.tile b{font-size:36px;color:var(--pink);font-stretch:normal}.tile span{font-size:12px}.bar div i{background:var(--pink);border-radius:5px}.note{line-height:1.65;font-size:12px}
+.nav{width:100%;border-top:1px solid var(--line);gap:3px;padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 28px #10081e08}
+.nav button{min-width:0;max-width:150px;font-size:10px;font-weight:600;gap:5px;padding:9px 3px;border-radius:14px}.nav button.on{background:var(--tint-pink);color:var(--pink)}.nav svg{width:21px;height:21px;stroke-width:1.7}
+.sheet{border:1px solid var(--line);border-bottom:0;border-radius:28px 28px 0 0;box-shadow:0 -20px 80px #0004}.sh-head{align-items:center}.sh-head h2{font-size:27px}.x{border:1px solid var(--line);min-height:44px;box-shadow:var(--shadow)}.veil{background:#090511b8;backdrop-filter:blur(5px)}
+.gate{max-width:460px}.gate h1{font-size:38px;letter-spacing:-.05em}.gate p{font-size:14px;line-height:1.7}.gate .eyebrow{color:var(--pink);font-size:11px;margin-bottom:16px}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){.feat,.mini,.stub,.res{transition:transform .2s,box-shadow .2s}.feat:hover,.mini:hover{transform:translateY(-3px)}.stub:hover,.res:hover{box-shadow:0 8px 28px #7040c81c;transform:translateY(-1px)}}
+@media(min-width:700px){.intro{padding:36px}.top h1{font-size:32px}.stubs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}#latest .stubs{grid-template-columns:1fr}.nav button{font-size:12px}}
+@media(max-width:360px){.top h1{font-size:24px}.brand-mark{width:28px;height:28px}.test-badge{font-size:9px}.intro{padding:22px 18px}.stub{grid-template-columns:64px minmax(0,1fr) 56px}.stub-main{padding:9px}.sec-h h2{font-size:18px}.sh-head{grid-template-columns:90px minmax(0,1fr)}.sh-head h2{font-size:23px}}
 </style>
 </head>
 <body>
 <div class="gate hidden" id="gate">
+  <p class="eyebrow">Your personal cinema journal</p>
   <h1>Cinema Book</h1>
   <p>Sign in with the same email and password you use for Plate Log.</p>
   <form id="authForm">
@@ -230,7 +276,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
 
 <div class="app hidden" id="app">
   <header class="top">
-    <div><h1>Cinema Book <span style="font-size:14px;font-weight:700;background:var(--sun);color:#fff;border-radius:6px;padding:2px 8px;vertical-align:middle;font-stretch:100%">Test copy</span></h1></div>
+    <div class="brandline"><h1><span class="brand-mark" aria-hidden="true">◈</span>Cinema Book</h1><span class="test-badge">Test copy</span></div>
     <div class="region" id="region" role="group" aria-label="Streaming country">
       <button type="button" data-r="US">USA</button><button type="button" data-r="IN">India</button>
     </div>
@@ -239,6 +285,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
   <div id="notice"></div>
 
   <section id="v-home">
+    <div class="intro"><p class="eyebrow">A life in cinema</p><h2>Great stories.<br>Yours to remember.</h2><p>Discover your next favourite. Keep every film, series and feeling in your own cinema journal.</p></div>
     <form class="search" id="sForm">
       <input id="sQ" type="text" placeholder="Search a movie or series" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search a movie or series">
       <button type="submit">Search</button>
@@ -246,7 +293,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
     <div id="results" class="hidden sec"></div>
     <div id="homeBody">
       <div class="sec"><div class="sec-h"><h2>New Tamil releases</h2></div><div id="feat"></div></div>
-      <div class="sec"><div class="sec-h"><h2>Your latest stubs</h2><button class="link" id="seeAll" type="button">See all</button></div><div id="latest"></div></div>
+      <div class="sec"><div class="sec-h"><h2>Recently watched</h2><button class="link" id="seeAll" type="button">See all</button></div><div id="latest"></div></div>
       <div class="sec hidden" id="progSec"><div class="sec-h"><h2>Series in progress</h2></div><div id="prog"></div></div>
       <div class="sec" id="wlSec"><div class="sec-h"><h2>Want to watch</h2></div><div id="wl"></div></div>
       <div class="sec hidden" id="famSec"><div class="sec-h"><h2>Family watched</h2></div><div id="fam"></div></div>
@@ -326,7 +373,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 15</p>
+    <p class="note" style="text-align:center">Version 16</p>
   </section>
 </div>
 
@@ -382,7 +429,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=15;
+const APP_VERSION=16;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -397,7 +444,7 @@ checkUpdate();document.addEventListener('visibilitychange',()=>{if(!document.hid
 /* ---- theme ---- */
 function paintTheme(){const t=ls('cb_theme')||'auto';$$('#setTheme .chip').forEach(b=>b.classList.toggle('on',b.dataset.th===t));
   if(t==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t;
-  const dark=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme:dark)').matches);const m=document.querySelector('meta[name=theme-color]');if(m)m.content=dark?'#0E1014':'#F3F4F6'}
+  const dark=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme:dark)').matches);const m=document.querySelector('meta[name=theme-color]');if(m)m.content=dark?'#100E17':'#F6F4FA'}
 $$('#setTheme .chip').forEach(b=>b.onclick=()=>{ls('cb_theme',b.dataset.th);paintTheme()});paintTheme();
 
 /* ---- sign in ---- */
@@ -461,7 +508,7 @@ async function details(type,id){
     tamilAudio:(r.spoken_languages||[]).some(l=>l.iso_639_1==='ta'),providers:((r['watch/providers']||{}).results)||{},
     trailer:((vids.find(v=>v.type==='Trailer')||vids[0]||{}).key)||'',full:true};
 }
-function tile(d,cls,sub){return `<button class="${cls}" type="button" data-t="${d.type}" data-id="${d.tmdbId}">${banner(d)}<${cls==='feat'?'div class="who"':'span'}>${esc(sub||[d.year,d.original_language].filter(Boolean).join(', '))}</${cls==='feat'?'div':'span'}></button>`}
+function tile(d,cls,sub){return `<button class="${cls}" type="button" data-t="${d.type}" data-id="${d.tmdbId}">${banner(d)}<strong class="poster-title">${esc(d.title)}</strong><${cls==='feat'?'div class="who"':'span'}>${esc(sub||[d.year,d.original_language].filter(Boolean).join(', '))}</${cls==='feat'?'div':'span'}></button>`}
 async function loadHome(){
   if(!TOKEN){$('#feat').innerHTML=$('#trend').innerHTML='<div class="empty">Add the TMDB key in Settings to see films here.</div>';return}
   if(homeLoaded===TOKEN)return;homeLoaded=TOKEN;
