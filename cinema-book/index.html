@@ -496,9 +496,17 @@ async function search(){
    <button class="btn go" id="mAdd" type="button" style="margin-top:12px;width:100%">Add this title</button></div>`;
   paint(`<p class="hint"><span class="spin"></span>Searching for “${esc(q)}”</p>`);
   try{
-    const r=await tm('/search/multi',{query:q,include_adult:'false'});
+    const vars=[q];
+    if(/s$/i.test(q)&&q.length>3)vars.push(q.slice(0,-1)); else if(q.length>3)vars.push(q+'s');
+    const words=q.split(/\s+/);if(words.length>2)vars.push(words.slice(0,-1).join(' '));
+    const calls=[];vars.forEach((v,i)=>{calls.push(tm('/search/multi',{query:v,include_adult:'false'}));if(i===0)calls.push(tm('/search/multi',{query:v,include_adult:'false',page:2}))});
+    const rs=await Promise.allSettled(calls);
+    if(rs[0].status==='rejected')throw rs[0].reason;
     if($('#sQ').value.trim()!==q)return;
-    const list=cards(r.results);
+    const seen={},raw=[];rs.forEach(x=>{if(x.status==='fulfilled')(x.value.results||[]).forEach(r=>{const k=r.media_type+'-'+r.id;if(!seen[k]){seen[k]=1;raw.push(r)}})});
+    const nq=norm(q),score=r=>{const t=norm(r.title||r.name);return (t===nq?3:t.startsWith(nq.replace(/s$/,''))?2:0)*1000+(r.popularity||0)};
+    raw.sort((x,y)=>score(y)-score(x));
+    const list=cards(raw).slice(0,30);
     paint(list.map(d=>{const mine=book[d.key];return `<button class="res" type="button" data-t="${d.type}" data-id="${d.tmdbId}">${banner(d)}<div><h3>${esc(d.title)}</h3>
       <p>${esc([d.year,d.kind,d.original_language].filter(Boolean).join(', '))}</p>${mine?`<span class="tag plain">${mine.status==='watched'?'In my book':'Want to watch'}</span>`:''}</div></button>`}).join('')+manual(list.length>0));
   }catch(e){paint(`<div class="notice">${esc(e.message)}</div>`+manual(false))}
