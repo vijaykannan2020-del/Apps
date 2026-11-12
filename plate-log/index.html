@@ -20,11 +20,11 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 #authGate{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px 16px}
 #authGate[hidden]{display:none}
-#authGate .box{width:100%;max-width:380px;background:var(--surface);border-radius:18px;padding:24px 20px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+#authGate .authbox{width:100%;max-width:380px;background:var(--surface);border-radius:18px;padding:24px 20px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
 #authGate h1{font-family:"Barlow Condensed",sans-serif;font-size:40px;margin:0 0 4px;letter-spacing:.5px}
 #authGate h1 i{color:var(--accent);font-style:normal}
-#authGate p{color:var(--muted);margin:0 0 16px;font-size:14px;line-height:1.4}
-#authGate label{display:block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}
+#authGate p{text-align:left;color:var(--muted);margin:0 0 16px;font-size:14px;line-height:1.4}
+#authGate label{display:block;text-align:left;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px}
 #authGate input{width:100%;box-sizing:border-box;font-size:17px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface2);color:var(--ink)}
 #authGate button{width:100%;margin-top:18px;font-size:17px;font-weight:700;padding:13px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink)}
 #authGate .link{background:none;color:var(--accent);font-weight:600;font-size:14px;margin-top:10px;padding:6px}
@@ -580,7 +580,7 @@ button.danger{background:var(--accent)!important;color:var(--accent-ink)!importa
   </div>
 </div>
 
-<div id="authGate" hidden><form class="box" id="authForm">
+<div id="authGate" hidden><form class="authbox" id="authForm">
   <h1>PLATE<i>·</i>LOG</h1><p>Sign in to see your workouts, food and progress on any device.</p>
   <label for="auEmail">Email</label><input id="auEmail" type="email" autocomplete="username" required>
   <label for="auPass">Password</label><input id="auPass" type="password" autocomplete="current-password" required>
