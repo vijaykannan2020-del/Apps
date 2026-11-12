@@ -127,6 +127,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-12, ChatGPT: test copy Version 19, responsive bottom dock sizing: tabs fill ordinary phones and cap at 150px each, centered on the unfolded Duo; all five tabs remain visible.
+
 - 2026-11-12, ChatGPT: test copy Version 18, fixed Post title search so it stays in-app, prevents the browser reload, and displays TMDB title results with selection and change controls.
 
 - 2026-11-12, ChatGPT: test copy Version 17, Liquid Glass redesign with translucent blurred surfaces, poster-led diary grid and carousel, oversized editorial heading, glass dock, refreshed statistics and detail sheets; light/dark and reduced-transparency fallbacks, Firebase and Duo shell preserved.
