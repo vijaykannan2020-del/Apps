@@ -230,6 +230,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
       <button type="button" data-r="US">USA</button><button type="button" data-r="IN">India</button>
     </div>
   </header>
+  <div id="upd"></div>
   <div id="notice"></div>
 
   <section id="v-home">
@@ -317,7 +318,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 10</p>
+    <p class="note" style="text-align:center">Version 11</p>
   </section>
 </div>
 
@@ -371,6 +372,19 @@ function fmtDate(s){if(!s)return'';const d=new Date(s+'T00:00:00');return isNaN(
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
+
+/* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
+const APP_VERSION=11;
+async function checkUpdate(){
+  try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
+    const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
+    if(m&&+m[1]>APP_VERSION){
+      if(sessionStorage.getItem('cb_upd')!==m[1]){sessionStorage.setItem('cb_upd',m[1]);location.replace(location.pathname+'?v='+m[1]);return}
+      $('#upd').innerHTML=`<div class="notice">A newer version is ready. <button class="link" type="button" id="updBtn">Tap to update</button></div>`;
+      $('#updBtn').onclick=()=>location.replace(location.pathname+'?v='+m[1]+'&t='+Date.now());
+    }}catch(e){}
+}
+checkUpdate();document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
 
 /* ---- sign in ---- */
 firebase.initializeApp(window.FIREBASE_CONFIG);
