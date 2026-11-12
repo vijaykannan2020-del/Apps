@@ -6,6 +6,7 @@
 <title>Cinema Book</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Cinema Book">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F3F4F6">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -30,11 +31,11 @@ button,input,select,textarea{font-family:inherit;color:inherit;font-size:inherit
 button{cursor:pointer}
 :focus-visible{outline:3px solid var(--pink);outline-offset:2px}
 .hidden{display:none!important}
-.app{max-width:640px;margin:0 auto;padding:14px 16px 110px}
+.app{max-width:640px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 110px max(16px,env(safe-area-inset-left,0px))}
 h1,h2,h3{font-family:var(--display);font-stretch:78%;font-weight:800;margin:0;line-height:1;text-wrap:balance}
 
 /* header */
-.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.top{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
 .top h1{font-size:34px;letter-spacing:-.01em;white-space:nowrap}
 .region{display:flex;border:2px solid var(--ink);border-radius:999px;overflow:hidden;background:var(--paper);flex-shrink:0}
 .region button{border:0;background:none;padding:6px 12px;font-weight:600;font-size:14px}
@@ -158,7 +159,7 @@ details.bk ul{margin:0 0 12px;padding:0;list-style:none}
 details.bk li{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:15px}
 details.bk li span{color:var(--soft);white-space:nowrap}
 /* nav */
-.nav{position:fixed;left:0;right:0;bottom:0;background:var(--paper);border-top:2px solid var(--ink);display:flex;justify-content:center;gap:6px;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));z-index:20}
+.nav{position:fixed;left:0;right:0;bottom:0;background:var(--paper);border-top:2px solid var(--ink);display:flex;justify-content:center;gap:6px;padding:8px max(12px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));z-index:20}
 .nav button{flex:1;max-width:190px;border:0;background:none;border-radius:12px;padding:8px 6px;font-weight:700;font-size:14px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--soft)}
 .nav button.on{background:var(--ink);color:#fff}
 .nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -166,13 +167,13 @@ details.bk li span{color:var(--soft);white-space:nowrap}
 /* sheet */
 .veil{position:fixed;inset:0;background:#15171CAA;z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
 .veil.open{opacity:1;pointer-events:auto}
-.sheet{position:fixed;left:0;right:0;bottom:0;max-width:640px;margin:0 auto;max-height:93%;overflow-y:auto;background:var(--bg);border-radius:20px 20px 0 0;z-index:41;transform:translateY(103%);transition:transform .26s ease-out;padding:16px 16px calc(28px + env(safe-area-inset-bottom,0px))}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-width:640px;margin:0 auto;max-height:calc(88% - env(safe-area-inset-top,0px));overflow-y:auto;background:var(--bg);border-radius:20px 20px 0 0;z-index:41;transform:translateY(103%);transition:transform .26s ease-out;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .sheet.open{transform:none}
 .sh-head{display:grid;grid-template-columns:116px 1fr;gap:14px;align-items:end}
 .sh-head .banner{aspect-ratio:4/5} .sh-head .banner b{font-size:20px}
 .sh-head h2{font-size:32px;overflow-wrap:anywhere}
 .sh-head p{margin:6px 0 0;color:var(--soft);font-size:14px}
-.x{position:sticky;top:0;float:right;z-index:3;border:2px solid var(--ink);background:var(--paper);border-radius:999px;padding:5px 14px;font-weight:700;font-size:14px}
+.x{position:sticky;top:0;z-index:3;display:inline-block;margin:0 0 14px;border:2px solid var(--ink);background:var(--paper);border-radius:999px;padding:9px 20px;font-weight:700;font-size:15px}
 .box{background:var(--paper);border-radius:12px;padding:16px;margin-top:16px}
 .box h3{font-size:22px;margin-bottom:10px}
 .plat{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-top:1.5px solid var(--bg)}
@@ -184,7 +185,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
 .toast.show{opacity:1}
 @media (prefers-reduced-motion:reduce){.sheet,.veil,.toast{transition:none}.spin{animation-duration:2s}}
 
-.gate{max-width:420px;margin:0 auto;padding:60px 20px}
+.gate{max-width:420px;margin:0 auto;padding:calc(60px + env(safe-area-inset-top,0px)) 20px 40px}
 .gate h1{font-size:44px;margin-bottom:6px}
 .gate p{color:var(--soft);margin:0 0 20px}
 .gate .inp{margin-bottom:10px}
@@ -316,7 +317,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 9</p>
+    <p class="note" style="text-align:center">Version 10</p>
   </section>
 </div>
 
@@ -812,8 +813,9 @@ function openSheet(d,toForm){
      ${p.link?`<a class="out" href="${esc(p.link)}" target="_blank" rel="noopener">Open on JustWatch</a>`:''}
      <a class="out" href="https://www.google.com/search?q=${encodeURIComponent(d.title+' '+(d.year||'')+' Tamil dubbed watch online')}" target="_blank" rel="noopener">Search Tamil version</a>
      ${d.full&&d.original_language!=='Tamil'?'<p class="note">Dubbed audio is not listed in this data. Check the audio options inside the streaming app.</p>':''}
-   </div>`;
-  openVeil();sheet.scrollTop=0;$('#shX').onclick=closeSheet;wireForm();
+   </div>
+   <button class="btn quiet" id="shX2" type="button" style="width:100%;margin-top:16px">Close</button>`;
+  openVeil();sheet.scrollTop=0;$('#shX').onclick=closeSheet;$('#shX2').onclick=closeSheet;wireForm();
   if($('#shRev'))$('#shRev').onclick=()=>{const f=d,en=book[d.key]||{};closeSheet();startPost(f,+en.rating||0,en.notes||'')};
   if($('#shPost'))$('#shPost').onclick=()=>{const f=d,en=book[d.key]||{};closeSheet();startPost(f,+en.rating||form.rating||0,en.notes||form.notes||'')};
   if(toForm)setTimeout(()=>$('#logBox').scrollIntoView({behavior:'smooth'}),260);
