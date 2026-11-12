@@ -232,8 +232,8 @@ body{background:radial-gradient(ellipse at 0 15%,var(--glow),transparent 55%),ra
 .poster-title{display:block;font-family:var(--display);font-size:15px;font-weight:800;color:var(--ink);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row{gap:14px;padding-top:2px;padding-bottom:16px}.mini{flex-basis:134px}.mini .poster-title{font-size:12px;margin-top:11px}.mini span{font-size:10px;color:var(--soft);margin-top:4px}
 /* Poster-led diary cards replace the ticket-list presentation. */
-.stubs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.stub{display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid var(--glass-edge);border-radius:22px;background:var(--paper);padding:7px;box-shadow:var(--shadow);overflow:hidden}.stub .banner{margin:0;width:100%;aspect-ratio:2/3;border-radius:16px}.stub .banner b{font-size:22px;padding:12px}.stub-main{padding:12px 5px 10px;align-self:stretch}.stub-main h3{font-size:14px;line-height:1.35}.stub-main p{font-size:10px;line-height:1.6;margin-top:5px}.stub-main .where{font-weight:500;color:var(--soft)}.stub-tear{border:0;border-top:1px solid var(--line);border-radius:0 0 15px 15px;flex-direction:row;justify-content:flex-start;gap:5px;min-height:40px;padding:9px 6px;margin-top:auto;background:transparent;flex-wrap:wrap}.stub-tear::before,.stub-tear::after{display:none}.stub-tear b{font-size:21px;color:var(--pink);font-stretch:normal}.stub-tear span{font-size:9px;color:var(--soft)}.stub-tear small{font-size:8px;margin:0 0 0 auto;color:var(--soft)}
-#latest .stubs{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px;padding:0 16px 16px;scrollbar-width:none}#latest .stub{flex:0 0 min(43vw,190px);scroll-snap-align:start}
+/* Version 20: ticket stubs restored for the diary. */
+.stub{border-radius:16px;min-height:108px;-webkit-mask:radial-gradient(circle 9px at calc(100% - 84px) 0,#0000 97%,#000),radial-gradient(circle 9px at calc(100% - 84px) 100%,#0000 97%,#000);-webkit-mask-composite:source-in;mask:radial-gradient(circle 9px at calc(100% - 84px) 0,#0000 97%,#000),radial-gradient(circle 9px at calc(100% - 84px) 100%,#0000 97%,#000);mask-composite:intersect}.stub .banner{border-radius:10px;box-shadow:none}.stub-main h3{font-size:18px;line-height:1.25}.stub-main p{font-size:13px;line-height:1.45}.stub-tear{border-left:2px dashed var(--soft)}.stub-tear::before,.stub-tear::after{display:none}.stub-tear b{font-stretch:normal;font-size:30px;color:var(--pink)}
 .res{grid-template-columns:70px minmax(0,1fr);border:1px solid var(--glass-edge);padding:10px;border-radius:20px;align-items:center;box-shadow:var(--shadow)}.res h3{font-size:18px}.res p{font-size:12px;line-height:1.6}
 .empty{border:1px dashed var(--line);border-radius:22px;padding:22px;font-size:13px;line-height:1.7}.empty strong{font-size:15px}.notice{border-radius:14px;border-left-width:3px;font-size:12px;line-height:1.6}
 .chip{font-size:12px;min-height:42px;border:1px solid var(--line);padding:10px 14px}.chip.on{background:var(--tint-pink);border-color:var(--pink);color:var(--pink)}.inp{min-width:0;border-width:1px;border-radius:14px;padding:13px;font-size:16px}.btn{font-size:13px;border-radius:14px;min-height:46px}.btn.go{background:var(--primary);color:white;box-shadow:inset 0 1px 0 #ffffff44,0 6px 15px #7040c822}.choice button{border-width:1px;font-size:13px}.choice button.on{background:var(--tint-pink);border-color:var(--pink);color:var(--pink)}
@@ -243,11 +243,11 @@ body{background:radial-gradient(ellipse at 0 15%,var(--glow),transparent 55%),ra
 @media(min-width:751px){.nav button{flex:0 1 150px;max-width:150px}}
 .sheet{background:var(--paper);border:1px solid var(--glass-edge);border-radius:30px 30px 0 0;box-shadow:0 -20px 80px #0004}.sh-head{grid-template-columns:135px minmax(0,1fr);align-items:center}.sh-head h2{font-size:28px}.sh-head .banner{border-radius:18px}.x{border:1px solid var(--glass-edge);min-height:44px;background:var(--paper);box-shadow:var(--shadow)}.veil{background:#090511a8;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
 .gate{max-width:440px}.gate h1{font-size:43px;letter-spacing:-.06em;margin-bottom:16px}.gate p{line-height:1.7;font-size:14px}.gate .eyebrow{color:var(--pink);font-size:10px}.gate form{padding:22px;background:var(--paper);border:1px solid var(--glass-edge);border-radius:26px;box-shadow:var(--shadow)}
-@supports ((backdrop-filter:blur(20px)) or (-webkit-backdrop-filter:blur(20px))){.nav,.region,.search,.panel,.tile,.box,.manual,.stub,.feat,.res,.gate form,.x{background:var(--glass);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%)}.sheet{background:var(--glass);backdrop-filter:blur(32px) saturate(140%);-webkit-backdrop-filter:blur(32px) saturate(140%)}}
-@media(prefers-reduced-transparency:reduce){.nav,.region,.search,.panel,.tile,.box,.manual,.stub,.feat,.res,.gate form,.x,.sheet{background:var(--paper);backdrop-filter:none;-webkit-backdrop-filter:none}.veil{backdrop-filter:none;-webkit-backdrop-filter:none}}
+@supports ((backdrop-filter:blur(20px)) or (-webkit-backdrop-filter:blur(20px))){.nav,.region,.search,.panel,.tile,.box,.manual,.feat,.res,.gate form,.x{background:var(--glass);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%)}.sheet{background:var(--glass);backdrop-filter:blur(32px) saturate(140%);-webkit-backdrop-filter:blur(32px) saturate(140%)}}
+@media(prefers-reduced-transparency:reduce){.nav,.region,.search,.panel,.tile,.box,.manual,.feat,.res,.gate form,.x,.sheet{background:var(--paper);backdrop-filter:none;-webkit-backdrop-filter:none}.veil{backdrop-filter:none;-webkit-backdrop-filter:none}}
 @media(hover:hover) and (prefers-reduced-motion:no-preference){.feat,.mini,.stub,.res{transition:transform .2s,box-shadow .2s}.feat:hover,.mini:hover,.stub:hover{transform:translateY(-3px)}}
-@media(min-width:700px){.intro{margin-top:36px}.intro h2{font-size:62px}.stubs{grid-template-columns:repeat(3,minmax(0,1fr))}.nav button{font-size:12px}.feat{flex-basis:260px}}
-@media(max-width:360px){.top h1{font-size:23px}.brand-mark{width:28px;height:28px;margin-right:5px}.brandline{gap:5px}.test-badge{font-size:8px}.intro h2{font-size:34px}.stubs{gap:10px}.stub-main h3{font-size:13px}.sh-head{grid-template-columns:95px minmax(0,1fr)}.sh-head h2{font-size:23px}}
+@media(min-width:700px){.intro{margin-top:36px}.intro h2{font-size:62px}.nav button{font-size:12px}.feat{flex-basis:260px}}
+@media(max-width:360px){.top h1{font-size:23px}.brand-mark{width:28px;height:28px;margin-right:5px}.brandline{gap:5px}.test-badge{font-size:8px}.intro h2{font-size:34px}.sh-head{grid-template-columns:95px minmax(0,1fr)}.sh-head h2{font-size:23px}}
 </style>
 </head>
 <body>
@@ -362,7 +362,7 @@ body{background:radial-gradient(ellipse at 0 15%,var(--glow),transparent 55%),ra
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 19</p>
+    <p class="note" style="text-align:center">Version 20</p>
   </section>
 </div>
 
@@ -418,7 +418,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=19;
+const APP_VERSION=20;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);

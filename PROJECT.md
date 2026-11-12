@@ -109,7 +109,7 @@ the top right and cover part of the page.
 ## Current state
 
 - Real app (`cinema-book/`): Version 13.
-- Test copy (`cinema-book-test/`): Version 15. Adds over 13: Wikidata
+- Test copy (`cinema-book-test/`): Version 20 (Liquid Glass look, ticket stubs for the diary). Adds over 13: Wikidata
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
 
@@ -126,6 +126,8 @@ the top right and cover part of the page.
 ## Change log
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-12, Claude: test copy Version 20, diary entries back to the ticket-stub layout (small poster left, details, tear-off rating on the right, tinted by where watched) inside the Liquid Glass look. Vijay prefers tickets for the diary; do not turn them back into poster cards.
 
 - 2026-11-12, ChatGPT: test copy Version 19, responsive bottom dock sizing: tabs fill ordinary phones and cap at 150px each, centered on the unfolded Duo; all five tabs remain visible.
 
