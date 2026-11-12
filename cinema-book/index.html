@@ -251,7 +251,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
       <div class="sec hidden" id="famSec"><div class="sec-h"><h2>Family watched</h2></div><div id="fam"></div></div>
       <div class="sec hidden" id="sugSec"><div class="sec-h"><h2 id="sugT"></h2></div><div id="sug"></div></div>
       <div class="sec"><div class="sec-h"><h2>Popular this week</h2></div><div id="trend"></div></div>
-      <p class="note" style="margin-top:28px">Film data and images come from TMDB. Streaming data comes from JustWatch. This app is not endorsed or certified by TMDB.</p>
+      <p class="note" style="margin-top:28px">Film data and images come from TMDB, with extra titles from Wikidata. Streaming data comes from JustWatch. This app is not endorsed or certified by TMDB.</p>
     </div>
   </section>
 
@@ -325,7 +325,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 12</p>
+    <p class="note" style="text-align:center">Version 13</p>
   </section>
 </div>
 
@@ -381,7 +381,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=12;
+const APP_VERSION=13;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -559,6 +559,34 @@ function renderStats(){
 }
 
 
+/* ---- Wikidata: second source for titles TMDB does not have ---- */
+async function wd(params){const u=new URL('https://www.wikidata.org/w/api.php');Object.entries({format:'json',origin:'*',...params}).forEach(([k,v])=>u.searchParams.set(k,v));
+  const ck=u.toString();if(cache[ck])return cache[ck];const r=await fetch(ck);if(!r.ok)throw new Error('Wikidata did not answer. Try again in a moment.');return cache[ck]=await r.json()}
+async function wikiSearch(q){
+  const r=await wd({action:'wbsearchentities',search:q,language:'en',uselang:'en',type:'item',limit:'20'});
+  return (r.search||[]).filter(x=>/\b(film|movie|series|miniseries|television|sitcom|anime|documentary|telenovela|serial|drama)\b/i.test(x.description||'')&&!/\b(award|festival|character|director|actor|actress|producer|company|studio|genre|soundtrack|album|song|franchise|list of)\b/i.test(x.description||''))
+    .map(x=>({wd:x.id,key:'wd-'+x.id,title:x.label||q,desc:x.description||'',year:((x.description||'').match(/\b(18|19|20)\d\d\b/)||[''])[0],kind:/series|television|sitcom|anime|telenovela|serial|miniseries/i.test(x.description||'')?'Web Series':'Movie'}));
+}
+async function openWiki(it){
+  sheet.innerHTML='<p class="hint"><span class="spin"></span>Opening</p>';openVeil();
+  try{
+    const e=((await wd({action:'wbgetentities',ids:it.wd,props:'claims|sitelinks',sitefilter:'enwiki'})).entities||{})[it.wd]||{},c=e.claims||{};
+    const val=P=>(c[P]||[]).map(x=>x.mainsnak&&x.mainsnak.datavalue&&x.mainsnak.datavalue.value).filter(Boolean);
+    const tm=val('P4947')[0], tv=val('P4983')[0];
+    if(TOKEN&&(tm||tv)){try{const d=await details(tm?'movie':'tv',+(tm||tv));openSheet(d);return}catch(err){}}
+    const ids=P=>val(P).map(v=>v.id).filter(Boolean);
+    const dir=ids('P57').slice(0,3),cast=ids('P161').slice(0,6),gen=ids('P136').slice(0,3),lng=ids('P364').slice(0,1),all=[...dir,...cast,...gen,...lng];
+    let lab={};if(all.length){const L=(await wd({action:'wbgetentities',ids:all.join('|'),props:'labels',languages:'en'})).entities||{};Object.keys(L).forEach(k=>lab[k]=((L[k].labels||{}).en||{}).value||'')}
+    const nm=a=>a.map(i=>lab[i]).filter(Boolean);
+    const date=(val('P577')[0]||{}).time||'', mins=Math.round(parseFloat((val('P2047')[0]||{}).amount||0))||0;
+    const page=((e.sitelinks||{}).enwiki||{}).title||'';
+    const langName=(nm(lng)[0]||'').replace(/ language$/i,'');
+    openSheet({key:it.key,title:it.title,year:date.slice(1,5)||it.year,kind:it.kind,type:'',tmdbId:0,poster:'',genre:nm(gen).map(g=>g.replace(/ film$/i,'')).join(', '),minutes:mins,director:nm(dir).join(', '),cast:nm(cast),
+      synopsis:it.desc?it.desc.charAt(0).toUpperCase()+it.desc.slice(1)+'.':'',original_language:langName,source:'wikidata',wiki:page?'https://en.wikipedia.org/wiki/'+encodeURIComponent(page.replace(/ /g,'_')):''});
+  }catch(err){openSheet({key:it.key,title:it.title,year:it.year,kind:it.kind,synopsis:it.desc,source:'wikidata'})}
+}
+let wPicks=[];
+
 /* ---- search ---- */
 $('#sForm').onsubmit=e=>{e.preventDefault();$('#sQ').blur();search()};
 async function search(){
@@ -576,6 +604,7 @@ async function search(){
    <select class="inp" id="mK" aria-label="Type"><option>Movie</option><option>Web Series</option></select></div>
    <button class="btn go" id="mAdd" type="button" style="margin-top:12px;width:100%">Add this title</button></div>`;
   paint(`<p class="hint"><span class="spin"></span>Searching for “${esc(q)}”</p>`);
+  const wikiP=wikiSearch(q).catch(()=>[]);let tmList=[],tmErr='';
   try{
     const base=q.replace(/\s+/g,' '), set=[base];
     const add=v=>{v=v.trim();if(v.length>2&&!set.some(x=>x.toLowerCase()===v.toLowerCase()))set.push(v)};
@@ -590,202 +619,17 @@ async function search(){
     const seen={},raw=[];rs.forEach(x=>{if(x.status==='fulfilled')(x.value.results||[]).forEach(r=>{const k=r.media_type+'-'+r.id;if(!seen[k]){seen[k]=1;raw.push(r)}})});
     const nq=norm(q),stem=nq.replace(/s$/,''),score=r=>{const t=norm(r.title||r.name);return (t===nq||t===stem?3:t.startsWith(stem)?2:t.includes(stem)?1:0)*1000+(r.popularity||0)};
     raw.sort((x,y)=>score(y)-score(x));
-    const list=cards(raw).slice(0,30);
-    paint(list.map(d=>{const mine=book[d.key];return `<button class="res" type="button" data-t="${d.type}" data-id="${d.tmdbId}">${banner(d)}<div><h3>${esc(d.title)}</h3>
-      <p>${esc([d.year,d.kind,d.original_language].filter(Boolean).join(', '))}</p>${mine?`<span class="tag plain">${mine.status==='watched'?'In my book':'Want to watch'}</span>`:''}</div></button>`}).join('')+manual(list.length>0));
-  }catch(e){paint(`<div class="notice">${esc(e.message)}</div>`+manual(false))}
+    tmList=cards(raw).slice(0,30);
+  }catch(e){tmErr=e.message}
+  const rows=tmList.map(d=>{const mine=book[d.key];return `<button class="res" type="button" data-t="${d.type}" data-id="${d.tmdbId}">${banner(d)}<div><h3>${esc(d.title)}</h3>
+      <p>${esc([d.year,d.kind,d.original_language].filter(Boolean).join(', '))}</p>${mine?`<span class="tag plain">${mine.status==='watched'?'In my book':'Want to watch'}</span>`:''}</div></button>`}).join('');
+  const body=w=>(tmErr?`<div class="notice">${esc(tmErr)}</div>`:'')+rows+w+manual(tmList.length>0||wPicks.length>0);
+  wPicks=[];paint(body(tmList.length||tmErr?'<p class="hint"><span class="spin"></span>Checking Wikidata for more</p>':`<p class="hint"><span class="spin"></span>Searching for “${esc(q)}”</p>`));
+  const wl=await wikiP;if($('#sQ').value.trim()!==q)return;
+  const have=new Set(tmList.map(d=>norm(d.title)+'|'+d.year));
+  wPicks=wl.filter(x=>!have.has(norm(x.title)+'|'+x.year)&&!(x.year===''&&tmList.some(d=>norm(d.title)===norm(x.title)))).slice(0,10);
+  paint(body(wPicks.length?`<p class="hint" style="margin:14px 0 8px">More titles, from Wikidata</p>`+wPicks.map((x,k)=>{const mine=book[x.key];return `<button class="res" type="button" data-wd="${k}">${banner(x)}<div><h3>${esc(x.title)}</h3><p>${esc(x.desc)}</p>${mine?`<span class="tag plain">${mine.status==='watched'?'In my book':'Want to watch'}</span>`:''}</div></button>`}).join(''):''));
 }
-
-
-/* ---- review post ---- */
-const post={film:null,rating:0,style:'spot',img:null,blob:null};
-const cv=$('#pCanvas'), cx=cv.getContext('2d');
-$('#pHandle').value=ls('cb_handle')||'';
-function paintPStars(){const st=$('#pStars');st.innerHTML=[1,2,3,4,5].map(i=>`<div class="star" data-i="${i}">★<i style="width:${Math.max(0,Math.min(1,post.rating-(i-1)))*100}%">★</i></div>`).join('')+`<output>${fmtR(post.rating)}</output>`}
-$('#pStars').onclick=e=>{const s=e.target.closest('.star');if(!s)return;const r=s.getBoundingClientRect(),v=+s.dataset.i-((e.clientX-r.left)<r.width/2?.5:0);post.rating=post.rating===v?0:v;paintPStars();drawPost()};
-paintPStars();
-function paintPicked(){
-  const f=post.film;$('#pPick').classList.toggle('hidden',!!f);$('#pPicked').classList.toggle('hidden',!f);
-  if(f)$('#pPicked').innerHTML=`<div class="picked">${banner(f)}<div><strong>${esc(f.title)}</strong><div class="note" style="margin:0">${esc([f.year,f.kind].filter(Boolean).join(', '))}</div></div><button class="link" id="pChange" type="button">Change</button></div>`;
-  if(f)$('#pChange').onclick=()=>{post.film=null;post.img=null;paintPicked();drawPost()};
-}
-function startPost(f,rating,notes){
-  const sv=book[f.key]||{};post.film=f;post.rating=rating||0;post.img=null;post.optStyle=sv.reviewStyle||'';$('#pNotes').value=notes||'';$('#pHead').value=sv.reviewHead||'';$('#pRev').value=sv.reviewText||notes||'';post.texts=Object.assign({ig:sv.reviewCap||'',fb:sv.reviewCap||'',x:sv.reviewX||'',xthread:sv.reviewXThread||'',th:'',wa:''},sv.reviewTexts||{});paintPlat();$('#pOpts').innerHTML='';$('#pKeepNote').textContent=sv.reviewText?'A saved review for this film is loaded.':'';
-  paintPStars();paintPicked();show('post');loadPoster();
-}
-function loadPoster(){
-  const f=post.film;if(!f||!f.poster){drawPost();return}
-  const im=new Image();im.crossOrigin='anonymous';
-  im.onload=()=>{if(post.film===f){post.img=im;drawPost()}};
-  im.onerror=()=>{$('#pNote').textContent='The poster could not be loaded, so the image uses plain artwork.';drawPost()};
-  im.src=IMG+'w780'+f.poster;drawPost();
-}
-let pPicks=[];
-$('#pForm').onsubmit=async e=>{e.preventDefault();const q=$('#pQ').value.trim();if(!q)return;$('#pQ').blur();
-  $('#pRes').innerHTML='<p class="hint"><span class="spin"></span>Searching</p>';
-  try{const r=await tm('/search/multi',{query:q,include_adult:'false'});pPicks=cards(r.results).slice(0,8);
-    $('#pRes').innerHTML=pPicks.length?pPicks.map((d,i)=>`<button class="res" type="button" data-pp="${i}">${banner(d)}<div><h3>${esc(d.title)}</h3><p>${esc([d.year,d.kind,d.original_language].filter(Boolean).join(', '))}</p></div></button>`).join(''):'<p class="hint">Nothing found. Check the spelling.</p>'}
-  catch(err){$('#pRes').innerHTML=`<div class="notice">${esc(err.message)}</div>`}};
-$('#pRes').onclick=async e=>{const b=e.target.closest('[data-pp]');if(!b)return;e.stopPropagation();const c=pPicks[+b.dataset.pp];
-  $('#pRes').innerHTML='<p class="hint"><span class="spin"></span>Loading</p>';
-  let d=c;try{d=await details(c.type,c.tmdbId)}catch(err){}
-  const en=book[d.key]||{};$('#pRes').innerHTML='';$('#pQ').value='';startPost(d,+en.rating||post.rating,en.notes||$('#pNotes').value)};
-
-/* AI rewrite */
-async function aiText(prompt){
-  if(!AIKEY)throw new Error('Add an AI key in Settings first. You can still type the words yourself below.');
-  const why=async r=>{let m='';try{const j=await r.json();m=(j.error&&(j.error.message||j.error.type))||''}catch(e){}return m?' The service said: '+String(m).slice(0,160):''};
-  if(AIKEY.startsWith('sk-ant')){
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':AIKEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:1500,messages:[{role:'user',content:prompt}]})});
-    if(!r.ok)throw new Error((r.status===401?'The Claude key was rejected.':r.status===402?'This Claude API key has no credit on it. Add credit at console.anthropic.com, or use a free Gemini key instead.':'The AI service returned an error ('+r.status+').')+await why(r));
-    return ((await r.json()).content||[]).map(c=>c.text||'').join('');
-  }
-  let last='';
-  for(const m of ['gemini-flash-latest','gemini-flash-lite-latest','gemini-3.5-flash-lite','gemini-3.5-flash','gemini-2.5-flash']){
-    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent',{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':AIKEY},
-      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:'application/json'}})});
-    if(r.ok){const j=await r.json();return ((((j.candidates||[])[0]||{}).content||{}).parts||[]).map(p=>p.text||'').join('')}
-    last='The AI service returned an error ('+r.status+').'+await why(r);
-    if(r.status===401||r.status===403)break;
-  }
-  throw new Error(last);
-}
-let pOpts=[];
-$('#pWrite').onclick=async()=>{
-  const f=post.film, notes=$('#pNotes').value.trim();
-  if(!f){toast('Pick the film first');return} if(!notes){toast('Type a few words about the film first');return}
-  const b=$('#pWrite');b.disabled=true;b.innerHTML='<span class="spin"></span>Writing';
-  const langRule={match:'Write in exactly the same language mix as the notes. If the notes are Tanglish (Tamil written in English letters, mixed with English words), the review must also be Tanglish with the same kind of mix; do NOT translate the Tamil words into English. If the notes are plain English, write English.',
-    tanglish:'Write in Tanglish: Tamil written in English letters, freely mixed with English words, the way Tamil film fans actually type on Instagram. Keep the reviewer\'s own Tamil words and phrases. Never use Tamil script.',
-    english:'Write in English. Tamil film terms the reviewer used (mass, BGM, thalaivar and so on) may stay.'}[post.lang||'match'];
-  const prompt=`You are helping a Tamil film fan tidy up their own review for their Instagram page. Rework their rough notes into clean, well-phrased review text that still sounds like THEM talking, not like an AI or a press release.
-${langRule}
-Rules: keep their opinion, their points and their rating exactly. Reuse their own words and expressions wherever they work. Do not add plot details, facts or praise they did not give. No spoilers. Plain everyday words; no fancy vocabulary such as "cinematic masterpiece", "tapestry", "rollercoaster", "tour de force", "a must-watch"; no em dashes; no emoji unless the notes used them; short natural sentences.
-Film: ${f.title} (${f.year||''}), ${f.kind||''}. Genre: ${f.genre||'unknown'}. Director: ${f.director||'unknown'}. Cast: ${(f.cast||[]).join(', ')||'unknown'}.
-Reviewer's rating: ${post.rating?post.rating+' out of 5':'not given'}.
-Reviewer's rough notes: """${notes}"""
-Write 3 versions: "Classy" (calm, well put, a little polished), "Punchy" (short confident lines), "Personal" (warm, first person, like telling a friend).
-Return ONLY JSON: {"options":[{"style":"Classy","headline":"at most 7 words, no quotes","review":"35 to 50 words for the image","caption":"70 to 100 words for the Instagram caption in the same language mix, then a blank line, then 6 to 8 relevant hashtags including the film title","threads":"one post for Threads, at most 450 characters","whatsapp":"2 or 3 casual lines to send to friends and family on WhatsApp, with the rating","x_short":"one post for X, at most 250 characters in total including the rating and 2 hashtags","x_thread":["3 or 4 posts for a detailed X thread, each at most 250 characters, same language mix: first the overall verdict with the rating, then what worked, then what did not work (only if the notes mention it), then a closing line with 2 or 3 hashtags; use only points from the notes"]}]}`;
-  try{
-    const t=await aiText(prompt), j=JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1));
-    pOpts=(j.options||[]).slice(0,3);
-    $('#pOpts').innerHTML=pOpts.map((o,i)=>`<button class="opt" type="button" data-o="${i}"><small>${esc(o.style||'Option '+(i+1))}</small><strong>${esc(o.headline)}</strong><span>${esc(o.review)}</span></button>`).join('');
-    if(pOpts.length)useOpt(0);
-  }catch(err){$('#pOpts').innerHTML=`<div class="notice" style="margin-top:12px">${esc(err instanceof SyntaxError?'The AI answer could not be read. Tap the button again.':err.message)}</div>`}
-  b.disabled=false;b.textContent='Write my review again';
-};
-function useOpt(i){const o=pOpts[i];if(!o)return;post.optStyle=o.style||'';$$('#pOpts .opt').forEach((b,k)=>b.classList.toggle('on',k===i));$('#pHead').value=o.headline||'';$('#pRev').value=o.review||'';const th=Array.isArray(o.x_thread)?o.x_thread:[o.x_thread||''];post.texts={ig:o.caption||'',fb:o.caption||'',x:o.x_short||'',xthread:th.filter(Boolean).map((t,k,a)=>a.length>1?`${k+1}/${a.length} ${t}`:t).join('\n\n'),th:o.threads||String(o.caption||'').split(/\n\s*\n/)[0].slice(0,480),wa:o.whatsapp||o.x_short||''};paintPlat();drawPost()}
-$$('#pLang .chip').forEach(b=>b.onclick=()=>{post.lang=b.dataset.l;ls('cb_lang',post.lang);$$('#pLang .chip').forEach(x=>x.classList.toggle('on',x===b))});
-post.lang=ls('cb_lang')||'match';$$('#pLang .chip').forEach(x=>x.classList.toggle('on',x.dataset.l===post.lang));
-$('#pOpts').onclick=e=>{const b=e.target.closest('[data-o]');if(b)useOpt(+b.dataset.o)};
-['pHead','pRev','pHandle'].forEach(id=>$('#'+id).oninput=()=>{if(id==='pHandle')ls('cb_handle',$('#pHandle').value.trim());clearTimeout(drawPost._t);drawPost._t=setTimeout(drawPost,200)});
-$$('#pStyle .chip').forEach(b=>b.onclick=()=>{post.style=b.dataset.s;$$('#pStyle .chip').forEach(x=>x.classList.toggle('on',x===b));drawPost()});
-
-$('#pKeep').onclick=async()=>{
-  const f=post.film;if(!f){toast('Pick the film first');return}
-  if(!$('#pRev').value.trim()&&!$('#pHead').value.trim()){toast('Write or choose the review first');return}
-  const old=book[f.key]||{},b=$('#pKeep');b.disabled=true;
-  const doc={title:f.title,year:f.year||'',kind:f.kind||'',type:f.type||'',tmdbId:f.tmdbId||0,poster:f.poster||'',genre:f.genre||'',original_language:f.original_language||'',minutes:+f.minutes||0,
-    status:'watched',rating:post.rating||+old.rating||0,where:old.where||'',watchedOn:old.watchedOn||today(),watchedLang:old.watchedLang||'',notes:old.notes||$('#pNotes').value.trim(),
-    reviewHead:$('#pHead').value.trim(),reviewText:$('#pRev').value.trim(),reviewCap:post.texts.ig||'',reviewTexts:post.texts,reviewStyle:post.optStyle||'',reviewAt:Date.now(),
-    addedAt:old.addedAt||Date.now(),updatedAt:Date.now()};
-  try{await col.doc(f.key).set(doc,{merge:true});toast('Review saved, marked as watched');$('#pKeepNote').textContent='Saved in My book. Open the film there to add where and when you watched it.'}
-  catch(e){toast('Not saved. Check your connection and try again.')}
-  b.disabled=false;
-};
-
-const enc=encodeURIComponent;
-const PLAT={ig:{n:'Instagram'},x:{n:'X',max:280,open:t=>'https://twitter.com/intent/tweet?text='+enc(t)},xthread:{n:'X thread',max:280,thread:true,open:t=>'https://twitter.com/intent/tweet?text='+enc(t)},
-  fb:{n:'Facebook'},th:{n:'Threads',max:500,open:t=>'https://www.threads.net/intent/post?text='+enc(t)},wa:{n:'WhatsApp',open:t=>'https://wa.me/?text='+enc(t)}};
-post.plat=ls('cb_plat')||'ig';post.texts={};
-$('#pPlat').innerHTML=Object.entries(PLAT).map(([k,v])=>`<button class="chip" data-p="${k}" type="button">${v.n}</button>`).join('');
-const pParts=()=>$('#pT').value.split(/\n\s*\n/).filter(x=>x.trim());
-function countT(){const P=PLAT[post.plat],t=$('#pT').value;let m='';
-  if(P.thread){const a=pParts();if(a.length)m=`${a.length} posts in this thread. Longest is ${Math.max(...a.map(x=>x.length))} of ${P.max} characters.${a.some(x=>x.length>P.max)?' Shorten the long one.':''}`}
-  else if(P.max&&t)m=`${t.length} of ${P.max} characters.${t.length>P.max?' Too long, shorten it.':''}`;
-  $('#pTCount').textContent=m}
-function paintPlat(){if(!PLAT[post.plat])post.plat='ig';const P=PLAT[post.plat];$$('#pPlat .chip').forEach(b=>b.classList.toggle('on',b.dataset.p===post.plat));$('#pT').value=post.texts[post.plat]||'';
-  $('#pOpenApp').classList.toggle('hidden',!P.open);$('#pOpenApp').textContent='Open '+P.n.replace(' thread','')+' with this text';countT()}
-$('#pPlat').onclick=e=>{const b=e.target.closest('[data-p]');if(!b)return;post.plat=b.dataset.p;ls('cb_plat',post.plat);paintPlat()};
-$('#pT').oninput=()=>{post.texts[post.plat]=$('#pT').value;countT()};
-paintPlat();
-$('#pOpenApp').onclick=()=>{const P=PLAT[post.plat],t=$('#pT').value.trim();if(!t){toast('Write the text first');return}
-  if(P.thread){const a=pParts();if(a.length>1){try{navigator.clipboard.writeText(a.slice(1).join('\n\n'))}catch(e){}toast('First post opens in X. The rest is copied for the replies.')}window.open(P.open(a[0]),'_blank');return}
-  window.open(P.open(t),'_blank')};
-
-/* canvas drawing */
-const FONT=(w,sz)=>`${w} ${sz}px "Anek Tamil","Helvetica Neue",Arial,sans-serif`;
-function lines(text,maxW){const out=[];String(text||'').split(/\n+/).forEach(par=>{let l='';par.split(/\s+/).forEach(w=>{const t=l?l+' '+w:w;if(cx.measureText(t).width>maxW&&l){out.push(l);l=w}else l=t});if(l)out.push(l)});return out}
-function fit(text,maxW,maxLines,size,min,weight){let ls=[];for(;size>=min;size-=2){cx.font=FONT(weight,size);ls=lines(text,maxW);if(ls.length<=maxLines)break}
-  if(ls.length>maxLines){ls=ls.slice(0,maxLines);ls[maxLines-1]=ls[maxLines-1].replace(/\W*\w*$/,'')+'…'}return {size:Math.max(size,min),ls}}
-function para(text,x,y,maxW,maxLines,size,min,weight,color,align,lh){const f=fit(text,maxW,maxLines,size,min,weight);cx.font=FONT(weight,f.size);cx.fillStyle=color;cx.textAlign=align||'left';cx.textBaseline='top';
-  f.ls.forEach((l,i)=>cx.fillText(l,x,y+i*f.size*(lh||1.25)));return y+f.ls.length*f.size*(lh||1.25)}
-function rr(x,y,w,h,r){cx.beginPath();cx.moveTo(x+r,y);cx.arcTo(x+w,y,x+w,y+h,r);cx.arcTo(x+w,y+h,x,y+h,r);cx.arcTo(x,y+h,x,y,r);cx.arcTo(x,y,x+w,y,r);cx.closePath()}
-function cover(img,x,y,w,h){const s=Math.max(w/img.width,h/img.height),sw=w/s,sh=h/s;cx.drawImage(img,(img.width-sw)/2,(img.height-sh)/2,sw,sh,x,y,w,h)}
-function posterAt(x,y,w,h,r,title){
-  cx.save();cx.shadowColor='rgba(0,0,0,.45)';cx.shadowBlur=40;cx.shadowOffsetY=18;rr(x,y,w,h,r);cx.fillStyle='#2A2E38';cx.fill();cx.restore();
-  cx.save();rr(x,y,w,h,r);cx.clip();
-  if(post.img)cover(post.img,x,y,w,h);else{let hh=0;for(const c of String(title))hh=(hh*31+c.charCodeAt(0))>>>0;const pl=PAL[hh%PAL.length];cx.fillStyle=pl[0];cx.fillRect(x,y,w,h);para(title,x+w*.1,y+h*.55,w*.8,4,Math.round(w/7),18,800,pl[2],'left',1)}
-  cx.restore();
-}
-function starRow(x,y,size,on,off,align){
-  cx.font=FONT(400,size);cx.textBaseline='top';cx.textAlign='left';const w=size*1.02,total=w*5,x0=align==='center'?x-total/2:x;
-  for(let i=0;i<5;i++){cx.fillStyle=off;cx.fillText('★',x0+i*w,y);const f=Math.max(0,Math.min(1,post.rating-i));
-    if(f>0){cx.save();cx.beginPath();cx.rect(x0+i*w,y-4,w*f,size*1.4);cx.clip();cx.fillStyle=on;cx.fillText('★',x0+i*w,y);cx.restore()}}
-  return x0+total;
-}
-function drawPost(){
-  const W=1080,H=1350,f=post.film||{title:'Pick a film',year:'',director:''};
-  const head=$('#pHead').value.trim(), rev=$('#pRev').value.trim(), handle=$('#pHandle').value.trim();
-  const meta=[f.year,f.director?'Directed by '+f.director:''].filter(Boolean).join('   ');
-  cx.setTransform(1,0,0,1,0,0);cx.clearRect(0,0,W,H);cx.textAlign='left';
-  if(post.style==='spot'){
-    cx.fillStyle='#15171C';cx.fillRect(0,0,W,H);
-    if(post.img){const t=document.createElement('canvas');t.width=27;t.height=34;const tc=t.getContext('2d');const s=Math.max(27/post.img.width,34/post.img.height);tc.drawImage(post.img,(27-post.img.width*s)/2,(34-post.img.height*s)/2,post.img.width*s,post.img.height*s);
-      cx.imageSmoothingEnabled=true;cx.imageSmoothingQuality='high';cx.drawImage(t,0,0,W,H);cx.fillStyle='rgba(12,13,17,.74)';cx.fillRect(0,0,W,H)}
-    posterAt(330,64,420,630,18,f.title);
-    let y=para(f.title,W/2,740,940,2,62,40,800,'#FFFFFF','center',1.08);
-    if(meta)y=para(meta,W/2,y+8,940,1,28,22,400,'rgba(255,255,255,.7)','center')+4;
-    if(post.rating){starRow(W/2,y+14,50,'#F2A31B','rgba(255,255,255,.22)','center');y+=86}else y+=20;
-    if(head)y=para(head,W/2,y+6,920,2,44,32,700,'#F5D48A','center',1.15)+10;
-    para(rev,W/2,y+6,900,Math.max(2,Math.floor((1262-y)/44)),36,26,400,'rgba(255,255,255,.92)','center',1.32);
-    cx.font=FONT(600,26);cx.fillStyle='rgba(255,255,255,.6)';cx.textAlign='center';cx.textBaseline='top';cx.fillText(handle||'My review',W/2,1288);
-  }else if(post.style==='split'){
-    cx.fillStyle='#FAFAF8';cx.fillRect(0,0,W,H);cx.fillStyle='#B3122B';cx.fillRect(0,0,W,14);
-    posterAt(60,74,400,600,14,f.title);
-    let y=para(f.title,510,86,510,4,64,38,800,'#15171C','left',1.05);
-    if(meta)y=para([f.year,f.director].filter(Boolean).join(', '),510,y+12,510,2,28,22,400,'#667085','left');
-    if(post.rating){const ex=starRow(510,y+22,52,'#F2A31B','#DDE0E6');cx.font=FONT(800,44);cx.fillStyle='#15171C';cx.textBaseline='top';cx.fillText(fmtR(post.rating)+' / 5',510,y+96)}
-    y=730;if(head)y=para(head,60,y,960,2,54,36,800,'#B3122B','left',1.1)+16;
-    para(rev,60,y,960,Math.max(2,Math.floor((1250-y)/50)),40,28,400,'#15171C','left',1.32);
-    cx.fillStyle='#DDE0E6';cx.fillRect(60,1272,960,2);cx.font=FONT(600,26);cx.fillStyle='#667085';cx.textAlign='left';cx.textBaseline='top';cx.fillText(handle||'My review',60,1290);
-  }else{
-    let hh=0;for(const c of String(f.title))hh=(hh*31+c.charCodeAt(0))>>>0;const pl=PAL[hh%PAL.length];
-    cx.fillStyle=pl[0];cx.fillRect(0,0,W,H);
-    cx.font=FONT(800,300);cx.fillStyle=pl[1];cx.textBaseline='top';cx.fillText('“',40,-20);
-    let y=para(head||f.title,70,210,940,4,88,52,800,pl[2],'left',1.04)+30;
-    para(rev,70,y,940,Math.max(2,Math.floor((960-y)/50)),40,28,400,'rgba(255,255,255,.92)','left',1.32);
-    posterAt(70,1010,180,270,10,f.title);
-    let ty=para(f.title,280,1024,730,2,44,30,800,'#FFFFFF','left',1.08);
-    if(meta)ty=para([f.year,f.director].filter(Boolean).join(', '),280,ty+6,730,1,26,20,400,'rgba(255,255,255,.7)','left');
-    if(post.rating)starRow(280,ty+14,44,'#F2A31B','rgba(255,255,255,.25)');
-    cx.font=FONT(600,26);cx.fillStyle='rgba(255,255,255,.6)';cx.textAlign='right';cx.textBaseline='top';cx.fillText(handle||'My review',1010,1250);
-  }
-  post.blob=null;
-  try{cv.toBlob(b=>{post.blob=b},'image/jpeg',.92);if(post.img)$('#pNote').textContent=''}
-  catch(e){$('#pNote').textContent='This browser blocked saving the image with the poster. Take a screenshot of the picture instead.'}
-}
-if(document.fonts&&document.fonts.ready)document.fonts.ready.then(drawPost);
-$('#pCopy').onclick=async()=>{try{await navigator.clipboard.writeText($('#pT').value);toast('Text copied')}catch(e){toast('Copy did not work. Select the text and copy it.')}};
-$('#pSave').onclick=()=>{if(!post.blob){toast('The image is not ready yet');return}const a=document.createElement('a');a.href=URL.createObjectURL(post.blob);a.download=(norm((post.film||{}).title)||'review')+'-review.jpg';document.body.appendChild(a);a.click();a.remove();toast('Image saved to Files')};
-$('#pShare').onclick=async()=>{
-  if(!post.blob){toast('The image is not ready yet');return}
-  const file=new File([post.blob],(norm((post.film||{}).title)||'review')+'-review.jpg',{type:'image/jpeg'});
-  if(!(navigator.canShare&&navigator.canShare({files:[file]}))){toast('Sharing is not available here. Use Save image.');return}
-  const cap=$('#pT').value;if(cap){try{navigator.clipboard.writeText(cap)}catch(e){}}
-  try{await navigator.share({files:[file]});if(cap)toast(PLAT[post.plat].n+' text copied, ready to paste.')}catch(e){}
-};
 
 /* ---- open a title ---- */
 const sheet=$('#sheet'), veil=$('#veil');
@@ -801,6 +645,7 @@ document.addEventListener('click',e=>{
   if(e.target.closest('.sheet'))return;
   const k=e.target.closest('[data-key]');
   if(k&&book[k.dataset.key]){const en=book[k.dataset.key];en.tmdbId&&TOKEN?openTitle(en.type,en.tmdbId,en):openSheet(en);return}
+  const w=e.target.closest('[data-wd]');if(w&&wPicks[+w.dataset.wd]){openWiki(wPicks[+w.dataset.wd]);return}
   const t=e.target.closest('[data-id]');if(t)openTitle(t.dataset.t,t.dataset.id);
 });
 function openSheet(d,toForm){
@@ -836,7 +681,8 @@ function openSheet(d,toForm){
    ${e.reviewText||e.reviewHead?`<div class="box"><h3>My review</h3>${e.reviewHead?`<strong>${esc(e.reviewHead)}</strong>`:''}<p style="margin:6px 0 0">${esc(e.reviewText||'')}</p><button class="link" id="shRev" type="button" style="margin-top:10px">Open in Post to edit or share</button></div>`:''}
    ${famLines.length?`<div class="box"><h3>Family ratings</h3>${famLines.join('')}</div>`:''}
    <div class="box"><h3>Where to watch in ${region==='IN'?'India':'the USA'}</h3>
-     ${d.full?(watch||'<p class="note" style="margin:0">Not on any streaming service in this country right now.</p>'):'<p class="note" style="margin:0">No streaming info for a title you added yourself.</p>'}
+     ${d.full?(watch||'<p class="note" style="margin:0">Not on any streaming service in this country right now.</p>'):(d.source==='wikidata'?'<p class="note" style="margin:0">No poster or streaming info for this title. Its details come from Wikidata.</p>':'<p class="note" style="margin:0">No streaming info for a title you added yourself.</p>')}
+     ${d.wiki?`<a class="out" href="${esc(d.wiki)}" target="_blank" rel="noopener">Read about it on Wikipedia</a>`:''}
      ${p.link?`<a class="out" href="${esc(p.link)}" target="_blank" rel="noopener">Open on JustWatch</a>`:''}
      <a class="out" href="https://www.google.com/search?q=${encodeURIComponent(d.title+' '+(d.year||'')+' Tamil dubbed watch online')}" target="_blank" rel="noopener">Search Tamil version</a>
      ${d.full&&d.original_language!=='Tamil'?'<p class="note">Dubbed audio is not listed in this data. Check the audio options inside the streaming app.</p>':''}
