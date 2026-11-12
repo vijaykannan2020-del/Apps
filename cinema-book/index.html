@@ -14,24 +14,29 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anek+Tamil:wdth,wght@75..125,300..800&display=swap" rel="stylesheet">
+<script>try{var t=JSON.parse(localStorage.getItem('cb_theme')||'null');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
 /* Layout idea: a book of cinema ticket stubs. Painted sunburst banners stand in for posters;
    every logged film is a tear-off stub, tinted by where it was watched. Left aligned, one column. */
 :root{
-  color-scheme:light;
+  color-scheme:light; --on-ink:#FFFFFF;
   --bg:#F3F4F6; --paper:#FFFFFF; --ink:#15171C; --soft:#667085; --line:#DDE0E6;
   --pink:#B3122B; --green:#0F6E66; --sun:#A8610A; --red:#B91C1C; --star:#F2A31B;
   --tint-pink:#F7E4E7; --tint-green:#E2EFEC; --tint-sun:#F3EDDF;
   --display:"Anek Tamil","Arial Narrow",system-ui,sans-serif;
   --body:"Anek Tamil",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1014;--paper:#191C23;--ink:#F1F2F4;--soft:#9CA3B0;--line:#2D323D;--pink:#E0496B;--green:#2AA595;--sun:#C98A2B;--red:#F0616D;--star:#F2A31B;--tint-pink:#3A2029;--tint-green:#17302C;--tint-sun:#332B1B;--on-ink:#14161A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0E1014;--paper:#191C23;--ink:#F1F2F4;--soft:#9CA3B0;--line:#2D323D;--pink:#E0496B;--green:#2AA595;--sun:#C98A2B;--red:#F0616D;--star:#F2A31B;--tint-pink:#3A2029;--tint-green:#17302C;--tint-sun:#332B1B;--on-ink:#14161A;color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4}
+body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
 button,input,select,textarea{font-family:inherit;color:inherit;font-size:inherit}
 button{cursor:pointer}
 :focus-visible{outline:3px solid var(--pink);outline-offset:2px}
 .hidden{display:none!important}
-.app{max-width:640px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 110px max(16px,env(safe-area-inset-left,0px))}
+.app{flex:1;min-height:0;width:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,calc((100% - 820px)/2)) 28px}
+.top{padding-right:env(safe-area-inset-right,0px);padding-left:env(safe-area-inset-left,0px)}
 h1,h2,h3{font-family:var(--display);font-stretch:78%;font-weight:800;margin:0;line-height:1;text-wrap:balance}
 
 /* header */
@@ -39,7 +44,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:78%;font-weight:800;margin:0;li
 .top h1{font-size:34px;letter-spacing:-.01em;white-space:nowrap}
 .region{display:flex;border:2px solid var(--ink);border-radius:999px;overflow:hidden;background:var(--paper);flex-shrink:0}
 .region button{border:0;background:none;padding:6px 12px;font-weight:600;font-size:14px}
-.region button.on{background:var(--ink);color:#fff}
+.region button.on{background:var(--ink);color:var(--on-ink)}
 .notice{background:var(--tint-sun);border-left:5px solid var(--sun);padding:10px 12px;margin-top:12px;font-size:14px}
 
 /* search */
@@ -117,7 +122,7 @@ h1,h2,h3{font-family:var(--display);font-stretch:78%;font-weight:800;margin:0;li
 /* controls */
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{border:1.5px solid var(--line);background:var(--paper);border-radius:999px;padding:8px 14px;font-size:15px;font-weight:500}
-.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
 .inp{width:100%;border:1.5px solid var(--line);background:var(--paper);border-radius:10px;padding:11px 12px;font-size:16px}
 textarea.inp{min-height:80px;resize:vertical}
 label.fl{display:block;font-weight:700;font-size:15px;margin:18px 0 8px}
@@ -129,7 +134,7 @@ label.fl{display:block;font-weight:700;font-size:15px;margin:18px 0 8px}
 .acts{display:flex;gap:10px;margin-top:20px}.acts .btn{flex:1}
 .choice{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .choice button{border:2px solid var(--line);background:var(--paper);border-radius:12px;padding:12px 8px;font-weight:700}
-.choice button.on{border-color:var(--ink);background:var(--ink);color:#fff}
+.choice button.on{border-color:var(--ink);background:var(--ink);color:var(--on-ink)}
 .stars{display:flex;align-items:center;gap:2px}
 .star{position:relative;width:44px;height:44px;font-size:40px;line-height:44px;text-align:center;color:var(--line);user-select:none;cursor:pointer}
 .star i{position:absolute;inset:0;overflow:hidden;color:var(--star);font-style:normal;white-space:nowrap}
@@ -159,15 +164,15 @@ details.bk ul{margin:0 0 12px;padding:0;list-style:none}
 details.bk li{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:15px}
 details.bk li span{color:var(--soft);white-space:nowrap}
 /* nav */
-.nav{position:fixed;left:0;right:0;bottom:0;background:var(--paper);border-top:2px solid var(--ink);display:flex;justify-content:center;gap:6px;padding:8px max(12px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));z-index:20}
+.nav{flex:none;position:relative;background:var(--paper);border-top:2px solid var(--ink);display:flex;justify-content:center;gap:6px;padding:8px max(12px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));z-index:20}
 .nav button{flex:1;max-width:190px;border:0;background:none;border-radius:12px;padding:8px 6px;font-weight:700;font-size:14px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--soft)}
-.nav button.on{background:var(--ink);color:#fff}
+.nav button.on{background:var(--ink);color:var(--on-ink)}
 .nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* sheet */
 .veil{position:fixed;inset:0;background:#15171CAA;z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
 .veil.open{opacity:1;pointer-events:auto}
-.sheet{position:fixed;left:0;right:0;bottom:0;max-width:640px;margin:0 auto;max-height:calc(88% - env(safe-area-inset-top,0px));overflow-y:auto;background:var(--bg);border-radius:20px 20px 0 0;z-index:41;transform:translateY(103%);transition:transform .26s ease-out;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-width:820px;margin:0 auto;max-height:calc(88% - env(safe-area-inset-top,0px));overflow-y:auto;background:var(--bg);border-radius:20px 20px 0 0;z-index:41;transform:translateY(103%);transition:transform .26s ease-out;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .sheet.open{transform:none}
 .sh-head{display:grid;grid-template-columns:116px 1fr;gap:14px;align-items:end}
 .sh-head .banner{aspect-ratio:4/5} .sh-head .banner b{font-size:20px}
@@ -181,11 +186,11 @@ details.bk li span{color:var(--soft);white-space:nowrap}
 .plat small{display:block;color:var(--soft);font-size:13px}
 .note{font-size:13px;color:var(--soft);margin-top:10px}
 a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margin:10px 14px 0 0}
-.toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-weight:600;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:60;white-space:nowrap}
+.toast{position:fixed;left:50%;bottom:calc(110px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--on-ink);padding:10px 18px;border-radius:999px;font-weight:600;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:60;white-space:nowrap}
 .toast.show{opacity:1}
 @media (prefers-reduced-motion:reduce){.sheet,.veil,.toast{transition:none}.spin{animation-duration:2s}}
 
-.gate{max-width:420px;margin:0 auto;padding:calc(60px + env(safe-area-inset-top,0px)) 20px 40px}
+.gate{flex:1;overflow-y:auto;width:100%;max-width:420px;margin:0 auto;padding:calc(60px + env(safe-area-inset-top,0px)) 20px 40px}
 .gate h1{font-size:44px;margin-bottom:6px}
 .gate p{color:var(--soft);margin:0 0 20px}
 .gate .inp{margin-bottom:10px}
@@ -308,6 +313,8 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
   <section id="v-set" class="hidden">
     <div class="sec-h" style="margin-top:18px"><h2>Settings</h2></div>
     <div class="panel"><h3>My name</h3><div class="setrow"><input class="inp" id="setName" aria-label="My name"><button class="btn quiet" id="setNameBtn" type="button">Save</button></div></div>
+    <div class="panel"><h3>Appearance</h3>
+      <div class="chips" id="setTheme"><button class="chip" data-th="auto" type="button">Same as phone</button><button class="chip" data-th="light" type="button">Light</button><button class="chip" data-th="dark" type="button">Dark</button></div></div>
     <div class="panel"><h3>TMDB key</h3>
       <p class="note" style="margin:0 0 10px">This turns on search, posters and streaming info. Paste the API Read Access Token (or the API key) from themoviedb.org, Settings, API. Saved once for the whole family.</p>
       <div class="setrow"><input class="inp" id="setKey" placeholder="Paste key here" autocomplete="off" aria-label="TMDB key"><button class="btn go" id="setKeyBtn" type="button">Save</button></div>
@@ -318,7 +325,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 11</p>
+    <p class="note" style="text-align:center">Version 12</p>
   </section>
 </div>
 
@@ -374,7 +381,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=11;
+const APP_VERSION=12;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -385,6 +392,12 @@ async function checkUpdate(){
     }}catch(e){}
 }
 checkUpdate();document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkUpdate()});
+
+/* ---- theme ---- */
+function paintTheme(){const t=ls('cb_theme')||'auto';$$('#setTheme .chip').forEach(b=>b.classList.toggle('on',b.dataset.th===t));
+  if(t==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t;
+  const dark=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme:dark)').matches);const m=document.querySelector('meta[name=theme-color]');if(m)m.content=dark?'#0E1014':'#F3F4F6'}
+$$('#setTheme .chip').forEach(b=>b.onclick=()=>{ls('cb_theme',b.dataset.th);paintTheme()});paintTheme();
 
 /* ---- sign in ---- */
 firebase.initializeApp(window.FIREBASE_CONFIG);
@@ -470,7 +483,7 @@ function loadSug(){
 function paintRegion(){$$('#region button').forEach(b=>b.classList.toggle('on',b.dataset.r===region))}
 $$('#region button').forEach(b=>b.onclick=()=>{region=b.dataset.r;ls('cb_region',region);paintRegion();toast('Streaming shown for '+(region==='IN'?'India':'USA'))});
 paintRegion();
-function show(v){$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));['home','book','stats','post','set'].forEach(x=>$('#v-'+x).classList.toggle('hidden',x!==v));window.scrollTo(0,0);if(v==='stats')renderStats();if(v==='post')drawPost()}
+function show(v){$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));['home','book','stats','post','set'].forEach(x=>$('#v-'+x).classList.toggle('hidden',x!==v));$('#app').scrollTo(0,0);if(v==='stats')renderStats();if(v==='post')drawPost()}
 $$('#nav button').forEach(b=>b.onclick=()=>show(b.dataset.v));
 $('#seeAll').onclick=()=>show('book');
 
