@@ -306,7 +306,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 5</p>
+    <p class="note" style="text-align:center">Version 6</p>
   </section>
 </div>
 
@@ -378,7 +378,7 @@ auth.onAuthStateChanged(async u=>{
   unsubs.push(col.onSnapshot(s=>{const nb={};s.forEach(d=>{const v=d.data();if(v&&v.title)nb[d.id]={...v,key:d.id}});book=nb;renderAll()},
     ()=>notice('Your book could not be loaded. Check your connection, then close and reopen the app.')));
   unsubs.push(fs.doc(NS+'config/tmdb').onSnapshot(s=>{TOKEN=(s.exists&&s.data().token)||'';paintKey();loadHome()}));
-  unsubs.push(fs.doc(NS+'config/ai').onSnapshot(s=>{AIKEY=(s.exists&&s.data().key)||'';$('#aiState').textContent=AIKEY?'A key is saved.':'No key saved yet.'}));
+  unsubs.push(fs.doc(NS+'config/ai').onSnapshot(s=>{AIKEY=(s.exists&&s.data().key)||'';$('#aiState').textContent=AIKEY?'A key is saved ('+(AIKEY.startsWith('sk-ant')?'Claude':/^(AIza|AQ\.)/.test(AIKEY)?'Google Gemini':'unknown type, starts with '+AIKEY.slice(0,4))+').':'No key saved yet.'}));
   unsubs.push(fs.collection(NS+'users').onSnapshot(s=>{
     const mem=[];s.forEach(d=>mem.push({id:d.id,...d.data()}));
     $('#members').innerHTML=mem.map(m=>`<div class="mem"><strong>${esc(m.name||'Someone')}${m.id===uid?' (you)':''}</strong><span class="note" style="margin:0">${esc(m.email||'')}</span></div>`).join('');
@@ -596,16 +596,22 @@ $('#pRes').onclick=async e=>{const b=e.target.closest('[data-pp]');if(!b)return;
 /* AI rewrite */
 async function aiText(prompt){
   if(!AIKEY)throw new Error('Add an AI key in Settings first. You can still type the words yourself below.');
+  const why=async r=>{let m='';try{const j=await r.json();m=(j.error&&(j.error.message||j.error.type))||''}catch(e){}return m?' The service said: '+String(m).slice(0,160):''};
   if(AIKEY.startsWith('sk-ant')){
     const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':AIKEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:1500,messages:[{role:'user',content:prompt}]})});
-    if(!r.ok)throw new Error(r.status===401?'The AI key was rejected. Check it in Settings.':'The AI service did not answer ('+r.status+'). Try again.');
+    if(!r.ok)throw new Error((r.status===401?'The Claude key was rejected.':r.status===402?'This Claude API key has no credit on it. Add credit at console.anthropic.com, or use a free Gemini key instead.':'The AI service returned an error ('+r.status+').')+await why(r));
     return ((await r.json()).content||[]).map(c=>c.text||'').join('');
   }
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':AIKEY},
-    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:'application/json'}})});
-  if(!r.ok)throw new Error(r.status===400||r.status===403?'The AI key was rejected. Check it in Settings.':r.status===429?'The free AI limit was reached. Wait a minute and try again.':'The AI service did not answer ('+r.status+'). Try again.');
-  const j=await r.json();return (((j.candidates||[])[0]||{}).content||{}).parts.map(p=>p.text||'').join('');
+  let last='';
+  for(const m of ['gemini-flash-latest','gemini-flash-lite-latest','gemini-3.5-flash-lite','gemini-3.5-flash','gemini-2.5-flash']){
+    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent',{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':AIKEY},
+      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:'application/json'}})});
+    if(r.ok){const j=await r.json();return ((((j.candidates||[])[0]||{}).content||{}).parts||[]).map(p=>p.text||'').join('')}
+    last='The AI service returned an error ('+r.status+').'+await why(r);
+    if(r.status===401||r.status===403)break;
+  }
+  throw new Error(last);
 }
 let pOpts=[];
 $('#pWrite').onclick=async()=>{
