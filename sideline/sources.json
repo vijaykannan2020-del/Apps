@@ -1,0 +1,125 @@
+[
+  {
+    "id": "makkal",
+    "name": "Makkal TV · மக்கள் தொலைக்காட்சி",
+    "category": "Entertainment",
+    "desc": "Tamil culture, shows & news",
+    "logo": "MAKKAL TV",
+    "photo": "city",
+    "official": "https://makkal.tv/",
+    "stream": "https://5k8q87azdy4v-hls-live.wmncdn.net/MAKKAL/271ddf829afeece44d8732757fba1a66.sdp/playlist.m3u8",
+    "checked": "2026-11-13",
+    "tags": [
+      "Tamil"
+    ],
+    "access": "Free IPTV",
+    "regions": [
+      "India",
+      "USA"
+    ]
+  },
+  {
+    "id": "puthiya",
+    "name": "Puthiya Thalaimurai",
+    "category": "News",
+    "desc": "Tamil news · தமிழ் செய்திகள்",
+    "logo": "PUTHIYA THALAIMURAI",
+    "photo": "news",
+    "official": "https://www.puthiyathalaimurai.com/live-tv",
+    "stream": null,
+    "checked": "2026-11-13",
+    "embed": "https://www.youtube.com/embed/hw7Fjh6mncQ",
+    "tags": [
+      "Tamil"
+    ],
+    "access": "Free official player",
+    "regions": [
+      "India",
+      "USA"
+    ]
+  },
+  {
+    "id": "willowsports",
+    "name": "Willow Sports — Free",
+    "category": "Sports",
+    "desc": "Cricket classics, highlights & selected coverage",
+    "logo": "WILLOW SPORTS",
+    "photo": "cricket",
+    "official": "https://www.trillertv.com/channel/willow-sports/",
+    "stream": "https://amg01269-amg01269c1-firetv-us-5377.playouts.now.amagi.tv/playlist.m3u8",
+    "checked": "2026-11-13",
+    "tags": [
+      "Cricket"
+    ],
+    "access": "Free IPTV · USA",
+    "regions": [
+      "USA"
+    ]
+  },
+  {
+    "id": "redbull",
+    "name": "Red Bull TV",
+    "category": "Sports",
+    "desc": "Action sports · English",
+    "logo": "RED BULL TV",
+    "photo": "racing",
+    "official": "https://www.redbull.tv/en_US/epg",
+    "stream": "https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8",
+    "checked": "2026-11-13"
+  },
+  {
+    "id": "dw",
+    "name": "DW English",
+    "category": "News",
+    "desc": "World news & documentaries · English",
+    "logo": "DW",
+    "photo": "city",
+    "official": "https://www.dw.com/en/live-tv/channel-english",
+    "stream": "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/master.m3u8",
+    "checked": "2026-11-13"
+  },
+  {
+    "id": "france24",
+    "name": "France 24 English",
+    "category": "News",
+    "desc": "International news · English",
+    "logo": "FRANCE 24",
+    "photo": "news",
+    "official": "https://www.france24.com/en/live",
+    "stream": "https://live.france24.com/hls/live/2037218/F24_EN_HI_HLS/master_2300.m3u8",
+    "checked": "2026-11-13"
+  },
+  {
+    "id": "nhk",
+    "name": "NHK WORLD-JAPAN",
+    "category": "Documentaries",
+    "desc": "News, culture & shows · English",
+    "logo": "NHK WORLD",
+    "photo": "nature",
+    "official": "https://www3.nhk.or.jp/nhkworld/en/live/",
+    "stream": "https://masterpl.hls.nhkworld.jp/hls/w/live/smarttv.m3u8",
+    "checked": "2026-11-13"
+  },
+  {
+    "id": "france24fr",
+    "name": "France 24 Français",
+    "category": "News",
+    "desc": "International news · French",
+    "logo": "FRANCE 24",
+    "photo": "city",
+    "official": "https://www.france24.com/fr/direct",
+    "stream": "https://live.france24.com/hls/live/2037179/F24_FR_HI_HLS/master_2300.m3u8",
+    "checked": "2026-11-13"
+  },
+  {
+    "id": "france24ar",
+    "name": "France 24 العربية",
+    "category": "News",
+    "desc": "International news · Arabic",
+    "logo": "FRANCE 24",
+    "photo": "news",
+    "official": "https://www.france24.com/ar/live",
+    "stream": "https://live.france24.com/hls/live/2037222/F24_AR_HI_HLS/master_2300.m3u8",
+    "checked": "2026-11-13"
+  }
+]

@@ -13,6 +13,7 @@ Last updated: 2026-11-12.
 |---|---|---|
 | `cinema-book/` | Cinema Book, the real app the family uses | https://vijaykannan2020-del.github.io/Apps/cinema-book/ |
 | `cinema-book-test/` | Test copy of Cinema Book, for trying changes | https://vijaykannan2020-del.github.io/Apps/cinema-book-test/ |
+| `sideline/` | Sideline: movies, Webtor, server connection and live TV | https://vijaykannan2020-del.github.io/Apps/sideline/ |
 | `plate-log/` | Plate Log, a separate food diary app | https://vijaykannan2020-del.github.io/Apps/plate-log/ |
 
 Hosting is GitHub Pages from the `main` branch. A push to `main` is live in
@@ -127,6 +128,8 @@ the top right and cover part of the page.
 ## Change log
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-13, ChatGPT: added Sideline v1 in `sideline/` at Vijay's request. Movie-first page, side-menu TV/cricket, Webtor handoff, optional separately hosted torrent server. Plain static HTML/JS with no Firebase integration or sign-in. Browser-local settings do not migrate from Sites. Bulk playlists and stream-health URLs excluded from public export; built-in channels and source controls retained. Existing apps unchanged.
 
 - 2026-11-12, Claude: moved Version 22 from the test copy into the real app (`cinema-book/`) at Vijay's request. Real app and test copy are now the same version.
 
