@@ -129,6 +129,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-13, ChatGPT: Sideline Version 3 reuses the existing Cinema Book Firebase email/password login and shared browser auth session. Before loading app scripts it reads only `apps/cinemabook/users/{uid}` from the server to verify access under existing Firestore rules; no Cinema Book diary/config writes and no rule changes. Sideline preferences remain browser-local, now scoped per UID, with legacy settings adopted by the first signed-in account. Server key remains session-only and is cleared at sign-out/account change. A shared Firebase sign-out also affects Cinema Book in that browser. No cross-device settings sync yet.
+
 - 2026-11-13, ChatGPT: Sideline Version 2, phone/foldable fixed-height app shell with inner scrolling, safe-area spacing, floating bottom navigation on mobile, aligned source/server actions and search, responsive dialogs, and standalone Home Screen manifest. Existing color palette preserved. GitHub Sideline only; Cinema Book and other apps unchanged.
 
 - 2026-11-13, ChatGPT: added Sideline v1 in `sideline/` at Vijay's request. Movie-first page, side-menu TV/cricket, Webtor handoff, optional separately hosted torrent server. Plain static HTML/JS with no Firebase integration or sign-in. Browser-local settings do not migrate from Sites. Bulk playlists and stream-health URLs excluded from public export; built-in channels and source controls retained. Existing apps unchanged.

@@ -6,10 +6,10 @@ const directoryLists=[[],[],[],[]];
 let streamHealth={},healthCheckedAt=null,activeUrls=[];const sessionHealth={};
 const healthReady=fetch('stream-health.json').then(r=>r.ok?r.json():Promise.reject()).then(data=>{streamHealth=data.sources||{};healthCheckedAt=data.checkedAt}).catch(()=>{});
 
-function read(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fallback}catch{return fallback}}
+function read(key,fallback){try{return JSON.parse(localStorage.getItem(window.sidelineStorageKey?window.sidelineStorageKey(key):key))||fallback}catch{return fallback}}
 function sourceFor(id){return sources[id]||channels.find(c=>c.id===id)?.stream}
 let favorites=read('sideline-favorites',[]),sources=read('sideline-sources',{}),reminders=read('sideline-reminders',[]),category='Tamil & Cricket',region=read('sideline-region','All regions'),nav='Sources',current=null,hls=null;
-function save(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{toast('Browser storage is unavailable. Changes last for this session.')}}
+function save(key,value){try{localStorage.setItem(window.sidelineStorageKey?window.sidelineStorageKey(key):key,JSON.stringify(value))}catch{toast('Browser storage is unavailable. Changes last for this session.')}}
 function toast(t){$('#toast').textContent=t;$('#toast').classList.remove('hidden');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('#toast').classList.add('hidden'),3500)}
 const categories=['Tamil & Cricket','All channels','Tamil','Cricket','Sports','News','Entertainment','Documentaries'];
 function render(){
