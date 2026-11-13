@@ -129,6 +129,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-13, ChatGPT: Sideline Version 4 removes the left sidebar at every screen width in favor of a consistent floating bottom bar. Replaced native movie/show dropdown with touch tabs, aligned search actions, hid scrollbars, and hid the dock while the software keyboard is open. Search submission dismisses the keyboard. Firebase login preserved. Actual iPhone visual testing remains pending.
+
 - 2026-11-13, ChatGPT: Sideline Version 3 reuses the existing Cinema Book Firebase email/password login and shared browser auth session. Before loading app scripts it reads only `apps/cinemabook/users/{uid}` from the server to verify access under existing Firestore rules; no Cinema Book diary/config writes and no rule changes. Sideline preferences remain browser-local, now scoped per UID, with legacy settings adopted by the first signed-in account. Server key remains session-only and is cleared at sign-out/account change. A shared Firebase sign-out also affects Cinema Book in that browser. No cross-device settings sync yet.
 
 - 2026-11-13, ChatGPT: Sideline Version 2, phone/foldable fixed-height app shell with inner scrolling, safe-area spacing, floating bottom navigation on mobile, aligned source/server actions and search, responsive dialogs, and standalone Home Screen manifest. Existing color palette preserved. GitHub Sideline only; Cinema Book and other apps unchanged.
