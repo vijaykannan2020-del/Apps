@@ -5,7 +5,7 @@ It says what is in this repository, how it is deployed, and the rules for
 changing it safely. Update the "Change log" at the bottom after every change.
 
 Owner: Vijay (GitHub: vijaykannan2020-del). Family use only, for now.
-Last updated: 2026-11-12.
+Last updated: 2026-11-13.
 
 ## What is here
 
@@ -128,6 +128,8 @@ the top right and cover part of the page.
 ## Change log
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-13, ChatGPT: Sideline Version 2, phone/foldable fixed-height app shell with inner scrolling, safe-area spacing, floating bottom navigation on mobile, aligned source/server actions and search, responsive dialogs, and standalone Home Screen manifest. Existing color palette preserved. GitHub Sideline only; Cinema Book and other apps unchanged.
 
 - 2026-11-13, ChatGPT: added Sideline v1 in `sideline/` at Vijay's request. Movie-first page, side-menu TV/cricket, Webtor handoff, optional separately hosted torrent server. Plain static HTML/JS with no Firebase integration or sign-in. Browser-local settings do not migrate from Sites. Bulk playlists and stream-health URLs excluded from public export; built-in channels and source controls retained. Existing apps unchanged.
 
