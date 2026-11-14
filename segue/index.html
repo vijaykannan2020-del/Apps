@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 17</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 18</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -170,20 +170,12 @@ img[src=""],img:not([src]){visibility:hidden}
       <div class="card">
         <h2>AI DJ</h2>
         <div class="row"><input id="aiKey" class="input" placeholder="Gemini key (AIza…) or Claude key (sk-ant…)" autocomplete="off" spellcheck="false"><button class="btn" id="aiSave">Save</button></div>
-        <div class="note small" id="aiNote">With a key, AI reads each song's timed lyrics to pick its best-loved part and labels its mood, so the mix flows by mood too. The key stays only on this device. Without a key, Segue uses its built-in rules.</div>
+        <div class="note small" id="aiNote">Segue asks the AI one question per song: which part is the famous, best-loved one, and where does it start and end. Then it plays just that. The key stays only on this device.</div>
       </div>
 
       <div class="card">
         <h2>Crate</h2>
         <div class="chips" id="crate"><span class="dim small">Add one or more sources above.</span></div>
-        <div class="lbl">Seconds of each song</div>
-        <div class="seg" data-k="len">
-          <button class="opt" data-v="30">30 sec</button>
-          <button class="opt on" data-v="45">45 sec</button>
-          <button class="opt" data-v="60">60 sec</button>
-          <button class="opt" data-v="90">90 sec</button>
-          <button class="opt" data-v="full">Full songs</button>
-        </div>
         <div class="lbl">Songs in the mix</div>
         <div class="seg" data-k="max">
           <button class="opt" data-v="15">15</button>
@@ -253,7 +245,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 17;
+const APP_VERSION = 18;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -322,7 +314,7 @@ async function api(path, { method='GET', body, retry=2 } = {}){
 async function apiFirst(paths, opts){ let err; for (const p of paths) { try { return await api(p, opts); } catch(e){ err=e; if (![403,404,400].includes(e.status)) throw e; } } throw err; }
 
 /* ---------------- State ---------------- */
-const ST = { me:null, tab:'playlist', crate:[], vibe:'smooth', len:'45', max:30, trans:'cut', part:'peak', myPlaylists:null, mix:[], featOk:false };
+const ST = { me:null, tab:'playlist', crate:[], vibe:'smooth', len:'ai', max:30, trans:'cut', part:'peak', myPlaylists:null, mix:[], featOk:false };
 
 /* ---------------- Sources UI ---------------- */
 function parseLink(s){
@@ -538,7 +530,7 @@ function buildOrder(tracks, vibe){
   ord.target = target;
   return ord;
 }
-const SRC = { you:'set by you', ai:'AI pick from lyrics', aiest:'AI estimate', lyrics:'chorus from lyrics', estimate:'rule estimate (no lyrics found)' };
+const SRC = { you:'set by you', ai:'AI pick', lyrics:'chorus', estimate:'simple rule (no AI answer yet)' };
 const LEN = { 30:30000, 45:45000, 60:60000, 90:90000 };
 function planSegments(ord, vibe, len){
   const baseFade = { smooth:4500, party:3000, peak:2200, chill:6500 }[vibe];
@@ -550,7 +542,7 @@ function planSegments(ord, vibe, len){
     let ratio = .3; if (t.dance > .72) ratio = .26; if (t.energy < .4) ratio = .36; if (t.dur > 330000) ratio -= .05;
     const mine = HK.get()[t.id], beat = 60000 / (t.tempo || 120);
     if (mine != null) { t.hook = mine; t.hookSrc = 'you'; }
-    else if (t.aiStart != null && !(ST.part === 'first' && Array.isArray(t.lyricHook))) { t.hook = clamp(t.aiStart - beat, 0, Math.max(0, t.dur - (LEN[len] || 45000) - 3000)); t.hookSrc = t.aiApprox ? 'aiest' : 'ai'; }
+    else if (t.aiStart != null && !(ST.part === 'first' && Array.isArray(t.lyricHook))) { t.hook = clamp(t.aiStart - beat, 0, Math.max(0, t.dur - (LEN[len] || 45000) - 3000)); t.hookSrc = 'ai'; }
     else if (Array.isArray(t.lyricHook) && t.lyricHook.length) {
       const cs = t.lyricHook, need = len === 'full' ? 0 : (LEN[len] || 45000);
       // Peak = the last full chorus that still leaves room to play it (the second or third time round is usually the biggest)
@@ -571,7 +563,7 @@ function planSegments(ord, vibe, len){
     if (len === 'full') {
       t.start = 0; t.end = t.dur - 1500;
     } else {
-      const want = LEN[len];
+      const want = LEN[len] || 45000;
       if (ST.trans === 'cut') {
         // DJ cut: come in right on the hook's downbeat, leave exactly at the end of a phrase
         t.start = Math.max(0, t.hook - 120);
@@ -582,6 +574,7 @@ function planSegments(ord, vibe, len){
         t.start = i === 0 && vibe !== 'peak' ? Math.max(0, t.hook - 2*phrase) : Math.max(0, t.hook - phrase);
         t.end = Math.min(t.dur - 1500, t.hook + Math.max(4, Math.round(want / bar)) * bar + t.fadeOut);
       }
+      if (t.hookSrc === 'ai' && t.aiEnd) t.end = Math.min(t.dur - 1500, t.hook + Math.max(8, Math.round((t.aiEnd - t.aiStart) / bar)) * bar + (ST.trans === 'cut' ? 0 : t.fadeOut)); // the AI's own length, to a whole bar
       if (t.end - t.start < want * .8) t.start = Math.max(0, t.end - want);
     }
   });
@@ -684,23 +677,18 @@ const MOOD_NEAR = { party:['energetic','happy'], energetic:['party','intense','h
 function moodDist(a, b){ if (!a || !b) return .3; if (a === b) return 0; return (MOOD_NEAR[a]||[]).includes(b) ? .4 : 1; }
 const AI = {
   key(){ return LS.get('aikey') || ''; },
-  cache(){ try { return JSON.parse(LS.get('ai2') || '{}'); } catch { return {}; } },
-  save(c){ const ks = Object.keys(c); if (ks.length > 3000) ks.slice(0, 500).forEach(k => delete c[k]); LS.set('ai2', JSON.stringify(c)); },
+  cache(){ try { return JSON.parse(LS.get('ai3') || '{}'); } catch { return {}; } },
+  save(c){ const ks = Object.keys(c); if (ks.length > 3000) ks.slice(0, 500).forEach(k => delete c[k]); LS.set('ai3', JSON.stringify(c)); },
   prompt(batch){
-    const songs = batch.map(t => {
-      let lyr = 'lyrics: none available';
-      if (t.lrcLines?.length) lyr = 'timed lyrics (seconds + line):\n' + t.lrcLines.filter((l,i,a) => i === 0 || l.text !== a[i-1].text || l.t - a[i-1].t > 8000).slice(0, 80).map(l => `${(l.t/1000).toFixed(1)} ${l.text.slice(0, 70)}`).join('\n');
-      else if (t.plainLines?.length) lyr = 'untimed lyrics (line number + line):\n' + t.plainLines.slice(0, 70).map((l,i) => `${i+1}. ${l.slice(0, 70)}`).join('\n');
-      return `### id: ${t.id}\ntitle: ${t.name}\nartist: ${t.artists.join(', ')}\nlength: ${Math.round(t.dur/1000)} s${t.tempo ? `\nbpm: ${Math.round(t.tempo)}` : ''}${t.f ? `\nenergy: ${Math.round(t.energy*100)}/100` : ''}${styleName(t) ? `\nstyle: ${styleName(t)}` : ''}\n${lyr}`;
-    }).join('\n\n');
-    return `You are an expert DJ for Tamil, Hindi, Telugu, English and global pop, and you know which part of each song is the famous one: the hook people sing along to, the part used in reels and shorts, the mass theme or drop.
-For each song, find where to drop in so that famous part plays for about ${LEN[ST.len] ? LEN[ST.len]/1000 : 45} seconds.
-- If the song has TIMED lyrics: set "start" to exactly one of the listed line times (seconds) where that part begins. Prefer a later, fuller repeat of the hook if at least ${LEN[ST.len] ? LEN[ST.len]/1000 : 45} seconds of song remain after it. Set "line" and "guess" to null.
-- If it has UNTIMED lyrics: set "line" to the line number where that part begins, and "guess" to your best estimate in seconds of when that line is sung. Set "start" to null.
-- If it has no lyrics (themes, background scores, instrumentals): set "guess" to your best estimate in seconds of where the main theme or drop hits, using what you know of the song and its length. Set "start" and "line" to null.
-"guess" must always be a number when there are no timed lyrics: never null. It must be at least 10 and at most the song length minus 30.
-Also give "mood": one of ${MOODS.join(', ')}; and "why": at most 8 words.
-Reply with only a JSON array: [{"id":"...","start":number|null,"line":number|null,"guess":number|null,"mood":"...","why":"..."}].
+    const songs = batch.map(t => `id: ${t.id} | title: ${t.name} | artists: ${t.artists.join(', ')} | length: ${Math.round(t.dur/1000)} s${t.tempo ? ` | bpm: ${Math.round(t.tempo)}` : ''}`).join('\n');
+    return `You are an expert DJ for Tamil, Hindi, Telugu, English and global pop. You know which part of each song is the famous one: the hook everyone sings along to, the part used in reels and shorts, the mass theme or the drop.
+For each song below, give the best part to play in a DJ mix:
+- "start": the second where that famous part begins (the first beat of the hook, not mid-line).
+- "end": the second where it should hand over to the next song. The part should be 30 to 75 seconds long and must end at least 2 seconds before the song ends.
+- "mood": one of ${MOODS.join(', ')}.
+- "why": at most 8 words.
+Always give numbers for start and end, using what you know of the song and its length.
+Reply with only a JSON array: [{"id":"...","start":number,"end":number,"mood":"...","why":"..."}].
 
 ${songs}`;
   },
@@ -738,7 +726,7 @@ ${songs}`;
     this.lastErr = null; this.empty = 0;
     const cache = this.cache(); const todo = tracks.filter(t => !cache[t.id]);
     todo.forEach(t => t.aiPending = true);
-    const apply = list => list.forEach(t => { const c = cache[t.id]; if (c) { t.aiStart = c.start; t.aiApprox = !!c.approx; t.mood = c.mood; t.aiWhy = c.why; } });
+    const apply = list => list.forEach(t => { const c = cache[t.id]; if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     let done = 0;
     for (let i = 0; i < todo.length; i += 5) {
       const batch = todo.slice(i, i + 5);
@@ -748,18 +736,10 @@ ${songs}`;
         const arr = JSON.parse(txt.replace(/^[^\[]*/, '').replace(/[^\]]*$/, ''));
         for (const o of arr) {
           const t = batch.find(x => x.id === o.id); if (!t) continue;
-          let start = typeof o.start === 'number' ? o.start * 1000 : null, approx = false;
-          // Exact: only a time that really is a timed lyric line
-          if (start != null && !(t.lrcLines || []).some(l => Math.abs(l.t - start) < 1200)) start = null;
-          if (start == null) {
-            // Estimate: the AI's own guess, cross-checked against where that line sits in the untimed lyrics
-            let g = typeof o.guess === 'number' ? o.guess * 1000 : null;
-            const n = t.plainLines?.length;
-            if (n && typeof o.line === 'number' && o.line >= 1 && o.line <= n) { const pos = t.dur * (.1 + .8 * (o.line - 1) / n); g = g == null || Math.abs(g - pos) > t.dur * .3 ? pos : (g + pos) / 2; }
-            if (g != null) { start = g; approx = true; }
-          }
-          if (start != null && (start < 5000 || start > t.dur - 20000)) start = null;
-          const res = { start, approx, mood: MOODS.includes(o.mood) ? o.mood : null, why: String(o.why || '').slice(0, 60) };
+          let start = typeof o.start === 'number' ? o.start * 1000 : null, end = typeof o.end === 'number' ? o.end * 1000 : null;
+          if (start != null && (start < 0 || start > t.dur - 20000)) start = null;
+          if (start != null) { if (end == null || end - start < 20000) end = start + 45000; end = Math.min(end, start + 90000, t.dur - 1500); }
+          const res = { start, end, mood: MOODS.includes(o.mood) ? o.mood : null, why: String(o.why || '').slice(0, 60) };
           if (start != null) cache[t.id] = res; else { t.mood = res.mood; this.empty = (this.empty||0) + 1; }
           done++;
         }
@@ -767,7 +747,7 @@ ${songs}`;
       } catch(e){ this.lastErr = e.message; toast(e.message, 6000); if (/key|quota|429|403|401|API_KEY|permission/i.test(e.message)) { todo.forEach(t => t.aiPending = false); break; } }
       batch.forEach(t => t.aiPending = false); apply(batch); onBatch?.();
     }
-    tracks.forEach(t => { const c = cache[t.id]; if (c) { t.aiStart = c.start; t.aiApprox = !!c.approx; t.mood = c.mood; t.aiWhy = c.why; } });
+    tracks.forEach(t => { const c = cache[t.id]; if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     return done;
   },
 };
@@ -793,25 +773,23 @@ async function buildMix(){
     }
     msg.innerHTML = `<span class="spin"></span> Reading music styles…`;
     await within(fetchGenres(picked, (d,n)=> msg.innerHTML = `<span class="spin"></span> Reading artist genres ${d}/${n}…`), 12000);
-    msg.innerHTML = `<span class="spin"></span> Finding each song's chorus…`;
-    await within(findHooks(picked, (d,n)=> msg.innerHTML = `<span class="spin"></span> Finding choruses ${d}/${n}…`), 40000);
     // Songs the AI has already seen get their saved picks straight away
-    const aic = AI.cache(); picked.forEach(t => { const c = aic[t.id]; if (c) { t.aiStart = c.start; t.aiApprox = !!c.approx; t.mood = c.mood; t.aiWhy = c.why; } });
+    const aic = AI.cache(); picked.forEach(t => { const c = aic[t.id]; if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     msg.innerHTML = `<span class="spin"></span> Planning the set…`; await sleep(30);
     ST.pool = picked;
     remix();
-    const summary = () => { const nl = ST.mix.filter(t => t.hookSrc === 'lyrics' || t.hookSrc === 'ai').length, na = ST.mix.filter(t => t.hookSrc === 'ai' || t.hookSrc === 'aiest').length;
-      return `${ST.mix.length} songs · ~${Math.round(ST.mix.reduce((s,t)=>s+(t.end-t.start),0)/60000)} min · chorus found for ${nl} of ${ST.mix.length}${AI.key() ? ` · AI chose ${na}` : ''}${ST.featOk?'':' · basic mode'}`; };
+    const summary = () => { const na = ST.mix.filter(t => t.hookSrc === 'ai').length;
+      return `${ST.mix.length} songs · ~${Math.round(ST.mix.reduce((s,t)=>s+(t.end-t.start),0)/60000)} min${AI.key() ? ` · AI picked ${na} of ${ST.mix.length}` : ''}${ST.featOk?'':' · basic mode'}`; };
     msg.textContent = summary();
     $('#deck').scrollIntoView({ behavior:'smooth', block:'start' });
     // AI refines in the background: you can press Play right away
     const stat = h => { $('#aiStat').innerHTML = `<div class="note" style="margin:10px 0">${h}</div>`; };
-    if (!AI.key()) stat('<b style="color:var(--warn)">AI DJ is off.</b> No AI key is saved on this device, so best parts come from lyrics or a simple rule. Paste a Gemini key in the AI DJ box, tap Save, and build again.');
+    if (!AI.key()) stat('<b style="color:var(--warn)">AI DJ is off.</b> No AI key is saved on this device, so best parts come from a simple rule. Paste a Gemini key in the AI DJ box, tap Save, and build again.');
     else if (!picked.some(t => !aic[t.id])) stat('AI DJ: every song in this mix uses an AI pick saved earlier.');
     if (AI.key() && picked.some(t => !aic[t.id])) {
       const pool = ST.pool, mix = ST.mix;
       const note = () => { const c = k => mix.filter(t => t.hookSrc === k).length;
-        const h = (AI.lastErr ? `<b style="color:var(--bad)">AI error: ${esc(AI.lastErr)}</b><br>` : '') + `This mix: AI picked from timed lyrics for <b>${c('ai')}</b>, AI estimate for <b>${c('aiest')}</b>, lyrics chorus for <b>${c('lyrics')}</b>, rule estimate for <b>${c('estimate')}</b>, set by you <b>${c('you')}</b>.${AI.empty ? ` The AI gave no usable answer for ${AI.empty}.` : ''}`; $('#aiNote').innerHTML = h; stat(h); };
+        const h = (AI.lastErr ? `<b style="color:var(--bad)">AI error: ${esc(AI.lastErr)}</b><br>` : '') + `AI picked the best part for <b>${c('ai')}</b> of ${mix.length} songs${c('you') ? `, you set <b>${c('you')}</b>` : ''}${c('estimate') ? `, <b>${c('estimate')}</b> use a simple rule` : ''}.${AI.empty ? ` The AI gave no usable answer for ${AI.empty}.` : ''}`; $('#aiNote').innerHTML = h; stat(h); };
       // The AI works through the songs in play order while the music runs; each result updates the songs still to come
       const refresh = () => { if (ST.pool !== pool || ST.mix !== mix) return;
         mix.forEach((t,i) => t._lock = DJ.playing && i <= DJ.idx);
@@ -842,7 +820,7 @@ function renderDeck(){
   $('#deckEmpty').classList.add('hide'); $('#deckOn').classList.remove('hide');
   $('#queue').innerHTML = ST.mix.map((t,i)=>`<div class="q ${i===DJ.idx?'cur':''} ${i<DJ.idx?'done':''}" data-i="${i}">
     <div class="n">${i+1}</div><img loading="lazy" src="${esc(t.imgS||t.img)}" alt="">
-    <div class="t"><b>${esc(t.name)}</b><span>${esc(t.artists.join(', '))}</span><span style="color:var(--ac)">${ST.len==='full' ? 'full song' : `plays ${fmt(t.start)} → ${fmt(t.end)} · ${t.aiPending && t.hookSrc !== 'you' ? 'AI thinking…' : SRC[t.hookSrc]||''}${t.aiWhy && (t.hookSrc==='ai'||t.hookSrc==='aiest') ? ' · ' + esc(t.aiWhy) : ''}`}</span></div>
+    <div class="t"><b>${esc(t.name)}</b><span>${esc(t.artists.join(', '))}</span><span style="color:var(--ac)">${ST.len==='full' ? 'full song' : `plays ${fmt(t.start)} → ${fmt(t.end)} · ${t.aiPending && t.hookSrc !== 'you' ? 'AI thinking…' : SRC[t.hookSrc]||''}${t.aiWhy && t.hookSrc==='ai' ? ' · ' + esc(t.aiWhy) : ''}`}</span></div>
     <div class="why">${t.why || '<em>opener</em>'}</div></div>`).join('');
   showNow(DJ.idx, true);
 }

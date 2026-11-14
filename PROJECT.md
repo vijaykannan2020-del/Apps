@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-14, Claude: Segue Version 18 (Vijay's request: just ask the AI and play). Lyrics lookup and the seconds picker are removed from the flow. The AI gets title, artists, length and bpm, and returns start, end (30-75 s), mood and reason per song; Segue plays exactly that part. Cache key ai3. Only option left is number of songs. Lyrics code remains in the file but is not called.
+
 - 2026-11-14, Claude: Segue Version 17 fixes the AI failing on retired Gemini model names: it now lists the key's available models and uses the newest gemini-N-flash, falling back to gemini-3.8-flash and gemini-flash-latest; the error text names the model tried.
 
 - 2026-11-14, Claude: Segue Version 16 shows an AI status box above the running order (off / working n of m / counts per method / error text). Empty AI answers are no longer cached, and the prompt now requires a numeric guess for songs without timed lyrics.
