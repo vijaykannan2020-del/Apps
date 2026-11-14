@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-14, Claude: Segue Version 22: Gemini free tier allows only 20 requests a day per model, so one request now covers the song about to play plus up to 7 after it (about 4 requests per 30 songs), and when a model's allowance is used up Segue moves to the next model (Flash-Lite etc.).
+
 - 2026-11-14, Claude: Segue Version 21 fixes "AI error: Fetch is aborted" (Gemini Flash gave no answer within the time limit): 35 s limit per request, then it moves to the next model (newest Flash-Lite, then the -latest aliases) and remembers which one answered.
 
 - 2026-11-14, Claude: Segue Version 20 respects Gemini's free limit (5 requests a minute): at least 13 s between AI requests, and on a 429 it waits the time Google gives and asks once more instead of failing.

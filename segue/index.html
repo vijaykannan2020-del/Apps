@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 21</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 22</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -245,7 +245,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 21;
+const APP_VERSION = 22;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -734,16 +734,23 @@ ${songs}`;
         const m = /retry in ([\d.]+)\s*s/i.exec(j?.error?.message || ''); const secs = m ? +m[1] : 30;
         if (secs <= 70) { retried = true; await sleep((secs + 1) * 1000); mi--; continue; }
       }
+      if (r.status === 429 && this.models.length > 1 && mi < this.models.length - 1) { this.models.push(this.models.splice(mi, 1)[0]); mi--; if (++this.slow > this.models.length) { this.slow = 0; throw lastErr; } continue; } // this model's allowance is used up: try the next
       if (r.status === 401 || r.status === 403 || r.status === 429 || (r.status === 400 && /API key/i.test(j?.error?.message || ''))) throw lastErr; // key or quota problem: don't try other models
     }
     throw lastErr;
   },
   slow: 0,
   q: Promise.resolve(),
-  one(t){ // ask about a single song; requests are queued so they never overlap
-    if (!this.key() || this.cache()[t.id] || (t._aiTries || 0) >= 2) return Promise.resolve();
-    t._aiP ||= (this.q = this.q.then(async () => { t._aiTries = (t._aiTries || 0) + 1; await this.run([t]); t._aiP = null; }).catch(() => { t._aiP = null; }));
-    return t._aiP;
+  one(t){ // decide this song and the next few in one request; requests are queued so they never overlap
+    const cache = this.cache();
+    if (!this.key() || cache[t.id] || (t._aiTries || 0) >= 2) return Promise.resolve();
+    if (t._aiP) return t._aiP;
+    const mix = ST.mix, i = Math.max(0, mix.indexOf(t));
+    const batch = mix.slice(i, i + 12).filter(x => !cache[x.id] && !x._aiP && (x._aiTries || 0) < 2 && x.hookSrc !== 'you').slice(0, 8);
+    if (!batch.includes(t)) batch.unshift(t);
+    const p = this.q = this.q.then(async () => { batch.forEach(x => x._aiTries = (x._aiTries || 0) + 1); await this.run(batch); }).catch(() => {}).then(() => { batch.forEach(x => { x._aiP = null; x.aiPending = false; }); });
+    batch.forEach(x => x._aiP = p);
+    return p;
   },
   async run(tracks, onProg, onBatch){
     if (!this.key()) return 0;
@@ -786,7 +793,7 @@ function aiStatus(){
   const mix = ST.mix, el = $('#aiStat'); if (!mix.length) return;
   if (!AI.key()) { el.innerHTML = '<div class="note" style="margin:10px 0"><b style="color:var(--warn)">AI DJ is off.</b> No AI key is saved on this device, so best parts come from a simple rule. Paste a Gemini key in the AI DJ box, tap Save, and build again.</div>'; return; }
   const n = mix.filter(t => t.hookSrc === 'ai').length;
-  el.innerHTML = `<div class="note" style="margin:10px 0">${AI.lastErr ? `<b style="color:var(--bad)">AI error: ${esc(AI.lastErr)}</b><br>` : ''}AI DJ has chosen the best part for <b>${n}</b> of ${mix.length} songs. It decides each song just before it plays.</div>`;
+  el.innerHTML = `<div class="note" style="margin:10px 0">${AI.lastErr ? `<b style="color:var(--bad)">AI error: ${esc(AI.lastErr)}</b><br>` : ''}AI DJ has chosen the best part for <b>${n}</b> of ${mix.length} songs. It decides the next few songs just before they play.</div>`;
 }
 let aheadBusy = false;
 async function aiAhead(){
@@ -805,7 +812,7 @@ async function aiAhead(){
 function rowPlan(t){
   if (ST.len === 'full') return 'full song';
   if (t.aiPending && t.hookSrc !== 'you') return 'AI is choosing the best part…';
-  if (t.hookSrc === 'estimate' && AI.key() && (t._aiTries || 0) < 2) return 'AI decides just before it plays';
+  if (t.hookSrc === 'estimate' && AI.key() && (t._aiTries || 0) < 2) return 'AI decides shortly before it plays';
   return `plays ${fmt(t.start)} → ${fmt(t.end)} · ${SRC[t.hookSrc] || ''}${t.aiWhy && t.hookSrc === 'ai' ? ' · ' + esc(t.aiWhy) : ''}`;
 }
 
