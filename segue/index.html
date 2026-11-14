@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 18</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 19</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -245,7 +245,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 18;
+const APP_VERSION = 19;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -530,7 +530,7 @@ function buildOrder(tracks, vibe){
   ord.target = target;
   return ord;
 }
-const SRC = { you:'set by you', ai:'AI pick', lyrics:'chorus', estimate:'simple rule (no AI answer yet)' };
+const SRC = { you:'set by you', ai:'AI pick', lyrics:'chorus', estimate:'simple rule (no AI answer)' };
 const LEN = { 30:30000, 45:45000, 60:60000, 90:90000 };
 function planSegments(ord, vibe, len){
   const baseFade = { smooth:4500, party:3000, peak:2200, chill:6500 }[vibe];
@@ -682,7 +682,7 @@ const AI = {
   prompt(batch){
     const songs = batch.map(t => `id: ${t.id} | title: ${t.name} | artists: ${t.artists.join(', ')} | length: ${Math.round(t.dur/1000)} s${t.tempo ? ` | bpm: ${Math.round(t.tempo)}` : ''}`).join('\n');
     return `You are an expert DJ for Tamil, Hindi, Telugu, English and global pop. You know which part of each song is the famous one: the hook everyone sings along to, the part used in reels and shorts, the mass theme or the drop.
-For each song below, give the best part to play in a DJ mix:
+Think carefully about each song below, then give the best part to play in a DJ mix:
 - "start": the second where that famous part begins (the first beat of the hook, not mid-line).
 - "end": the second where it should hand over to the next song. The part should be 30 to 75 seconds long and must end at least 2 seconds before the song ends.
 - "mood": one of ${MOODS.join(', ')}.
@@ -721,6 +721,12 @@ ${songs}`;
     }
     throw lastErr;
   },
+  q: Promise.resolve(),
+  one(t){ // ask about a single song; requests are queued so they never overlap
+    if (!this.key() || this.cache()[t.id] || (t._aiTries || 0) >= 2) return Promise.resolve();
+    t._aiP ||= (this.q = this.q.then(async () => { t._aiTries = (t._aiTries || 0) + 1; await this.run([t]); t._aiP = null; }).catch(() => { t._aiP = null; }));
+    return t._aiP;
+  },
   async run(tracks, onProg, onBatch){
     if (!this.key()) return 0;
     this.lastErr = null; this.empty = 0;
@@ -751,6 +757,39 @@ ${songs}`;
     return done;
   },
 };
+
+/* ---------------- AI works one song ahead of the music ---------------- */
+function replanAhead(lockUpTo){
+  const mix = ST.mix; mix.forEach((t,i) => t._lock = i <= lockUpTo);
+  planSegments(mix, ST.vibe, ST.len); mix.forEach(t => t._lock = false);
+  renderDeck(); aiStatus();
+}
+function aiStatus(){
+  const mix = ST.mix, el = $('#aiStat'); if (!mix.length) return;
+  if (!AI.key()) { el.innerHTML = '<div class="note" style="margin:10px 0"><b style="color:var(--warn)">AI DJ is off.</b> No AI key is saved on this device, so best parts come from a simple rule. Paste a Gemini key in the AI DJ box, tap Save, and build again.</div>'; return; }
+  const n = mix.filter(t => t.hookSrc === 'ai').length;
+  el.innerHTML = `<div class="note" style="margin:10px 0">${AI.lastErr ? `<b style="color:var(--bad)">AI error: ${esc(AI.lastErr)}</b><br>` : ''}AI DJ has chosen the best part for <b>${n}</b> of ${mix.length} songs. It decides each song just before it plays.</div>`;
+}
+let aheadBusy = false;
+async function aiAhead(){
+  if (!AI.key() || !ST.mix.length || aheadBusy) return; aheadBusy = true;
+  try {
+    const mix = ST.mix, from = DJ.playing ? DJ.idx + 1 : DJ.idx;
+    for (const t of mix.slice(from, from + 2)) {
+      if (AI.cache()[t.id] || t.hookSrc === 'you') continue;
+      t.aiPending = true; renderDeck();
+      await AI.one(t); t.aiPending = false;
+      if (ST.mix !== mix) break;
+      replanAhead(DJ.playing ? DJ.idx : -1);
+    }
+  } finally { aheadBusy = false; }
+}
+function rowPlan(t){
+  if (ST.len === 'full') return 'full song';
+  if (t.aiPending && t.hookSrc !== 'you') return 'AI is choosing the best part…';
+  if (t.hookSrc === 'estimate' && AI.key() && (t._aiTries || 0) < 2) return 'AI decides just before it plays';
+  return `plays ${fmt(t.start)} → ${fmt(t.end)} · ${SRC[t.hookSrc] || ''}${t.aiWhy && t.hookSrc === 'ai' ? ' · ' + esc(t.aiWhy) : ''}`;
+}
 
 /* ---------------- Build mix ---------------- */
 async function buildMix(){
@@ -783,24 +822,6 @@ async function buildMix(){
     msg.textContent = summary();
     $('#deck').scrollIntoView({ behavior:'smooth', block:'start' });
     // AI refines in the background: you can press Play right away
-    const stat = h => { $('#aiStat').innerHTML = `<div class="note" style="margin:10px 0">${h}</div>`; };
-    if (!AI.key()) stat('<b style="color:var(--warn)">AI DJ is off.</b> No AI key is saved on this device, so best parts come from a simple rule. Paste a Gemini key in the AI DJ box, tap Save, and build again.');
-    else if (!picked.some(t => !aic[t.id])) stat('AI DJ: every song in this mix uses an AI pick saved earlier.');
-    if (AI.key() && picked.some(t => !aic[t.id])) {
-      const pool = ST.pool, mix = ST.mix;
-      const note = () => { const c = k => mix.filter(t => t.hookSrc === k).length;
-        const h = (AI.lastErr ? `<b style="color:var(--bad)">AI error: ${esc(AI.lastErr)}</b><br>` : '') + `AI picked the best part for <b>${c('ai')}</b> of ${mix.length} songs${c('you') ? `, you set <b>${c('you')}</b>` : ''}${c('estimate') ? `, <b>${c('estimate')}</b> use a simple rule` : ''}.${AI.empty ? ` The AI gave no usable answer for ${AI.empty}.` : ''}`; $('#aiNote').innerHTML = h; stat(h); };
-      // The AI works through the songs in play order while the music runs; each result updates the songs still to come
-      const refresh = () => { if (ST.pool !== pool || ST.mix !== mix) return;
-        mix.forEach((t,i) => t._lock = DJ.playing && i <= DJ.idx);
-        planSegments(mix, ST.vibe, ST.len); mix.forEach(t => t._lock = false);
-        renderDeck(); note(); };
-      renderDeck();
-      msg.innerHTML = summary() + ' · <span class="spin"></span> AI DJ thinking… press Play any time';
-      AI.run(mix.slice(), (d,n) => { if (ST.pool === pool) { msg.innerHTML = summary() + ` · <span class="spin"></span> AI DJ ${d}/${n} songs…`; stat(`<span class="spin"></span> AI DJ is working: ${d} of ${n} songs done. You can press Play; songs still to come update as it goes.`); } }, refresh)
-        .then(() => { if (ST.pool !== pool) return; refresh(); msg.textContent = summary() + (AI.lastErr ? ' · AI stopped' : ' · AI done'); })
-        .catch(() => { if (ST.pool === pool) msg.textContent = summary(); });
-    }
   } catch(e){ msg.textContent = e.message; toast(e.message); }
   btn.disabled = !ST.crate.length;
 }
@@ -810,7 +831,8 @@ function remix(){
   planSegments(ST.mix, ST.vibe, ST.len);
   DJ.idx = 0; renderDeck(); drawCurve();
   $('#featNote').innerHTML = ST.featOk ? '' : `<div class="note warn">Couldn't get audio analysis for most songs, so the order is based on artist spacing and the "best part" is estimated from song length. Mixing still works; it's just less precise.</div>`;
-  if (wasPlaying) DJ.go(0);
+  aiStatus();
+  if (wasPlaying) DJ.go(0); else aiAhead();
 }
 $('#buildBtn').onclick = buildMix;
 $('#reshuffle').onclick = () => ST.pool && remix();
@@ -820,7 +842,7 @@ function renderDeck(){
   $('#deckEmpty').classList.add('hide'); $('#deckOn').classList.remove('hide');
   $('#queue').innerHTML = ST.mix.map((t,i)=>`<div class="q ${i===DJ.idx?'cur':''} ${i<DJ.idx?'done':''}" data-i="${i}">
     <div class="n">${i+1}</div><img loading="lazy" src="${esc(t.imgS||t.img)}" alt="">
-    <div class="t"><b>${esc(t.name)}</b><span>${esc(t.artists.join(', '))}</span><span style="color:var(--ac)">${ST.len==='full' ? 'full song' : `plays ${fmt(t.start)} → ${fmt(t.end)} · ${t.aiPending && t.hookSrc !== 'you' ? 'AI thinking…' : SRC[t.hookSrc]||''}${t.aiWhy && t.hookSrc==='ai' ? ' · ' + esc(t.aiWhy) : ''}`}</span></div>
+    <div class="t"><b>${esc(t.name)}</b><span>${esc(t.artists.join(', '))}</span><span style="color:var(--ac)">${rowPlan(t)}</span></div>
     <div class="why">${t.why || '<em>opener</em>'}</div></div>`).join('');
   showNow(DJ.idx, true);
 }
@@ -902,7 +924,9 @@ const DJ = {
     }
   },
   async playTrack(i, fadeIn){
-    const t = ST.mix[i]; this.idx = i; showNow(i);
+    const t = ST.mix[i];
+    if (AI.key() && t.hookSrc !== 'you' && !AI.cache()[t.id] && (t._aiTries || 0) < 2) { setStat('AI choosing the best part…'); t.aiPending = true; await within(AI.one(t), 12000); t.aiPending = false; replanAhead(i - 1); }
+    this.idx = i; showNow(i);
     if (!this.dev) { await this.devices(); if (!this.dev) throw new Error('No playback device. Open Spotify on a device or use a desktop browser.'); }
     if (fadeIn) await this.vol(.02);
     const t0 = performance.now();
@@ -911,6 +935,7 @@ const DJ = {
     this.pos = t.start; this.posAt = performance.now();
     if (fadeIn) await this.ramp(.02, this.master, t.fadeIn); else await this.vol(this.master);
     $('#xf').style.width = '0';
+    aiAhead();
   },
   async go(i, smooth=true){
     if (i < 0 || i >= ST.mix.length) return;
