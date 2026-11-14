@@ -1,7 +1,7 @@
 # Segue: handoff
 
 Read `PROJECT.md` in the repository root first (deploy, phone layout rules,
-change log). This file covers Segue only. Last updated: 2026-11-14, Version 28.
+change log). This file covers Segue only. Last updated: 2026-11-14, Version 29.
 
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
@@ -120,6 +120,23 @@ audio. Clearing website data removes it. Reopening in Safari may use different
 storage from the Home Screen app. Settings includes Reload app, which saves
 the current snapshot and requests a fresh page without clearing local data.
 
+## Clear lists (Version 29)
+
+Home has separate Clear controls beside Your mixes and Saved AI picks. Each
+asks for confirmation inside the page, so playback timers keep running. Clearing mixes removes saved snapshots and Continue
+from this account's library but leaves current playback/queue running, source
+selections, keys, AI mappings and manual start corrections intact. Auto-save
+is detached from that cleared mix so polling/AI updates/pause cannot recreate
+the deleted list. A newly built mix is saved normally.
+
+Clearing the displayed AI song list only stores hidden song IDs in this
+account's library (`hiddenPicks`); it does not edit `segue_ai4` or `segue_hooks`.
+The hidden list remains cleared after reopening, while all best-part timings
+remain reusable with no extra AI request. Explicitly building another mix
+shows its songs again using those retained mappings. Pending picks from the current queue remain hidden too. Songs from a newly
+created mix can appear as usual. The timings-kept count remains visible. No Spotify
+playlist or Liked Songs is modified. Failed storage writes leave lists intact.
+
 ## Code map
 
 - `Library`: serialization, account-scoped source draft/mix storage, restore,
@@ -170,14 +187,15 @@ the current snapshot and requests a fresh page without clearing local data.
 ## Checks
 
 Run `node segue/tests/playback.test.cjs` from the repository root. No package
-installation or credentials needed. These 35 checks use simulated services:
+installation or credentials needed. These 40 checks use simulated services:
 AI batching/quotas/fallbacks, first-song wait, cancellation, no estimate
 substitution, exact passage bounds, manual overrides, stable current passage,
 pause/resume, stale states, device changes, late AI and no failed-song skipping.
 Also covers empty/stale devices, phone preference, 404 recovery, visible device
 errors, pick reuse after reload/from another playlist, retaining old picks,
 account-scoped mix/draft restoration without autoplay, serialization privacy,
-completed-set replay, metadata recovery and concurrent cache merges.
+completed-set replay, metadata recovery, concurrent cache merges, list clears
+without touching playback/cache/keys/corrections, and persistent hidden lists.
 
 Optional browser regression: `python segue/tests/browser_flow.py` (requires
 Python Playwright plus Chromium; `SEGUE_CHROMIUM` can specify the executable).
@@ -187,7 +205,8 @@ uses a temporary folder. Uses synthetic accounts and intercepts every request.
 Browser flow passed at 320/390/768/1024-pixel widths, in light/dark modes:
 create → saved mix/song list → search/rename → play/pause → reopen → same
 order/song/position without autoplay → continue with no extra AI request →
-saved library visible during a simulated Spotify outage. Four populated views
+saved library visible during a simulated Spotify outage, plus cancelling and
+confirming Clear and reopening with empty lists and unchanged AI cache. Four populated views
 had no horizontal overflow or JavaScript errors. Real device checks remain.
 
 ## Leftover code that is not used
@@ -208,12 +227,12 @@ Safe to delete in a clean-up; ask Vijay first.
   assistants' workspaces. Say plainly what was tested with stand-ins and
   what only he can test on the phone.
 
-## Current state (Version 28)
+## Current state (Version 29)
 
 - AI picks work with a Gemini key (confirmed by Vijay: 14 of 15 songs).
 - Phone layout redesigned to match Cinema Book; not yet confirmed by Vijay
   on the iPhone Duo.
-- Version 28 library, source draft, saved-song browsing, resume and playback
+- Version 29 list clearing, library restoration, saved-song browsing and playback
   regression checks pass with simulated services.
   Live phone playback, real quotas and real model availability are not yet confirmed.
 

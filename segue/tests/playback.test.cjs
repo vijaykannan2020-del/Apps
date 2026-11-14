@@ -181,5 +181,27 @@ await test('in-flight AI save retains independently recovered song metadata',asy
  const c=context();run(c,`LS.set('ai4',JSON.stringify({one:{start:30000,end:75000,song:${track}}}));AI.save({one:{start:30000,end:75000},two:{start:50000,end:95000}});`);
  assert.equal(run(c,'AI.cache().one.song.name'),'Song');assert.equal(run(c,'AI.cache().two.start'),50000);
 });
+await test('clear mixes preserves AI mappings, corrections, setup and active playback',async()=>{
+ const c=context();run(c,`ST.me={id:'user-a'};ST.crate=[{type:'playlist',id:'p',name:'Playlist'}];ST.mix=[${track}];DJ.playing=true;DJ.idx=0;DJ.pos=42000;DJ.posAt=10000;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000,song:${track}}}));HK.set('one',35000);LS.set('aikey','ai-key');LS.set('at','access-token');Library.capture(true);Library.saveDraft();globalThis.beforeAI=LS.get('ai4');globalThis.beforeHooks=LS.get('hooks');globalThis.original=ST.mix;Library.clearMixes();`);
+ assert.equal(run(c,'Library.state.mixes.length'),0);assert.equal(run(c,'ST.mix===original'),true);assert.equal(run(c,'DJ.playing'),true);assert.equal(run(c,'DJ.pos'),42000);assert.equal(run(c,"LS.get('ai4')===beforeAI"),true);assert.equal(run(c,"LS.get('hooks')===beforeHooks"),true);assert.equal(run(c,"LS.get('aikey')"),'ai-key');assert.equal(run(c,"LS.get('at')"),'access-token');assert.equal(run(c,'Library.state.sources.length'),1);
+});
+await test('cleared mixes are not recreated by playback or later snapshots',async()=>{
+ const c=context();run(c,`ST.me={id:'user-a'};ST.mix=[${track}];Library.capture(true);Library.clearMixes();Library.capture();Library.progress();`);
+ assert.equal(run(c,'Library.state.mixes.length'),0);assert.equal(run(c,"JSON.parse(LS.get('library_user-a')).mixes.length"),0);
+});
+await test('clear song list persists across reload while exact AI mappings remain reusable',async()=>{
+ const first=context();run(first,`ST.me={id:'user-a'};LS.set('ai4',JSON.stringify({one:{start:30000,end:75000,song:${track}}}));globalThis.before=LS.get('ai4');Library.clearSongs();`);assert.equal(run(first,"LS.get('ai4')===before"),true);
+ const next=context();for(const [k,v] of first.storage)next.storage.set(k,v);
+ run(next,`ST.me={id:'user-a'};Library.load();ST.mix=[${track}];LS.set('aikey','test');globalThis.aiCalls=0;AI.call=async()=>{aiCalls++;throw Error('Must reuse cached pick')};`);
+ await run(next,'AI.one(ST.mix[0])');assert.equal(run(next,'aiCalls'),0);assert.match(run(next,"$('#savedSongs').innerHTML"),/List cleared/);assert.equal(run(next,'AI.cache().one.start'),30000);
+});
+await test('an explicitly created new mix can show previously hidden songs without AI requests',async()=>{
+ const c=context();run(c,`ST.me={id:'user-a'};LS.set('ai4',JSON.stringify({one:{start:30000,end:75000,song:${track}}}));Library.clearSongs();ST.mix=[${track}];Library.capture(true);`);
+ assert.equal(run(c,'Library.state.hiddenPicks.length'),0);assert.match(run(c,"$('#savedSongs').innerHTML"),/AI pick saved/);
+});
+await test('a pending AI answer from the current queue cannot refill a cleared song list',async()=>{
+ const c=context();run(c,`ST.me={id:'user-a'};ST.mix=[${track}];Library.clearSongs();AI.save({one:{start:30000,end:75000,song:ST.mix[0]}});`);
+ assert.match(run(c,"$('#savedSongs').innerHTML"),/List cleared/);assert.equal(run(c,'AI.cache().one.start'),30000);
+});
 console.log(`${count} checks passed`);
 })().catch(e=>{console.error(e);process.exitCode=1});

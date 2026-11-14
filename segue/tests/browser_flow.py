@@ -49,7 +49,14 @@ with sync_playwright() as p:
    after=page.evaluate('({ids:ST.mix.map(t=>t.id),pos:DJ.pos,idx:DJ.idx})');assert before['ids']==after['ids'];assert abs(before['pos']-after['pos'])<1000;assert counts['play']==oldplays;assert counts['ai']==1
    page.locator('#continueMix button').click();page.wait_for_function('DJ.playing===true');assert abs(state['pos']-before['pos'])<1000;assert counts['ai']==1
    page.locator('#playBtn').click();page.wait_for_function('!DJ.playing');state['offline']=True;page.reload();page.wait_for_selector('#v-home:visible');assert page.locator('#savedMixes .mix-tile').count()==1;assert 'Night Drive Edit' in page.locator('#savedMixes').inner_text()
+   state['offline']=False
+   page.locator('#clearMixes').click();page.locator('#cancelClear').click();assert page.locator('#savedMixes .mix-tile').count()==1
+   saved_cache=page.evaluate("LS.get('ai4')")
+   page.locator('#clearMixes').click();page.locator('#confirmClear').click();assert page.locator('#savedMixes .mix-tile').count()==0
+   page.locator('#clearSavedSongs').click();page.locator('#confirmClear').click();assert page.locator('#savedSongs .saved-song').count()==0
+   assert page.evaluate("LS.get('ai4')")==saved_cache
+   page.reload();page.wait_for_selector('#v-home:visible');assert page.locator('#savedMixes .mix-tile').count()==0;assert page.locator('#savedSongs .saved-song').count()==0;assert page.evaluate('Object.keys(AI.cache()).length')==3
    assert not errors,errors
-   print(f'PASS {width}x{height} {theme}: create, save, four screens, cached AI song list, play/pause, reopen, same order/position, no autoplay, continue without AI, library during Spotify outage')
+   print(f'PASS {width}x{height} {theme}: create, save, four screens, cached AI song list, play/pause, reopen, same order/position, no autoplay, continue without AI, library during Spotify outage, clear lists keeps AI mappings')
    context.close()
  browser.close()

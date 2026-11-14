@@ -130,7 +130,7 @@ img[src=""],img:not([src]){visibility:hidden}
 .eyebrow{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;font-weight:750;color:var(--ac)}
 .hero{padding:26px;background:var(--hero);border:1px solid var(--line);border-radius:28px;overflow:hidden}.hero h2{font-size:clamp(30px,7vw,46px);line-height:1.05;color:var(--tx);text-transform:none;letter-spacing:-1.6px;margin:12px 0}.hero p{max-width:440px;line-height:1.6;color:var(--mu);font-size:14px}.hero .btn{margin-top:20px}
 .hero.returning{padding:20px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.hero.returning h2{font-size:26px;letter-spacing:-.8px;margin:0}.hero.returning p,.hero.returning .eyebrow{display:none}.hero.returning .btn{margin:0;min-height:42px}
-.section-head{display:flex;align-items:baseline;gap:12px;justify-content:space-between;margin:12px 0 0}.section-head h2{font-size:19px;letter-spacing:-.4px;text-transform:none;color:var(--tx);margin:0}
+.section-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;justify-content:space-between;margin:12px 0 0}.section-head h2{font-size:19px;letter-spacing:-.4px;text-transform:none;color:var(--tx);margin:0}
 .library-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.mix-tile{padding:12px;border-radius:22px;border:1px solid var(--line);background:var(--s1);text-align:left;min-width:0}.mix-tile b{display:block;font-size:15px;line-height:1.35;margin:12px 0 4px;overflow-wrap:anywhere}.mix-tile span{color:var(--mu);font-size:12px;display:block}.art-grid{aspect-ratio:1;display:grid;grid-template-columns:repeat(2,1fr);background:var(--hero);border-radius:14px;overflow:hidden}.art-grid img{width:100%;height:100%;object-fit:cover;min-height:0}.art-grid .art-blank{display:grid;place-items:center;font-size:24px;color:var(--ac)}
 .continue-card{border-radius:24px;border:1px solid var(--line);background:var(--s1);padding:18px;display:flex;flex-direction:column;gap:12px}.continue-card b{font-size:21px;letter-spacing:-.5px}.continue-card p{font-size:13px;color:var(--mu);margin-top:6px}.continue-card .btn{align-self:flex-start}
 .empty-library{padding:26px;border:1px dashed var(--line);border-radius:22px;color:var(--mu);font-size:14px;line-height:1.6}.saved-song{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.saved-song img{width:46px;height:46px;border-radius:12px;object-fit:cover}.saved-song div{min-width:0;flex:1}.saved-song b{font-size:14px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.saved-song span{font-size:12px;color:var(--mu);display:block}.saved-song button{flex:none}
@@ -175,10 +175,13 @@ img[src=""],img:not([src]){visibility:hidden}
     <section class="view" id="v-home">
       <div class="hero"><div class="eyebrow">Your music. The parts you love.</div><h2 id="homeHeadline">A little less intro.<br>A lot more song.</h2><p>Make a mix from your Spotify music. AI finds the best parts, and your mixes stay here for next time.</p><button class="btn pri" id="homeCreate">Create a mix</button></div>
       <div id="continueMix"></div>
-      <div class="section-head"><h2>Your mixes</h2><span class="tiny muted" id="mixCount">0 saved</span></div>
+      <div class="note hide" id="clearConfirm" role="region" aria-label="Confirm clearing list">
+        <p id="clearConfirmText"></p><div class="row" style="flex-wrap:wrap;margin-top:12px"><button class="btn pri small" id="confirmClear">Clear list</button><button class="btn ghost small" id="cancelClear">Keep list</button></div>
+      </div>
+      <div class="section-head"><h2>Your mixes</h2><div class="row" style="flex-wrap:wrap"><span class="tiny muted" id="mixCount">0 saved</span><button class="btn ghost small hide" id="clearMixes" aria-label="Clear saved mixes and keep AI best-part timings">Clear</button></div></div>
       <div class="library-grid" id="savedMixes"></div>
-      <div class="section-head"><h2>Saved AI picks</h2><span class="tiny muted" id="pickCount"></span></div>
-      <p class="page-sub">Best-part timings saved per song. Reused in any mix.</p>
+      <div class="section-head"><h2>Saved AI picks</h2><div class="row" style="flex-wrap:wrap"><span class="tiny muted" id="pickCount"></span><button class="btn ghost small hide" id="clearSavedSongs" aria-label="Clear displayed songs and keep AI best-part timings">Clear</button></div></div>
+      <p class="page-sub">Best-part timings saved per song. Clear removes the list only; timings stay saved for every mix.</p>
       <input class="input" id="savedSongSearch" type="search" placeholder="Find a saved song" aria-label="Search saved AI song picks">
       <button class="btn ghost small hide" id="recoverPicks">Show older saved songs</button>
       <div id="savedSongs"></div>
@@ -318,7 +321,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 28;
+const APP_VERSION = 29;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -391,7 +394,7 @@ const ST = { me:null, tab:'playlist', crate:[], vibe:'smooth', len:'ai', max:30,
 
 /* Local library: song timings, saved mixes, and source selections are separate. */
 const Library = {
-  state:{schema:1,sources:[],max:30,activeId:null,mixes:[]}, ref:null, lastWrite:0,
+  state:{schema:1,sources:[],max:30,activeId:null,mixes:[],hiddenPicks:[]}, ref:null, lastWrite:0,
   key(){ return ST.me?.id ? 'library_' + ST.me.id : null; },
   track(t){
     if (!t || typeof t.id !== 'string' || typeof t.uri !== 'string' || !t.uri.startsWith('spotify:track:') || !Number.isFinite(t.dur) || t.dur <= 0) return null;
@@ -417,11 +420,11 @@ const Library = {
     this.write();
   },
   load(){
-    this.state = {schema:1,sources:[],max:30,activeId:null,mixes:[]}; this.ref = null;
+    this.state = {schema:1,sources:[],max:30,activeId:null,mixes:[],hiddenPicks:[]}; this.ref = null;
     let saved;
     try { saved = JSON.parse(LS.get(this.key()) || 'null'); } catch {}
     if (saved?.schema === 1 && Array.isArray(saved.mixes)) {
-      this.state = {schema:1,sources:Array.isArray(saved.sources) ? saved.sources.filter(s => s && ['playlist','album','artist','liked'].includes(s.type) && s.id).map(s => this.source(s)) : [],max:[15,30,60,120].includes(saved.max) ? saved.max : 30,activeId:saved.activeId,mixes:saved.mixes.filter(m => m && typeof m.id === 'string' && Array.isArray(m.tracks)).map(m => ({...m,tracks:m.tracks.map(t => this.track(t)).filter(Boolean)})).filter(m => m.tracks.length)};
+      this.state = {schema:1,hiddenPicks:Array.isArray(saved.hiddenPicks) ? saved.hiddenPicks.filter(id => typeof id === 'string') : [],sources:Array.isArray(saved.sources) ? saved.sources.filter(s => s && ['playlist','album','artist','liked'].includes(s.type) && s.id).map(s => this.source(s)) : [],max:[15,30,60,120].includes(saved.max) ? saved.max : 30,activeId:saved.activeId,mixes:saved.mixes.filter(m => m && typeof m.id === 'string' && Array.isArray(m.tracks)).map(m => ({...m,tracks:m.tracks.map(t => this.track(t)).filter(Boolean)})).filter(m => m.tracks.length)};
     }
     ST.crate = this.state.sources.slice(); ST.max = this.state.max;
     renderCrate(); document.querySelectorAll('[data-k="max"] .opt').forEach(b => b.classList.toggle('on', +b.dataset.v === ST.max));
@@ -432,6 +435,7 @@ const Library = {
   capture(create=false, title=null, sources=ST.crate){
     if (!this.key() || !ST.mix.length) return;
     if (!create && this.ref !== ST.mix) return;
+    if (create) this.state.hiddenPicks = (this.state.hiddenPicks || []).filter(id => !ST.mix.some(t => t.id === id));
     const tracks = ST.mix.map(t => this.track(t)).filter(Boolean); if (!tracks.length) return;
     let mix = !create && this.state.mixes.find(m => m.id === this.state.activeId);
     if (!mix) {
@@ -446,6 +450,28 @@ const Library = {
     if (this.write()) $('#mixSaveState').textContent = 'Saved on this device · your order and place are remembered';
     $('#mixTitle').textContent = mix.name;
     this.render();
+  },
+  askClear(kind){
+    this.pendingClear = kind;
+    $('#clearConfirmText').textContent = kind === 'mixes' ? 'Clear your saved mix list? AI best-part timings and current playback will be kept.' : 'Clear the displayed song list? AI best-part timings stay saved for future mixes.';
+    $('#clearConfirm').classList.remove('hide');
+    $('#clearConfirm').scrollIntoView({block:'center',behavior:'smooth'});
+    $('#cancelClear').focus({preventScroll:true});
+  },
+  clearMixes(){
+    const key = this.key(); if (!key) return false;
+    const next = {...this.state,mixes:[],activeId:null};
+    if (!LS.set(key,JSON.stringify(next))) { toast('Could not clear the saved list. Check device storage.',6000); return false; }
+    this.state = next; this.ref = null; // Polling, AI updates and pause must not recreate the cleared list.
+    $('#mixSaveState').textContent = 'Removed from saved mixes · AI timings kept';
+    this.render(); toast('Saved mix list cleared. AI best-part timings kept.'); return true;
+  },
+  clearSongs(){
+    const key = this.key(); if (!key) return false;
+    const ids = [...Object.keys(AI.cache()),...ST.mix.map(t => t.id)];
+    const next = {...this.state,hiddenPicks:[...new Set([...(this.state.hiddenPicks || []),...ids])]};
+    if (!LS.set(key,JSON.stringify(next))) { toast('Could not clear the song list. Check device storage.',6000); return false; }
+    this.state = next; this.render(); toast('Song list cleared. AI best-part timings kept.'); return true;
   },
   progress(){ if (Date.now() - this.lastWrite >= 5000) this.capture(); },
   restore(mix){
@@ -483,7 +509,7 @@ const Library = {
   },
   async recoverPicks(){
     const button = $('#recoverPicks'); button.disabled = true;
-    const cache = AI.cache(), ids = Object.keys(cache).filter(id => !cache[id]?.song).slice(0,20);
+    const cache = AI.cache(), hidden = new Set(this.state.hiddenPicks || []), ids = Object.keys(cache).filter(id => !cache[id]?.song && !hidden.has(id)).slice(0,20);
     let done = 0, error = null;
     try {
       for (const id of ids) {
@@ -508,15 +534,18 @@ const Library = {
     $('#v-home .hero').classList.toggle('returning',mixes.length > 0);
     $('#homeHeadline').innerHTML = mixes.length ? 'Your music, ready.' : 'A little less intro.<br>A lot more song.';
     $('#mixCount').textContent = `${mixes.length} saved`;
+    $('#clearMixes').classList.toggle('hide', !mixes.length);
     $('#savedMixes').innerHTML = mixes.length ? mixes.map(m => `<button class="mix-tile" data-mix="${esc(m.id)}" aria-label="Open ${esc(m.name)}">${this.art(m.tracks)}<b>${esc(m.name)}</b><span>${m.tracks.length} songs · ${m.tracks.filter(t => cache[t.id]).length} AI picks ready</span></button>`).join('') : '<div class="empty-library" style="grid-column:1/-1">Your next favourite mix starts here.<br>Create one and it will be saved automatically.</div>';
     const t = active?.tracks[active.idx || 0];
     $('#continueMix').innerHTML = active ? `<div class="continue-card"><div class="eyebrow">Pick up where you left off</div><div><b>${esc(active.name)}</b><p>${esc(t?.name || '')} · song ${(active.idx || 0)+1} of ${active.tracks.length}</p></div><button class="btn pri" data-continue="${esc(active.id)}">Continue listening →</button></div>` : '';
-    const allSongs = Object.entries(cache).filter(([,c]) => c?.song?.id);
+    const hidden = new Set(this.state.hiddenPicks || []);
+    const allSongs = Object.entries(cache).filter(([id,c]) => c?.song?.id && !hidden.has(id));
     const query = ($('#savedSongSearch').value || '').trim().toLowerCase();
     const songs = allSongs.filter(([,c]) => !query || `${c.song.name} ${(c.song.artists || []).join(' ')}`.toLowerCase().includes(query));
-    $('#recoverPicks').classList.toggle('hide', !Object.values(cache).some(c => c && !c.song));
-    $('#pickCount').textContent = `${Object.keys(cache).length} timings saved`;
-    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${fmt(c.start)}–${fmt(c.end)} · AI pick saved</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Songs appear here after AI chooses their best parts.'}</div>`;
+    $('#recoverPicks').classList.toggle('hide', !Object.entries(cache).some(([id,c]) => c && !c.song && !hidden.has(id)));
+    $('#pickCount').textContent = `${Object.keys(cache).length} timings kept`;
+    $('#clearSavedSongs').classList.toggle('hide', !allSongs.length);
+    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${fmt(c.start)}–${fmt(c.end)} · AI pick saved</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : hidden.size && !Object.keys(cache).some(id => !hidden.has(id)) ? 'List cleared. Your AI best-part timings are still saved and will be reused when you build another mix.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Songs appear here after AI chooses their best parts.'}</div>`;
     this.mini();
   },
   mini(){
@@ -1442,6 +1471,14 @@ $('#renameMix').onclick = () => {
 $('#savedSongSearch').addEventListener('input', () => Library.render());
 $('#recoverPicks').onclick = () => Library.recoverPicks();
 $('#reloadApp').onclick = () => { DJ.freeze(); Library.capture(); location.replace(REDIRECT + '?v=' + APP_VERSION + '&reload=' + Date.now()); };
+$('#clearMixes').onclick = () => Library.askClear('mixes');
+$('#clearSavedSongs').onclick = () => Library.askClear('songs');
+$('#cancelClear').onclick = () => { Library.pendingClear = null; $('#clearConfirm').classList.add('hide'); };
+$('#confirmClear').onclick = () => {
+  if(Library.pendingClear === 'mixes') Library.clearMixes();
+  else if(Library.pendingClear === 'songs') Library.clearSongs();
+  Library.pendingClear = null; $('#clearConfirm').classList.add('hide');
+};
 $('#homeCreate').onclick = () => showView('mix');
 $('#playDevice').onclick = () => showView('set');
 $('#savedMixes').addEventListener('click', e => { const b=e.target.closest('[data-mix]'); if(b) Library.open(b.dataset.mix); });
