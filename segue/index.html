@@ -205,6 +205,14 @@ img[src=""],img:not([src]){visibility:hidden}
             <button class="round" id="nextBtn" title="Next song"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
           </div>
           <div class="status" id="stat">Ready</div>
+          <div class="note hide" id="deviceHelp">
+            <b>Connect a playback device</b>
+            <p>Open Spotify on this phone and play a song briefly. Return here, refresh devices, then press Play.</p>
+            <div class="row" style="flex-wrap:wrap;margin-top:10px">
+              <a class="btn small" href="https://open.spotify.com/" target="_blank" rel="noopener">Open Spotify</a>
+              <button class="btn small ghost refresh-devices">Refresh devices</button>
+            </div>
+          </div>
           <div class="lbl">Best part wrong? Fix it once while the song plays</div>
           <div class="row" id="hookCtl" style="flex-wrap:wrap;gap:6px">
             <button class="btn ghost small" style="flex:1" id="hkSet">Starts here</button>
@@ -233,11 +241,16 @@ img[src=""],img:not([src]){visibility:hidden}
         <input id="aiKey" class="input" placeholder="Gemini key (AIza…) or Claude key (sk-ant…)" autocomplete="off" spellcheck="false">
         <button class="btn" id="aiSave" style="width:100%;margin-top:10px">Save key</button>
         <div class="note" id="aiNote">Segue asks the AI which part of each song is the famous, best-loved one, and plays just that. The key stays only on this device.</div>
+        <div class="note" id="aiSaved"></div>
       </div>
       <div class="card">
         <h2>Play on</h2>
         <select class="devsel" id="devSel" title="Play on"></select>
-        <div class="note">On iPhone, open the Spotify app once, then choose your phone here.</div>
+        <div class="row" style="flex-wrap:wrap;margin-top:10px">
+          <a class="btn small" href="https://open.spotify.com/" target="_blank" rel="noopener">Open Spotify</a>
+          <button class="btn small ghost refresh-devices">Refresh devices</button>
+        </div>
+        <div class="note" id="deviceNote">On iPhone, open Spotify and play a song briefly. Return here and refresh devices. Use the same Spotify account.</div>
       </div>
       <div class="card">
         <h2>Account</h2>
@@ -268,7 +281,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 26;
+const APP_VERSION = 27;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -278,7 +291,7 @@ const REDIRECT = location.hostname === 'vijaykannan2020-del.github.io' ? CANON :
 const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative user-library-read playlist-modify-private playlist-modify-public';
 const LS = {
   get: k => { try { return localStorage.getItem('segue_'+k); } catch { return null; } },
-  set: (k,v) => { try { v==null ? localStorage.removeItem('segue_'+k) : localStorage.setItem('segue_'+k, v); } catch {} },
+  set: (k,v) => { try { v==null ? localStorage.removeItem('segue_'+k) : localStorage.setItem('segue_'+k, v); return true; } catch { return false; } },
 };
 
 /* ---------------- Auth (PKCE) ---------------- */
@@ -700,8 +713,18 @@ const MOOD_NEAR = { party:['energetic','happy'], energetic:['party','intense','h
 function moodDist(a, b){ if (!a || !b) return .3; if (a === b) return 0; return (MOOD_NEAR[a]||[]).includes(b) ? .4 : 1; }
 const AI = {
   key(){ return LS.get('aikey') || ''; },
-  cache(){ try { return JSON.parse(LS.get('ai4') || '{}'); } catch { return {}; } },
-  save(c){ const ks = Object.keys(c); if (ks.length > 3000) ks.slice(0, 500).forEach(k => delete c[k]); LS.set('ai4', JSON.stringify(c)); },
+  cache(){ try { const c = JSON.parse(LS.get('ai4') || '{}'); return c && typeof c === 'object' && !Array.isArray(c) ? c : {}; } catch { return {}; } },
+  savedStatus(){
+    const n = Object.keys(this.cache()).length;
+    $('#aiSaved').textContent = `${n} saved song ${n === 1 ? 'pick' : 'picks'}. Reused across all playlists on this device, including after closing Segue. Clearing website data removes them.`;
+  },
+  save(c){
+    if (!LS.set('ai4', JSON.stringify(c))) {
+      this.lastErr = 'This device could not save AI picks. Check available browser storage.';
+      toast(this.lastErr, 6000);
+    }
+    this.savedStatus();
+  },
   prompt(batch){
     const songs = batch.map(t => `id: ${t.id} | title: ${t.name} | artists: ${t.artists.join(', ')} | length: ${Math.round(t.dur/1000)} s${t.tempo ? ` | bpm: ${Math.round(t.tempo)}` : ''}`).join('\n');
     return `You are an expert DJ for Tamil, Hindi, Telugu, English and global pop. You know which part of each song is the famous one: the hook everyone sings along to, the part used in reels and shorts, the mass theme or the drop.
@@ -944,26 +967,50 @@ const DJ = {
   async init(){
     window.onSpotifyWebPlaybackSDKReady = () => {
       this.player = new Spotify.Player({ name:'Segue AI DJ', getOAuthToken: cb => token().then(cb), volume:this.master });
-      this.player.addListener('ready', ({ device_id }) => { this.sdkDev = device_id; if (!this.dev) this.dev = device_id; this.devices(); });
-      this.player.addListener('not_ready', () => { this.sdkDev = null; });
+      this.player.addListener('ready', ({ device_id }) => { this.sdkDev = device_id; this.devices(); });
+      this.player.addListener('not_ready', () => { if (this.dev === this.sdkDev) this.dev = null; this.sdkDev = null; this.devices(); });
       this.player.addListener('initialization_error', ({message}) => { setStat('This browser can\'t play here — pick another device'); console.warn(message); this.devices(); });
       this.player.addListener('authentication_error', ({message}) => toast('Spotify auth error: '+message));
       this.player.addListener('account_error', () => toast('Spotify Premium is required for playback.', 6000));
       this.player.addListener('player_state_changed', () => this.tickFn?.());
-      this.player.connect();
+      this.player.connect().then(ok => { if (!ok) this.sdkUnavailable(); }).catch(() => this.sdkUnavailable());
     };
-    const sc = document.createElement('script'); sc.src = 'https://sdk.scdn.co/spotify-player.js'; document.head.appendChild(sc);
-    $('#devSel').onchange = async e => { const dev = e.target.value; await this.pause(); this.dev = dev; this.remote = dev !== this.sdkDev; this.loadedMix = null; setStat('Device changed. Press Play.'); };
+    const sc = document.createElement('script'); sc.src = 'https://sdk.scdn.co/spotify-player.js'; sc.onerror = () => this.sdkUnavailable(); document.head.appendChild(sc);
+    $('#devSel').onchange = async e => { const dev = e.target.value; await this.pause(); this.dev = dev; this.remote = dev !== this.sdkDev; LS.set('device', dev); this.loadedMix = null; setStat('Device changed. Press Play.'); };
     setTimeout(()=>this.devices(), 2500);
   },
-  async devices(){
+  sdkUnavailable(){
+    if (this.dev === this.sdkDev) this.dev = null;
+    this.sdkDev = null;
+    this.devices();
+  },
+  async devices({ required=false, exclude=null } = {}){
     try {
-      const j = await api('/me/player/devices'); const list = j.devices || [];
-      if (this.sdkDev && !list.some(d=>d.id===this.sdkDev)) list.unshift({ id:this.sdkDev, name:'Segue AI DJ', type:'This browser' });
-      $('#devSel').innerHTML = list.map(d=>`<option value="${d.id}" ${d.id===this.dev?'selected':''}>${esc(d.id===this.sdkDev?'This browser':d.name)}${d.volume_percent==null&&d.id!==this.sdkDev?' (no fades)':''}</option>`).join('') || '<option>No devices — open Spotify</option>';
-      if (!this.dev || !list.some(d=>d.id===this.dev)) { const pick = (this.sdkDev && list.find(d=>d.id===this.sdkDev)) || list.find(d=>d.is_active) || list.find(d=>/smartphone/i.test(d.type||'')) || list[0]; if (pick) { this.dev = pick.id; this.remote = this.dev !== this.sdkDev; } }
-      this.devList = list;
-    } catch {}
+      if (exclude === this.sdkDev) this.sdkDev = null;
+      const j = await api('/me/player/devices', { retry:0 });
+      const list = (j?.devices || []).filter(d => d.id && !d.is_restricted && d.id !== exclude);
+      // A failed SDK device must not be reinserted as a phantom output.
+      if (this.sdkDev && !list.some(d => d.id === this.sdkDev)) list.push({ id:this.sdkDev, name:'Segue AI DJ', type:'This browser' });
+      const saved = LS.get('device');
+      const phone = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+      const native = list.filter(d => d.id !== this.sdkDev);
+      const chosen = (this.playing && list.find(d => d.id === this.dev)) || list.find(d => d.id === saved) ||
+        (phone && (!this.dev || this.dev === this.sdkDev) && (native.find(d => d.is_active) || native.find(d => /smartphone/i.test(d.type)))) ||
+        list.find(d => d.id === this.dev) || list.find(d => d.is_active) ||
+        list.find(d => d.id === this.sdkDev) || native.find(d => /smartphone/i.test(d.type)) || list[0];
+      this.dev = chosen?.id || null; this.remote = this.dev !== this.sdkDev; this.devList = list;
+      $('#devSel').innerHTML = list.length ? list.map(d => `<option value="${esc(d.id)}" ${d.id === this.dev ? 'selected' : ''}>${esc(d.id === this.sdkDev ? 'This browser' : d.name)}</option>`).join('') : '<option value="">No device connected</option>';
+      $('#devSel').value = this.dev || '';
+      $('#deviceHelp').classList.toggle('hide', !!this.dev);
+      $('#deviceNote').textContent = this.dev ? `Ready: ${chosen.name}. Press Play in Segue.` : 'Open Spotify on this phone, play a song briefly, then return here and refresh devices. Sign in to the same Spotify account.';
+      if (!this.dev && required) throw new Error('No playback device connected. Open Spotify, play a song briefly, return here and tap Refresh devices.');
+      return list;
+    } catch(e) {
+      $('#deviceNote').textContent = 'Could not connect to Spotify: ' + e.message;
+      $('#deviceHelp').classList.remove('hide');
+      if (required) throw e;
+      return [];
+    }
   },
   async vol(v){
     v = clamp(v, 0, 1);
@@ -984,7 +1031,7 @@ const DJ = {
   },
   async playTrack(i, epoch){
     const mix = ST.mix, t = mix[i];
-    if (!this.dev) await this.devices();
+    if (!this.dev) await this.devices({ required:true });
     if (epoch !== this.epoch) return false;
     if (!this.dev) throw new Error('Open Spotify on a device, then press Play.');
     const t0 = performance.now();
@@ -993,7 +1040,7 @@ const DJ = {
     catch(e) {
       if (epoch !== this.epoch) return false;
       if (e.status === 401 || e.status === 403) throw e;
-      if (e.status === 404) await this.devices();
+      if (e.status === 404) await this.devices({ required:true, exclude:this.dev });
       await sleep(600);
       if (epoch !== this.epoch) return false;
       await start(); // Retry this song only; never jump past a failed song.
@@ -1017,6 +1064,8 @@ const DJ = {
     const epoch = ++this.epoch, mix = ST.mix, g = mix[i];
     try {
       this.player?.activateElement?.();
+      if (!this.dev) await this.devices({ required:true });
+      if (epoch !== this.epoch || mix !== ST.mix) return;
       if (g.hookSrc !== 'you') {
         if (!AI.cache()[g.id]) {
           if (!AI.key()) throw new Error('Save an AI key in Settings first.');
@@ -1163,7 +1212,16 @@ const DJ = {
 };
 // A background worker keeps the song-change clock running when Safari slows the page's own timers (other tab or app in front)
 try { const w = new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),150)'], { type:'text/javascript' }))); w.onmessage = () => { if (DJ.playing) DJ.tickFn?.(); }; } catch {}
-document.addEventListener('visibilitychange', () => { if (!document.hidden && DJ.playing) DJ.tickFn?.(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (DJ.playing) DJ.tickFn?.(); else if (!DJ.busy) DJ.devices();
+});
+document.querySelectorAll('.refresh-devices').forEach(b => b.onclick = async () => {
+  b.disabled = true;
+  try { await DJ.devices({ required:true }); toast('Device connected. Press Play.'); }
+  catch(e) { toast(e.message, 6000); }
+  finally { b.disabled = false; }
+});
 function setStat(h){ $('#stat').innerHTML = h; }
 function setPlayIcon(){ $('#playIco').innerHTML = DJ.playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>'; }
 $('#playBtn').onclick = () => DJ.playing || DJ.busy ? DJ.pause() : DJ.resume();
@@ -1212,6 +1270,7 @@ $('#verTop').textContent = $('#verLbl').textContent = 'Version ' + APP_VERSION;
   $('#lo').onclick = logout;
   refreshSources();
   $('#aiKey').value = LS.get('aikey') || '';
+  AI.savedStatus();
   $('#aiSave').onclick = () => { const v = $('#aiKey').value.trim(); LS.set('aikey', v || null); AI.models = null; AI.lastErr = null; toast(v ? 'AI key saved on this device' : 'AI key removed'); };
   DJ.init();
 })();

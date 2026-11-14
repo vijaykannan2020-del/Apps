@@ -1,7 +1,7 @@
 # Segue: handoff
 
 Read `PROJECT.md` in the repository root first (deploy, phone layout rules,
-change log). This file covers Segue only. Last updated: 2026-11-14, Version 26.
+change log). This file covers Segue only. Last updated: 2026-11-14, Version 27.
 
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
@@ -60,9 +60,30 @@ each song and play it, that's all".
   but do not commit it.
 - AI key (Gemini `AIza…` or Claude `sk-ant…`): typed into Settings, kept in
   the browser only. Never commit it or ask Vijay to paste it in chat.
+- AI picks are saved by Spotify song ID, independently of playlists. The same
+  track reuses its pick after closing/reopening this app or selecting another
+  playlist. Settings shows the saved count. Version 27 removes automatic
+  deletion of old picks and reports storage failures. Data stays local to this
+  browser/Home Screen app; it is not synced between devices or guaranteed to
+  be shared with Safari. Clearing website data removes it. Different Spotify
+  track IDs (such as another recording) may need separate picks.
 - Browser storage keys (all prefixed `segue_`): `cid`, `at`, `rt`, `exp`,
   `ver` (Spotify sign-in), `aikey`, `ai4` (AI picks per track id), `hooks`
   (Vijay's own start marks), `genres` (artist genres).
+
+## Phone playback devices (Version 27)
+
+If no device is available, open the native Spotify app using the same account,
+play any song briefly, return to Segue, then tap Refresh devices and Play.
+Controls are in Settings and on Playing when a device is missing. Segue cannot
+create a native Spotify device remotely. Phone playback still needs Premium.
+
+Device discovery prefers the active native Spotify phone on iPhone, respects
+an explicitly selected output, excludes restricted devices and clears stale
+selections. A 404 refreshes devices and retries the same song on a recovered
+output, excluding the failed device. Failed/disconnected browser SDK outputs
+are cleared. Device lookup errors are visible. Returning to the foreground
+refreshes discovery when not playing; it does not auto-start playback.
 
 ## Screen layout (since Version 24)
 
@@ -117,10 +138,12 @@ the top-right corner. Colours are CSS variables with a dark-mode override.
 ## Checks
 
 Run `node segue/tests/playback.test.cjs` from the repository root. No package
-installation or credentials needed. These 19 checks use simulated services:
+installation or credentials needed. These 26 checks use simulated services:
 AI batching/quotas/fallbacks, first-song wait, cancellation, no estimate
 substitution, exact passage bounds, manual overrides, stable current passage,
 pause/resume, stale states, device changes, late AI and no failed-song skipping.
+Also covers empty/stale devices, phone preference, 404 recovery, visible device
+errors, pick reuse after reload/from another playlist, and retaining old picks.
 
 Chromium browser checks passed on 320, 390, 768 and 1024 pixel-wide viewports
 in light/dark mode, all three tabs, with simulated Spotify responses. No page
@@ -145,12 +168,13 @@ Safe to delete in a clean-up; ask Vijay first.
   assistants' workspaces. Say plainly what was tested with stand-ins and
   what only he can test on the phone.
 
-## Current state (Version 26)
+## Current state (Version 27)
 
 - AI picks work with a Gemini key (confirmed by Vijay: 14 of 15 songs).
 - Phone layout redesigned to match Cinema Book; not yet confirmed by Vijay
   on the iPhone Duo.
-- Version 26 playback and AI regression checks pass with simulated services.
+- Version 27 playback, device discovery/recovery and AI-cache reuse checks pass
+  with simulated services.
   Live phone playback, real quotas and real model availability are not yet confirmed.
 
 ## Open items
@@ -161,6 +185,7 @@ Safe to delete in a clean-up; ask Vijay first.
   how accurate the later-in-song times are.
 - Lock screen / background playback on iPhone is unreliable for web pages;
   not solved.
-- Possible later: saving a finished mix's picks so the same mix replays
-  without the AI; file-based true DJ mixing (needs music files, Vijay has
+- Song-level AI picks already persist across playlists on this device. A
+  saved full mix/running order and cross-device sync are not implemented.
+- Possible later: file-based true DJ mixing (needs music files, Vijay has
   not asked for it).

@@ -57,8 +57,8 @@ await test('pause cancels an AI wait without a late start',async()=>{
  run(c,`answer(JSON.stringify([{id:'one',start:100,end:140}]))`);await run(c,'AI.q');assert.equal(run(c,"calls.filter(x=>x.includes('/play?')).length"),0);
 });
 await test('AI failure never plays an estimated replacement',async()=>{
- const c=context();run(c,`ST.mix=[${track}];LS.set('aikey','test');AI.call=async()=>{throw Error('quota exhausted')};globalThis.calls=[];api=async(p,o)=>calls.push(p);`);
- await run(c,'DJ.go(0)');assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.retryIdx'),0);assert.equal(run(c,'calls.length'),0);
+ const c=context();run(c,`ST.mix=[${track}];DJ.dev='device';LS.set('aikey','test');AI.call=async()=>{throw Error('quota exhausted')};globalThis.calls=[];api=async(p,o)=>calls.push(p);`);
+ await run(c,'DJ.go(0)');assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.retryIdx'),0);assert.equal(run(c,"calls.filter(p=>p.includes('/play?')).length"),0);
 });
 await test('pause freezes elapsed position and resume includes URI and position',async()=>{
  const c=context();run(c,`ST.mix=[${track}];DJ.dev='device';DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.pos=30000;DJ.posAt=1000;DJ.playing=true;globalThis.calls=[];api=async(p,o)=>calls.push({p,o});`);
@@ -106,6 +106,39 @@ await test('remote state pauses and does not take over a different device',async
 await test('background AI cannot change the current passage or running order',async()=>{
  const c=context();run(c,`ST.mix=[${track},{...${track},id:'two',start:40000,end:80000,aiStart:100000,aiEnd:140000}];DJ.idx=0;DJ.playing=true;ST.mix[0].aiStart=90000;ST.mix[0].aiEnd=130000;replanAhead(DJ.idx);`);
  assert.equal(run(c,'ST.mix[0].start'),30000);assert.equal(run(c,'ST.mix[0].end'),75000);assert.equal(run(c,'ST.mix[1].start'),100000);assert.equal(run(c,"ST.mix.map(t=>t.id).join(',')"),'one,two');
+});
+await test('empty device list clears stale selection instead of retaining phantom output',async()=>{
+ const c=context();run(c,`DJ.dev='stale';api=async()=>({devices:[]});`);
+ await run(c,'DJ.devices()');assert.equal(run(c,'DJ.dev'),null);assert.equal(run(c,'DJ.devList.length'),0);
+ await assert.rejects(run(c,'DJ.devices({required:true})'),/No playback device/);
+});
+await test('phone prefers active Spotify device and dropdown matches playback target',async()=>{
+ const c=context();c.navigator={userAgent:'iPhone',platform:'iPhone',maxTouchPoints:1};
+ run(c,`DJ.dev=DJ.sdkDev='browser';api=async()=>({devices:[{id:'phone',name:'My iPhone',type:'Smartphone',is_active:true}]});`);
+ await run(c,'DJ.devices()');assert.equal(run(c,'DJ.dev'),'phone');assert.equal(run(c,'DJ.remote'),true);assert.equal(run(c,"$('#devSel').value"),'phone');
+});
+await test('explicit device preference respected and restricted outputs excluded',async()=>{
+ const c=context();c.navigator={userAgent:'iPhone'};
+ run(c,`DJ.sdkDev='browser';LS.set('device','browser');api=async()=>({devices:[{id:'blocked',name:'Blocked',is_restricted:true},{id:'phone',name:'My iPhone',type:'Smartphone',is_active:true}]});`);
+ await run(c,'DJ.devices()');assert.equal(run(c,'DJ.dev'),'browser');assert.equal(run(c,'DJ.devList.length'),2);
+});
+await test('404 browser device recovers to phone, retrying only requested song',async()=>{
+ const c=context();run(c,`ST.mix=[${track}];DJ.dev=DJ.sdkDev='ghost-browser';LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.plays=[];api=async(p,o)=>{if(p.includes('/devices'))return {devices:[{id:'phone',name:'My iPhone',type:'Smartphone',is_active:true}]};if(p.includes('/play?')){plays.push(p);if(plays.length===1){const e=Error('Device not found');e.status=404;throw e}}return null};`);
+ await run(c,'DJ.go(0)');assert.equal(run(c,'DJ.sdkDev'),null);assert.equal(run(c,'DJ.dev'),'phone');assert.equal(run(c,'DJ.playing'),true);assert.equal(run(c,'plays.length'),2);assert.match(run(c,'plays[1]'),/device_id=phone/);
+});
+await test('device API errors remain visible instead of pretending no outputs exist',async()=>{
+ const c=context();run(c,`api=async()=>{throw Error('Spotify is limiting requests')};`);
+ await assert.rejects(run(c,'DJ.devices({required:true})'),/limiting/);assert.match(run(c,"$('#deviceNote').textContent"),/limiting/);
+});
+await test('saved song pick reused after reload and across playlists without AI request',async()=>{
+ const first=context();run(first,`ST.mix=[${track}];LS.set('aikey','test');AI.call=async()=>JSON.stringify([{id:'one',start:100,end:140,mood:'happy'}]);`);
+ await run(first,'AI.run(ST.mix)');const saved=run(first,"LS.get('ai4')");const next=context();next.saved=saved;
+ run(next,`LS.set('ai4',saved);LS.set('aikey','test');ST.mix=[{...${track},playlist:'another-playlist'}];globalThis.aiCalls=0;AI.call=async()=>{aiCalls++;throw Error('Should use saved pick')};`);
+ await run(next,'AI.one(ST.mix[0])');await run(next,'AI.run(ST.mix)');assert.equal(run(next,'aiCalls'),0);assert.equal(run(next,'ST.mix[0].aiStart'),100000);assert.equal(run(next,'ST.mix[0].aiEnd'),140000);
+});
+await test('saving new AI picks no longer silently deletes older picks',async()=>{
+ const c=context();run(c,`globalThis.picks=Object.fromEntries(Array.from({length:3001},(_,i)=>['track'+i,{start:30000,end:75000}]));AI.save(picks);`);
+ assert.equal(run(c,'Object.keys(AI.cache()).length'),3001);assert.equal(run(c,'AI.cache().track0.start'),30000);
 });
 console.log(`${count} checks passed`);
 })().catch(e=>{console.error(e);process.exitCode=1});
