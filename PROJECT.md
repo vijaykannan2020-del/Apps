@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-14, Claude: Segue Version 15 removes the Vibe, Which part and Transition options from the screen (Vijay found them confusing). Only sources, seconds per song and number of songs remain; internally it uses smooth flow, peak part and DJ cut.
+
 - 2026-11-13, Claude: Segue Version 14: clip length is now exact seconds (30/45/60/90/full). Running order shows "plays 1:34 → 2:19" and how each hook was chosen (it used to show only clip length, which read like a start time). AI now also handles songs without timed lyrics: untimed LRCLIB lyrics (line number) or its own estimate, labelled "AI estimate"; extra title-only lyric search; caches lrc3/ai2. AI card shows counts per source and any AI error. Order stays fixed once shown; AI works in play order in batches of 5 (thinking allowed, 90 s limit) while music plays and only updates songs not yet played. Tempo weight raised, arc weight lowered, to cut BPM jumps.
 
 - 2026-11-13, Claude: Segue Version 13 fixes very slow builds: time limits on every outside call (ReccoBeats 10 s, AI 45 s, genres step 12 s, lyrics step 40 s with 6 parallel lookups), Gemini 2.5 "thinking" turned off, and the AI now runs in the background after the mix is ready (saved AI picks apply instantly; new ones update hooks, or the whole order if not yet playing).

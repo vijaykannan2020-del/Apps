@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 14</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 15</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -176,31 +176,13 @@ img[src=""],img:not([src]){visibility:hidden}
       <div class="card">
         <h2>Crate</h2>
         <div class="chips" id="crate"><span class="dim small">Add one or more sources above.</span></div>
-
-        <div class="lbl">Vibe</div>
-        <div class="seg" data-k="vibe">
-          <button class="opt on" data-v="smooth">Smooth flow<small>gentle waves</small></button>
-          <button class="opt" data-v="party">Build-up<small>warm → peak</small></button>
-          <button class="opt" data-v="peak">Peak time<small>stays high</small></button>
-          <button class="opt" data-v="chill">Chill<small>winds down</small></button>
-        </div>
-        <div class="lbl">How much of each song</div>
+        <div class="lbl">Seconds of each song</div>
         <div class="seg" data-k="len">
           <button class="opt" data-v="30">30 sec</button>
           <button class="opt on" data-v="45">45 sec</button>
           <button class="opt" data-v="60">60 sec</button>
           <button class="opt" data-v="90">90 sec</button>
           <button class="opt" data-v="full">Full songs</button>
-        </div>
-        <div class="lbl">Which part</div>
-        <div class="seg" data-k="part">
-          <button class="opt on" data-v="peak">Peak chorus<small>the big, best-loved part</small></button>
-          <button class="opt" data-v="first">First chorus<small>earlier in the song</small></button>
-        </div>
-        <div class="lbl">Transition</div>
-        <div class="seg" data-k="trans">
-          <button class="opt on" data-v="cut">DJ cut<small>hook hits on the beat</small></button>
-          <button class="opt" data-v="fade">Smooth fade<small>fade out, fade in</small></button>
         </div>
         <div class="lbl">Songs in the mix</div>
         <div class="seg" data-k="max">
@@ -270,7 +252,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 14;
+const APP_VERSION = 15;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
