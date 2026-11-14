@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-14, Claude: Segue Version 20 respects Gemini's free limit (5 requests a minute): at least 13 s between AI requests, and on a 429 it waits the time Google gives and asks once more instead of failing.
+
 - 2026-11-14, Claude: Segue Version 19: the AI is asked about one song at a time, just before it plays (current song plus the next two; `AI.one`, `aiAhead`), instead of the whole mix up front. Playback waits up to 12 s for the answer on the song about to start. Rows not yet decided say "AI decides just before it plays".
 
 - 2026-11-14, Claude: Segue Version 18 (Vijay's request: just ask the AI and play). Lyrics lookup and the seconds picker are removed from the flow. The AI gets title, artists, length and bpm, and returns start, end (30-75 s), mood and reason per song; Segue plays exactly that part. Cache key ai3. Only option left is number of songs. Lyrics code remains in the file but is not called.
