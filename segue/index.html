@@ -321,7 +321,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 29;
+const APP_VERSION = 30;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -347,7 +347,7 @@ async function login(){
   location.href = 'https://accounts.spotify.com/authorize?' + p;
 }
 async function tokenRequest(body){
-  const r = await fetch('https://accounts.spotify.com/api/token', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:new URLSearchParams(body) });
+  const r = await tfetch('https://accounts.spotify.com/api/token', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:new URLSearchParams(body) },15000);
   const j = await r.json();
   if (!r.ok) throw new Error(j.error_description || j.error || 'Auth failed');
   LS.set('at', j.access_token);
@@ -372,14 +372,21 @@ async function token(){
 function logout(){ ['at','rt','exp','ver','account'].forEach(k=>LS.set(k,null)); location.reload(); }
 
 /* ---------------- Spotify API ---------------- */
-async function api(path, { method='GET', body, retry=2 } = {}){
+async function api(path, { method='GET', body, retry=2, timeout=15000 } = {}){
   const url = path.startsWith('http') ? path : 'https://api.spotify.com/v1' + path;
-  const ctl = new AbortController(); const tmo = setTimeout(() => ctl.abort(), 15000);
-  const r = await fetch(url, { signal: ctl.signal, method, headers:{ Authorization:'Bearer '+await token(), ...(body?{'Content-Type':'application/json'}:{}) }, body: body ? JSON.stringify(body) : undefined }).catch(e => { throw new Error(e.name === 'AbortError' ? 'Spotify did not answer. Check your connection and try again.' : 'Network error: ' + e.message); }).finally(() => clearTimeout(tmo));
-  if (r.status === 401 && retry) { LS.set('exp','0'); return api(path, { method, body, retry: retry-1 }); }
+  const ctl = new AbortController(); const tmo = setTimeout(() => ctl.abort(), timeout);
+  let r;
+  try {
+    // The request budget also covers token refresh; it must not hang a cut.
+    const expired = new Promise((_,reject) => ctl.signal.addEventListener('abort',() => reject(Object.assign(new Error('Timed out'),{name:'AbortError'})),{once:true}));
+    const access = await Promise.race([token(),expired]);
+    r = await fetch(url, { signal:ctl.signal, method, headers:{Authorization:'Bearer '+access,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined });
+  } catch(e) { throw new Error(e.name === 'AbortError' ? 'Spotify did not answer. Check your connection and try again.' : 'Network error: '+e.message); }
+  finally { clearTimeout(tmo); }
+  if (r.status === 401 && retry) { LS.set('exp','0'); return api(path, { method, body, retry: retry-1, timeout }); }
   if (r.status === 429) {
     const wait = +r.headers.get('Retry-After') || 2;
-    if (retry && wait <= 8) { await sleep(wait * 1000); return api(path, { method, body, retry: retry-1 }); }
+    if (retry && wait <= 8) { await sleep(wait * 1000); return api(path, { method, body, retry: retry-1, timeout }); }
     const e = new Error(`Spotify is limiting requests from this app right now. Try again in ${wait > 120 ? Math.ceil(wait/60) + ' minutes' : wait + ' seconds'}.`); e.status = 429; throw e;
   }
   if (r.status === 204 || r.status === 202) return null;
@@ -478,12 +485,12 @@ const Library = {
     ST.mix = mix.tracks.map(t => this.track(t)).filter(Boolean); ST.pool = ST.mix.slice();
     DJ.idx = mix.finished ? 0 : clamp(Number.isInteger(mix.idx) ? mix.idx : 0,0,ST.mix.length-1);
     const t = ST.mix[DJ.idx], c = AI.cache();
-    ST.mix.forEach(x => { if (c[x.id]) { x.aiStart=c[x.id].start; x.aiEnd=c[x.id].end; x.aiWhy=c[x.id].why; x.mood=c[x.id].mood; } });
-    ST.mix.forEach((x,i) => x._lock = i <= DJ.idx && Number.isFinite(x.start) && Number.isFinite(x.end) && x.end > x.start);
+    ST.mix.forEach(x => { const pick=AI.pick(x,c); if (pick) { x.aiStart=pick.start; x.aiEnd=pick.end; x.aiWhy=pick.why; x.mood=pick.mood; } });
+    ST.mix.forEach((x,i) => x._lock = i <= DJ.idx && ['ai','you'].includes(x.hookSrc) && Number.isFinite(x.start) && Number.isFinite(x.end) && x.end > x.start);
     planSegments(ST.mix,ST.vibe,ST.len); ST.mix.forEach(x => x._lock = false);
     DJ.pos = Number.isFinite(mix.position) ? clamp(mix.position,t.start,t.end) : t.start;
     DJ.posAt = performance.now(); DJ.loadedMix = ST.mix; DJ.loadedId = t.id;
-    DJ.playing = false; DJ.externalPaused = false; DJ.finished = !!mix.finished; DJ.retryIdx = null;
+    DJ.playing = false; DJ.externalPaused = false; DJ.confirmed = false; DJ.finished = !!mix.finished; DJ.retryIdx = null;
     if (DJ.finished) { DJ.loadedMix = null; DJ.pos = t.start; }
     this.ref = ST.mix; this.state.activeId = mix.id;
     renderDeck(); aiStatus(); setPlayIcon();
@@ -535,7 +542,7 @@ const Library = {
     $('#homeHeadline').innerHTML = mixes.length ? 'Your music, ready.' : 'A little less intro.<br>A lot more song.';
     $('#mixCount').textContent = `${mixes.length} saved`;
     $('#clearMixes').classList.toggle('hide', !mixes.length);
-    $('#savedMixes').innerHTML = mixes.length ? mixes.map(m => `<button class="mix-tile" data-mix="${esc(m.id)}" aria-label="Open ${esc(m.name)}">${this.art(m.tracks)}<b>${esc(m.name)}</b><span>${m.tracks.length} songs · ${m.tracks.filter(t => cache[t.id]).length} AI picks ready</span></button>`).join('') : '<div class="empty-library" style="grid-column:1/-1">Your next favourite mix starts here.<br>Create one and it will be saved automatically.</div>';
+    $('#savedMixes').innerHTML = mixes.length ? mixes.map(m => `<button class="mix-tile" data-mix="${esc(m.id)}" aria-label="Open ${esc(m.name)}">${this.art(m.tracks)}<b>${esc(m.name)}</b><span>${m.tracks.length} songs · ${m.tracks.filter(t => AI.pick(t,cache)).length} AI picks ready</span></button>`).join('') : '<div class="empty-library" style="grid-column:1/-1">Your next favourite mix starts here.<br>Create one and it will be saved automatically.</div>';
     const t = active?.tracks[active.idx || 0];
     $('#continueMix').innerHTML = active ? `<div class="continue-card"><div class="eyebrow">Pick up where you left off</div><div><b>${esc(active.name)}</b><p>${esc(t?.name || '')} · song ${(active.idx || 0)+1} of ${active.tracks.length}</p></div><button class="btn pri" data-continue="${esc(active.id)}">Continue listening →</button></div>` : '';
     const hidden = new Set(this.state.hiddenPicks || []);
@@ -920,6 +927,10 @@ function moodDist(a, b){ if (!a || !b) return .3; if (a === b) return 0; return 
 const AI = {
   key(){ return LS.get('aikey') || ''; },
   cache(){ try { const c = JSON.parse(LS.get('ai4') || '{}'); return c && typeof c === 'object' && !Array.isArray(c) ? c : {}; } catch { return {}; } },
+  pick(t,cache=this.cache()){
+    const c = cache[t.id];
+    return c && Number.isFinite(c.start) && Number.isFinite(c.end) && c.start >= 0 && c.end > c.start && c.end <= t.dur ? c : null;
+  },
   savedStatus(){
     const n = Object.keys(this.cache()).length;
     $('#aiSaved').textContent = `${n} saved song ${n === 1 ? 'pick' : 'picks'}. Reused across all playlists on this device, including after closing Segue. Clearing website data removes them.`;
@@ -1000,10 +1011,10 @@ ${songs}`;
   q: Promise.resolve(),
   one(t){ // decide this song and the next few in one request; requests are queued so they never overlap
     const cache = this.cache();
-    if (!this.key() || cache[t.id] || (t._aiTries || 0) >= 2) return Promise.resolve();
+    if (!this.key() || this.pick(t,cache) || (t._aiTries || 0) >= 2) return Promise.resolve();
     if (t._aiP) return t._aiP;
     const mix = ST.mix, i = Math.max(0, mix.indexOf(t));
-    const batch = mix.slice(i, i + 12).filter(x => !cache[x.id] && !x._aiP && (x._aiTries || 0) < 2 && x.hookSrc !== 'you').slice(0, this.batchSize);
+    const batch = mix.slice(i, i + 12).filter(x => !this.pick(x,cache) && !x._aiP && (x._aiTries || 0) < 2 && x.hookSrc !== 'you').slice(0, this.batchSize);
     if (!batch.includes(t)) { batch.unshift(t); batch.length = Math.min(batch.length, this.batchSize); }
     const p = this.q = this.q.then(async () => { batch.forEach(x => x._aiTries = (x._aiTries || 0) + 1); await this.run(batch); }).catch(() => {}).then(() => { batch.forEach(x => { x._aiP = null; x.aiPending = false; }); });
     batch.forEach(x => x._aiP = p);
@@ -1012,9 +1023,9 @@ ${songs}`;
   async run(tracks, onProg, onBatch){
     if (!this.key()) return 0;
     this.lastErr = null; this.empty = 0;
-    const cache = this.cache(); const todo = tracks.filter(t => !cache[t.id]);
+    const cache = this.cache(); const todo = tracks.filter(t => !this.pick(t,cache));
     todo.forEach(t => t.aiPending = true);
-    const apply = list => list.forEach(t => { const c = cache[t.id]; if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
+    const apply = list => list.forEach(t => { const c = this.pick(t,cache); if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     let done = 0;
     for (let i = 0; i < todo.length; i += this.batchSize) {
       const batch = todo.slice(i, i + this.batchSize);
@@ -1035,7 +1046,7 @@ ${songs}`;
       } catch(e){ this.lastErr = e.message; toast(e.message, 6000); if (/key|quota|429|403|401|API_KEY|permission/i.test(e.message)) { todo.forEach(t => t.aiPending = false); break; } }
       batch.forEach(t => t.aiPending = false); apply(batch); onBatch?.();
     }
-    tracks.forEach(t => { const c = cache[t.id]; if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
+    tracks.forEach(t => { const c = this.pick(t,cache); if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     return done;
   },
 };
@@ -1058,7 +1069,7 @@ async function aiAhead(){
   try {
     const mix = ST.mix, from = DJ.playing ? DJ.idx + 1 : DJ.idx;
     for (const t of mix.slice(from, from + AI.batchSize)) {
-      if (AI.cache()[t.id] || t.hookSrc === 'you') continue;
+      if (AI.pick(t) || t.hookSrc === 'you') continue;
       t.aiPending = true; renderDeck();
       await AI.one(t); t.aiPending = false;
       if (ST.mix !== mix) break;
@@ -1097,7 +1108,7 @@ async function buildMix(){
     msg.innerHTML = `<span class="spin"></span> Reading music styles…`;
     await within(fetchGenres(picked, (d,n)=> msg.innerHTML = `<span class="spin"></span> Reading artist genres ${d}/${n}…`), 12000);
     // Songs the AI has already seen get their saved picks straight away
-    const aic = AI.cache(); picked.forEach(t => { const c = aic[t.id]; if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
+    const aic = AI.cache(); picked.forEach(t => { const c = AI.pick(t,aic); if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     msg.innerHTML = `<span class="spin"></span> Planning the set…`; await sleep(30);
     ST.pool = picked;
     await remix();
@@ -1170,7 +1181,7 @@ function drawCurve(){
 const DJ = {
   player:null, sdkDev:null, dev:null, remote:false, idx:0, playing:false, busy:false, master:.85, lat:450,
   pos:0, posAt:0, startedAt:0, tick:null, xfading:false,
-  epoch:0, loadedMix:null, loadedId:null, retryIdx:null, finished:false, externalPaused:false,
+  epoch:0, loadedMix:null, loadedId:null, retryIdx:null, finished:false, externalPaused:false, confirmed:false, positionRepairs:0,
 
   async init(){
     window.onSpotifyWebPlaybackSDKReady = () => {
@@ -1239,13 +1250,55 @@ const DJ = {
       await sleep(ms/steps);
     }
   },
+  matches(item,t){
+    return !!item && (item.id === t.id || item.linked_from?.id === t.id || item.uri === t.uri);
+  },
+  async sdkState(timeout=900){
+    try { return await within(this.player.getCurrentState(),timeout); } catch { return null; }
+  },
+  async playbackState(timeout=2200){
+    if (!this.remote && this.player) {
+      const s = await this.sdkState(Math.min(900,timeout));
+      if (s) return {item:s.track_window?.current_track,position:s.position,paused:s.paused,deviceId:this.sdkDev || this.dev};
+    }
+    const s = await api('/me/player',{retry:0,timeout:Math.max(250,timeout - (!this.remote && this.player ? 900 : 0))});
+    return s ? {item:s.item,position:s.progress_ms,paused:!s.is_playing,deviceId:s.device?.id} : null;
+  },
+  async verifyStart(t,target,epoch,dev,playedFor=0){
+    const began = performance.now(), deadline = began + 10000;
+    let wrong = 0, repaired = false, lastError = null;
+    for (let attempt=0; attempt<8 && performance.now()<deadline; attempt++) {
+      if (epoch !== this.epoch || dev !== this.dev) return null;
+      let state;
+      try { state = await this.playbackState(Math.min(2200,deadline-performance.now())); }
+      catch(e) { lastError=e; if ([401,403,429].includes(e.status)) break; }
+      if (epoch !== this.epoch || dev !== this.dev) return null;
+      if (state && state.deviceId === dev && this.matches(state.item,t) && Number.isFinite(state.position) && !state.paused) {
+        // A 204 play response is not proof that Spotify applied position_ms.
+        if (state.position >= Math.max(0,target-1500) && state.position <= target+Math.max(6500,playedFor+performance.now()-began+2500)) return state.position;
+        if (++wrong >= 2 && !repaired) {
+          if ((this.positionRepairs || 0) >= 1) break;
+          repaired = true; this.positionRepairs = (this.positionRepairs || 0) + 1;
+          setStat('<span class="spin"></span> Aligning Spotify to the saved best part…');
+          // Seek only the expected song on the selected device, at most once.
+          try { await api(`/me/player/seek?position_ms=${Math.round(target)}&device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0,timeout:4000}); }
+          catch(e) { lastError=e; break; }
+        }
+      } else wrong=0;
+      await sleep(400);
+    }
+    const e = new Error(lastError?.message || 'Spotify did not confirm the saved best-part position. Press Play to retry this song.');
+    e.stopPlayback = true; throw e;
+  },
   async playTrack(i, epoch){
     const mix = ST.mix, t = mix[i];
     if (!this.dev) await this.devices({ required:true });
     if (epoch !== this.epoch) return false;
     if (!this.dev) throw new Error('Open Spotify on a device, then press Play.');
     const t0 = performance.now();
-    const start = () => api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', retry:0, body:{ uris:[t.uri], position_ms:Math.round(t.start) } });
+    let commandDev = this.dev;
+    const start = () => { commandDev = this.dev; return api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', retry:0, body:{ uris:[t.uri], position_ms:Math.round(t.start) } }); };
+    this.confirmed = false; this.positionRepairs = 0;
     try { await start(); }
     catch(e) {
       if (epoch !== this.epoch) return false;
@@ -1257,13 +1310,20 @@ const DJ = {
     }
     if (epoch !== this.epoch || mix !== ST.mix) {
       // A pause during an in-flight Spotify request must win over the late start.
-      await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }).catch(()=>{});
+      await api(`/me/player/pause?device_id=${encodeURIComponent(commandDev)}`, { method:'PUT', retry:0 }).catch(()=>{});
       return false;
     }
-    this.lat = clamp(.6*this.lat + .4*(performance.now() - t0), 150, 1500);
+    const commandLatency = performance.now() - t0;
+    setStat('<span class="spin"></span> Checking Spotify is at the best part…');
+    const actual = await this.verifyStart(t,t.start,epoch,commandDev,commandLatency);
+    if (actual == null || epoch !== this.epoch || mix !== ST.mix) {
+      await api(`/me/player/pause?device_id=${encodeURIComponent(commandDev)}`,{method:'PUT',retry:0}).catch(()=>{}); return false;
+    }
+    this.confirmed = true;
+    this.lat = clamp(.6*this.lat + .4*commandLatency, 150, 1500);
     this.idx = i; this.loadedMix = mix; this.loadedId = t.id; this.retryIdx = null;
     this.finished = this.externalPaused = false;
-    this.pos = t.start; this.posAt = this.startedAt = performance.now();
+    this.pos = actual; this.posAt = this.startedAt = performance.now();
     this.playing = true; showNow(i); setPlayIcon();
     Library.capture(); aiAhead();
     return true;
@@ -1277,7 +1337,7 @@ const DJ = {
       if (!this.dev) await this.devices({ required:true });
       if (epoch !== this.epoch || mix !== ST.mix) return;
       if (g.hookSrc !== 'you') {
-        if (!AI.cache()[g.id]) {
+        if (!AI.pick(g)) {
           if (!AI.key()) throw new Error('Save an AI key in Settings first.');
           if (!g._aiP) g._aiTries = 0; // An explicit Play retries a previous AI failure.
           setStat('<span class="spin"></span> AI is choosing the best part…');
@@ -1286,7 +1346,7 @@ const DJ = {
           await Promise.race([AI.one(g), cancelled]); this.cancelWait = null; g.aiPending = false;
         }
         if (epoch !== this.epoch || mix !== ST.mix) return;
-        const pick = AI.cache()[g.id];
+        const pick = AI.pick(g);
         if (!pick || !Number.isFinite(pick.start) || !Number.isFinite(pick.end)) throw new Error(AI.lastErr || 'AI has not picked this song yet. Press Play to retry.');
         g.aiStart = pick.start; g.aiEnd = pick.end; g.mood = pick.mood; g.aiWhy = pick.why;
         replanAhead(this.loadedMix === mix ? this.idx : -1);
@@ -1300,8 +1360,8 @@ const DJ = {
       this.retryIdx = i;
       // On an explicit jump failure leave the current song alone. At an automatic
       // boundary, pause rather than silently dropping this song from the mix.
-      if (this.atBoundary || !this.playing) {
-        this.freeze(); this.playing = false;
+      if (e.stopPlayback || this.atBoundary || !this.playing) {
+        this.freeze(); this.playing = false; this.confirmed = false;
         if (this.dev) await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }).catch(()=>{});
       }
       toast(e.message, 6000); setStat(esc(e.message) + ' · Press Play to retry this song.'); setPlayIcon();
@@ -1319,7 +1379,7 @@ const DJ = {
     }
     this.atBoundary = true;
     const g = ST.mix[next];
-    if (g.hookSrc !== 'you' && !AI.cache()[g.id]) {
+    if (g.hookSrc !== 'you' && !AI.pick(g)) {
       // Do not overrun the selected passage or play a rule-based replacement.
       this.freeze(); this.playing = false; setPlayIcon();
       const epoch = this.epoch;
@@ -1373,25 +1433,44 @@ const DJ = {
       this._ticking = true;
       const epoch = this.epoch, t = ST.mix[this.idx];
       try {
-        let state;
-        if (!this.remote && this.player) state = await this.player.getCurrentState();
+        let state, fromAPI = this.remote;
+        if (!this.remote && this.player) {
+          state = await this.sdkState(900);
+          if (!state || !this.matches(state.track_window?.current_track,t) || state.position < t.start-2000) {
+            state = await api('/me/player',{retry:0,timeout:2500}); fromAPI = true;
+          }
+        }
         else {
-          if (performance.now() - lastPoll < 1500) return;
-          lastPoll = performance.now(); state = await api('/me/player', { retry:0 });
+          const estimate = this.pos + (this.playing ? performance.now()-this.posAt : 0);
+          const pollGap = this.playing && t.end-estimate < 10000 ? 700 : 2000;
+          if (performance.now() - lastPoll < pollGap) return;
+          lastPoll = performance.now(); state = await api('/me/player', { retry:0, timeout:2500 });
         }
         if (epoch !== this.epoch || this.busy || t !== ST.mix[this.idx]) return;
-        if (!this.acceptState(state, t, this.remote)) return;
+        const item = fromAPI ? state?.item : state?.track_window?.current_track;
+        const position = fromAPI ? state?.progress_ms : state?.position;
+        const paused = fromAPI ? state?.is_playing === false : state?.paused;
+        if (this.confirmed && this.playing && !paused && this.matches(item,t) && (!fromAPI || state?.device?.id === this.dev) && Number.isFinite(position) && position < t.start-2000) {
+          this.busy = true; setPlayIcon();
+          try {
+            const actual = await this.verifyStart(t,t.start,epoch,this.dev);
+            if (actual != null && epoch === this.epoch) { this.pos=actual; this.posAt=this.startedAt=performance.now(); setStat('<b>Live</b> · AI best parts'); }
+          } catch(e) { await this.pause(); setStat(esc(e.message)); }
+          finally { this.busy=false; setPlayIcon(); }
+          return;
+        }
+        if (!this.acceptState(state, t, fromAPI)) return;
         const pos = this.pos;
         Library.progress();
         $('#ph').style.left = clamp(pos/t.dur*100, 0, 100) + '%'; $('#tCur').textContent = fmt(pos);
-        if (this.playing && performance.now() - this.startedAt > 2500 && pos >= t.end - this.lat) await this.transition();
+        if (this.playing && this.confirmed && pos >= t.end - this.lat) await this.transition();
       } catch(e) { /* A missing poll must not advance or skip the mix. */ }
       finally { this._ticking = false; }
     };
     this.tickFn = fn; this.tick = setInterval(fn, 400);
   },
   async pause(){
-    ++this.epoch; this.cancelWait?.(); this.freeze(); this.playing = false; this.externalPaused = false;
+    ++this.epoch; this.cancelWait?.(); this.freeze(); this.playing = false; this.externalPaused = false; this.confirmed = false;
     setPlayIcon(); clearInterval(this.tick); Library.capture();
     if (this.dev) {
       try { await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }); }
@@ -1404,18 +1483,31 @@ const DJ = {
     if (this.finished) { this.finished = false; this.idx = 0; }
     if (this.retryIdx != null) return this.go(this.retryIdx);
     const t = ST.mix[this.idx]; if (!t) return;
+    // Restoring a not-yet-decided mix is not permission to play its estimate.
+    const pick = AI.pick(t);
+    const hasPick = t.hookSrc === 'you' || (pick && Number.isFinite(pick.start) && Number.isFinite(pick.end));
+    if (!hasPick) return this.go(this.idx);
     if (this.loadedMix === ST.mix && this.loadedId === t.id && this.pos < t.end - 500) {
-      this.busy = true; setPlayIcon(); setStat('Connecting to Spotify…'); const epoch = ++this.epoch;
+      this.busy = true; this.confirmed = false; this.positionRepairs = 0; setPlayIcon(); setStat('Connecting to Spotify…');
+      const epoch = ++this.epoch, target = clamp(this.pos,t.start,t.end-500);
+      let dev = this.dev, requested = false;
       try {
-        // Explicit URI + frozen position cannot resume an unrelated Spotify context.
-        await api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', retry:0, body:{ uris:[t.uri], position_ms:Math.round(this.pos) } });
-        if (epoch !== this.epoch) {
-          await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }).catch(()=>{}); return;
+        if (!this.dev) await this.devices({required:true});
+        if (epoch !== this.epoch) return;
+        dev = this.dev; requested = true; const requestedAt=performance.now();
+        await api(`/me/player/play?device_id=${encodeURIComponent(dev)}`, { method:'PUT', retry:0, body:{ uris:[t.uri], position_ms:Math.round(target) } });
+        const actual = await this.verifyStart(t,target,epoch,dev,performance.now()-requestedAt);
+        if (actual == null || epoch !== this.epoch) {
+          await api(`/me/player/pause?device_id=${encodeURIComponent(dev)}`, { method:'PUT', retry:0 }).catch(()=>{}); return;
         }
-        this.posAt = this.startedAt = performance.now(); this.playing = true; this.externalPaused = false;
-        setPlayIcon(); setStat('<b>Live</b> · AI best parts'); aiAhead();
-      } catch(e) { setStat(esc(e.message)); }
-      finally { this.busy = false; setPlayIcon(); this.loop(); }
+        this.pos = actual; this.posAt = this.startedAt = performance.now(); this.playing = true;
+        this.confirmed = true; this.externalPaused = false;
+        setPlayIcon(); setStat('<b>Live</b> · AI best parts'); Library.capture(); aiAhead();
+      } catch(e) {
+        this.playing = false; this.confirmed = false;
+        if (requested) await api(`/me/player/pause?device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0}).catch(()=>{});
+        setStat(esc(e.message));
+      } finally { this.busy = false; setPlayIcon(); this.loop(); }
       return;
     }
     return this.go(this.loadedMix === ST.mix ? Math.min(this.idx + 1, ST.mix.length - 1) : this.idx);

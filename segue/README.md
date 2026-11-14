@@ -1,7 +1,7 @@
 # Segue: handoff
 
 Read `PROJECT.md` in the repository root first (deploy, phone layout rules,
-change log). This file covers Segue only. Last updated: 2026-11-14, Version 29.
+change log). This file covers Segue only. Last updated: 2026-11-14, Version 30.
 
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
@@ -137,6 +137,37 @@ shows its songs again using those retained mappings. Pending picks from the curr
 created mix can appear as usual. The timings-kept count remains visible. No Spotify
 playlist or Liked Songs is modified. Failed storage writes leave lists intact.
 
+## Verified playback positions (Version 30)
+
+A Spotify play acknowledgement is no longer enough to show Live. Both new
+song starts and resume verify the expected track/relinked ID, selected device,
+playing state and actual position. Verification polls for up to eight reads
+with a roughly ten-second deadline and short request budgets. Two wrong
+positions for the expected song allow one corrective Spotify seek to the
+saved target. A successful seek is then verified too. Another track/device
+never receives that correction. If confirmation fails, playback pauses with
+a retry message instead of silently playing the intro or skipping a song.
+
+The one-seek budget is shared with later resets during the same start/resume.
+A late reset before the selected passage can be corrected, but cannot create
+an endless correction loop. Stale/missing/erroring local SDK state falls
+back to Spotify's Web API before a suspected intro reset is acted on. Pause
+and device changes cancel verification; pending seeks cannot trigger resume.
+
+Resume checkpoints are clamped to the selected passage, so a stored zero
+cannot override an AI start later in the song. Restored mixes with no valid
+AI pick must wait for AI through `go`, rather
+than use the direct resume path with an estimated segment. Cache picks must
+have finite nonnegative start/end within this song; invalid records are not
+played. A genuinely chosen start of zero is still valid. Saved AI mappings
+and manual corrections are retained. Remote polling is faster near the end
+of a passage, and request budgets also cover a stuck token refresh.
+
+These controls verify transport position, not AI musical accuracy. AI still
+estimates timings without hearing audio. Spotify may briefly emit the intro
+before a missed start seek is detected/corrected; instant, gapless native-app
+behaviour is not guaranteed. Real iPhone/background playback remains unverified.
+
 ## Code map
 
 - `Library`: serialization, account-scoped source draft/mix storage, restore,
@@ -187,7 +218,7 @@ playlist or Liked Songs is modified. Failed storage writes leave lists intact.
 ## Checks
 
 Run `node segue/tests/playback.test.cjs` from the repository root. No package
-installation or credentials needed. These 40 checks use simulated services:
+installation or credentials needed. These 55 checks use simulated services:
 AI batching/quotas/fallbacks, first-song wait, cancellation, no estimate
 substitution, exact passage bounds, manual overrides, stable current passage,
 pause/resume, stale states, device changes, late AI and no failed-song skipping.
@@ -195,7 +226,11 @@ Also covers empty/stale devices, phone preference, 404 recovery, visible device
 errors, pick reuse after reload/from another playlist, retaining old picks,
 account-scoped mix/draft restoration without autoplay, serialization privacy,
 completed-set replay, metadata recovery, concurrent cache merges, list clears
-without touching playback/cache/keys/corrections, and persistent hidden lists.
+without touching playback/cache/keys/corrections, persistent hidden lists,
+ignored-seek correction, resume verification, stale SDK recovery, cancellation,
+restored AI gating, late intro resets and bounded token-refresh waits. Transport
+verification is stubbed in unrelated unit checks and exercised directly in
+the dedicated transport cases; browser flows use the actual verifier.
 
 Optional browser regression: `python segue/tests/browser_flow.py` (requires
 Python Playwright plus Chromium; `SEGUE_CHROMIUM` can specify the executable).
@@ -206,7 +241,10 @@ Browser flow passed at 320/390/768/1024-pixel widths, in light/dark modes:
 create → saved mix/song list → search/rename → play/pause → reopen → same
 order/song/position without autoplay → continue with no extra AI request →
 saved library visible during a simulated Spotify outage, plus cancelling and
-confirming Clear and reopening with empty lists and unchanged AI cache. Four populated views
+confirming Clear and reopening with empty lists and unchanged AI cache.
+The simulated Spotify backend deliberately ignores requested start/resume
+positions and begins at zero; the actual verifier/seek correction must recover
+the AI timestamp or saved listening position without another AI request. Four populated views
 had no horizontal overflow or JavaScript errors. Real device checks remain.
 
 ## Leftover code that is not used
@@ -227,12 +265,12 @@ Safe to delete in a clean-up; ask Vijay first.
   assistants' workspaces. Say plainly what was tested with stand-ins and
   what only he can test on the phone.
 
-## Current state (Version 29)
+## Current state (Version 30)
 
 - AI picks work with a Gemini key (confirmed by Vijay: 14 of 15 songs).
 - Phone layout redesigned to match Cinema Book; not yet confirmed by Vijay
   on the iPhone Duo.
-- Version 29 list clearing, library restoration, saved-song browsing and playback
+- Version 30 verified starts/resume, list clearing, library and playback
   regression checks pass with simulated services.
   Live phone playback, real quotas and real model availability are not yet confirmed.
 

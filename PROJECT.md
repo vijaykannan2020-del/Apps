@@ -118,7 +118,7 @@ the top right and cover part of the page.
 - Test copy (`cinema-book-test/`): Version 22 (neutral black-and-white look, ticket stubs for the diary, floating glass tab bar). Adds over 13: Wikidata
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
-- Segue (`segue/`): Version 29. Spotify sign-in, AI best-part picks with a
+- Segue (`segue/`): Version 30. Spotify sign-in, AI best-part picks with a
   Gemini key, and a phone layout matching Cinema Book are in place. Player
   fixes now wait for AI picks, preserve pause/resume state and retry failed
   songs without skipping. Simulated checks pass; live phone confirmation pending.
@@ -137,6 +137,8 @@ the top right and cover part of the page.
 ## Change log
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-14, ChatGPT: Segue Version 30, held for review before publishing: verifies actual Spotify track/device/playing position after play and resume, rather than trusting 204. One bounded corrective seek for ignored start/resume position or a later intro reset; never seeks another track/device and stops with retry if unconfirmed. Stale/erroring SDK state falls back to Web API. Restored undecided mixes wait for AI; cached timestamps are validated. Faster polling near a passage boundary, cancellation/device snapshot guards, and API budgets include token refresh. Version 29 Clear controls retained. 55 simulated regressions plus browser flows with deliberately ignored start/resume timestamps passed. Real Spotify/iPhone transport and AI musical accuracy remain unverified.
 
 - 2026-11-14, ChatGPT: Segue Version 29: separate confirmed Clear controls for saved mixes and displayed AI song list. Mix clear detaches auto-save so it stays cleared while active playback continues. Song clear persists hidden IDs without modifying best-part mappings or manual corrections; newly created mixes can reuse/show those picks without AI calls. Source draft, setup and Spotify playlists remain intact. 40 simulated regressions and browser confirm/cancel/clear/reopen checks across four widths in light/dark verify retained AI cache.
 

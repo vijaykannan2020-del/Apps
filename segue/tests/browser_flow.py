@@ -1,4 +1,5 @@
 import json,re,os,shutil,tempfile
+from urllib.parse import urlparse,parse_qs
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 html=(Path(__file__).resolve().parents[1]/'index.html').read_text()
@@ -10,7 +11,7 @@ with sync_playwright() as p:
   for theme in ['light','dark']:
    context=browser.new_context(viewport={'width':width,'height':height},color_scheme=theme)
    context.add_init_script("localStorage.setItem('segue_rt','audit');localStorage.setItem('segue_at','audit');localStorage.setItem('segue_exp',String(Date.now()+3600000));localStorage.setItem('segue_aikey','test');")
-   errors=[]; counts={'ai':0,'play':0}; state={'uri':None,'pos':0,'paused':True,'offline':False}
+   errors=[]; counts={'ai':0,'play':0,'seek':0}; state={'uri':None,'pos':0,'paused':True,'offline':False}
    def route(r):
     u=r.request.url
     if u==url:return r.fulfill(body=html,content_type='text/html')
@@ -22,7 +23,9 @@ with sync_playwright() as p:
     if '/artists/' in u:return r.fulfill(json={'genres':[]})
     if '/me/player/devices' in u:return r.fulfill(json={'devices':[{'id':'phone','name':'My iPhone','type':'Smartphone','is_active':True}]})
     if '/me/player/play?' in u:
-     counts['play']+=1; body=r.request.post_data_json; state.update(uri=body['uris'][0],pos=body['position_ms'],paused=False);return r.fulfill(status=204)
+     counts['play']+=1; body=r.request.post_data_json; state.update(uri=body['uris'][0],pos=0,paused=False);return r.fulfill(status=204)
+    if '/me/player/seek?' in u:
+     counts['seek']+=1;state['pos']=int(parse_qs(urlparse(u).query)['position_ms'][0]);return r.fulfill(status=204)
     if '/me/player/pause?' in u:state['paused']=True;return r.fulfill(status=204)
     if u.endswith('/me/player'):return r.fulfill(json={'item':{'id':state['uri'].split(':')[-1] if state['uri'] else 'unknown','uri':state['uri']},'progress_ms':state['pos'],'is_playing':not state['paused'],'device':{'id':'phone'}})
     if 'reccobeats' in u:return r.fulfill(json={'content':[]})
@@ -42,7 +45,7 @@ with sync_playwright() as p:
    page.locator('#savedSongSearch').fill('Going Home');assert page.locator('#savedSongs .saved-song').count()==1
    page.locator('#savedSongSearch').fill('');assert page.locator('#savedSongs .saved-song').count()==3
    if width==390:page.screenshot(path=str(preview_dir/f'v28-home-{theme}.png'),full_page=True)
-   page.locator('#continueMix button').click();page.wait_for_function('DJ.playing===true');assert counts['play']==1
+   page.locator('#continueMix button').click();page.wait_for_function('DJ.playing===true');assert counts['play']==1;assert counts['seek']==1;assert state['pos']==60000
    page.once('dialog',lambda dialog:dialog.accept('Night Drive Edit'));page.locator('#renameMix').click();assert page.locator('#mixTitle').inner_text()=='Night Drive Edit'
    page.evaluate('DJ.pos=78000;DJ.posAt=performance.now()');page.locator('#playBtn').click();page.wait_for_function('DJ.playing===false')
    before=page.evaluate('({ids:ST.mix.map(t=>t.id),pos:DJ.pos,idx:DJ.idx})');oldplays=counts['play'];page.reload();page.wait_for_selector('#v-home:visible')
@@ -57,6 +60,6 @@ with sync_playwright() as p:
    assert page.evaluate("LS.get('ai4')")==saved_cache
    page.reload();page.wait_for_selector('#v-home:visible');assert page.locator('#savedMixes .mix-tile').count()==0;assert page.locator('#savedSongs .saved-song').count()==0;assert page.evaluate('Object.keys(AI.cache()).length')==3
    assert not errors,errors
-   print(f'PASS {width}x{height} {theme}: create, save, four screens, cached AI song list, play/pause, reopen, same order/position, no autoplay, continue without AI, library during Spotify outage, clear lists keeps AI mappings')
+   print(f'PASS {width}x{height} {theme}: create, save, four screens, cached AI song list, play/pause, reopen, same order/position, no autoplay, continue without AI, library during Spotify outage, clear lists keeps AI mappings, ignored start/resume positions corrected')
    context.close()
  browser.close()

@@ -17,6 +17,7 @@ function context() {
   vm.runInContext(source.replace('const tfetch =','let tfetch =').replace('const sleep = ms => new Promise(r => setTimeout(r, ms));','const sleep = async () => {};'),c);
   c.setNow = x => now = x; c.storage = storage;
   vm.runInContext('renderDeck=()=>{};showNow=()=>{};drawCurve=()=>{};aiStatus=()=>{};aiAhead=()=>{};',c);
+  vm.runInContext('globalThis.realVerifyStart=DJ.verifyStart;DJ.verifyStart=async(t,pos)=>pos;',c);
   return c;
 }
 const run = (c,s) => vm.runInContext(s,c);
@@ -61,7 +62,7 @@ await test('AI failure never plays an estimated replacement',async()=>{
  await run(c,'DJ.go(0)');assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.retryIdx'),0);assert.equal(run(c,"calls.filter(p=>p.includes('/play?')).length"),0);
 });
 await test('pause freezes elapsed position and resume includes URI and position',async()=>{
- const c=context();run(c,`ST.mix=[${track}];DJ.dev='device';DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.pos=30000;DJ.posAt=1000;DJ.playing=true;globalThis.calls=[];api=async(p,o)=>calls.push({p,o});`);
+ const c=context();run(c,`ST.mix=[${track}];DJ.dev='device';DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.pos=30000;DJ.posAt=1000;DJ.playing=true;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.calls=[];api=async(p,o)=>calls.push({p,o});`);
  await run(c,'DJ.pause()');assert.equal(run(c,'DJ.pos'),39000);c.setNow(20000);await run(c,'DJ.resume()');assert.equal(run(c,'calls[1].o.body.position_ms'),39000);assert.equal(run(c,'calls[1].o.body.uris[0]'),'spotify:track:one');
 });
 await test('new mix cannot resume old Spotify context',async()=>{
@@ -69,7 +70,7 @@ await test('new mix cannot resume old Spotify context',async()=>{
  await run(c,'DJ.resume()');assert.equal(run(c,'calls[0].body.position_ms'),30000);assert.equal(run(c,'calls[0].body.uris[0]'),'spotify:track:one');
 });
 await test('wrong SDK track is never used and does not advance mix',async()=>{
- const c=context();run(c,`ST.mix=[${track}];DJ.loadedMix=ST.mix;DJ.playing=true;DJ.pos=30000;DJ.posAt=1000;DJ.startedAt=1000;DJ.player={getCurrentState:async()=>({position:41000,paused:false,track_window:{current_track:{id:'wrong'}}})};DJ.loop();`);
+ const c=context();run(c,`ST.mix=[${track}];DJ.loadedMix=ST.mix;DJ.playing=true;DJ.pos=30000;DJ.posAt=1000;DJ.startedAt=1000;DJ.player={getCurrentState:async()=>({position:41000,paused:false,track_window:{current_track:{id:'wrong'}}})};api=async()=>({item:{id:'wrong'},progress_ms:41000,is_playing:true});DJ.loop();`);
  await run(c,'DJ.tickFn()');assert.equal(run(c,'DJ.idx'),0);assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.pos'),39000);
 });
 await test('external Spotify pause and resume synchronize',async()=>{
@@ -202,6 +203,66 @@ await test('an explicitly created new mix can show previously hidden songs witho
 await test('a pending AI answer from the current queue cannot refill a cleared song list',async()=>{
  const c=context();run(c,`ST.me={id:'user-a'};ST.mix=[${track}];Library.clearSongs();AI.save({one:{start:30000,end:75000,song:ST.mix[0]}});`);
  assert.match(run(c,"$('#savedSongs').innerHTML"),/List cleared/);assert.equal(run(c,'AI.cache().one.start'),30000);
+});
+await test('ignored Spotify start position is repaired once and confirmed before Live',async()=>{
+ const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.dev='phone';DJ.remote=true;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.position=0;globalThis.seeks=0;globalThis.liveDuringSeek=null;api=async(p,o)=>{if(p.includes('/seek?')){seeks++;liveDuringSeek=DJ.playing;position=30000;return null}if(p==='/me/player')return {item:{id:'one'},progress_ms:position,is_playing:true,device:{id:'phone'}};return null};`);
+ await run(c,'DJ.go(0)');assert.equal(run(c,'seeks'),1);assert.equal(run(c,'liveDuringSeek'),false);assert.equal(run(c,'DJ.confirmed'),true);assert.equal(run(c,'DJ.pos'),30000);assert.equal(run(c,'DJ.playing'),true);
+});
+await test('correct Spotify start position needs no corrective seek',async()=>{
+ const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.dev='phone';DJ.remote=true;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;if(p==='/me/player')return {item:{id:'one'},progress_ms:31000,is_playing:true,device:{id:'phone'}};return null};`);
+ await run(c,'DJ.go(0)');assert.equal(run(c,'seeks'),0);assert.equal(run(c,'DJ.pos'),31000);assert.equal(run(c,'DJ.playing'),true);
+});
+await test('a different track is never seeked as if it were the AI-picked song',async()=>{
+ const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.dev='phone';DJ.remote=true;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;if(p==='/me/player')return {item:{id:'other-song'},progress_ms:0,is_playing:true,device:{id:'phone'}};return null};`);
+ await run(c,'DJ.go(0)');assert.equal(run(c,'seeks'),0);assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.retryIdx'),0);
+});
+await test('ignored corrective seek stops safely without looping or skipping',async()=>{
+ const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track},{...${track},id:'two',uri:'spotify:track:two'}];DJ.dev='phone';DJ.remote=true;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.seeks=0;globalThis.pauses=0;globalThis.reads=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;if(p.includes('/pause?'))pauses++;if(p==='/me/player'){reads++;return {item:{id:'one'},progress_ms:0,is_playing:true,device:{id:'phone'}}}return null};`);
+ await run(c,'DJ.go(0)');assert.equal(run(c,'seeks'),1);assert.equal(run(c,'reads'),8);assert.equal(run(c,'pauses'),1);assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.idx'),0);
+});
+await test('pause during position verification prevents a corrective seek or late start',async()=>{
+ const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.dev='phone';DJ.remote=true;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;if(p==='/me/player')return new Promise(r=>globalThis.reply=r);return null};globalThis.pending=DJ.go(0);`);
+ await new Promise(r=>setImmediate(r));await run(c,'DJ.pause()');run(c,`reply({item:{id:'one'},progress_ms:0,is_playing:true,device:{id:'phone'}})`);await run(c,'pending');assert.equal(run(c,'seeks'),0);assert.equal(run(c,'DJ.playing'),false);
+});
+await test('a restored undecided mix waits for AI instead of resuming an estimate',async()=>{
+ const c=context();run(c,`ST.mix=[{...${track},hookSrc:'estimate'}];DJ.dev='phone';DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.pos=30000;DJ.posAt=1000;LS.set('aikey','test');globalThis.plays=[];api=async(p,o)=>{if(o?.body?.uris)plays.push(o.body.position_ms);return null};AI.call=()=>new Promise(r=>globalThis.answer=r);globalThis.pending=DJ.resume();`);
+ await new Promise(r=>setImmediate(r));assert.equal(run(c,'plays.length'),0);run(c,`answer(JSON.stringify([{id:'one',start:90,end:135}]))`);await run(c,'pending');assert.equal(run(c,'plays[0]'),90000);
+});
+await test('resume verifies and repairs the saved listening position, not only track identity',async()=>{
+ const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[{...${track},end:140000}];DJ.dev='phone';DJ.remote=true;DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.pos=100000;DJ.posAt=1000;LS.set('ai4',JSON.stringify({one:{start:30000,end:140000}}));globalThis.position=0;globalThis.target=null;api=async(p,o)=>{if(p.includes('/seek?')){target=Number(new URL('https://x'+p).searchParams.get('position_ms'));position=target}if(p==='/me/player')return {item:{id:'one'},progress_ms:position,is_playing:true,device:{id:'phone'}};return null};`);
+ await run(c,'DJ.resume()');assert.equal(run(c,'target'),100000);assert.equal(run(c,'DJ.pos'),100000);assert.equal(run(c,'DJ.playing'),true);
+});
+await test('invalid cached timestamps are refreshed rather than played from zero',async()=>{
+ const c=context();run(c,`ST.mix=[${track}];DJ.dev='phone';LS.set('aikey','test');LS.set('ai4',JSON.stringify({one:{start:-1000,end:45000}}));globalThis.aiCalls=0;globalThis.positions=[];AI.call=async()=>{aiCalls++;return JSON.stringify([{id:'one',start:90,end:135}])};api=async(p,o)=>{if(o?.body?.uris)positions.push(o.body.position_ms);return null};`);
+ await run(c,'DJ.go(0)');assert.equal(run(c,'aiCalls'),1);assert.equal(run(c,'positions[0]'),90000);
+});
+await test('a valid AI pick at the actual beginning is not arbitrarily changed',async()=>{
+ const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.dev='phone';DJ.remote=true;LS.set('ai4',JSON.stringify({one:{start:0,end:45000}}));globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;if(p==='/me/player')return {item:{id:'one'},progress_ms:0,is_playing:true,device:{id:'phone'}};return null};`);
+ await run(c,'DJ.go(0)');assert.equal(run(c,'DJ.pos'),0);assert.equal(run(c,'seeks'),0);assert.equal(run(c,'DJ.playing'),true);
+});
+await test('a late Spotify reset to the intro is corrected without skipping the song',async()=>{
+ const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.dev='phone';DJ.remote=true;DJ.playing=true;DJ.confirmed=true;DJ.startedAt=1000;DJ.pos=40000;DJ.posAt=1000;globalThis.position=0;globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?')){seeks++;position=30000}if(p==='/me/player')return {item:{id:'one'},progress_ms:position,is_playing:true,device:{id:'phone'}};return null};DJ.loop();`);
+ await run(c,'DJ.tickFn()');assert.equal(run(c,'seeks'),1);assert.equal(run(c,'DJ.pos'),30000);assert.equal(run(c,'DJ.idx'),0);assert.equal(run(c,'DJ.playing'),true);
+});
+await test('stale SDK intro position is checked against Spotify before a seek',async()=>{
+ const c=context();run(c,`ST.mix=[${track}];DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.dev=DJ.sdkDev='browser';DJ.remote=false;DJ.playing=true;DJ.confirmed=true;DJ.startedAt=1000;DJ.pos=40000;DJ.posAt=1000;DJ.player={getCurrentState:async()=>({position:0,paused:false,track_window:{current_track:{id:'one'}}})};globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;return {item:{id:'one'},progress_ms:40000,is_playing:true,device:{id:'browser'}}};DJ.loop();`);
+ await run(c,'DJ.tickFn()');assert.equal(run(c,'seeks'),0);assert.equal(run(c,'DJ.pos'),40000);assert.equal(run(c,'DJ.playing'),true);
+});
+await test('repeated device resets cannot cause an endless corrective-seek loop',async()=>{
+ const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.dev='phone';DJ.remote=true;DJ.playing=true;DJ.confirmed=true;DJ.positionRepairs=1;DJ.startedAt=1000;DJ.pos=40000;DJ.posAt=1000;globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;if(p==='/me/player')return {item:{id:'one'},progress_ms:0,is_playing:true,device:{id:'phone'}};return null};DJ.loop();`);
+ await run(c,'DJ.tickFn()');assert.equal(run(c,'seeks'),0);assert.equal(run(c,'DJ.idx'),0);assert.equal(run(c,'DJ.playing'),false);
+});
+await test('a failed SDK state read falls back to Spotify API confirmation',async()=>{
+ const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.dev=DJ.sdkDev='browser';DJ.remote=false;DJ.player={getCurrentState:async()=>{throw Error('SDK stale')}};LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));api=async(p,o)=>p==='/me/player'?{item:{id:'one'},progress_ms:30000,is_playing:true,device:{id:'browser'}}:null;`);
+ await run(c,'DJ.go(0)');assert.equal(run(c,'DJ.playing'),true);assert.equal(run(c,'DJ.confirmed'),true);assert.equal(run(c,'DJ.pos'),30000);
+});
+await test('a stuck token refresh cannot hold a Spotify request indefinitely',async()=>{
+ const c=context();c.setTimeout=fn=>{queueMicrotask(fn);return 1};run(c,`token=()=>new Promise(()=>{});`);
+ await assert.rejects(run(c,"api('/me/player',{retry:0,timeout:1})"),/Spotify did not answer/);
+});
+await test('resume cannot use a zero checkpoint before the saved AI passage',async()=>{
+ const c=context();run(c,`ST.mix=[${track}];DJ.dev='phone';DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.pos=0;DJ.posAt=1000;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.target=null;api=async(p,o)=>{if(o?.body?.uris)target=o.body.position_ms;return null};`);
+ await run(c,'DJ.resume()');assert.equal(run(c,'target'),30000);assert.equal(run(c,'DJ.pos'),30000);
 });
 console.log(`${count} checks passed`);
 })().catch(e=>{console.error(e);process.exitCode=1});
