@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-13, Claude: Segue Version 10 orders by tempo and music type too: intensity = 72% energy + 28% tempo (Build-up speeds up), stronger BPM weight, and a style distance from the sound (dance, energy, acousticness, speechiness, mood, instrumental) plus Spotify artist genres when returned (cached, max 40 artist lookups). Shows a style tag per song and "same style / → new style" in the running order.
+
 - 2026-11-13, Claude: Segue Version 9 finds each song's hook from time-stamped lyrics (LRCLIB search; chorus = most-repeated block of lines, first chorus after 20 s, minus one beat), with Set hook here / ±2s / Reset controls saved per song in the browser. Priority: user mark > lyrics > old estimate. Lyrics are only used for timing, never shown.
 
 - 2026-11-13, Claude: Segue Version 8 removes the Mix in Spotify button (at Vijay's request) and never changes volume on phones/tablets (fades could leave the phone near silent); auto-picks this browser, else the active device, else the phone.
