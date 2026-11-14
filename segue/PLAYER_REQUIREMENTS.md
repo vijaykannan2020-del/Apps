@@ -1,4 +1,4 @@
-# Segue player contract and review — Version 32 layout / Version 31 transport
+# Segue player contract and review — Version 33
 
 Reviewed 2026-11-14 against the reported Version 30 screenshots. This is a
 review of application behaviour, not a claim that real Spotify/iPhone audio
@@ -17,7 +17,7 @@ clock and deliberately frozen/misleading playback states.
 
 ## Required behaviour and evidence
 
-| Requirement | Version 31 rule | Automated evidence |
+| Requirement | Current rule | Automated evidence |
 |---|---|---|
 | One player everywhere | One Play button, status, seek bar, queue selection and output; no separate expanded player controls | Four populated views; one DOM button; footer/scroller/nav bounds; screenshots |
 | Truthful Playing | Matching track/device, unpaused state and advancing position required | Moving versus frozen `is_playing: true` responses |
@@ -67,9 +67,30 @@ reduced-transparency and observer-free measurement fallback. Existing player
 flows pass with the new dock geometry. No saved data or audio command logic
 changed. Synthetic previews are not real Spotify device tests.
 
+## Version 33 external-control update
+
+The Spotify Play body now includes current + up to 99 upcoming URIs, instead of
+only the current song. Observed native selection in this submitted mix/output
+updates the shared song; a cached passage is sought without another Play.
+Paused native Next stays silent; native resume repairs the passage. Missing AI
+pauses audio while waiting; Cancel stops preparation. A different device or
+unsubmitted/old mix context still detaches. Browser SDK Media Session handles
+all standard transport/seek actions, refreshes after SDK events, reports actual
+metadata/position, tolerates unsupported actions and guards stale callbacks
+when the user changes output. The queue-left/deck-right layout and non-blocking,
+reduced-motion-aware one-second cassette intro do not issue audio commands.
+
+Native queue order is a snapshot until the next start; Spotify's own shuffle,
+repeat and Previous history remain independent. No playlist or raw-URI offset
+is used. Browser handlers cannot fix native Spotify's OS session, and native
+CarPlay/AI cuts while iOS suspends this page are not guaranteed. Tests here are
+simulations, not real phone/CarPlay certification. All 80 controller checks pass;
+the 14 layout/theme cases and browser playback flows pass, including native
+Next, paused native selection and external resume on the simulated phone.
+
 ## Real phone acceptance still required
 
-1. Confirm Version 32 in the same Home Screen app; open Spotify on the same
+1. Confirm Version 33 in the same Home Screen app; open Spotify on the same
    account and expose the intended output. Hear that the displayed song,
    device and AI start time match the actual audio.
 2. Move through every tab while listening. The same footer must stay visible
@@ -79,7 +100,10 @@ changed. Synthetic previews are not real Spotify device tests.
 4. Confirm that volume/Bluetooth/AirPlay routing and Premium/account access
    are correct. Progress proves Spotify reports a moving stream; it cannot
    prove what the phone speaker or headphones actually emit.
-5. Test screen lock/background separately. iOS can suspend page timers.
+5. With Spotify phone output, test lock-screen/CarPlay Play, Pause and Next,
+   first while Segue is active and then locked. Check the song shown when
+   reopening; with an uncached song, verify AI wait and cancellation. Test
+   browser SDK media controls separately. Test screen lock/background separately. iOS can suspend page timers.
    A static web app cannot guarantee native Spotify's lock-screen scheduling,
    seamless timing, offline music or gapless/overlapping Spotify playback.
    These remain explicit limits, not automated passes.

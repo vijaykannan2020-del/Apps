@@ -331,5 +331,48 @@ await test('reopening a mix that closed during AI wait does not reuse an estimat
 await test('resume at a completed passage advances rather than playing a half-second tail',async()=>{
  const c=context();ready(c);const b=backend(c);run(c,`DJ.loadedMix=ST.mix;DJ.loadedId=DJ.checkpointId='song0';DJ.pos=75000;DJ.posAt=10000;DJ.setPhase('paused','')`);await run(c,'DJ.resume()');assert.equal(run(c,'DJ.idx'),1);assert.equal(b.plays()[0].o.body.position_ms,30000);
 });
+
+await test('Spotify receives the selected song plus bounded upcoming queue in order',async()=>{
+ const c=context();ready(c,120);const b=backend(c);await run(c,'DJ.go(3)');
+ const uris=b.plays()[0].o.body.uris;assert.equal(uris.length,100);assert.equal(uris[0],'spotify:track:song3');assert.equal(uris[99],'spotify:track:song102');
+ assert.equal(run(c,'DJ.nativeQueueMix===ST.mix'),true);
+});
+await test('native Next follows the selected queued song by seeking, without another Play or AI request',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');b.state.id='song1';b.state.pos=0;
+ await run(c,'DJ.poll(true)');assert.equal(run(c,'DJ.idx'),1);assert.equal(run(c,'DJ.phase'),'playing');assert.equal(b.plays().length,1);assert.equal(b.seeks().length,1);assert.equal(b.state.pos>=30000,true);
+});
+await test('native Next while paused updates the shared song silently and external resume repairs its passage',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');b.state.id='song1';b.state.pos=0;b.state.paused=true;
+ await run(c,'DJ.poll(true)');assert.equal(run(c,'DJ.idx'),1);assert.equal(run(c,'DJ.phase'),'paused');assert.equal(b.plays().length,1);assert.equal(b.seeks().length,0);
+ b.state.paused=false;await run(c,'DJ.poll(true)');assert.equal(run(c,'DJ.phase'),'playing');assert.equal(b.plays().length,1);assert.equal(b.state.pos>=30000,true);
+});
+await test('native Next with missing AI pauses audio while waiting and Cancel prevents a late start',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');run(c,"LS.set('ai4','{}');LS.set('aikey','test');AI.call=()=>new Promise(()=>{});");b.state.id='song1';b.state.pos=0;
+ run(c,'globalThis.nativeWait=DJ.poll(true)');await new Promise(r=>setImmediate(r));assert.equal(b.state.paused,true);assert.equal(run(c,'DJ.phase'),'waiting-ai');
+ await run(c,'DJ.pause()');await run(c,'nativeWait');assert.equal(b.plays().length,1);assert.equal(run(c,'DJ.phase'),'paused');
+});
+
+await test('rapid native Pause or Next during passage alignment is followed without stopping the new selection',async()=>{
+ for(const action of ['pause','next']){
+  const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');b.state.id='song1';b.state.pos=0;const original=c.hostAPI;let changed=false;
+  c.hostAPI=async(p,o)=>{const r=await original(p,o);if(p.includes('/seek?')&&!changed){changed=true;if(action==='pause')b.state.paused=true;else{b.state.id='song2';b.state.pos=0;}}return r;};run(c,'api=hostAPI');await run(c,'DJ.poll(true)');
+  if(action==='pause')assert.equal(run(c,'DJ.phase'),'paused');
+  else{await run(c,'DJ.poll(true)');assert.equal(run(c,'DJ.idx'),2);assert.equal(run(c,'DJ.phase'),'playing');assert.equal(b.state.paused,false);}
+  assert.equal(b.plays().length,1);assert.equal(b.calls.filter(x=>x.p.includes('/pause?')).length,0);
+ }
+});
+await test('native song changes are not adopted on another output or from an old mix snapshot',async()=>{
+ for(const change of ["DJ.dev='other'","DJ.nativeQueueMix=[]"]){const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');run(c,change);b.state.id='song1';await run(c,'DJ.poll(true)');assert.equal(run(c,'DJ.phase'),'external');assert.equal(b.seeks().length,0);assert.equal(b.plays().length,1);}
+});
+await test('browser media controls share transport actions, bounded seeks and actual metadata/position',async()=>{
+ const c=context();ready(c);run(c,`globalThis.handlers={};globalThis.actions=[];globalThis.navigator={mediaSession:{setActionHandler:(n,fn)=>handlers[n]=fn,setPositionState:s=>globalThis.mediaPosition=s}};globalThis.MediaMetadata=function(x){Object.assign(this,x)};DJ.sdkDev=DJ.dev='browser';DJ.remote=false;DJ.loadedMix=ST.mix;DJ.pos=40000;DJ.resume=()=>actions.push('play');DJ.pause=()=>actions.push('pause');DJ.next=()=>actions.push('next');DJ.previous=()=>actions.push('previous');DJ.seekTo=v=>actions.push(v);DJ.mediaSession();handlers.play();handlers.pause();handlers.stop();handlers.nexttrack();handlers.previoustrack();handlers.seekto({seekTime:42});handlers.seekbackward({seekOffset:5});handlers.seekforward({});`);
+ assert.equal(run(c,'JSON.stringify(actions)'),JSON.stringify(['play','pause','pause','next','previous',42000,35000,50000]));assert.equal(run(c,'navigator.mediaSession.metadata.title'),'Song 0');assert.equal(run(c,'mediaPosition.position'),40);assert.equal(run(c,'mediaPosition.duration'),240);
+ run(c,"DJ.phase='checking';DJ.mediaSession()");assert.equal(run(c,'navigator.mediaSession.playbackState'),'paused');
+ run(c,"DJ.remote=true;handlers.play();handlers.nexttrack();DJ.idx=1;DJ.mediaSession()");assert.equal(run(c,'actions.length'),8);assert.equal(run(c,'navigator.mediaSession.metadata.title'),'Song 0');
+});
+await test('unsupported media actions do not prevent other handlers, and stale progress is not Playing',async()=>{
+ const c=context();ready(c);run(c,`globalThis.handlers={};globalThis.navigator={mediaSession:{setActionHandler:(n,fn)=>{if(n==='stop')throw Error('unsupported');handlers[n]=fn}}};DJ.sdkDev=DJ.dev='browser';DJ.remote=false;DJ.loadedMix=ST.mix;DJ.phase='playing';DJ.confirmed=true;DJ.lastFrameAt=DJ.lastMotionAt=10000;DJ.mediaSession();`);assert.equal(run(c,"typeof handlers.nexttrack"),'function');assert.equal(run(c,'navigator.mediaSession.playbackState'),'playing');c.setNow(15000);run(c,'DJ.mediaSession()');assert.equal(run(c,'navigator.mediaSession.playbackState'),'paused');
+});
+
 console.log(`${count} checks passed`);
 })().catch(e=>{console.error(e);process.exitCode=1});

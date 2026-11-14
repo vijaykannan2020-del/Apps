@@ -1,7 +1,7 @@
 # Segue: handoff
 
 Read `PROJECT.md` in the repository root first (deploy, phone layout rules,
-change log). This file covers Segue only. Last updated: 2026-11-14, Version 32.
+change log). This file covers Segue only. Last updated: 2026-11-14, Version 33.
 
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
@@ -128,12 +128,13 @@ The navigation uses Cinema Book Version 22's material tokens: a floating
 520px-capped capsule, translucent light/dark surfaces, 26px blur/saturation,
 soft outer shadows, inset highlights and a rounded selected-tab pill. The
 shared player is a separate floating glass surface above it, capped at 840px.
-The one transport and Version 31 playback engine are unchanged.
+Version 33 retains the one shared transport and adds external-control handling below.
 
 Main content has an explicit 1120px maximum instead of width-dependent side
 padding. At 720px and wider, Home puts its intro and Continue side by side,
-Create separates source selection and mix configuration, Playing places compact
-artwork/details beside its queue, and Settings uses columns. Artwork and long
+Create separates source selection and mix configuration, Playing places
+the queue on the left and compact artwork/details on the right, and Settings
+uses columns. Artwork and long
 mix names are bounded; wide layouts do not simply enlarge the portrait page.
 On phones everything returns to one column. Important top actions remain left.
 
@@ -214,6 +215,51 @@ Spotify exposes it; the app never guesses speaker audibility or forces volume.
 Browser SDK Media Session actions use this same controller; remote playback
 leaves the native Spotify app's lock screen ownership alone. Keep Segue active
 for timed cuts: iOS may suspend web timers when locked.
+
+## External controls and opening animation (Version 33)
+
+Vijay confirmed the failing output is Spotify external player. Spotify owns
+notification, lock-screen and CarPlay controls for that output; the browser
+must not try to steal the native app's media session. Previously Segue sent
+one URI per start, so Spotify's own Next had no Segue upcoming context.
+Now each start supplies the chosen song and up to 99 upcoming URIs in order.
+When the foreground observer sees a song from that exact submitted snapshot
+on the same output, it follows the song, updates the shared player, and seeks
+to its saved AI passage without issuing another Play. A paused selection
+stays silent. A missing pick pauses the selected song while AI prepares it;
+Cancel prevents a late start. Other outputs, unrelated songs and old mix
+snapshots still detach instead of taking over.
+
+The submitted queue is a snapshot, refreshed on the next song start. Changing
+Segue shuffle while a song plays does not rewrite Spotify's native queue or
+restart audio. Native Spotify shuffle/repeat/history are independent of Segue's
+modes. Native Previous follows Spotify's available history; it cannot be
+promised to reproduce Segue's entire listening history after context replacement.
+A maximum of 100 URIs is our request bound, not a claim about Spotify's limit.
+No Spotify playlist is created. Offset on a raw URI array is deliberately not
+used: Spotify documents offset only for album/playlist context URIs.
+
+For browser SDK output, Media Session handlers refresh after SDK state events,
+share the same controller, check output ownership at invocation, and include
+play/pause/stop/next/previous/seek/skip-seek. Metadata and full-track position
+are maintained, unsupported actions are isolated, and checking/buffering keeps
+a paused media session instead of clearing it. Stale progress is never Playing.
+No silent audio is used to manufacture an OS media session.
+
+A one-second, silent cassette/reel greeting runs on opening. It does not block
+input, delay authentication, issue playback requests or repeat on navigation.
+Reduced-motion skips it entirely. Wide Playing puts the queue left/deck right.
+
+Real notification/lock-screen/CarPlay tests are still required. This is a static
+website, not a native CarPlay app. iOS suspension can prevent observation, AI
+seeking and timed cuts; Spotify may then play full songs from its queued context.
+Providing a queue does not guarantee background AI passage playback or OS button
+availability. Test with native Spotify shuffle/repeat off to check the submitted
+order, then test those native modes separately.
+
+References: [Spotify Start/Resume](https://developer.spotify.com/documentation/web-api/reference/start-a-users-playback),
+[Media Session API](https://developer.mozilla.org/en-US/docs/Web/API/Media_Session_API),
+[Apple CarPlay](https://developer.apple.com/carplay/).
 
 ## Code map
 
@@ -302,13 +348,13 @@ Safe to delete in a clean-up; ask Vijay first.
   assistants' workspaces. Say plainly what was tested with stand-ins and
   what only he can test on the phone.
 
-## Current state (Version 32)
+## Current state (Version 33)
 
 - AI picks work with a Gemini key (confirmed by Vijay: 14 of 15 songs).
 - Phone layout redesigned to match Cinema Book; not yet confirmed by Vijay
   on the iPhone Duo.
-- Version 32 responsive/foldable layout and glass docks pass the size/theme
-  matrix; Version 31 transport remains unchanged and all 72 playback checks pass.
+- Version 33 adds queue-left/deck-right layout, silent cassette intro and external
+  queue/browser media-control fixes. All 80 playback checks, 14 layout/theme cases, and browser playback flows pass.
   Live phone playback, real quotas and real model availability are not yet confirmed.
 
 ## Open items

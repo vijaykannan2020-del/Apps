@@ -59,7 +59,7 @@ with sync_playwright() as p:
    page.locator('#nav [data-v=home]').click();assert page.locator('#savedMixes .mix-tile').count()==1;assert page.locator('#savedSongs .saved-song').count()==3
    page.locator('#savedSongSearch').fill('Going Home');assert page.locator('#savedSongs .saved-song').count()==1
    page.locator('#savedSongSearch').fill('');assert page.locator('#savedSongs .saved-song').count()==3
-   if width==390:page.screenshot(path=str(preview_dir/f'v32-home-{theme}.png'),full_page=True)
+   if width==390:page.screenshot(path=str(preview_dir/f'v33-home-{theme}.png'),full_page=True)
    page.locator('#continueMix button').click();page.wait_for_function('DJ.playing===true');assert counts['play']==1;assert counts['seek']==1;assert 60000<=state['pos']<64000
    current=page.evaluate('({id:ST.mix[DJ.idx].id,start:ST.mix[DJ.idx].start,end:ST.mix[DJ.idx].end})');plays_before=counts['play']
    for view in ['home','mix','set','play']:
@@ -70,7 +70,7 @@ with sync_playwright() as p:
    page.locator('#repeatBtn').click();assert page.evaluate('DJ.repeat')=='off'
    if width==390:
     for view in ['home','play']:
-     page.locator(f'#nav [data-v={view}]').click();page.screenshot(path=str(preview_dir/f'v32-{view}-playing-{theme}.png'),full_page=True)
+     page.locator(f'#nav [data-v={view}]').click();page.screenshot(path=str(preview_dir/f'v33-{view}-playing-{theme}.png'),full_page=True)
    page.locator('#renameMix').click();page.locator('#mixName').fill('Night Drive Edit');page.locator('#mixName').press('Space');page.locator('#saveMixName').click();assert page.locator('#mixTitle').inner_text()=='Night Drive Edit'
    page.locator('#playBtn').click();page.wait_for_function("DJ.phase==='paused'&&!DJ.busy")
    previous_plays=counts['play'];page.locator('#nextBtn').click();page.wait_for_function('DJ.idx===1');assert counts['play']==previous_plays;assert page.evaluate('DJ.phase')=='paused'
@@ -98,6 +98,18 @@ with sync_playwright() as p:
     external_plays=counts['play'];advance();state['paused']=True
     page.wait_for_function("DJ.phase==='paused'",timeout=8000);assert page.locator('#playerAction').inner_text()=='Play'
     state['paused']=False;state['at']=time.monotonic();page.wait_for_function("DJ.phase==='playing'",timeout=8000);assert counts['play']==external_plays
+    # Model Next from native Spotify's notification/lock-screen controls.
+    native_next=page.evaluate('ST.mix[1].uri');state.update(uri=native_next,pos=0,paused=False,at=time.monotonic())
+    page.wait_for_function("DJ.idx===1&&DJ.phase==='playing'&&!DJ.busy",timeout=8000)
+    assert counts['play']==external_plays and state['pos']>=60000
+    for view in ['home','mix','play','set']:
+     page.locator(f'#nav [data-v={view}]').click();assert page.locator('#miniTitle').inner_text()==page.evaluate('ST.mix[1].name')
+    native_next=page.evaluate('ST.mix[2].uri');native_seeks=counts['seek'];state.update(uri=native_next,pos=0,paused=True,at=time.monotonic())
+    page.wait_for_function("DJ.idx===2&&DJ.phase==='paused'&&!DJ.busy",timeout=8000)
+    assert counts['play']==external_plays and counts['seek']==native_seeks
+    state.update(paused=False,at=time.monotonic());page.wait_for_function("DJ.phase==='playing'&&!DJ.busy",timeout=8000)
+    assert counts['play']==external_plays and state['pos']>=60000
+    print('PASS native external Next: cached passage without replay, shared title on every screen, paused Next silent, external resume aligns passage')
     state['transport_offline']=True
     page.wait_for_function("DJ.phase!=='playing'",timeout=8000);assert page.locator('#miniState').inner_text()!='Playing';assert counts['play']==external_plays
     state['transport_offline']=False;page.wait_for_function("DJ.phase==='playing'",timeout=8000);assert counts['play']==external_plays

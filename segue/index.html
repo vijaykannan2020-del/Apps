@@ -187,10 +187,18 @@ img[src=""],img:not([src]){visibility:hidden}
 }
 @media(prefers-reduced-transparency:reduce){.nav,.mini-player{background:var(--s1);backdrop-filter:none;-webkit-backdrop-filter:none}.nav button.on{background:var(--s3)}}
 @media(prefers-reduced-motion:reduce){.nav button,.mini-player button{transition:none}}
+/* Version 33: queue left, listening deck right; a silent, non-blocking cassette greeting. */
+@media(min-width:720px){#orderCard{grid-column:1}#deck{grid-column:2}}
+.walkman-intro{position:fixed;z-index:100;left:50%;top:38%;width:220px;padding:20px;border:1px solid var(--dock-edge);border-radius:28px;background:var(--s1);box-shadow:0 20px 70px #0004;pointer-events:none;text-align:center;animation:walkman-open 1s both}
+.walkman-intro b{display:block;margin-top:12px;letter-spacing:-1px;font-size:28px}.cassette{border:2px solid var(--ac);border-radius:12px;padding:12px;display:flex;align-items:center;justify-content:space-between;position:relative}.cassette:before{content:'';position:absolute;left:35px;right:35px;top:50%;height:2px;background:var(--ac)}.cassette i{position:relative;display:block;width:38px;height:38px;border:7px dashed var(--ac);border-radius:50%;animation:cassette-turn .8s linear both}
+@keyframes cassette-turn{to{transform:rotate(180deg)}}
+@keyframes walkman-open{0%{opacity:0;transform:translate(-50%,12px) scale(.92)}18%,65%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0;visibility:hidden;transform:translate(-50%,-8px) scale(.98)}}
+@media(prefers-reduced-motion:reduce){.walkman-intro{display:none}.cassette i{animation:none}}
 
 </style>
 </head>
 <body>
+<div class="walkman-intro" aria-hidden="true"><div class="cassette"><i></i><i></i></div><b>segue</b></div>
 <main class="app" id="scroller">
   <div class="top"><span class="brand-mark" aria-hidden="true">≋</span><h1>segue</h1><span class="tiny dim" id="verTop"></span></div>
 
@@ -331,7 +339,7 @@ img[src=""],img:not([src]){visibility:hidden}
           <a class="btn small" href="https://open.spotify.com/" target="_blank" rel="noopener">Open Spotify</a>
           <button class="btn small ghost refresh-devices">Refresh devices</button>
         </div>
-        <div class="note" id="deviceNote">Open Spotify on this phone, then refresh devices here.</div><p class="local-note" style="margin-top:12px">Keep Segue open for timed song changes. Your phone can suspend web apps when locked. Use your phone or Spotify volume controls.</p>
+        <div class="note" id="deviceNote">Open Spotify on this phone, then refresh devices here.</div><p class="local-note" style="margin-top:12px">Spotify handles its lock-screen and CarPlay buttons. Keep Segue open for AI passage changes; locking your phone can suspend them. External Next uses the order sent at the last song start. Use Spotify volume controls.</p>
       </div>
       <div class="card">
         <h2>Account</h2>
@@ -377,7 +385,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 32;
+const APP_VERSION = 33;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -1238,7 +1246,7 @@ const DJ = {
   phase:'ready',detail:'Choose a mix, then press Play.',desiredPlaying:false,busy:false,action:null,
   pos:0,posAt:0,startedAt:0,loadedMix:null,loadedId:null,confirmed:false,streamOwned:false,
   epoch:0,flow:Promise.resolve(),cancelWait:null,retryIdx:null,finished:false,externalPaused:false,
-  positionRepairs:0,lastFrameAt:0,lastMotionAt:0,lastPollAt:-Infinity,lastSample:null,
+  positionRepairs:0,lastFrameAt:0,lastMotionAt:0,lastPollAt:-Infinity,lastSample:null,nativeQueue:[],nativeQueueMix:null,nativeQueueDev:null,
   shuffle:false,repeat:'off',baseOrder:[],history:[],tick:null,_ticking:false,seekPreview:null,
   get playing(){return this.phase==='playing';},
   set playing(v){this.phase=v?'playing':'paused';},
@@ -1295,12 +1303,13 @@ const DJ = {
     const s=await api('/me/player',{retry:0,timeout:Math.max(300,timeout)});
     return s?{item:s.item,position:s.progress_ms,paused:s.is_playing!==true,deviceId:s.device?.id,volume:s.device?.volume_percent}:null;
   },
-  async verifyStart(t,target,epoch,dev,playedFor=0){
+  async verifyStart(t,target,epoch,dev,playedFor=0,followControls=false){
     const began=performance.now(),deadline=began+10000;let wrong=0,baseline=null,repaired=false,error=null;
     for(let attempt=0;attempt<18&&performance.now()<deadline;attempt++){
       if(!this.current(epoch)||dev!==this.dev)return null;
       let s;try{s=await this.playbackState(Math.min(1800,deadline-performance.now()));}catch(e){error=e;if([401,403,429].includes(e.status))break;}
       if(!this.current(epoch)||dev!==this.dev)return null;
+      if(followControls&&s&&(s.paused||s.deviceId!==dev||!this.matches(s.item,t))){const e=new Error('Spotify controls changed playback.');e.observedPlayback=s;throw e;}
       const now=performance.now();
       if(s&&s.deviceId===dev&&this.matches(s.item,t)&&Number.isFinite(s.position)&&!s.paused){
         const inRange=s.position>=Math.max(0,target-1200)&&s.position<=target+Math.max(6000,playedFor+now-began+1800);
@@ -1338,7 +1347,10 @@ const DJ = {
     const previous=op.previous??this.loadedId;this.freeze();this.idx=i;this.pos=target;this.posAt=performance.now();this.checkpointId=t.id;this.pendingSeek=true;this.confirmed=false;this.positionRepairs=0;
     this.setPhase('starting','Checking the selected Spotify output…');
     const started=performance.now();let dev=this.dev;
-    const play=async()=>{op.dev=dev;op.touched=true;await api(`/me/player/play?device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0,timeout:7000,body:{uris:[t.uri],position_ms:Math.round(target)}});};
+    // Give Spotify an actual upcoming queue so its own Next control has songs.
+    // This is a snapshot: changes to Segue's order take effect at the next start.
+    const upcoming=mix.slice(i,i+100);
+    const play=async()=>{op.dev=dev;op.touched=true;this.nativeQueueMix=null;await api(`/me/player/play?device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0,timeout:7000,body:{uris:upcoming.map(x=>x.uri),position_ms:Math.round(target)}});};
     try{await play();}catch(e){
       if(!this.current(epoch)){if(op.touched)await this.stopDevice(op.dev).catch(()=>{});return false;}
       if(e.status!==404)throw e;
@@ -1348,6 +1360,7 @@ const DJ = {
     const actual=await this.verifyStart(t,target,epoch,dev,performance.now()-started);
     if(actual==null||!this.current(epoch)||mix!==ST.mix){await this.stopDevice(dev).catch(()=>{});return false;}
     if(!op.back&&previous&&previous!==t.id&&this.history.at(-1)!==previous)this.history.push(previous);
+    this.nativeQueue=upcoming.map(x=>x.id);this.nativeQueueMix=mix;this.nativeQueueDev=dev;
     this.pendingSeek=false;this.loadedMix=mix;this.loadedId=this.checkpointId=t.id;this.retryIdx=null;this.finished=false;this.externalPaused=false;
     this.pos=actual;this.posAt=this.startedAt=this.lastFrameAt=this.lastMotionAt=performance.now();
     this.lastSample={pos:actual,at:this.posAt};this.confirmed=this.streamOwned=true;this.desiredPlaying=true;
@@ -1454,6 +1467,10 @@ const DJ = {
     const t=ST.mix[this.idx];if(!t||!this.current(epoch))return;
     const now=performance.now();
     if(!s){this.confirmed=false;this.setPhase('disconnected','No active Spotify playback was reported. Open Spotify and refresh devices.');return;}
+    if(s.deviceId===this.dev&&!this.matches(s.item,t)&&this.nativeQueueMix===ST.mix&&this.nativeQueueDev===this.dev){
+      const i=ST.mix.findIndex(x=>this.nativeQueue.includes(x.id)&&this.matches(s.item,x));
+      if(i>=0)return this.followNative(s,i);
+    }
     if(s.deviceId!==this.dev||!this.matches(s.item,t)){
       this.freeze();this.confirmed=false;this.streamOwned=false;this.desiredPlaying=false;
       this.loadedMix=null;this.setPhase('external',s.deviceId!==this.dev?'Spotify moved to another output. Choose it in Settings.':'Spotify is playing a different song. Press Play to return to this mix.');return;
@@ -1496,13 +1513,53 @@ const DJ = {
     this.render();
   },
   loop(){clearInterval(this.tick);this.tickFn=()=>this.poll();this.tick=setInterval(this.tickFn,400);},
-  mediaSession(){
-    if(this.remote||typeof navigator==='undefined'||!navigator.mediaSession)return;
+  followNative(s,i){
+    // A track selected by Spotify's own controls must update every Segue view.
+    // Do not replace Spotify's context just to move to its selected passage.
+    const t=ST.mix[i],previous=ST.mix[this.idx]?.id;
+    this.freeze();this.idx=i;this.loadedId=this.checkpointId=t.id;this.loadedMix=ST.mix;
+    this.pos=Number.isFinite(s.position)?s.position:0;this.posAt=performance.now();
+    this.confirmed=this.streamOwned=false;this.lastSample=null;this.positionRepairs=0;this.pendingSeek=false;this.finished=false;
+    if(previous&&previous!==t.id&&this.history.at(-1)!==previous)this.history.push(previous);
+    showNow(i,true);aiAhead();
+    if(s.paused){this.desiredPlaying=false;this.externalPaused=true;this.setPhase('paused','Selected in Spotify · paused');Library.capture();return Promise.resolve(true);}
+    if(!(t.hookSrc==='you'||AI.pick(t))){this.streamOwned=true;return this.go(i,{automatic:true});}
+    return this.enqueue('seek',i,async(epoch,op)=>{
+      this.desiredPlaying=true;this.setPhase('seeking','Following Spotify’s selected song…');
+      op.dev=this.dev;op.touched=true;
+      const target=this.pos<t.start||this.pos>=t.end?t.start:this.pos;
+      if(this.pos<t.start||this.pos>=t.end)await api(`/me/player/seek?position_ms=${Math.round(target)}&device_id=${encodeURIComponent(this.dev)}`,{method:'PUT',retry:0,timeout:3500});
+      let actual;
+      try{actual=await this.verifyStart(t,target,epoch,this.dev,0,true);}
+      catch(e){
+        const changed=e.observedPlayback;if(!changed)throw e;
+        this.confirmed=this.streamOwned=false;this.lastSample=null;
+        if(changed.deviceId===this.dev&&this.matches(changed.item,t)&&changed.paused){
+          this.pos=changed.position;this.posAt=performance.now();this.desiredPlaying=false;this.externalPaused=true;this.setPhase('paused','Paused in Spotify');Library.capture();
+        }else if(changed.deviceId===this.dev&&ST.mix.some(x=>this.nativeQueue.includes(x.id)&&this.matches(changed.item,x))){
+          this.setPhase('checking','Following Spotify controls…');
+        }else{this.desiredPlaying=false;this.loadedMix=null;this.setPhase('external','Spotify playback changed. Press Play to return to this mix.');}
+        return true;
+      }
+      if(actual==null)return false;
+      this.pos=actual;this.posAt=this.lastFrameAt=this.lastMotionAt=performance.now();this.lastSample={pos:actual,at:this.posAt};
+      this.confirmed=this.streamOwned=this.desiredPlaying=true;this.externalPaused=false;this.setPhase('playing','');Library.capture();return true;
+    });
+  },
+  mediaSession(force=false){
+    if(this.remote||!this.sdkDev||this.dev!==this.sdkDev||typeof navigator==='undefined'||!navigator.mediaSession)return;
     const t=ST.mix[this.idx];if(!t)return;
     try{
-      if(typeof MediaMetadata!=='undefined')navigator.mediaSession.metadata=new MediaMetadata({title:t.name,artist:t.artists.join(', '),album:'Segue AI mix',artwork:t.img?[{src:t.img}]:[]});
-      const actions={play:()=>this.resume(),pause:()=>this.pause(),nexttrack:()=>this.next(),previoustrack:()=>this.previous(),seekto:d=>this.seekTo(d.seekTime*1000)};
-      for(const [name,fn]of Object.entries(actions))try{navigator.mediaSession.setActionHandler(name,fn);}catch{}
+      const key=t.id+'|'+this.dev;
+      if((force||this.mediaKey!==key)&&typeof MediaMetadata!=='undefined')navigator.mediaSession.metadata=new MediaMetadata({title:t.name,artist:t.artists.join(', '),album:'Segue AI mix',artwork:t.img?[{src:t.img}]:[]});
+      // SDK state events can replace browser handlers; refresh on those events.
+      // Check ownership at invocation too: old callbacks must not control a phone.
+      const actions={play:()=>this.resume(),pause:()=>this.pause(),stop:()=>this.pause(),nexttrack:()=>this.next(),previoustrack:()=>this.previous(),seekto:d=>this.seekTo(d.seekTime*1000),seekbackward:d=>this.seekTo(this.position()-(d.seekOffset||10)*1000),seekforward:d=>this.seekTo(this.position()+(d.seekOffset||10)*1000)};
+      if(force||this.mediaKey!==key)for(const [name,fn]of Object.entries(actions))try{navigator.mediaSession.setActionHandler(name,d=>{if(!this.remote&&this.dev===this.sdkDev)return fn(d||{});});}catch{}
+      this.mediaKey=key;
+      const fresh=this.confirmed&&performance.now()-this.lastFrameAt<3500&&performance.now()-this.lastMotionAt<3500;
+      navigator.mediaSession.playbackState=this.playing&&fresh?'playing':this.loadedMix===ST.mix?'paused':'none';
+      if(navigator.mediaSession.setPositionState&&t.dur>0)navigator.mediaSession.setPositionState({duration:t.dur/1000,playbackRate:1,position:clamp(this.position()/1000,0,t.dur/1000)});
     }catch{}
   },
   async init(){
@@ -1513,7 +1570,7 @@ const DJ = {
       this.player.addListener('initialization_error', () => this.sdkUnavailable());
       this.player.addListener('authentication_error', ({message}) => {this.confirmed=false;this.setPhase('error','Spotify sign-in needs attention: '+message);});
       this.player.addListener('account_error', () => {this.confirmed=false;this.setPhase('error','Spotify Premium is required for playback.');});
-      this.player.addListener('player_state_changed', () => this.poll(true));
+      this.player.addListener('player_state_changed', () => {this.mediaSession(true);this.poll(true);});
       this.player.addListener('autoplay_failed', () => this.setPhase('error','This browser needs a Play tap to allow audio.'));
       this.player.connect().then(ok => { if (!ok) this.sdkUnavailable(); }).catch(() => this.sdkUnavailable());
     };
@@ -1603,7 +1660,7 @@ function renderTransport(){
   $('#playIco').innerHTML=running?'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>':pending?'<path d="M6 6h12v12H6z"/>':'<path d="M7 4v16l13-8z"/>';
   const detail=DJ.detail||(DJ.outputMuted?'Selected Spotify output has volume at zero.':'')||`${DJ.devList?.find(d=>d.id===DJ.dev)?.name||'Choose a Spotify output'} · song ${DJ.idx+1} of ${ST.mix.length}`;
   if($('#stat').textContent!==detail)$('#stat').textContent=detail;
-  if(!DJ.remote&&typeof navigator!=='undefined'&&navigator.mediaSession){try{navigator.mediaSession.playbackState=running?'playing':phase==='paused'?'paused':'none';}catch{}}
+  DJ.mediaSession();
   $('#transportOutput').textContent=DJ.devList?.find(d=>d.id===DJ.dev)?.name||'Choose output';
   const pos=DJ.seekPreview??DJ.position(),start=Number.isFinite(t.start)?t.start:0,end=Number.isFinite(t.end)?t.end:t.dur;
   $('#playerElapsed').textContent=fmt(Math.max(0,pos-start));$('#playerDuration').textContent=fmt(Math.max(0,end-start));

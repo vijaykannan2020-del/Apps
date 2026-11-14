@@ -51,8 +51,8 @@ with sync_playwright() as p:
     assert page.locator('#playBtn').count()==1 and page.locator('#miniState').inner_text()=='Paused'
     if width>=720 and view=='home':
      assert page.locator('.hero').bounding_box()['x']<page.locator('#continueMix').bounding_box()['x']
-    if width>=720 and view=='play':assert page.locator('#deck').bounding_box()['x']<page.locator('#orderCard').bounding_box()['x']
-    if width in [390,844,1280] and view in ['home','play']:page.screenshot(path=str(previews/f'v32-{width}x{height}-{view}-{theme}.png'))
+    if width>=720 and view=='play':assert page.locator('#orderCard').bounding_box()['x']<page.locator('#deck').bounding_box()['x']
+    if width in [390,844,1280] and view in ['home','play']:page.screenshot(path=str(previews/f'v33-{width}x{height}-{view}-{theme}.png'))
    # At the very end of Home content, floating chrome cannot cover its last note.
    page.locator('#nav [data-v=home]').click();page.evaluate("document.querySelector('#scroller').scrollTop=document.querySelector('#scroller').scrollHeight")
    page.wait_for_function("document.querySelector('#v-home>.local-note').getBoundingClientRect().bottom < document.querySelector('#miniPlayer').getBoundingClientRect().top")
@@ -74,4 +74,10 @@ with sync_playwright() as p:
  assert page.locator('#nav').evaluate("e=>getComputedStyle(e).backdropFilter")=='none'
  assert page.locator('#miniPlayer').evaluate("e=>getComputedStyle(e).backdropFilter")=='none'
  print('PASS reduced-transparency fallback removes blur from both docks')
+ page.emulate_media(reduced_motion='reduce')
+ assert page.locator('.walkman-intro').evaluate('e=>getComputedStyle(e).display')=='none'
+ page.emulate_media(reduced_motion='no-preference');page.reload();page.wait_for_timeout(1100)
+ assert page.locator('.walkman-intro').evaluate('e=>getComputedStyle(e).visibility')=='hidden'
+ assert page.locator('.walkman-intro').evaluate('e=>getComputedStyle(e).pointerEvents')=='none'
+ print('PASS cassette greeting ends without blocking input and skips reduced-motion')
  browser.close()
