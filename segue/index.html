@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 12</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 13</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -263,11 +263,13 @@ img[src=""],img:not([src]){visibility:hidden}
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const within = (p, ms) => Promise.race([p, sleep(ms)]); // never let one step hold the build up
+const tfetch = (url, opt={}, ms=10000) => { const c = new AbortController(); const h = setTimeout(() => c.abort(), ms); return fetch(url, { ...opt, signal:c.signal }).finally(() => clearTimeout(h)); };
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 12;
+const APP_VERSION = 13;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -460,7 +462,7 @@ async function fetchFeatures(tracks, onProg){
     const chunk = ids.slice(i, i+40);
     let j = null;
     for (const qs of [ 'ids='+chunk.join(','), chunk.map(x=>'ids='+x).join('&') ]) {
-      try { const r = await fetch('https://api.reccobeats.com/v1/audio-features?'+qs, { headers:{Accept:'application/json'} }); if (r.ok) { j = await r.json(); break; } } catch {}
+      try { const r = await tfetch('https://api.reccobeats.com/v1/audio-features?'+qs, { headers:{Accept:'application/json'} }, 10000); if (r.ok) { j = await r.json(); break; } } catch {}
     }
     for (const f of (j?.content || j?.audio_features || (Array.isArray(j)?j:[]))) {
       if (!f) continue;
@@ -661,7 +663,7 @@ async function lyricHook(t, needLines){
   let hook = null;
   try {
     const clean = t.name.replace(/\s*[\(\[].*?[\)\]]/g,'').replace(/\s+-\s+.*$/,'').trim();
-    const ctl = new AbortController(); const tm = setTimeout(()=>ctl.abort(), 7000);
+    const ctl = new AbortController(); const tm = setTimeout(()=>ctl.abort(), 6000);
     const pick = arr => (arr||[]).filter(x => x.syncedLyrics && !x.instrumental && Math.abs((x.duration||0)*1000 - t.dur) < 8000)
         .sort((a,b) => Math.abs(a.duration*1000 - t.dur) - Math.abs(b.duration*1000 - t.dur))[0];
     let r = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(clean)}&artist_name=${encodeURIComponent(t.artists[0]||'')}`, { signal: ctl.signal });
@@ -680,7 +682,7 @@ async function findHooks(tracks, onProg){
   let done = 0; const q = tracks.slice();
   const ai = AI.cache(), on = !!AI.key();
   const worker = async () => { while (q.length) { const t = q.shift(); t.lyricHook = await lyricHook(t, on && !ai[t.id]); onProg?.(++done, tracks.length); } };
-  await Promise.all([worker(), worker(), worker(), worker()]);
+  await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
 }
 
 
@@ -711,15 +713,16 @@ ${songs}`;
   async call(text){
     const key = this.key();
     if (key.startsWith('sk-ant')) {
-      const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{ 'x-api-key':key, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true' },
-        body: JSON.stringify({ model:'claude-haiku-5-5', max_tokens:2000, temperature:.2, messages:[{ role:'user', content:text }] }) });
+      const r = await tfetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{ 'x-api-key':key, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true' },
+        body: JSON.stringify({ model:'claude-haiku-5-5', max_tokens:2000, temperature:.2, messages:[{ role:'user', content:text }] }) }, 45000);
       const j = await r.json(); if (!r.ok) throw new Error('Claude: ' + (j?.error?.message || r.status));
       return j.content?.map(c => c.text || '').join('') || '';
     }
     let lastErr;
     for (const model of ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash']) {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, { method:'POST', headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ contents:[{ parts:[{ text }] }], generationConfig:{ temperature:.2, responseMimeType:'application/json' } }) });
+      const gc = { temperature:.2, responseMimeType:'application/json', ...(model.includes('2.5') ? { thinkingConfig:{ thinkingBudget:0 } } : {}) }; // skip slow "thinking"
+      const r = await tfetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, { method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ contents:[{ parts:[{ text }] }], generationConfig:gc }) }, 45000);
       const j = await r.json().catch(() => ({}));
       if (r.ok) return j.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
       lastErr = new Error('Gemini: ' + (j?.error?.message || r.status));
@@ -774,16 +777,29 @@ async function buildMix(){
       t.f = f || null; t.tempo = f?.tempo || null; t.energy = f?.energy ?? .5; t.dance = f?.danceability ?? .5; t.valence = f?.valence ?? .5; t.cam = camelot(f); t.keyName = f && f.key>=0 ? KEYN[f.key] + (f.mode===0?'m':'') : null;
     }
     msg.innerHTML = `<span class="spin"></span> Reading music styles…`;
-    await fetchGenres(picked, (d,n)=> msg.innerHTML = `<span class="spin"></span> Reading artist genres ${d}/${n}…`);
+    await within(fetchGenres(picked, (d,n)=> msg.innerHTML = `<span class="spin"></span> Reading artist genres ${d}/${n}…`), 12000);
     msg.innerHTML = `<span class="spin"></span> Finding each song's chorus…`;
-    await findHooks(picked, (d,n)=> msg.innerHTML = `<span class="spin"></span> Finding choruses ${d}/${n}…`);
-    if (AI.key()) { msg.innerHTML = `<span class="spin"></span> AI DJ is listening…`; await AI.run(picked, (d,n)=> msg.innerHTML = `<span class="spin"></span> AI DJ choosing best parts ${d}/${n}…`); }
+    await within(findHooks(picked, (d,n)=> msg.innerHTML = `<span class="spin"></span> Finding choruses ${d}/${n}…`), 40000);
+    // Songs the AI has already seen get their saved picks straight away
+    const aic = AI.cache(); picked.forEach(t => { const c = aic[t.id]; if (c) { t.aiStart = c.start; t.mood = c.mood; t.aiWhy = c.why; } });
     msg.innerHTML = `<span class="spin"></span> Planning the set…`; await sleep(30);
     ST.pool = picked;
     remix();
-    const nl = ST.mix.filter(t => t.hookSrc === 'lyrics' || t.hookSrc === 'ai').length, na = ST.mix.filter(t => t.hookSrc === 'ai').length;
-    msg.textContent = `${ST.mix.length} songs · ~${Math.round(ST.mix.reduce((s,t)=>s+(t.end-t.start),0)/60000)} min · chorus found for ${nl} of ${ST.mix.length}${AI.key() ? ` · AI picked ${na}` : ''}${ST.featOk?'':' · basic mode'}`;
+    const summary = () => { const nl = ST.mix.filter(t => t.hookSrc === 'lyrics' || t.hookSrc === 'ai').length, na = ST.mix.filter(t => t.hookSrc === 'ai').length;
+      return `${ST.mix.length} songs · ~${Math.round(ST.mix.reduce((s,t)=>s+(t.end-t.start),0)/60000)} min · chorus found for ${nl} of ${ST.mix.length}${AI.key() ? ` · AI picked ${na}` : ''}${ST.featOk?'':' · basic mode'}`; };
+    msg.textContent = summary();
     $('#deck').scrollIntoView({ behavior:'smooth', block:'start' });
+    // AI refines in the background: you can press Play right away
+    if (AI.key() && picked.some(t => !aic[t.id])) {
+      const pool = ST.pool;
+      msg.innerHTML = summary() + ' · <span class="spin"></span> AI DJ refining…';
+      AI.run(picked, (d,n) => { if (ST.pool === pool) msg.innerHTML = summary() + ` · <span class="spin"></span> AI DJ ${d}/${n}…`; }).then(() => {
+        if (ST.pool !== pool) return;                      // a newer mix was built meanwhile
+        if (!DJ.playing && DJ.idx === 0) remix();          // not started yet: reorder by mood too
+        else { planSegments(ST.mix, ST.vibe, ST.len); renderDeck(); } // playing: just improve the best parts
+        msg.textContent = summary() + ' · AI done';
+      }).catch(() => { if (ST.pool === pool) msg.textContent = summary(); });
+    }
   } catch(e){ msg.textContent = e.message; toast(e.message); }
   btn.disabled = !ST.crate.length;
 }

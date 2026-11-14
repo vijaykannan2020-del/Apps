@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-13, Claude: Segue Version 13 fixes very slow builds: time limits on every outside call (ReccoBeats 10 s, AI 45 s, genres step 12 s, lyrics step 40 s with 6 parallel lookups), Gemini 2.5 "thinking" turned off, and the AI now runs in the background after the mix is ready (saved AI picks apply instantly; new ones update hooks, or the whole order if not yet playing).
+
 - 2026-11-13, Claude: Segue Version 12 adds AI DJ: with a Gemini (AIza…) or Claude (sk-ant…) key saved in the browser (localStorage segue_aikey, never committed), songs are sent in batches of 10 with title/artist/bpm/energy/style and LRCLIB timed lyrics; the AI returns the best-loved start time (accepted only if it matches a real lyric line) plus mood. Results cached (segue_ai1). Hook priority: user > AI > lyrics chorus > estimate. Mood added to ordering cost and shown in tags and running order.
 
 - 2026-11-13, Claude: Segue Version 11: "Which part" option, Peak chorus (default: last chorus occurrence that still fits, usually the 2nd/3rd and biggest) or First chorus. Lyrics matching widened (±8 s, fallback free-text search, new cache key lrc2 so earlier misses retry). No-lyrics estimate moved to ~50-60% of the song for Peak. Build summary shows how many choruses came from lyrics.
