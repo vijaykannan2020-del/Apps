@@ -195,6 +195,21 @@ img[src=""],img:not([src]){visibility:hidden}
 @keyframes walkman-open{0%{opacity:0;transform:translate(-50%,12px) scale(.92)}18%,65%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0;visibility:hidden;transform:translate(-50%,-8px) scale(.98)}}
 @media(prefers-reduced-motion:reduce){.walkman-intro{display:none}.cassette i{animation:none}}
 
+/* Version 34: the same controls dock inside a proper CD deck on Playing. */
+#transportDock{display:contents}.player-head #mixTitle{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:clamp(18px,2vw,24px)}.device-strip{display:none}#deck{min-width:0}#deckTransport{margin-top:18px}
+.now{display:flex;flex-direction:column;text-align:center;gap:18px;max-width:none}.now>div:last-child{min-width:0;width:100%}.np-t{font-size:clamp(20px,2.4vw,28px);white-space:normal;overflow-wrap:anywhere;line-height:1.2;margin-top:8px}.np-a{font-size:14px;margin-top:6px}.np-t,.np-a{text-align:center}.tags{justify-content:center;margin-top:12px}
+.disc-stage{width:min(75%,280px);aspect-ratio:1;margin:4px auto 0;border-radius:50%;padding:9px;background:var(--s2);box-shadow:inset 0 2px 10px #0003,0 14px 26px #0002}
+.compact-disc{position:relative;width:100%;height:100%;border-radius:50%;background:repeating-radial-gradient(circle,transparent 0 3px,#ffffff12 4px 5px),conic-gradient(from 20deg,#677978,#d9e1d8,#8faaa7,#f0e6d6,#74878a,#d2dfdd,#677978);box-shadow:inset 0 0 0 1px #ffffff50;animation:disc-turn 14s linear infinite;animation-play-state:paused;overflow:hidden}
+.compact-disc .cover{position:absolute;inset:22%;width:56%;height:56%;border-radius:50%;object-fit:cover;opacity:.95}.disc-hub{position:absolute;inset:43%;border-radius:50%;border:5px solid #e1e7e1;background:var(--s1);box-shadow:0 0 0 6px #ffffff35,0 2px 4px #0005}.disc-running .compact-disc{animation-play-state:running}
+@keyframes disc-turn{to{transform:rotate(360deg)}}
+#deck .wave,#deck .times,#deck .xfade{display:none}
+.mini-player.is-inline{position:static;transform:none;width:100%;max-width:none;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;display:flex;flex-direction:column;gap:14px}
+.is-inline .transport-head{display:none}.is-inline .transport-controls{order:1;justify-content:center;gap:clamp(6px,1.5vw,16px)}.is-inline .transport-seek{order:2;width:100%}.is-inline .transport-detail{order:3;text-align:center;min-height:32px;font-size:12px}.is-inline .round{width:48px;height:48px}.is-inline .round.big{width:76px;height:76px;border-radius:50%;padding:0;flex-direction:column;gap:1px}.is-inline .round.big svg{width:26px;height:26px}.is-inline #playerAction{font-size:12px}.is-inline .transport-option{width:44px;min-width:44px}
+#orderCard .queue{max-height:350px;overflow-y:auto;overscroll-behavior:contain;margin-top:14px}#orderCard .q{grid-template-columns:20px 40px minmax(0,1fr);gap:9px}#orderCard .q .why{display:none}#orderCard .note{font-size:12px}#deck .lbl{font-size:12px;line-height:1.5}#deck .tags:empty{display:none}
+@media(min-width:720px){#v-play{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:20px}#deck{grid-column:2;grid-row:2;position:sticky;top:12px;padding:24px}#orderCard{grid-column:1;grid-row:2}#orderCard .queue{max-height:min(62dvh,560px)}.disc-stage{width:min(70%,280px)}.now{display:flex}.now>.disc-stage{width:min(70%,280px)}}
+@media(max-width:719px){.disc-stage{width:min(70%,240px)}#orderCard .queue{max-height:300px}#deck{padding:20px}#v-play>.player-head{margin-bottom:0}.now{gap:16px}.is-inline .transport-controls{gap:6px}.is-inline .round{width:44px;height:44px}.is-inline .round.big{width:68px;height:68px}}
+@media(prefers-reduced-motion:reduce){.compact-disc{animation:none}}
+
 </style>
 </head>
 <body>
@@ -276,12 +291,12 @@ img[src=""],img:not([src]){visibility:hidden}
     <!-- PLAY -->
     <section class="view hide" id="v-play">
       <div class="player-head"><div class="eyebrow">Your AI mix</div><h2 id="mixTitle">Ready when you are.</h2><p id="mixSaveState">New mixes save here automatically.</p></div>
-      <button class="device-strip" id="playDevice"><span id="deviceSummary">Choose a playback device</span><small>Change</small></button>
+      <button class="device-strip" id="playDevice"><span id="deviceSummary">Browser player</span><small>Audio settings</small></button>
       <div class="card" id="deck">
         <div class="empty" id="deckEmpty"><div><div style="font-size:40px;opacity:.25;margin-bottom:8px">◐</div>Your saved mix will appear here.<br>Create one from your Spotify music.</div></div>
         <div id="deckOn" class="hide">
           <div class="now">
-            <img class="cover" id="npImg" alt="">
+            <div class="disc-stage"><div class="compact-disc" id="disc"><img class="cover" id="npImg" alt=""><span class="disc-hub"></span></div></div>
             <div>
               <div class="tiny dim" id="npIdx">TRACK 1</div>
               <div class="np-t" id="npT"></div>
@@ -289,16 +304,14 @@ img[src=""],img:not([src]){visibility:hidden}
             </div>
           </div>
           <div class="tags" id="npTags"></div>
+          <div id="deckTransport"></div>
           <div class="wave" id="wave"><div class="win" id="win"></div><div class="hook" id="hook">hook</div><div class="ph2" id="ph"></div></div>
           <div class="times"><span id="tCur">0:00</span><span id="tSeg"></span><span id="tDur">0:00</span></div>
           <div class="xfade"><i id="xf"></i></div>
           <div class="note hide" id="deviceHelp">
-            <b>Connect a playback device</b>
-            <p>Open Spotify on this phone and play a song briefly. Return here, refresh devices, then press Play.</p>
-            <div class="row" style="flex-wrap:wrap;margin-top:10px">
-              <a class="btn small" href="https://open.spotify.com/" target="_blank" rel="noopener">Open Spotify</a>
-              <button class="btn small ghost refresh-devices">Refresh devices</button>
-            </div>
+            <b>Browser player needs attention</b>
+            <p id="browserHelp">Reconnect the player, then tap Play. Spotify Premium is required.</p>
+            <button class="btn small ghost reconnect-player" style="margin-top:10px">Reconnect player</button>
           </div>
           <div class="lbl">Best part wrong? Fix it once while the song plays</div>
           <div class="row" id="hookCtl" style="flex-wrap:wrap;gap:6px">
@@ -333,13 +346,11 @@ img[src=""],img:not([src]){visibility:hidden}
         <div class="note" id="aiSaved"></div>
       </div>
       <div class="card">
-        <h2>Play on</h2>
-        <select class="devsel" id="devSel" title="Play on"></select>
-        <div class="row" style="flex-wrap:wrap;margin-top:10px">
-          <a class="btn small" href="https://open.spotify.com/" target="_blank" rel="noopener">Open Spotify</a>
-          <button class="btn small ghost refresh-devices">Refresh devices</button>
-        </div>
-        <div class="note" id="deviceNote">Open Spotify on this phone, then refresh devices here.</div><p class="local-note" style="margin-top:12px">Spotify handles its lock-screen and CarPlay buttons. Keep Segue open for AI passage changes; locking your phone can suspend them. External Next uses the order sent at the last song start. Use Spotify volume controls.</p>
+        <h2>Browser player</h2>
+        <p class="muted small">Spotify music plays here in Segue. No separate Spotify app or output selection.</p>
+        <button class="btn small ghost reconnect-player" style="margin-top:12px">Reconnect player</button>
+        <div class="note" id="deviceNote">Connecting the browser player…</div>
+        <p class="local-note" style="margin-top:12px">Spotify Premium is required. Lock-screen controls depend on your browser. iOS can suspend AI passage changes when locked; a native CarPlay interface is not available.</p>
       </div>
       <div class="card">
         <h2>Account</h2>
@@ -350,8 +361,9 @@ img[src=""],img:not([src]){visibility:hidden}
   </div>
 </main>
 
+<div id="transportDock">
 <section class="mini-player hide" id="miniPlayer" aria-label="Shared music player">
-  <div class="transport-head"><div id="miniOpen" role="button" tabindex="0" aria-label="Open current mix"><b id="miniTitle">Your mix</b><small id="miniState">Ready</small></div><button id="globalDevice" class="output-button" title="Choose output"><span id="transportOutput">Choose output</span></button></div>
+  <div class="transport-head"><div id="miniOpen" role="button" tabindex="0" aria-label="Open current mix"><b id="miniTitle">Your mix</b><small id="miniState">Ready</small></div><button id="globalDevice" class="output-button" title="Browser audio settings"><span id="transportOutput">Browser audio</span></button></div>
   <div class="transport-seek"><span id="playerElapsed">0:00</span><input id="playerSeek" type="range" min="0" max="100" step="500" value="0" aria-label="Seek within the selected best part"><span id="playerDuration">0:00</span></div>
   <div class="transport-controls">
     <button id="shuffleBtn" class="transport-option" aria-label="Shuffle upcoming songs" aria-pressed="false" title="Shuffle upcoming songs"><svg viewBox="0 0 24 24"><path d="M3 6h3c5 0 6 12 11 12h4M17 14l4 4-4 4M3 18h3c2 0 3-2 5-6M14 8c1-2 2-2 4-2h3M17 2l4 4-4 4"/></svg></button>
@@ -362,6 +374,7 @@ img[src=""],img:not([src]){visibility:hidden}
   </div>
   <div class="transport-detail" id="stat" role="status" aria-live="polite">Ready</div>
 </section>
+</div>
 
 <nav class="nav hide" id="nav">
   <button data-v="home" class="on" type="button"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10H3zM9 20v-7h6v7"/></svg>Home</button>
@@ -385,7 +398,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 33;
+const APP_VERSION = 34;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -501,7 +514,7 @@ const Library = {
     renderCrate(); document.querySelectorAll('[data-k="max"] .opt').forEach(b => b.classList.toggle('on', +b.dataset.v === ST.max));
     const active = this.state.mixes.find(m => m.id === this.state.activeId);
     if (active) this.restore(active);
-    showView('home'); this.render();
+    showView(active?'play':'home'); this.render();
   },
   addPrepared(tracks){
     const mix={id:'mix-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),name:ST.crate.map(s=>s.name).join(' + ')||'My mix',tracks:tracks.map(t=>this.track(t)),idx:0,position:tracks[0].start,createdAt:Date.now(),updatedAt:Date.now(),sources:ST.crate.map(s=>this.source(s)),positionReady:false,pendingSeek:true,shuffle:false,repeat:'off',baseOrder:tracks.map(t=>t.id),history:[]};
@@ -550,6 +563,7 @@ const Library = {
   },
   progress(){ if (Date.now() - this.lastWrite >= 5000) this.capture(); },
   restore(mix){
+    DJ.epoch++;
     ST.mix = mix.tracks.map(t => this.track(t)).filter(Boolean); ST.pool = ST.mix.slice();
     DJ.idx = mix.finished ? 0 : clamp(Number.isInteger(mix.idx) ? mix.idx : 0,0,ST.mix.length-1);
     const t = ST.mix[DJ.idx], c = AI.cache();
@@ -581,7 +595,7 @@ const Library = {
     const c = AI.cache()[id], t = this.track(c?.song); if (!t) return;
     if(DJ.busy||DJ.streamOwned){if(!await DJ.pause())return;}else this.capture();
     t.aiStart=c.start; t.aiEnd=c.end; t.aiWhy=c.why; t.mood=c.mood;
-    ST.mix=[t]; ST.pool=[t]; DJ.shuffle=false;DJ.repeat='off';DJ.baseOrder=[t.id];DJ.history=[];DJ.checkpointId=null;DJ.idx=0; DJ.pos=DJ.posAt=0; DJ.loadedMix=null; DJ.retryIdx=null; DJ.finished=false;
+    DJ.epoch++;ST.mix=[t]; ST.pool=[t]; DJ.shuffle=false;DJ.repeat='off';DJ.baseOrder=[t.id];DJ.history=[];DJ.checkpointId=null;DJ.idx=0; DJ.pos=DJ.posAt=0; DJ.loadedMix=null; DJ.retryIdx=null; DJ.finished=false;
     planSegments(ST.mix,ST.vibe,ST.len); this.capture(true,t.name,[]); renderDeck(); showView('play'); await DJ.go(0);
   },
   async recoverPicks(){
@@ -1193,7 +1207,7 @@ async function buildMix(){
 async function remix(){
   const ordered=buildOrder(ST.pool,ST.vibe);planSegments(ordered,ST.vibe,ST.len);
   if(DJ.streamOwned||DJ.desiredPlaying||DJ.busy){Library.addPrepared(ordered);toast('New mix saved. Your current playback continues.');return false;}
-  Library.capture();ST.mix=ordered;DJ.idx=0;DJ.loadedMix=DJ.loadedId=null;DJ.pos=DJ.posAt=0;DJ.finished=false;DJ.retryIdx=null;DJ.checkpointId=null;
+  Library.capture();DJ.epoch++;ST.mix=ordered;DJ.idx=0;DJ.loadedMix=DJ.loadedId=null;DJ.pos=DJ.posAt=0;DJ.finished=false;DJ.retryIdx=null;DJ.checkpointId=null;
   DJ.pendingSeek=true;DJ.shuffle=false;DJ.repeat='off';DJ.baseOrder=ordered.map(t=>t.id);DJ.history=[];DJ.setPhase('ready','Mix saved · press Play');
   renderDeck();drawCurve();aiStatus();Library.capture(true);aiAhead();return true;
 }
@@ -1242,7 +1256,7 @@ function drawCurve(){
 
 /* ---------------- Playback engine ---------------- */
 const DJ = {
-  player:null,sdkDev:null,dev:null,remote:false,idx:0,master:.85,lat:450,
+  player:null,sdkDev:null,dev:null,remote:false,sdkConnecting:false,sdkError:'',idx:0,master:.85,lat:450,
   phase:'ready',detail:'Choose a mix, then press Play.',desiredPlaying:false,busy:false,action:null,
   pos:0,posAt:0,startedAt:0,loadedMix:null,loadedId:null,confirmed:false,streamOwned:false,
   epoch:0,flow:Promise.resolve(),cancelWait:null,retryIdx:null,finished:false,externalPaused:false,
@@ -1262,7 +1276,8 @@ const DJ = {
   render(){renderTransport();},
   current(epoch){return epoch===this.epoch;},
   activate(){
-    if(this.dev!==this.sdkDev||!this.player?.activateElement)return Promise.resolve();
+    if(!this.sdkDev||this.dev!==this.sdkDev)return Promise.resolve(new Error(this.sdkError||'The browser player is connecting. Wait a moment, then tap Play.'));
+    if(!this.player?.activateElement)return Promise.resolve();
     try{return Promise.resolve(this.player.activateElement()).then(()=>null,e=>e);}catch(e){return Promise.resolve(e);}
   },
   enqueue(kind,idx,work){
@@ -1273,7 +1288,7 @@ const DJ = {
     this.render();
     const task=this.flow.catch(()=>{}).then(async()=>{
       if(!this.current(epoch))return false;
-      try{const result=await work(epoch,op);if(result===false&&this.current(epoch)&&(['starting','seeking'].includes(this.phase)||kind==='repair')){this.desiredPlaying=false;this.confirmed=false;this.setPhase('disconnected','Output changed or playback was not confirmed. Choose an output and retry.');}return result;}
+      try{const result=await work(epoch,op);if(result===false&&this.current(epoch)&&(['starting','seeking'].includes(this.phase)||kind==='repair')){this.desiredPlaying=false;this.confirmed=false;this.setPhase('disconnected','Browser playback was not confirmed. Reconnect the player in Settings and retry.');}return result;}
       catch(e){
         if(!this.current(epoch))return false;
         if(op.touched){await this.stopDevice(op.dev).catch(()=>{});this.streamOwned=false;}
@@ -1329,7 +1344,7 @@ const DJ = {
       }else{wrong=0;baseline=null;}
       await sleep(350);
     }
-    throw new Error(error?.message||'Spotify has not confirmed a moving stream at this position. Check the output device, then press Retry.');
+    throw new Error(error?.message||'Spotify has not confirmed a moving stream at this position. Check the browser player, then press Retry.');
   },
   async stopDevice(dev){if(dev)await api(`/me/player/pause?device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0,timeout:4000});},
   async confirmPaused(t,dev){
@@ -1343,7 +1358,7 @@ const DJ = {
   },
   async startAt(i,target,epoch,op){
     const mix=ST.mix,t=mix[i];if(!t)return false;
-    if(!this.dev&&!await this.waitPreparation(this.devices({required:true}),epoch))return false;if(!this.current(epoch))return false;
+    if((!this.sdkDev||this.dev!==this.sdkDev)&&!await this.waitPreparation(this.devices({required:true}),epoch))return false;if(!this.current(epoch))return false;
     const previous=op.previous??this.loadedId;this.freeze();this.idx=i;this.pos=target;this.posAt=performance.now();this.checkpointId=t.id;this.pendingSeek=true;this.confirmed=false;this.positionRepairs=0;
     this.setPhase('starting','Checking the selected Spotify output…');
     const started=performance.now();let dev=this.dev;
@@ -1372,7 +1387,7 @@ const DJ = {
     const activation=options.automatic?Promise.resolve():this.activate();
     return this.enqueue('play',i,async(epoch,op)=>{
       op.back=!!options.historyBack;op.previous=this.loadedId;const t=ST.mix[i];if(!await this.waitPreparation(activation,epoch))return false;const activationError=await activation;if(activationError)throw activationError;
-      if(!this.dev&&!await this.waitPreparation(this.devices({required:true}),epoch))return false;if(!this.current(epoch))return false;
+      if((!this.sdkDev||this.dev!==this.sdkDev)&&!await this.waitPreparation(this.devices({required:true}),epoch))return false;if(!this.current(epoch))return false;
       if(t.hookSrc!=='you'&&!AI.pick(t)){
         if(this.streamOwned){const previous=ST.mix[this.idx];try{await this.stopDevice(this.dev);if(!await this.confirmPaused(previous,this.dev))throw new Error('Spotify did not confirm pause before preparing the next song.');}catch(e){e.pauseFailed=true;throw e;}this.streamOwned=false;this.confirmed=false;}
         this.idx=i;this.pos=this.posAt=0;this.loadedMix=this.loadedId=this.checkpointId=null;this.pendingSeek=true;this.setPhase('waiting-ai','Choosing the best part. Other picks prepare in batches of eight.');
@@ -1415,6 +1430,9 @@ const DJ = {
   },
   select(i){
     if(i<0||i>=ST.mix.length||this.busy||this.streamOwned)return false;
+    // Invalidate a poll already waiting on the old paused track. Otherwise its
+    // response can adopt that track again after a silent Next/Previous.
+    this.epoch++;
     this.freeze();this.idx=i;this.loadedMix=null;this.loadedId=null;this.confirmed=false;this.streamOwned=false;
     this.retryIdx=null;this.finished=false;this.pendingSeek=true;this.checkpointId=ST.mix[i].id;this.pos=ST.mix[i].start;this.posAt=performance.now();
     this.setPhase('paused','Selected · press Play when ready');showNow(i,true);Library.capture();return true;
@@ -1452,7 +1470,7 @@ const DJ = {
   seekTo(value){
     const t=ST.mix[this.idx];if(!t||this.busy||this.phase==='pause-unconfirmed'||!Number.isFinite(+value)||!(t.hookSrc==='you'||AI.pick(t)))return Promise.resolve(false);
     const target=clamp(+value,t.start,Math.max(t.start,t.end-500));this.seekPreview=null;
-    if(!this.playing&&!this.streamOwned){this.pos=target;this.posAt=performance.now();this.pendingSeek=true;this.loadedMix=null;this.checkpointId=t.id;this.finished=false;Library.capture();this.render();return Promise.resolve(true);}
+    if(!this.playing&&!this.streamOwned){this.epoch++;this.pos=target;this.posAt=performance.now();this.pendingSeek=true;this.loadedMix=null;this.checkpointId=t.id;this.finished=false;Library.capture();this.render();return Promise.resolve(true);}
     return this.enqueue('seek',this.idx,async(epoch,op)=>{
       const s=await this.playbackState();if(!this.current(epoch))return false;
       if(!s||s.deviceId!==this.dev||!this.matches(s.item,t))throw new Error('Spotify is playing another context. Return to this mix before seeking.');
@@ -1466,14 +1484,14 @@ const DJ = {
   async observe(s,epoch){
     const t=ST.mix[this.idx];if(!t||!this.current(epoch))return;
     const now=performance.now();
-    if(!s){this.confirmed=false;this.setPhase('disconnected','No active Spotify playback was reported. Open Spotify and refresh devices.');return;}
+    if(!s){this.confirmed=false;this.setPhase('disconnected','The browser stream is not active. Tap Play, or reconnect the browser player in Settings.');return;}
     if(s.deviceId===this.dev&&!this.matches(s.item,t)&&this.nativeQueueMix===ST.mix&&this.nativeQueueDev===this.dev){
       const i=ST.mix.findIndex(x=>this.nativeQueue.includes(x.id)&&this.matches(s.item,x));
       if(i>=0)return this.followNative(s,i);
     }
     if(s.deviceId!==this.dev||!this.matches(s.item,t)){
       this.freeze();this.confirmed=false;this.streamOwned=false;this.desiredPlaying=false;
-      this.loadedMix=null;this.setPhase('external',s.deviceId!==this.dev?'Spotify moved to another output. Choose it in Settings.':'Spotify is playing a different song. Press Play to return to this mix.');return;
+      this.loadedMix=null;this.setPhase('external',s.deviceId!==this.dev?'Spotify playback moved away from this browser. Segue stopped following it. Tap Play here to return.':'Spotify is playing a different song. Press Play to return to this mix.');return;
     }
     if(!Number.isFinite(s.position))return;
     this.lastFrameAt=now;this.outputMuted=s.volume===0;
@@ -1562,57 +1580,58 @@ const DJ = {
       if(navigator.mediaSession.setPositionState&&t.dur>0)navigator.mediaSession.setPositionState({duration:t.dur/1000,playbackRate:1,position:clamp(this.position()/1000,0,t.dur/1000)});
     }catch{}
   },
-  async init(){
-    window.onSpotifyWebPlaybackSDKReady = () => {
-      this.player = new Spotify.Player({ name:'Segue AI DJ', getOAuthToken: cb => token().then(cb).catch(e=>this.setPhase('error',e.message)), volume:this.master });
-      this.player.addListener('ready', ({ device_id }) => { this.sdkDev = device_id; this.devices(); });
-      this.player.addListener('not_ready', () => { const selected=this.dev===this.sdkDev;if(selected)this.dev=null;this.sdkDev=null;if(selected){this.confirmed=this.streamOwned=false;this.desiredPlaying=false;this.setPhase('disconnected','This browser output disconnected. Choose an output in Settings.');}this.devices(); });
-      this.player.addListener('initialization_error', () => this.sdkUnavailable());
-      this.player.addListener('authentication_error', ({message}) => {this.confirmed=false;this.setPhase('error','Spotify sign-in needs attention: '+message);});
-      this.player.addListener('account_error', () => {this.confirmed=false;this.setPhase('error','Spotify Premium is required for playback.');});
-      this.player.addListener('player_state_changed', () => {this.mediaSession(true);this.poll(true);});
-      this.player.addListener('autoplay_failed', () => this.setPhase('error','This browser needs a Play tap to allow audio.'));
-      this.player.connect().then(ok => { if (!ok) this.sdkUnavailable(); }).catch(() => this.sdkUnavailable());
+  init(){
+    if(this.sdkConnecting)return;
+    this.sdkConnecting=true;this.sdkError='';LS.set('device',null);
+    this.devices();clearTimeout(this.sdkTimer);
+    this.sdkTimer=setTimeout(()=>{if(!this.sdkDev)this.sdkUnavailable('The browser player could not connect. Check your connection, then reconnect.');},15000);
+    const connect=()=>{
+      if(!this.player){
+        this.player=new Spotify.Player({name:'Segue browser player',enableMediaSession:true,getOAuthToken:cb=>token().then(cb).catch(e=>this.sdkUnavailable('Spotify sign-in needs attention: '+e.message)),volume:this.master});
+        this.player.addListener('ready',({device_id})=>{
+          clearTimeout(this.sdkTimer);this.sdkConnecting=false;this.sdkError='';
+          const changed=this.dev!==device_id;this.sdkDev=this.dev=device_id;this.remote=false;
+          if(changed){this.confirmed=this.streamOwned=false;this.loadedMix=null;this.desiredPlaying=false;this.setPhase('ready','Browser player ready · tap Play');}
+          this.devices();this.mediaSession(true);
+        });
+        this.player.addListener('not_ready',()=>this.sdkUnavailable('The browser player disconnected. Reconnect, then tap Play.'));
+        this.player.addListener('initialization_error',()=>this.sdkUnavailable('Spotify audio is unavailable in this browser. Use a supported browser with protected media enabled.'));
+        this.player.addListener('authentication_error',({message})=>this.sdkUnavailable('Spotify sign-in needs attention: '+message));
+        this.player.addListener('account_error',()=>this.sdkUnavailable('Spotify Premium is required for the browser player.'));
+        this.player.addListener('playback_error',({message})=>{this.confirmed=false;this.setPhase('error','Browser playback failed: '+message);});
+        this.player.addListener('player_state_changed',()=>{this.mediaSession(true);setTimeout(()=>this.mediaSession(true),0);this.poll(true);});
+        this.player.addListener('autoplay_failed',()=>{this.confirmed=false;this.desiredPlaying=false;this.setPhase('error','Tap Play again to allow audio in this browser.');});
+      }
+      this.player.connect().then(ok=>{if(!ok)this.sdkUnavailable('The browser player could not connect. Reconnect and try again.');}).catch(()=>this.sdkUnavailable());
     };
-    const sc = document.createElement('script'); sc.src = 'https://sdk.scdn.co/spotify-player.js'; sc.onerror = () => this.sdkUnavailable(); document.head.appendChild(sc);
-    $('#devSel').onchange = async e => { const dev=e.target.value; if(!await this.pause())return;this.dev=dev;this.remote=dev!==this.sdkDev;LS.set('device',dev);this.loadedMix=null;this.setPhase('ready','Output changed · press Play.'); };
-    setTimeout(()=>this.devices(), 2500);
+    window.onSpotifyWebPlaybackSDKReady=connect;
+    if(window.Spotify?.Player){connect();return;}
+    const old=document.querySelector('#spotifySDK');old?.remove();
+    const sc=document.createElement('script');sc.id='spotifySDK';sc.src='https://sdk.scdn.co/spotify-player.js';sc.onerror=()=>this.sdkUnavailable('Could not load the Spotify browser player. Check your connection or content blocker, then reconnect.');document.head.appendChild(sc);
   },
-  sdkUnavailable(){
-    if (this.dev === this.sdkDev) this.dev = null;
-    this.sdkDev = null;
-    this.setPhase('disconnected','This browser output is unavailable. Choose Spotify on your phone.');this.devices();
+  reconnect(){
+    if(this.sdkDev){this.devices();return;}
+    this.init();
   },
-  async devices({ required=false, exclude=null } = {}){
-    try {
-      if (exclude === this.sdkDev) this.sdkDev = null;
-      const j = await api('/me/player/devices', { retry:0 });
-      const list = (j?.devices || []).filter(d => d.id && !d.is_restricted && d.id !== exclude);
-      // A failed SDK device must not be reinserted as a phantom output.
-      if (this.sdkDev && !list.some(d => d.id === this.sdkDev)) list.push({ id:this.sdkDev, name:'Segue AI DJ', type:'This browser' });
-      const saved = LS.get('device');
-      const phone = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
-      const native = list.filter(d => d.id !== this.sdkDev);
-      const chosen = ((this.playing || this.busy) && list.find(d => d.id === this.dev)) || list.find(d => d.id === saved) ||
-        (phone && (!this.dev || this.dev === this.sdkDev) && (native.find(d => d.is_active) || native.find(d => /smartphone/i.test(d.type)))) ||
-        list.find(d => d.id === this.dev) || list.find(d => d.is_active) ||
-        list.find(d => d.id === this.sdkDev) || native.find(d => /smartphone/i.test(d.type)) || list[0];
-      this.dev = chosen?.id || null; this.remote = this.dev !== this.sdkDev; this.devList = list;
-      $('#devSel').innerHTML = list.length ? list.map(d => `<option value="${esc(d.id)}" ${d.id === this.dev ? 'selected' : ''}>${esc(d.id === this.sdkDev ? 'This browser' : d.name)}</option>`).join('') : '<option value="">No device connected</option>';
-      $('#devSel').value = this.dev || '';
-      $('#deviceHelp').classList.toggle('hide', !!this.dev);
-      $('#deviceSummary').textContent = this.dev ? `Output · ${chosen.name}` : 'No playback device · tap to connect';
-      $('#deviceNote').textContent = this.dev ? `Ready: ${chosen.name}. Press Play in Segue.` : 'Open Spotify on this phone, play a song briefly, then return here and refresh devices. Sign in to the same Spotify account.';
-      if (!this.dev && required) throw new Error('No playback device connected. Open Spotify, play a song briefly, return here and tap Refresh devices.');
-      this.render();if(this.loadedMix===ST.mix)this.loop();
-      return list;
-    } catch(e) {
-      $('#deviceSummary').textContent = 'Spotify connection needs attention';
-      $('#deviceNote').textContent = 'Could not connect to Spotify: ' + e.message;
-      $('#deviceHelp').classList.remove('hide');
-      if (required) throw e;
-      return [];
-    }
+  sdkUnavailable(message='Spotify audio is unavailable in this browser. Reconnect the player and try again.'){
+    clearTimeout(this.sdkTimer);this.sdkConnecting=false;this.sdkError=message;
+    this.freeze();this.sdkDev=this.dev=null;this.remote=false;this.devList=[];
+    this.confirmed=this.streamOwned=false;this.desiredPlaying=false;this.loadedMix=null;
+    this.cancelWait?.();this.cancelWait=null;this.epoch++;this.busy=false;this.action=null;
+    this.setPhase('disconnected',message);this.devices();
+  },
+  async devices({required=false,exclude=null}={}){
+    // Browser-only: SDK ready is the sole authority. Never discover, select or
+    // fall back to the phone/CarPlay's Spotify Connect device.
+    if(exclude&&exclude===this.sdkDev)this.sdkUnavailable('The browser player lost its connection. Reconnect, then tap Play.');
+    this.dev=this.sdkDev||null;this.remote=false;
+    this.devList=this.dev?[{id:this.dev,name:'Browser audio',type:'Computer'}]:[];
+    const note=this.dev?'Ready · music plays in Segue. Tap Play.':this.sdkError||(this.sdkConnecting?'Connecting the browser player…':'Reconnect the browser player, then tap Play.');
+    $('#deviceSummary').textContent=this.dev?'Browser audio ready':'Browser player connecting';
+    $('#deviceNote').textContent=note;$('#browserHelp').textContent=note;
+    $('#deviceHelp').classList.toggle('hide',!!this.dev);this.render();
+    if(!this.dev&&required)throw new Error(note);
+    return this.devList;
   },
   async vol(v){
     v = clamp(v, 0, 1);
@@ -1639,29 +1658,32 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
   DJ.watchdog();DJ.poll(true); if(!DJ.busy)DJ.devices();
 });
-document.querySelectorAll('.refresh-devices').forEach(b => b.onclick = async () => {
-  b.disabled = true;
-  try { await DJ.devices({ required:true }); toast('Device connected. Press Play.'); }
-  catch(e) { toast(e.message, 6000); }
-  finally { b.disabled = false; }
-});
+document.querySelectorAll('.reconnect-player').forEach(b=>b.onclick=()=>{DJ.reconnect();toast(DJ.sdkDev?'Browser player ready · tap Play':'Connecting browser player…');});
+function mountTransport(){
+  const player=$('#miniPlayer'),inline=ST.view==='play';
+  const host=$(inline?'#deckTransport':'#transportDock');
+  if(host?.appendChild&&player.parentElement!==host){host.appendChild(player);scheduleChrome();}
+  player.classList.toggle('is-inline',inline);
+}
 function renderTransport(){
+  mountTransport();
   const t=ST.mix[DJ.idx],exists=!!t,now=performance.now();
   $('#miniPlayer').classList.toggle('hide',!exists||!ST.me);
   $('#scroller').classList.remove('has-mini');
   if(!exists){if(typeof ResizeObserver!=='function')scheduleChrome();return;}
   const fresh=DJ.confirmed&&now-DJ.lastFrameAt<3500&&now-DJ.lastMotionAt<3500;
   const phase=DJ.playing&&!fresh?'reconnecting':DJ.phase;
-  const labels={ready:'Ready',paused:'Paused',playing:'Playing',starting:'Starting Spotify…','waiting-ai':'Waiting for AI…',buffering:'Buffering…',checking:'Checking playback…',reconnecting:'Reconnecting…',disconnected:'No confirmed output',external:'Playback changed in Spotify',error:'Playback needs attention',ended:'Mix finished',pausing:'Confirming pause…','pause-unconfirmed':'Pause not confirmed',seeking:'Seeking…'};
+  const labels={ready:'Ready',paused:'Paused',playing:'Playing',starting:'Starting browser audio…','waiting-ai':'Waiting for AI…',buffering:'Buffering…',checking:'Checking playback…',reconnecting:'Reconnecting…',disconnected:'Browser player unavailable',external:'Playback changed in Spotify',error:'Playback needs attention',ended:'Mix finished',pausing:'Confirming pause…','pause-unconfirmed':'Pause not confirmed',seeking:'Seeking…'};
+  $('#deck').classList.toggle('disc-running',phase==='playing');
   const running=phase==='playing',pending=DJ.busy||['checking','buffering','reconnecting'].includes(phase)||(DJ.desiredPlaying&&phase==='disconnected');
   const action=running?'Pause':phase==='pausing'?'Pausing':phase==='pause-unconfirmed'?'Retry pause':pending?'Cancel':phase==='error'||phase==='disconnected'?'Retry':phase==='ended'?'Replay':'Play';
   $('#miniTitle').textContent=t.name;$('#miniState').textContent=labels[phase]||'Ready';
   $('#playerAction').textContent=action;$('#playBtn').title=action;$('#playBtn').ariaLabel=action;$('#playBtn').disabled=phase==='pausing';
   $('#playIco').innerHTML=running?'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>':pending?'<path d="M6 6h12v12H6z"/>':'<path d="M7 4v16l13-8z"/>';
-  const detail=DJ.detail||(DJ.outputMuted?'Selected Spotify output has volume at zero.':'')||`${DJ.devList?.find(d=>d.id===DJ.dev)?.name||'Choose a Spotify output'} · song ${DJ.idx+1} of ${ST.mix.length}`;
+  const detail=DJ.detail||(DJ.outputMuted?'Selected Spotify output has volume at zero.':'')||`${DJ.devList?.find(d=>d.id===DJ.dev)?.name||'Browser audio'} · song ${DJ.idx+1} of ${ST.mix.length}`;
   if($('#stat').textContent!==detail)$('#stat').textContent=detail;
   DJ.mediaSession();
-  $('#transportOutput').textContent=DJ.devList?.find(d=>d.id===DJ.dev)?.name||'Choose output';
+  $('#transportOutput').textContent=DJ.devList?.find(d=>d.id===DJ.dev)?.name||'Browser audio';
   const pos=DJ.seekPreview??DJ.position(),start=Number.isFinite(t.start)?t.start:0,end=Number.isFinite(t.end)?t.end:t.dur;
   $('#playerElapsed').textContent=fmt(Math.max(0,pos-start));$('#playerDuration').textContent=fmt(Math.max(0,end-start));
   $('#playerSeek').min=start;$('#playerSeek').max=Math.max(start,end-500);if(DJ.seekPreview==null)$('#playerSeek').value=clamp(pos,start,end-500);
@@ -1749,7 +1771,7 @@ document.addEventListener('visibilitychange', () => { if(document.hidden) { DJ.f
 let chromeFrame=0;
 function measureChrome(){
   if(!document.documentElement?.style||typeof $('#nav').getBoundingClientRect!=='function')return;
-  const nav=$('#nav'),player=$('#miniPlayer'),navH=nav.getBoundingClientRect().height,playerH=player.getBoundingClientRect().height;
+  const nav=$('#nav'),player=$('#miniPlayer'),navH=nav.getBoundingClientRect().height,playerH=player.classList.contains('is-inline')?0:player.getBoundingClientRect().height;
   const bottom=navH?parseFloat(getComputedStyle(nav).bottom)||12:0;
   document.documentElement.style.setProperty('--nav-h',Math.ceil(navH)+'px');
   document.documentElement.style.setProperty('--footer-reserve',Math.ceil(bottom+navH+(playerH?playerH+10:0)+24)+'px');

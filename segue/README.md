@@ -1,7 +1,7 @@
 # Segue: handoff
 
 Read `PROJECT.md` in the repository root first (deploy, phone layout rules,
-change log). This file covers Segue only. Last updated: 2026-11-14, Version 33.
+change log). This file covers Segue only. Last updated: 2026-11-14, Version 34.
 
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
@@ -72,19 +72,59 @@ each song and play it, that's all".
   `ver` (Spotify sign-in), `aikey`, `ai4` (AI picks per track id), `hooks`
   (Vijay's own start marks), `genres` (artist genres).
 
-## Phone playback devices (Version 27)
+## Browser-only playback (Version 34 — current)
 
-If no device is available, open the native Spotify app using the same account,
-play any song briefly, return to Segue, then tap Refresh devices and Play.
-Controls are in Settings and on Playing when a device is missing. Segue cannot
-create a native Spotify device remotely. Phone playback still needs Premium.
+Vijay rejected the phone/native Spotify output path after real lock-screen and
+CarPlay failures. **Only the Spotify Web Playback SDK inside Segue is used.**
+No external output selector, Open Spotify link or native-device discovery
+remains. Saved legacy output preferences are ignored and removed on SDK init.
+Spotify sign-in, Premium and browser protected-media support are still required.
+This is the full-track Web Playback SDK, not a Spotify iframe preview/embed.
+Spotify still supplies the protected stream; we cannot turn its catalog into
+ordinary downloadable HTML audio or bypass its SDK/account requirements.
 
-Device discovery prefers the active native Spotify phone on iPhone, respects
-an explicitly selected output, excludes restricted devices and clears stale
-selections. A 404 refreshes devices and retries the same song on a recovered
-output, excluding the failed device. Failed/disconnected browser SDK outputs
-are cleared. Device lookup errors are visible. Returning to the foreground
-refreshes discovery when not playing; it does not auto-start playback.
+SDK `ready` is the sole authority for the browser device ID. A user Play tap
+activates the SDK element before async AI/network work. Starts target only that
+SDK ID; there is no phone/CarPlay fallback on 404 or failed connection. SDK load,
+connect, initialization, account, auth and playback errors are visible. A failed
+connection cancels preparation and cannot show Playing. Reconnect reuses the
+existing SDK player, does not autoplay, and creates no second audio instance.
+Opening/refreshing Settings never transfers playback. If Spotify moves audio to
+another device, Segue stops scheduling; it does not chase that device.
+
+`enableMediaSession: true` is explicitly enabled (Spotify's default is false).
+The SDK establishes browser media integration; Segue refreshes its own guarded
+play/pause/stop/next/previous/seek actions after SDK state events, including a
+deferred refresh, so passage boundaries and queue controls use the same command
+controller. Metadata, actual position and stale-progress checks remain. No
+silent audio or second media element is added. A browser/media-session callback
+simulation cannot prove that iOS exposes real lock-screen controls.
+
+**Limits:** iOS requires user interaction for SDK playback and may suspend web
+work when locked. Lock-screen button availability, background AI seeking/cuts
+and a native CarPlay interface are not guaranteed. CarPlay or Spotify itself
+can move the account's active playback independently; Segue cannot disable the
+native app's automatic launch. This update removes Segue's automatic external
+routing, not OS-level behavior outside the page.
+
+Official references: [Spotify SDK overview and iOS limits](https://developer.spotify.com/documentation/web-playback-sdk),
+[SDK options and Media Session](https://developer.spotify.com/documentation/web-playback-sdk/reference).
+
+## CD listening layout (Version 34 — current)
+
+On Playing, a large CD-style disc, song metadata, seek, play/pause, previous,
+next, shuffle, repeat, status and correction tools live in the right-hand deck.
+The left-hand queue shows AI cut times in its own bounded scrolling panel.
+Phones stack the deck before the bounded queue. Long mix names are clamped.
+An existing saved mix opens directly in this listening view without autoplay.
+The disc rotates only with fresh confirmed playback; pausing, waiting, errors
+and stale progress stop it. Reduced motion disables rotation.
+
+There is still exactly one transport DOM node/controller. `mountTransport`
+moves that node into `deckTransport` on Playing, then back to `transportDock`
+as a floating compact player elsewhere. It does not recreate controls, replay
+music, transfer output or reset queue/cache. `measureChrome` reserves only the
+navigation height for the inline deck, and both floating surfaces elsewhere.
 
 ## Version 28 redesign and saved library
 
@@ -92,9 +132,9 @@ Four tabs: **Home**, **Create**, **Playing**, **Settings**. The existing fixed
 shell, inner scrolling, top/bottom safe areas and light/dark modes remain.
 Home has a compact returning-user header, Continue listening, saved mix cards
 with album mosaics and a searchable list of AI-picked songs. Version 31
-uses one shared transport on every tab, including Playing. Playing contains
-artwork, passage details, correction tools and queue; it has no second Play
-button. Renaming is in-page. New order shuffles upcoming songs without
+uses one shared transport on every tab. Version 34 mounts it inside the CD
+deck on Playing and floats the same node on other screens; there is no second
+Play button. Renaming is in-page. New order shuffles upcoming songs without
 restarting the current song.
 
 `Library` stores `segue_library_{Spotify user id}` independently of the
@@ -105,8 +145,8 @@ replanning/playback changes, about every five seconds while polling, and on
 pause, page hide and page exit (best effort on iOS). Runtime promises and
 credentials are excluded from mix serialization.
 
-Boot restores the active mix and selection on Home **without starting music
-or making AI requests**. Continue sends the saved URI/position explicitly.
+Boot opens the restored mix directly in the CD player **without starting
+music or making AI requests**; Home remains available for the saved library. Continue sends the saved URI/position explicitly.
 An already-known account can still see its local library if Spotify has a
 temporary network/server outage; it must reconnect to stream music. Logout
 clears cached account identity and tokens but retains that account's library.
@@ -128,12 +168,13 @@ The navigation uses Cinema Book Version 22's material tokens: a floating
 520px-capped capsule, translucent light/dark surfaces, 26px blur/saturation,
 soft outer shadows, inset highlights and a rounded selected-tab pill. The
 shared player is a separate floating glass surface above it, capped at 840px.
-Version 33 retains the one shared transport and adds external-control handling below.
+Version 34 retains this glass navigation and floats the compact player only
+outside Playing; the single transport mounts inside the CD deck there.
 
 Main content has an explicit 1120px maximum instead of width-dependent side
 padding. At 720px and wider, Home puts its intro and Continue side by side,
 Create separates source selection and mix configuration, Playing places
-the queue on the left and compact artwork/details on the right, and Settings
+the bounded queue on the left and large CD deck on the right, and Settings
 uses columns. Artwork and long
 mix names are bounded; wide layouts do not simply enlarge the portrait page.
 On phones everything returns to one column. Important top actions remain left.
@@ -176,12 +217,13 @@ Read [PLAYER_REQUIREMENTS.md](PLAYER_REQUIREMENTS.md) for the full review,
 behaviour contract, evidence and real-phone acceptance checks.
 
 `DJ.phase` is the playback state; `DJ.action` is the pending command. Busy
-is not playing. One `renderTransport()` renders the same footer outside the
-scrolling views. Ready, waiting for AI, starting, checking, playing, paused,
+is not playing. One `renderTransport()` renders the same transport node,
+inline in the Playing deck or floating on other screens. Ready, waiting for AI, starting, checking, playing, paused,
 buffering/reconnecting, disconnected, external playback, unconfirmed pause,
 error and finished are distinct. A Pause icon appears only for fresh confirmed
-playback. Pending work shows Cancel/progress; errors expose Retry. The footer never hides on Playing. Version 32 gives it a floating glass
-surface with measured scroll padding so final controls remain reachable.
+playback. Pending work shows Cancel/progress; errors expose Retry. Version 34
+puts those same controls inside the CD deck on Playing. Other tabs retain the
+floating glass surface with measured scroll padding.
 
 `DJ.enqueue()` serializes transport actions and assigns an intent epoch.
 Same-target pending Play is coalesced. New intent cancels an AI wait; a late
@@ -210,13 +252,13 @@ hook corrections while playing affect the next play, preserving the active
 window. Unavailable/restricted tracks are filtered, short songs can have shorter
 AI passages, and stale search responses cannot replace newer source results.
 
-The shared output control names the selected device. Zero volume is shown when
-Spotify exposes it; the app never guesses speaker audibility or forces volume.
-Browser SDK Media Session actions use this same controller; remote playback
-leaves the native Spotify app's lock screen ownership alone. Keep Segue active
-for timed cuts: iOS may suspend web timers when locked.
+The shared audio-settings shortcut opens browser connection status. Zero volume
+is shown when an authoritative fallback response exposes it; SDK state does not
+expose hardware speaker volume. The app never guesses audibility or forces
+volume. Media Session actions use this same controller. Keep Segue active for
+timed cuts: iOS may suspend web timers when locked.
 
-## External controls and opening animation (Version 33)
+## Historical external controls (Version 33 — native routing superseded by 34)
 
 Vijay confirmed the failing output is Spotify external player. Spotify owns
 notification, lock-screen and CarPlay controls for that output; the browser
@@ -263,14 +305,14 @@ References: [Spotify Start/Resume](https://developer.spotify.com/documentation/w
 
 ## Code map
 
-- `renderTransport`: the only playback-controls/status renderer.
+- `renderTransport`: the only playback-controls/status renderer; `mountTransport` reuses its DOM node.
 - `DJ`: command serialization, observed phases, queue, shuffle/repeat/seek.
 - `Library`: serialization, account-scoped source draft/mix storage, restore,
   Home rendering, old-pick metadata recovery and mini-player.
 - `v-home`: `continueMix`, `savedMixes`, `savedSongSearch`, `savedSongs`.
 - `v-mix`: source tabs/search, `results`, chosen `crate`, count, Build mix.
-- `v-play`: mix title/saved status, output shortcut, player and `queue`.
-- `v-set`: AI key/count, device discovery, account, version and Reload app.
+- `v-play`: mix title/saved status, CD deck, single inline transport and `queue`.
+- `v-set`: AI key/count, browser SDK connection/reconnect, account, version and Reload app.
 - `showView(name)` switches the four views; building/opening a mix shows Playing.
 
 ## How a mix is built and played
@@ -302,7 +344,7 @@ References: [Spotify Start/Resume](https://developer.spotify.com/documentation/w
 7. At a passage boundary `DJ.transition()` starts the next song with its ready
    AI pick, without waiting on a new AI call or changing volume. If that pick
    is late, playback pauses at the boundary and waits for it. A Spotify start
-   failure stops with Retry on that song (a stale-device 404 can recover once). It never
+   failure stops with Retry on that song (a stale browser ID needs reconnect). It never
    silently skips forward. Network errors or late AI can therefore cause a
    pause; uninterrupted playback cannot be guaranteed under those failures.
 8. Pause freezes elapsed position; resume sends the intended URI and position.
@@ -313,7 +355,8 @@ References: [Spotify Start/Resume](https://developer.spotify.com/documentation/w
 ## Checks
 
 Run `node segue/tests/playback.test.cjs` from the repository root. No package
-installation or credentials needed. Version 31 has 72 regressions covering
+installation or credentials needed. Version 34 has 84 regressions covering
+browser-only routing, SDK readiness/reconnect, stale paused polling,
 AI/cache/library behaviour and the shared transport rules. Unrelated scenarios
 stub confirmation; the transport tests and browser flows exercise the real
 moving-clock verifier. Frozen timestamps are explicit negative cases now.
@@ -322,7 +365,7 @@ Optional `python segue/tests/browser_flow.py` needs Playwright and Chromium.
 `SEGUE_CHROMIUM` selects an executable; `SEGUE_PREVIEW_DIR` selects where
 synthetic screenshots are written. All requests are intercepted; no live
 account/key is used. Four populated views at 320/390/768/1024 widths passed in
-light/dark with a moving simulator, no overflow/JS errors, and one shared footer. Version 32 uses measured scroll space for its floating
+light/dark with a moving simulator, no overflow/JS errors, and one shared transport, inline on Playing. Version 32 uses measured scroll space for its floating
 player and glass nav; the final content scrolls clear of both. Phone fault flows cover frozen start,
 external pause/resume, network recovery and muted-output notice. Final phone
 recheck includes inline renaming and 44px transport targets.
@@ -348,14 +391,18 @@ Safe to delete in a clean-up; ask Vijay first.
   assistants' workspaces. Say plainly what was tested with stand-ins and
   what only he can test on the phone.
 
-## Current state (Version 33)
+## Current state (Version 34)
 
 - AI picks work with a Gemini key (confirmed by Vijay: 14 of 15 songs).
 - Phone layout redesigned to match Cinema Book; not yet confirmed by Vijay
   on the iPhone Duo.
-- Version 33 adds queue-left/deck-right layout, silent cassette intro and external
-  queue/browser media-control fixes. All 80 playback checks, 14 layout/theme cases, and browser playback flows pass.
-  Live phone playback, real quotas and real model availability are not yet confirmed.
+- Version 34 removes native/external Spotify routing and uses only the SDK
+  browser player. It adds the large CD deck with integrated shared controls,
+  bounded left queue, explicit SDK Media Session integration and reconnect flow.
+- Automated controller, layout and mocked browser checks cover browser-only
+  routing, connection failures, cache, queue, single transport and media actions.
+  Real protected Spotify audio, iPhone lock-screen exposure and CarPlay behavior
+  cannot be verified with these test doubles.
 
 ## Open items
 

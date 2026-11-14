@@ -4,6 +4,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 root=Path(__file__).resolve().parents[1]
 html=(root/'index.html').read_text()
+sdk=(Path(__file__).resolve().parent/'mock_sdk.js').read_text()
 url='https://vijaykannan2020-del.github.io/Apps/segue/'
 previews=Path(os.environ.get('SEGUE_PREVIEW_DIR',Path(tempfile.gettempdir())/'segue-previews'));previews.mkdir(parents=True,exist_ok=True)
 artists=['Anirudh Ravichander','Sai Abhyankkar','Harris Jayaraj','A.R. Rahman','Yuvan Shankar Raja']
@@ -28,31 +29,37 @@ with sync_playwright() as p:
    def route(r):
     u=r.request.url
     if u==url:return r.fulfill(body=html,content_type='text/html')
+    if 'sdk.scdn.co/spotify-player.js' in u:return r.fulfill(body=sdk,content_type='application/javascript')
     if r.request.method in ['POST','PUT','DELETE']:writes.append(u)
     if u.endswith('/v1/me'):return r.fulfill(json={'id':'layout','display_name':'Layout preview'})
     if '/me/player/devices' in u:return r.fulfill(json={'devices':[{'id':'phone','name':'This phone','type':'Smartphone','is_active':True}]})
-    if u.endswith('/me/player'):return r.fulfill(json={'item':{'id':tracks[3]['id'],'uri':tracks[3]['uri']},'progress_ms':17000,'is_playing':False,'device':{'id':'phone'}})
+    if u.endswith('/me/player'):return r.fulfill(json={'item':{'id':tracks[3]['id'],'uri':tracks[3]['uri']},'progress_ms':17000,'is_playing':False,'device':{'id':'browser'}})
     if '/me/playlists' in u:return r.fulfill(json={'items':[],'next':None})
     return r.fulfill(body='',content_type='application/javascript')
    context.route('**/*',route);page=context.new_page();page.on('pageerror',lambda e:errors.append(str(e)))
-   page.goto(url);page.wait_for_selector('#v-home:visible');page.evaluate('DJ.devices().then(()=>DJ.poll(true))');page.wait_for_function("DJ.phase==='paused'")
+   page.goto(url);page.wait_for_selector('#v-play:visible');page.wait_for_function("DJ.phase==='ready'&&DJ.sdkDev==='browser'")
    for view in ['home','mix','play','set']:
     page.locator(f'#nav [data-v={view}]').click();page.wait_for_selector(f'#v-{view}:visible')
-    page.wait_for_function("document.querySelector('#miniPlayer').getBoundingClientRect().bottom <= document.querySelector('#nav').getBoundingClientRect().top - 4")
+    if view=='play':page.locator('#miniPlayer').evaluate("e=>e.scrollIntoView({block:'center'})")
+    else:page.locator('#playBtn').scroll_into_view_if_needed()
+    if view!='play':page.wait_for_function("document.querySelector('#miniPlayer').getBoundingClientRect().bottom <= document.querySelector('#nav').getBoundingClientRect().top - 4")
     box=page.evaluate("""()=>{const r=s=>document.querySelector(s).getBoundingClientRect().toJSON();return {player:r('#miniPlayer'),nav:r('#nav'),main:r('#app'),padding:parseFloat(getComputedStyle(document.querySelector('#scroller')).paddingBottom),radius:parseFloat(getComputedStyle(document.querySelector('#nav')).borderRadius),blur:getComputedStyle(document.querySelector('#nav')).backdropFilter,overflow:document.documentElement.scrollWidth>innerWidth,buttons:['shuffleBtn','prevBtn','playBtn','nextBtn','repeatBtn'].map(id=>r('#'+id))}}""")
     assert not box['overflow'],(width,height,theme,view,'horizontal overflow')
     assert box['main']['width']<=1121,(width,view,'stretched content')
     assert 10<=box['nav']['left'] and box['nav']['right']<=width-10 and box['nav']['width']<=521
     assert box['radius']>=100 and box['blur']!='none'
     assert box['player']['width']<=841 and box['player']['left']>=10 and box['player']['right']<=width-10
-    assert box['player']['bottom']<=box['nav']['top']-4 and box['nav']['bottom']<=height
-    assert box['padding']>=height-box['player']['top']
+    assert box['player']['bottom']<=box['nav']['top']-4 and box['nav']['bottom']<=height,(width,height,view,box['player'],box['nav'])
+    if view!='play':assert box['padding']>=height-box['player']['top']
+    else:
+     assert page.locator('#miniPlayer').evaluate("e=>e.parentElement.id==='deckTransport'")
+     assert page.locator('#queue').evaluate('e=>e.scrollHeight>e.clientHeight')
     assert all(b['width']>=43.5 and b['height']>=43.5 for b in box['buttons']),('touch targets',width,box['buttons'])
-    assert page.locator('#playBtn').count()==1 and page.locator('#miniState').inner_text()=='Paused'
+    assert page.locator('#playBtn').count()==1 and page.locator('#miniState').inner_text()=='Ready'
     if width>=720 and view=='home':
      assert page.locator('.hero').bounding_box()['x']<page.locator('#continueMix').bounding_box()['x']
     if width>=720 and view=='play':assert page.locator('#orderCard').bounding_box()['x']<page.locator('#deck').bounding_box()['x']
-    if width in [390,844,1280] and view in ['home','play']:page.screenshot(path=str(previews/f'v33-{width}x{height}-{view}-{theme}.png'))
+    if width in [390,844,1280] and view in ['home','play']:page.screenshot(path=str(previews/f'v34-{width}x{height}-{view}-{theme}.png'))
    # At the very end of Home content, floating chrome cannot cover its last note.
    page.locator('#nav [data-v=home]').click();page.evaluate("document.querySelector('#scroller').scrollTop=document.querySelector('#scroller').scrollHeight")
    page.wait_for_function("document.querySelector('#v-home>.local-note').getBoundingClientRect().bottom < document.querySelector('#miniPlayer').getBoundingClientRect().top")
@@ -76,6 +83,7 @@ with sync_playwright() as p:
  print('PASS reduced-transparency fallback removes blur from both docks')
  page.emulate_media(reduced_motion='reduce')
  assert page.locator('.walkman-intro').evaluate('e=>getComputedStyle(e).display')=='none'
+ assert page.locator('#disc').evaluate('e=>getComputedStyle(e).animationName')=='none'
  page.emulate_media(reduced_motion='no-preference');page.reload();page.wait_for_timeout(1100)
  assert page.locator('.walkman-intro').evaluate('e=>getComputedStyle(e).visibility')=='hidden'
  assert page.locator('.walkman-intro').evaluate('e=>getComputedStyle(e).pointerEvents')=='none'
