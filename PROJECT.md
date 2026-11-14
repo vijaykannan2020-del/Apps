@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-14, Claude: Segue Version 24 redesign to match Cinema Book: fixed full-height shell with inner scrolling, rounded bottom tab bar (Mix, Playing, Settings), top/bottom safe areas only, nothing in the top-right corner, neutral black-and-white palette with automatic light and dark mode. AI key, Play-on device and Log out moved to Settings. Energy chart and technical transition notes hidden on phones. Version label is now set from APP_VERSION in JS (header and Settings). No logic changes.
+
 - 2026-11-14, Claude: Segue Version 23: song-change clock is also driven by a Web Worker and re-checked when the page becomes visible, because a song played far past its end (likely Safari throttling timers while the page was not in front).
 
 - 2026-11-14, Claude: Segue Version 22: Gemini free tier allows only 20 requests a day per model, so one request now covers the song about to play plus up to 7 after it (about 4 requests per 30 songs), and when a model's allowance is used up Segue moves to the next model (Flash-Lite etc.).

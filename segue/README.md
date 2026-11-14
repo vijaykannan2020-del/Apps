@@ -11,3 +11,9 @@ One file (`index.html`), plain HTML/CSS/JS, no Firebase, no backend.
 - Playback: Web Playback SDK in desktop browsers; on iPhone pick another Spotify Connect device under "Play on". Transitions are volume fades (one stream, no true overlap).
 - DJ brain: `buildOrder()` (energy-arc matching + key/tempo/artist cost, swap/reverse refinement) and `planSegments()` (hook estimate, 8-bar phrase snapping, fade lengths).
 - Raise `APP_VERSION` and the "Version N" label in the header on every change.
+
+## Layout (Version 24)
+- Same shell as Cinema Book: `body` is a non-scrolling column, `.app` scrolls, `.nav` is the bottom tab bar. Views: `v-mix`, `v-play`, `v-set`, switched by `showView()`.
+- Colours are CSS variables with a `prefers-color-scheme: dark` override. Check both modes after any colour change.
+- Flow since Version 18-22: no lyrics lookup, no seconds picker. The AI (Gemini, newest Flash, falls back to Flash-Lite) returns start, end, mood and reason for the song about to play plus the next 7; free tier is 5 requests a minute and 20 a day per model.
+- Raise `APP_VERSION` only; the labels read from it.
