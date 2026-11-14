@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 22</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 23</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -245,7 +245,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 22;
+const APP_VERSION = 23;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -812,7 +812,7 @@ async function aiAhead(){
 function rowPlan(t){
   if (ST.len === 'full') return 'full song';
   if (t.aiPending && t.hookSrc !== 'you') return 'AI is choosing the best part…';
-  if (t.hookSrc === 'estimate' && AI.key() && (t._aiTries || 0) < 2) return 'AI decides shortly before it plays';
+  if (t.hookSrc === 'estimate' && AI.key() && (t._aiTries || 0) < 2 && ST.mix.indexOf(t) >= DJ.idx + (DJ.playing ? 1 : 0)) return 'AI decides shortly before it plays';
   return `plays ${fmt(t.start)} → ${fmt(t.end)} · ${SRC[t.hookSrc] || ''}${t.aiWhy && t.hookSrc === 'ai' ? ' · ' + esc(t.aiWhy) : ''}`;
 }
 
@@ -992,8 +992,8 @@ const DJ = {
   loop(){
     clearInterval(this.tick);
     let lastPoll = 0;
-    this.tick = setInterval(async () => {
-      if (!this.playing) return;
+    const fn = async () => {
+      if (!this.playing || this._ticking) return; this._ticking = true; try {
       const t = ST.mix[this.idx]; if (!t) return;
       // Position: SDK local state, or poll remote device every ~1.5s and interpolate
       if (!this.remote && this.player) { const s = await this.player.getCurrentState(); if (s) { this.pos = s.position; this.posAt = performance.now(); if (s.track_window?.current_track?.id && s.track_window.current_track.id !== t.id && !this.busy && s.track_window.current_track.linked_from?.id !== t.id) {/* relinked track: ignore */} } }
@@ -1003,7 +1003,9 @@ const DJ = {
       // For a cut, fire early by the measured Spotify delay so the new hook lands on the bar line
       const lead = t.fadeOut + (ST.trans === 'cut' && ST.len !== 'full' ? this.lat : 0);
       if (!this.busy && pos >= t.end - lead) this.transition();
-    }, 120);
+      } finally { this._ticking = false; }
+    };
+    this.tickFn = fn; this.tick = setInterval(fn, 400);
   },
   async pause(){ this.playing = false; this.abortRamp = true; setPlayIcon(); clearInterval(this.tick); try { await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }); } catch {} await this.vol(this.master); },
   async resume(){
@@ -1014,6 +1016,9 @@ const DJ = {
     this.go(this.idx, false);
   },
 };
+// A background worker keeps the song-change clock running when Safari slows the page's own timers (other tab or app in front)
+try { const w = new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),150)'], { type:'text/javascript' }))); w.onmessage = () => { if (DJ.playing) DJ.tickFn?.(); }; } catch {}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && DJ.playing) DJ.tickFn?.(); });
 function setStat(h){ $('#stat').innerHTML = h; }
 function setPlayIcon(){ $('#playIco').innerHTML = DJ.playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>'; }
 $('#playBtn').onclick = () => DJ.playing ? DJ.pause() : DJ.resume();
