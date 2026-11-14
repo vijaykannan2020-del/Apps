@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 4</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 5</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -216,8 +216,9 @@ img[src=""],img:not([src]){visibility:hidden}
         <svg class="curve" id="curve" viewBox="0 0 600 84" preserveAspectRatio="none"></svg>
         <div class="row" style="justify-content:space-between;margin-top:18px">
           <h2 style="margin:0">Running order</h2>
-          <div class="row"><button class="btn ghost small" id="reshuffle" style="height:34px">Re-mix</button><button class="btn ghost small" id="saveBtn" style="height:34px">Save as playlist</button></div>
+          <div class="row"><button class="btn ghost small" id="reshuffle" style="height:34px">Re-mix</button><button class="btn pri small" id="saveBtn" style="height:34px">Mix in Spotify</button></div>
         </div>
+        <div id="mixNote"></div>
         <div class="queue" id="queue"></div>
         <div id="featNote"></div>
       </div>
@@ -237,7 +238,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 4;
+const APP_VERSION = 5;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -706,15 +707,24 @@ document.addEventListener('keydown', e => { if (e.target.tagName==='INPUT') retu
 /* ---------------- Save mix ---------------- */
 $('#saveBtn').onclick = async () => {
   if (!ST.mix.length) return;
-  const b = $('#saveBtn'); b.disabled = true;
+  const b = $('#saveBtn'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Saving…';
   try {
-    const name = `Segue mix · ${new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'})}`;
-    const pl = await api('/me/playlists', { method:'POST', body:{ name, public:false, description:`AI DJ running order (${ST.vibe}) from: ${ST.crate.map(c=>c.name).join(', ')}`.slice(0,280) } });
+    if (DJ.playing) await DJ.pause();
+    const vibeName = { smooth:'Smooth flow', party:'Build-up', peak:'Peak time', chill:'Chill' }[ST.vibe];
+    const name = `Segue · ${vibeName} · ${new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'})}`;
+    const pl = await api('/me/playlists', { method:'POST', body:{ name, public:false, description:`DJ order by Segue (${vibeName}) from: ${ST.crate.map(c=>c.name).join(', ')}. Tap Mix → Auto for DJ transitions.`.slice(0,280) } });
     const uris = ST.mix.map(t=>t.uri);
     for (let i = 0; i < uris.length; i += 100) await apiFirst([`/playlists/${pl.id}/items`, `/playlists/${pl.id}/tracks`], { method:'POST', body:{ uris:uris.slice(i,i+100) } });
-    ST.myPlaylists = null; toast(`Saved "${name}" to your Spotify`);
-  } catch(e){ toast('Could not save: '+e.message); }
-  b.disabled = false;
+    ST.myPlaylists = null;
+    const url = `https://open.spotify.com/playlist/${pl.id}`;
+    $('#mixNote').innerHTML = `<div class="note fadein" style="margin:12px 0 4px">
+      <b style="color:var(--tx)">Saved “${esc(name)}”.</b> In Spotify: open it → tap <b style="color:var(--tx)">Mix</b> (top of the playlist) → <b style="color:var(--tx)">Auto</b>, then play.
+      No Mix button? Turn on <b style="color:var(--tx)">Settings → Playback → Crossfade</b> (6–8 s) instead.
+      <div class="row" style="margin-top:10px"><a class="btn pri small" style="height:34px;text-decoration:none" href="${url}">Open in Spotify</a></div></div>`;
+    toast('Opening Spotify…');
+    setTimeout(() => { location.href = url; }, 600); // universal link: opens the Spotify app if installed
+  } catch(e){ toast('Could not save: '+e.message, 5000); }
+  b.disabled = false; b.textContent = 'Mix in Spotify';
 };
 
 /* ---------------- Boot ---------------- */
