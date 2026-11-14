@@ -129,6 +129,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-14, ChatGPT: Sideline Version 5 adds generic Stremio `tv` catalog browsing via TV/Events, selectable catalogs and sport/language genres, including required genre parameters and catalogs beyond the first four. TV live streams use live playback semantics; replay/highlight catalogs remain on-demand. DASH-only/DRM results are not offered as browser video playback. No add-on preconfigured and no membership credentials committed. Mocked tests cover TV lookup, Tamil genre, replay defaults, live flag, plus movie/show regression checks.
+
 - 2026-11-13, ChatGPT: Sideline Version 4 removes the left sidebar at every screen width in favor of a consistent floating bottom bar. Replaced native movie/show dropdown with touch tabs, aligned search actions, hid scrollbars, and hid the dock while the software keyboard is open. Search submission dismisses the keyboard. Firebase login preserved. Actual iPhone visual testing remains pending.
 
 - 2026-11-13, ChatGPT: Sideline Version 3 reuses the existing Cinema Book Firebase email/password login and shared browser auth session. Before loading app scripts it reads only `apps/cinemabook/users/{uid}` from the server to verify access under existing Firestore rules; no Cinema Book diary/config writes and no rule changes. Sideline preferences remain browser-local, now scoped per UID, with legacy settings adopted by the first signed-in account. Server key remains session-only and is cleared at sign-out/account change. A shared Firebase sign-out also affects Cinema Book in that browser. No cross-device settings sync yet.
