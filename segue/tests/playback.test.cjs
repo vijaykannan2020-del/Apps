@@ -12,10 +12,10 @@ function context() {
     document:{querySelector(s){if(!els.has(s)) els.set(s,element());return els.get(s)},querySelectorAll(){return []},addEventListener(){}},
     location:{hostname:'localhost',origin:'http://localhost',pathname:'/segue/',search:''},
     localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k)},
-    setTimeout(){return 1},clearTimeout(){},setInterval(){return 1},clearInterval(){},fetch(){throw Error('Unexpected network request')},window:{}});
+    setTimeout(){return 1},clearTimeout(){},setInterval(){return 1},clearInterval(){},fetch(){throw Error('Unexpected network request')},window:{addEventListener(){}}});
   // Replace only time/network boundaries; keep production algorithms and retry control flow.
   vm.runInContext(source.replace('const tfetch =','let tfetch =').replace('const sleep = ms => new Promise(r => setTimeout(r, ms));','const sleep = async () => {};'),c);
-  c.setNow = x => now = x;
+  c.setNow = x => now = x; c.storage = storage;
   vm.runInContext('renderDeck=()=>{};showNow=()=>{};drawCurve=()=>{};aiStatus=()=>{};aiAhead=()=>{};',c);
   return c;
 }
@@ -139,6 +139,47 @@ await test('saved song pick reused after reload and across playlists without AI 
 await test('saving new AI picks no longer silently deletes older picks',async()=>{
  const c=context();run(c,`globalThis.picks=Object.fromEntries(Array.from({length:3001},(_,i)=>['track'+i,{start:30000,end:75000}]));AI.save(picks);`);
  assert.equal(run(c,'Object.keys(AI.cache()).length'),3001);assert.equal(run(c,'AI.cache().track0.start'),30000);
+});
+await test('saved mix restores its order, song and position after reopening without autoplay',async()=>{
+ const first=context();run(first,`ST.me={id:'user-a'};ST.crate=[{type:'playlist',id:'p',name:'Night drive'}];ST.mix=[${track},{...${track},id:'two',uri:'spotify:track:two',name:'Second song'}];ST.pool=ST.mix;DJ.idx=1;DJ.pos=54000;DJ.posAt=10000;Library.capture(true);Library.saveDraft();`);
+ const second=context();for(const [k,v] of first.storage)second.storage.set(k,v);
+ run(second,`ST.me={id:'user-a'};Library.load();`);
+ assert.equal(run(second,"ST.mix.map(t=>t.id).join(',')"),'one,two');assert.equal(run(second,'DJ.idx'),1);assert.equal(run(second,'DJ.pos'),54000);assert.equal(run(second,'DJ.playing'),false);assert.equal(run(second,'ST.crate[0].name'),'Night drive');assert.equal(run(second,'ST.view'),'home');
+});
+await test('sources and song-count draft survives before any mix is built',async()=>{
+ const first=context();run(first,`ST.me={id:'user-a'};ST.crate=[{type:'album',id:'album',name:'An album'}];ST.max=60;Library.saveDraft();`);
+ const second=context();for(const [k,v] of first.storage)second.storage.set(k,v);
+ run(second,`ST.me={id:'user-a'};Library.load();`);assert.equal(run(second,'ST.max'),60);assert.equal(run(second,'ST.crate[0].type'),'album');assert.equal(run(second,'ST.mix.length'),0);
+});
+await test('library is scoped to Spotify account',async()=>{
+ const first=context();run(first,`ST.me={id:'user-a'};ST.mix=[${track}];Library.capture(true);`);
+ const second=context();for(const [k,v] of first.storage)second.storage.set(k,v);
+ run(second,`ST.me={id:'user-b'};Library.load();`);assert.equal(run(second,'Library.state.mixes.length'),0);assert.equal(run(second,'ST.mix.length'),0);
+});
+await test('saved mix serialization omits runtime promises and credentials',async()=>{
+ const c=context();run(c,`ST.me={id:'user-a'};ST.mix=[{...${track},_aiP:Promise.resolve(),privateToken:'secret-sentinel'}];LS.set('at','secret-access-token');Library.capture(true);`);
+ const saved=run(c,"LS.get('library_user-a')");assert(!saved.includes('_aiP'));assert(!saved.includes('secret'));assert(saved.includes('spotify:track:one'));
+});
+await test('old timing-only cache is preserved and not presented as a recovered mix',async()=>{
+ const c=context();run(c,`ST.me={id:'user-a'};LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));Library.load();`);
+ assert.equal(run(c,'Library.state.mixes.length'),0);assert.equal(run(c,'AI.cache().one.start'),30000);assert.match(run(c,"$('#savedSongs').innerHTML"),/earlier AI timings/);
+});
+await test('new AI picks retain song details for the visible saved-song library',async()=>{
+ const c=context();run(c,`ST.mix=[${track}];LS.set('aikey','test');AI.call=async()=>JSON.stringify([{id:'one',start:30,end:75}]);`);
+ await run(c,'AI.run(ST.mix)');assert.equal(run(c,'AI.cache().one.song.name'),'Song');assert.match(run(c,"$('#savedSongs').innerHTML"),/AI pick saved/);
+});
+await test('completed saved mix restores as replay from its first song',async()=>{
+ const first=context();run(first,`ST.me={id:'user-a'};ST.mix=[${track},{...${track},id:'two',uri:'spotify:track:two'}];DJ.idx=1;DJ.finished=true;Library.capture(true);`);
+ const second=context();for(const [k,v] of first.storage)second.storage.set(k,v);
+ run(second,`ST.me={id:'user-a'};Library.load();`);assert.equal(run(second,'DJ.finished'),true);assert.equal(run(second,'DJ.idx'),0);assert.equal(run(second,'DJ.loadedMix'),null);
+});
+await test('older song names can be recovered from Spotify without a new AI request',async()=>{
+ const c=context();run(c,`LS.set('ai4',JSON.stringify({one:{start:60000,end:105000}}));globalThis.lookups=0;api=async()=>{lookups++;return {id:'one',uri:'spotify:track:one',name:'Recovered song',duration_ms:240000,artists:[{name:'Artist'}]}};AI.call=async()=>{throw Error('Must not call AI')};`);
+ await run(c,'Library.recoverPicks()');assert.equal(run(c,'lookups'),1);assert.equal(run(c,'AI.cache().one.song.name'),'Recovered song');assert.equal(run(c,'AI.cache().one.start'),60000);
+});
+await test('in-flight AI save retains independently recovered song metadata',async()=>{
+ const c=context();run(c,`LS.set('ai4',JSON.stringify({one:{start:30000,end:75000,song:${track}}}));AI.save({one:{start:30000,end:75000},two:{start:50000,end:95000}});`);
+ assert.equal(run(c,'AI.cache().one.song.name'),'Song');assert.equal(run(c,'AI.cache().two.start'),50000);
 });
 console.log(`${count} checks passed`);
 })().catch(e=>{console.error(e);process.exitCode=1});

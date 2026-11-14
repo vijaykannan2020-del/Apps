@@ -1,7 +1,7 @@
 # Segue: handoff
 
 Read `PROJECT.md` in the repository root first (deploy, phone layout rules,
-change log). This file covers Segue only. Last updated: 2026-11-14, Version 27.
+change log). This file covers Segue only. Last updated: 2026-11-14, Version 28.
 
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
@@ -85,18 +85,50 @@ output, excluding the failed device. Failed/disconnected browser SDK outputs
 are cleared. Device lookup errors are visible. Returning to the foreground
 refreshes discovery when not playing; it does not auto-start playback.
 
-## Screen layout (since Version 24)
+## Version 28 redesign and saved library
 
-Same shell as Cinema Book: `body` does not scroll, `main.app` scrolls,
-`nav.nav` is the bottom tab bar. Top and bottom safe areas only, nothing in
-the top-right corner. Colours are CSS variables with a dark-mode override.
+Four tabs: **Home**, **Create**, **Playing**, **Settings**. The existing fixed
+shell, inner scrolling, top/bottom safe areas and light/dark modes remain.
+Home has a compact returning-user header, Continue listening, saved mix cards
+with album mosaics and a searchable list of AI-picked songs. A mini-player
+opens Playing or plays/pauses the active mix. Playing shows the mix name,
+saved status, selected output, controls, correction tools and running order.
+Mixes can be renamed; New order creates a separate saved mix.
 
-- `v-mix`: source tabs and search (`#results`), chosen sources (`#crate`),
-  number of songs, Build mix.
-- `v-play`: now playing, play controls, "Starts here / −2s / +2s / Reset",
-  running order (`#queue`) with the AI status box (`#aiStat`).
-- `v-set`: AI key, Play on (device list), account and Log out, version.
-- `showView(name)` switches tabs. Build mix jumps to `v-play`.
+`Library` stores `segue_library_{Spotify user id}` independently of the
+existing `segue_ai4` song-timing cache. It remembers selected sources and song
+count before building, plus each mix's actual tracks/order, active song,
+last recorded position and completion state. Snapshots update after AI
+replanning/playback changes, about every five seconds while polling, and on
+pause, page hide and page exit (best effort on iOS). Runtime promises and
+credentials are excluded from mix serialization.
+
+Boot restores the active mix and selection on Home **without starting music
+or making AI requests**. Continue sends the saved URI/position explicitly.
+An already-known account can still see its local library if Spotify has a
+temporary network/server outage; it must reconnect to stream music. Logout
+clears cached account identity and tokens but retains that account's library.
+
+New AI results include song metadata so saved picks can be browsed and played
+on Home. Existing timing-only picks stay intact. **Show older saved songs**
+looks up missing names/artists through Spotify (up to 20 per tap), without
+new AI calls. It cannot recover an old playlist order that was never saved.
+The original per-track cache key and all sign-in/AI keys are preserved.
+
+Storage is local to this browser/Home Screen app, not cloud sync or downloaded
+audio. Clearing website data removes it. Reopening in Safari may use different
+storage from the Home Screen app. Settings includes Reload app, which saves
+the current snapshot and requests a fresh page without clearing local data.
+
+## Code map
+
+- `Library`: serialization, account-scoped source draft/mix storage, restore,
+  Home rendering, old-pick metadata recovery and mini-player.
+- `v-home`: `continueMix`, `savedMixes`, `savedSongSearch`, `savedSongs`.
+- `v-mix`: source tabs/search, `results`, chosen `crate`, count, Build mix.
+- `v-play`: mix title/saved status, output shortcut, player and `queue`.
+- `v-set`: AI key/count, device discovery, account, version and Reload app.
+- `showView(name)` switches the four views; building/opening a mix shows Playing.
 
 ## How a mix is built and played
 
@@ -138,17 +170,25 @@ the top-right corner. Colours are CSS variables with a dark-mode override.
 ## Checks
 
 Run `node segue/tests/playback.test.cjs` from the repository root. No package
-installation or credentials needed. These 26 checks use simulated services:
+installation or credentials needed. These 35 checks use simulated services:
 AI batching/quotas/fallbacks, first-song wait, cancellation, no estimate
 substitution, exact passage bounds, manual overrides, stable current passage,
 pause/resume, stale states, device changes, late AI and no failed-song skipping.
 Also covers empty/stale devices, phone preference, 404 recovery, visible device
-errors, pick reuse after reload/from another playlist, and retaining old picks.
+errors, pick reuse after reload/from another playlist, retaining old picks,
+account-scoped mix/draft restoration without autoplay, serialization privacy,
+completed-set replay, metadata recovery and concurrent cache merges.
 
-Chromium browser checks passed on 320, 390, 768 and 1024 pixel-wide viewports
-in light/dark mode, all three tabs, with simulated Spotify responses. No page
-JavaScript errors, horizontal overflow or clipped bottom navigation. Manifest
-and actual icon dimensions passed. Real iPhone/Spotify/AI checks remain below.
+Optional browser regression: `python segue/tests/browser_flow.py` (requires
+Python Playwright plus Chromium; `SEGUE_CHROMIUM` can specify the executable).
+`SEGUE_PREVIEW_DIR` optionally chooses the screenshot directory; otherwise it
+uses a temporary folder. Uses synthetic accounts and intercepts every request.
+
+Browser flow passed at 320/390/768/1024-pixel widths, in light/dark modes:
+create → saved mix/song list → search/rename → play/pause → reopen → same
+order/song/position without autoplay → continue with no extra AI request →
+saved library visible during a simulated Spotify outage. Four populated views
+had no horizontal overflow or JavaScript errors. Real device checks remain.
 
 ## Leftover code that is not used
 
@@ -168,13 +208,13 @@ Safe to delete in a clean-up; ask Vijay first.
   assistants' workspaces. Say plainly what was tested with stand-ins and
   what only he can test on the phone.
 
-## Current state (Version 27)
+## Current state (Version 28)
 
 - AI picks work with a Gemini key (confirmed by Vijay: 14 of 15 songs).
 - Phone layout redesigned to match Cinema Book; not yet confirmed by Vijay
   on the iPhone Duo.
-- Version 27 playback, device discovery/recovery and AI-cache reuse checks pass
-  with simulated services.
+- Version 28 library, source draft, saved-song browsing, resume and playback
+  regression checks pass with simulated services.
   Live phone playback, real quotas and real model availability are not yet confirmed.
 
 ## Open items
@@ -185,7 +225,8 @@ Safe to delete in a clean-up; ask Vijay first.
   how accurate the later-in-song times are.
 - Lock screen / background playback on iPhone is unreliable for web pages;
   not solved.
-- Song-level AI picks already persist across playlists on this device. A
-  saved full mix/running order and cross-device sync are not implemented.
+- Song timings and full mixes/orders now persist on this device. Cross-device
+  sync, cloud backup and offline audio are not implemented. Historical mixes
+  from versions before 28 cannot be reconstructed if never stored.
 - Possible later: file-based true DJ mixing (needs music files, Vijay has
   not asked for it).

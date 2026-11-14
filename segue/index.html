@@ -122,11 +122,29 @@ img[src=""],img:not([src]){visibility:hidden}
 .nav button{flex:1 1 0;min-width:0;max-width:170px;border-radius:20px;padding:10px 2px;font-weight:700;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--mu)}
 .nav button.on{background:var(--s3);color:var(--tx)}
 .nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Version 28: a listening library, simple creation, and a persistent player. */
+:root{--r:24px;--ac:#08775D;--hero:#E3F0E8}
+@media(prefers-color-scheme:dark){:root{--bg:#0B0E0D;--s1:#151B18;--s2:#202923;--s3:#2C382F;--line:#303D34;--ac:#9AE5BA;--hero:#1B3526}}
+.top{align-items:center;justify-content:flex-start;padding:8px 0 22px;gap:12px}.top h1{font-size:30px;letter-spacing:-1.5px}.top .brand-mark{width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:var(--ac);color:var(--on);font-size:24px;font-weight:800}
+.eyebrow{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;font-weight:750;color:var(--ac)}
+.hero{padding:26px;background:var(--hero);border:1px solid var(--line);border-radius:28px;overflow:hidden}.hero h2{font-size:clamp(30px,7vw,46px);line-height:1.05;color:var(--tx);text-transform:none;letter-spacing:-1.6px;margin:12px 0}.hero p{max-width:440px;line-height:1.6;color:var(--mu);font-size:14px}.hero .btn{margin-top:20px}
+.hero.returning{padding:20px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.hero.returning h2{font-size:26px;letter-spacing:-.8px;margin:0}.hero.returning p,.hero.returning .eyebrow{display:none}.hero.returning .btn{margin:0;min-height:42px}
+.section-head{display:flex;align-items:baseline;gap:12px;justify-content:space-between;margin:12px 0 0}.section-head h2{font-size:19px;letter-spacing:-.4px;text-transform:none;color:var(--tx);margin:0}
+.library-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.mix-tile{padding:12px;border-radius:22px;border:1px solid var(--line);background:var(--s1);text-align:left;min-width:0}.mix-tile b{display:block;font-size:15px;line-height:1.35;margin:12px 0 4px;overflow-wrap:anywhere}.mix-tile span{color:var(--mu);font-size:12px;display:block}.art-grid{aspect-ratio:1;display:grid;grid-template-columns:repeat(2,1fr);background:var(--hero);border-radius:14px;overflow:hidden}.art-grid img{width:100%;height:100%;object-fit:cover;min-height:0}.art-grid .art-blank{display:grid;place-items:center;font-size:24px;color:var(--ac)}
+.continue-card{border-radius:24px;border:1px solid var(--line);background:var(--s1);padding:18px;display:flex;flex-direction:column;gap:12px}.continue-card b{font-size:21px;letter-spacing:-.5px}.continue-card p{font-size:13px;color:var(--mu);margin-top:6px}.continue-card .btn{align-self:flex-start}
+.empty-library{padding:26px;border:1px dashed var(--line);border-radius:22px;color:var(--mu);font-size:14px;line-height:1.6}.saved-song{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.saved-song img{width:46px;height:46px;border-radius:12px;object-fit:cover}.saved-song div{min-width:0;flex:1}.saved-song b{font-size:14px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.saved-song span{font-size:12px;color:var(--mu);display:block}.saved-song button{flex:none}
+.player-head{padding:4px 0}.player-head h2{color:var(--tx);font-size:25px;letter-spacing:-.7px;text-transform:none;margin:6px 0}.player-head p{font-size:13px;color:var(--mu)}.device-strip{padding:12px 15px;border:1px solid var(--line);background:var(--s1);border-radius:16px;display:flex;gap:10px;align-items:center;font-size:13px;text-align:left;width:100%}.device-strip:before{content:'';width:7px;height:7px;background:var(--ac);border-radius:50%;flex:none}.device-strip span{flex:1;overflow-wrap:anywhere}.device-strip small{color:var(--mu)}
+.now{grid-template-columns:1fr;text-align:center;max-width:470px;margin:auto}.cover{width:min(76%,300px);justify-self:center;border-radius:24px;box-shadow:0 16px 40px #0002}.np-t{font-size:28px;margin-top:8px}.np-a{font-size:15px}.tags{justify-content:center}.tag{font-size:11px}.np-t,.np-a{overflow-wrap:anywhere}.status{line-height:1.5}.wave{height:32px}.xfade{display:none}.ctl{gap:28px}.round.big{width:76px;height:76px;background:var(--ac);color:var(--on)}
+.nav{padding-top:8px;border-radius:24px 24px 0 0}.nav button{font-size:10px;max-width:160px}.card h2{font-size:12px}.page-title{font-size:30px;letter-spacing:-1px;line-height:1.1;margin:4px 0 0}.page-sub{font-size:14px;color:var(--mu);line-height:1.5}.local-note{font-size:12px;color:var(--mu);line-height:1.5}.mini-player{position:fixed;bottom:calc(91px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:780px;padding:12px 16px;border-radius:19px;background:var(--tx);color:var(--on);box-shadow:0 8px 28px #0003;z-index:21;display:flex;align-items:center;gap:12px}.mini-player div{flex:1;min-width:0}.mini-player b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mini-player small{font-size:11px;opacity:.7}.mini-player button{font-size:13px;font-weight:700;padding:9px}.app.has-mini{padding-bottom:110px}
+@media(min-width:700px){.library-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.hero{padding:34px}.now{max-width:530px}.cover{width:240px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+
 </style>
 </head>
 <body>
 <main class="app" id="scroller">
-  <div class="top"><h1>Segue</h1><span class="tiny dim" id="verTop"></span></div>
+  <div class="top"><span class="brand-mark" aria-hidden="true">≋</span><h1>segue</h1><span class="tiny dim" id="verTop"></span></div>
 
   <section id="boot" class="card" style="max-width:460px;margin:8vh auto 0;text-align:center">
     <div id="bootMsg" class="muted"><span class="spin"></span>&nbsp; Connecting to Spotify…</div>
@@ -153,8 +171,22 @@ img[src=""],img:not([src]){visibility:hidden}
   </section>
 
   <div id="app" class="hide">
+    <!-- HOME / LOCAL LIBRARY -->
+    <section class="view" id="v-home">
+      <div class="hero"><div class="eyebrow">Your music. The parts you love.</div><h2 id="homeHeadline">A little less intro.<br>A lot more song.</h2><p>Make a mix from your Spotify music. AI finds the best parts, and your mixes stay here for next time.</p><button class="btn pri" id="homeCreate">Create a mix</button></div>
+      <div id="continueMix"></div>
+      <div class="section-head"><h2>Your mixes</h2><span class="tiny muted" id="mixCount">0 saved</span></div>
+      <div class="library-grid" id="savedMixes"></div>
+      <div class="section-head"><h2>Saved AI picks</h2><span class="tiny muted" id="pickCount"></span></div>
+      <p class="page-sub">Best-part timings saved per song. Reused in any mix.</p>
+      <input class="input" id="savedSongSearch" type="search" placeholder="Find a saved song" aria-label="Search saved AI song picks">
+      <button class="btn ghost small hide" id="recoverPicks">Show older saved songs</button>
+      <div id="savedSongs"></div>
+      <p class="local-note">Your library stays in this installed app on this device. Spotify streams the music; audio files are not downloaded.</p>
+    </section>
     <!-- MIX -->
-    <section class="view" id="v-mix">
+    <section class="view hide" id="v-mix">
+      <h1 class="page-title">Make it yours.</h1><p class="page-sub">Pick your music. Choose a size. Leave the best parts to AI.</p>
       <div class="card">
         <h2>Pick music</h2>
         <div class="tabs" id="tabs">
@@ -168,7 +200,7 @@ img[src=""],img:not([src]){visibility:hidden}
         <div id="srcNote"></div>
       </div>
       <div class="card">
-        <h2>Your mix</h2>
+        <h2>Selected music · remembered next time</h2>
         <div class="chips" id="crate"><span class="dim small">Tap + on a playlist above.</span></div>
         <div class="lbl">Songs in the mix</div>
         <div class="seg" data-k="max">
@@ -184,8 +216,10 @@ img[src=""],img:not([src]){visibility:hidden}
 
     <!-- PLAY -->
     <section class="view hide" id="v-play">
+      <div class="player-head"><div class="eyebrow">Your AI mix</div><h2 id="mixTitle">Ready when you are.</h2><p id="mixSaveState">New mixes save here automatically.</p></div>
+      <button class="device-strip" id="playDevice"><span id="deviceSummary">Choose a playback device</span><small>Change</small></button>
       <div class="card" id="deck">
-        <div class="empty" id="deckEmpty"><div><div style="font-size:40px;opacity:.25;margin-bottom:8px">◐</div>Build a mix first, on the Mix tab.</div></div>
+        <div class="empty" id="deckEmpty"><div><div style="font-size:40px;opacity:.25;margin-bottom:8px">◐</div>Your saved mix will appear here.<br>Create one from your Spotify music.</div></div>
         <div id="deckOn" class="hide">
           <div class="now">
             <img class="cover" id="npImg" alt="">
@@ -226,7 +260,7 @@ img[src=""],img:not([src]){visibility:hidden}
       <div class="card hide" id="orderCard">
         <div class="row" style="justify-content:space-between">
           <h2 style="margin:0">Running order</h2>
-          <button class="btn ghost small" id="reshuffle">Re-mix</button>
+          <div class="row" style="gap:6px"><button class="btn ghost small" id="renameMix">Rename</button><button class="btn ghost small" id="reshuffle">New order</button></div>
         </div>
         <div id="aiStat"></div>
         <div class="queue" id="queue"></div>
@@ -236,6 +270,7 @@ img[src=""],img:not([src]){visibility:hidden}
 
     <!-- SETTINGS -->
     <section class="view hide" id="v-set">
+      <h1 class="page-title">Your setup.</h1><p class="page-sub">Connect once. Come back to your music.</p>
       <div class="card">
         <h2>AI DJ</h2>
         <input id="aiKey" class="input" placeholder="Gemini key (AIza…) or Claude key (sk-ant…)" autocomplete="off" spellcheck="false">
@@ -255,18 +290,20 @@ img[src=""],img:not([src]){visibility:hidden}
       <div class="card">
         <h2>Account</h2>
         <div class="row" style="justify-content:space-between"><span id="acct" class="muted">Spotify</span><button class="btn ghost small" id="lo">Log out</button></div>
-        <div class="tiny dim" id="verLbl" style="margin-top:14px"></div>
+        <div class="tiny dim" id="verLbl" style="margin-top:14px"></div><button class="btn ghost small" id="reloadApp" style="margin-top:12px">Reload app</button>
       </div>
     </section>
   </div>
 </main>
 
 <nav class="nav hide" id="nav">
-  <button data-v="mix" class="on" type="button"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7"/><path d="M17 15v6M14 18h6"/></svg>Mix</button>
+  <button data-v="home" class="on" type="button"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10H3zM9 20v-7h6v7"/></svg>Home</button>
+  <button data-v="mix" type="button"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7"/><path d="M17 15v6M14 18h6"/></svg>Create</button>
   <button data-v="play" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/></svg>Playing</button>
   <button data-v="set" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>Settings</button>
 </nav>
-<div class="toast" id="toast"></div>
+<div class="mini-player hide" id="miniPlayer"><div id="miniOpen" role="button" tabindex="0"><b id="miniTitle">Your mix</b><small id="miniState">Ready to play</small></div><button id="miniPlay" aria-label="Play or pause mix">Play</button></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* ============================================================
@@ -281,7 +318,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 27;
+const APP_VERSION = 28;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -300,7 +337,7 @@ function randStr(n){ const a=new Uint8Array(n); crypto.getRandomValues(a); retur
 async function login(){
   const cid = $('#cid').value.trim();
   if (!cid) return toast('Paste your Client ID first');
-  LS.set('cid', cid);
+  LS.set('cid', cid); LS.set('account', null);
   const ver = randStr(64); LS.set('ver', ver);
   const ch = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ver)));
   const p = new URLSearchParams({ response_type:'code', client_id:cid, scope:SCOPES, code_challenge_method:'S256', code_challenge:ch, redirect_uri:REDIRECT });
@@ -329,7 +366,7 @@ async function token(){
   refreshing ??= tokenRequest({ grant_type:'refresh_token', refresh_token:LS.get('rt'), client_id:LS.get('cid') }).finally(()=>refreshing=null);
   return refreshing;
 }
-function logout(){ ['at','rt','exp','ver'].forEach(k=>LS.set(k,null)); location.reload(); }
+function logout(){ ['at','rt','exp','ver','account'].forEach(k=>LS.set(k,null)); location.reload(); }
 
 /* ---------------- Spotify API ---------------- */
 async function api(path, { method='GET', body, retry=2 } = {}){
@@ -351,6 +388,144 @@ async function apiFirst(paths, opts){ let err; for (const p of paths) { try { re
 
 /* ---------------- State ---------------- */
 const ST = { me:null, tab:'playlist', crate:[], vibe:'smooth', len:'ai', max:30, trans:'cut', part:'peak', myPlaylists:null, mix:[], featOk:false };
+
+/* Local library: song timings, saved mixes, and source selections are separate. */
+const Library = {
+  state:{schema:1,sources:[],max:30,activeId:null,mixes:[]}, ref:null, lastWrite:0,
+  key(){ return ST.me?.id ? 'library_' + ST.me.id : null; },
+  track(t){
+    if (!t || typeof t.id !== 'string' || typeof t.uri !== 'string' || !t.uri.startsWith('spotify:track:') || !Number.isFinite(t.dur) || t.dur <= 0) return null;
+    const out = {};
+    for (const k of ['id','uri','name','dur','artists','artistId','img','imgS','tempo','energy','dance','valence','cam','keyName','genres','mood','aiStart','aiEnd','aiWhy','hook','hookSrc','start','end','fadeOut','fadeIn','inten']) {
+      if (t[k] !== undefined) out[k] = t[k];
+    }
+    out.name = String(t.name || 'Song'); out.artists = Array.isArray(t.artists) ? t.artists.map(String) : [];
+    if (t.f) out.f = Object.fromEntries(['key','mode','tempo','energy','danceability','valence','acousticness','speechiness','instrumentalness'].filter(k => Number.isFinite(t.f[k])).map(k => [k,t.f[k]]));
+    return out;
+  },
+  source(s){ return {type:s.type,id:s.id,name:String(s.name || 'Music'),img:s.img || '',sub:s.sub || ''}; },
+  write(){
+    const key = this.key(); if (!key) return false;
+    const ok = LS.set(key, JSON.stringify(this.state));
+    if (!ok) { $('#mixSaveState').textContent = 'Could not save this mix · device storage is unavailable'; if (!this.warned) toast('Your mix could not be saved. Check device storage.',6000); this.warned = true; }
+    else this.warned = false;
+    return ok;
+  },
+  saveDraft(){
+    if (!this.key()) return;
+    this.state.sources = ST.crate.map(s => this.source(s)); this.state.max = ST.max;
+    this.write();
+  },
+  load(){
+    this.state = {schema:1,sources:[],max:30,activeId:null,mixes:[]}; this.ref = null;
+    let saved;
+    try { saved = JSON.parse(LS.get(this.key()) || 'null'); } catch {}
+    if (saved?.schema === 1 && Array.isArray(saved.mixes)) {
+      this.state = {schema:1,sources:Array.isArray(saved.sources) ? saved.sources.filter(s => s && ['playlist','album','artist','liked'].includes(s.type) && s.id).map(s => this.source(s)) : [],max:[15,30,60,120].includes(saved.max) ? saved.max : 30,activeId:saved.activeId,mixes:saved.mixes.filter(m => m && typeof m.id === 'string' && Array.isArray(m.tracks)).map(m => ({...m,tracks:m.tracks.map(t => this.track(t)).filter(Boolean)})).filter(m => m.tracks.length)};
+    }
+    ST.crate = this.state.sources.slice(); ST.max = this.state.max;
+    renderCrate(); document.querySelectorAll('[data-k="max"] .opt').forEach(b => b.classList.toggle('on', +b.dataset.v === ST.max));
+    const active = this.state.mixes.find(m => m.id === this.state.activeId);
+    if (active) this.restore(active);
+    showView('home'); this.render();
+  },
+  capture(create=false, title=null, sources=ST.crate){
+    if (!this.key() || !ST.mix.length) return;
+    if (!create && this.ref !== ST.mix) return;
+    const tracks = ST.mix.map(t => this.track(t)).filter(Boolean); if (!tracks.length) return;
+    let mix = !create && this.state.mixes.find(m => m.id === this.state.activeId);
+    if (!mix) {
+      mix = {id:'mix-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8),name:title || sources.map(s => s.name).join(' + ') || 'My mix',createdAt:Date.now(),sources:sources.map(s => this.source(s))};
+      this.state.mixes.unshift(mix); this.state.activeId = mix.id;
+    }
+    Object.assign(mix,{tracks,idx:clamp(DJ.idx,0,tracks.length-1),finished:DJ.finished,position:DJ.posAt ? DJ.pos : tracks[DJ.idx]?.start || 0,updatedAt:Date.now()});
+    this.ref = ST.mix; this.lastWrite = Date.now();
+    const cache = AI.cache(); let changed = false;
+    for (const t of tracks) if (cache[t.id] && !cache[t.id].song) { cache[t.id].song = t; changed = true; }
+    if (changed) { LS.set('ai4',JSON.stringify(cache)); AI.savedStatus(); }
+    if (this.write()) $('#mixSaveState').textContent = 'Saved on this device · your order and place are remembered';
+    $('#mixTitle').textContent = mix.name;
+    this.render();
+  },
+  progress(){ if (Date.now() - this.lastWrite >= 5000) this.capture(); },
+  restore(mix){
+    ST.mix = mix.tracks.map(t => this.track(t)).filter(Boolean); ST.pool = ST.mix.slice();
+    DJ.idx = mix.finished ? 0 : clamp(Number.isInteger(mix.idx) ? mix.idx : 0,0,ST.mix.length-1);
+    const t = ST.mix[DJ.idx], c = AI.cache();
+    ST.mix.forEach(x => { if (c[x.id]) { x.aiStart=c[x.id].start; x.aiEnd=c[x.id].end; x.aiWhy=c[x.id].why; x.mood=c[x.id].mood; } });
+    ST.mix.forEach((x,i) => x._lock = i <= DJ.idx && Number.isFinite(x.start) && Number.isFinite(x.end) && x.end > x.start);
+    planSegments(ST.mix,ST.vibe,ST.len); ST.mix.forEach(x => x._lock = false);
+    DJ.pos = Number.isFinite(mix.position) ? clamp(mix.position,t.start,t.end) : t.start;
+    DJ.posAt = performance.now(); DJ.loadedMix = ST.mix; DJ.loadedId = t.id;
+    DJ.playing = false; DJ.externalPaused = false; DJ.finished = !!mix.finished; DJ.retryIdx = null;
+    if (DJ.finished) { DJ.loadedMix = null; DJ.pos = t.start; }
+    this.ref = ST.mix; this.state.activeId = mix.id;
+    renderDeck(); aiStatus(); setPlayIcon();
+    $('#mixTitle').textContent = mix.name;
+    $('#mixSaveState').textContent = 'Restored · press Play to continue';
+    $('#tCur').textContent = fmt(DJ.pos);
+    setStat('Your place is saved · press Play when ready');
+  },
+  async open(id, play=false){
+    if (DJ.busy) return toast('Pause or finish the current action first.');
+    const mix = this.state.mixes.find(m => m.id === id); if (!mix) return;
+    if (DJ.playing) await DJ.pause(); else this.capture();
+    this.restore(mix); this.write(); showView('play');
+    if (play) await DJ.resume();
+  },
+  async playSong(id){
+    if (DJ.busy) return toast('Pause or finish the current action first.');
+    const c = AI.cache()[id], t = this.track(c?.song); if (!t) return;
+    if (DJ.playing) await DJ.pause(); else this.capture();
+    t.aiStart=c.start; t.aiEnd=c.end; t.aiWhy=c.why; t.mood=c.mood;
+    ST.mix=[t]; ST.pool=[t]; DJ.idx=0; DJ.pos=DJ.posAt=0; DJ.loadedMix=null; DJ.retryIdx=null; DJ.finished=false;
+    planSegments(ST.mix,ST.vibe,ST.len); this.capture(true,t.name,[]); renderDeck(); showView('play'); await DJ.go(0);
+  },
+  async recoverPicks(){
+    const button = $('#recoverPicks'); button.disabled = true;
+    const cache = AI.cache(), ids = Object.keys(cache).filter(id => !cache[id]?.song).slice(0,20);
+    let done = 0, error = null;
+    try {
+      for (const id of ids) {
+        try {
+          const t = normTrack(await api(`/tracks/${encodeURIComponent(id)}`,{retry:0}));
+          if (t) { cache[id].song = this.track({...t,id}); done++; }
+        } catch(e) { error = e.message; if ([401,403,429].includes(e.status)) break; }
+      }
+      // Merge with picks created while metadata lookups were in flight.
+      const latest = AI.cache();
+      for (const id of ids) if (cache[id]?.song && latest[id]) latest[id].song = cache[id].song;
+      AI.save(latest); this.render();
+      toast(done ? `Found ${done} saved songs. No new AI requests used.` : error || 'Song names could not be retrieved. Your timings are still saved.',6000);
+    } finally { button.disabled = false; }
+  },
+  art(tracks){
+    const images = tracks.map(t => t.imgS || t.img).filter(Boolean).slice(0,4);
+    return `<div class="art-grid">${[0,1,2,3].map(i => images[i] ? `<img loading="lazy" src="${esc(images[i])}" alt="">` : '<div class="art-blank">≋</div>').join('')}</div>`;
+  },
+  render(){
+    const mixes = this.state.mixes, active = mixes.find(m => m.id === this.state.activeId), cache = AI.cache();
+    $('#v-home .hero').classList.toggle('returning',mixes.length > 0);
+    $('#homeHeadline').innerHTML = mixes.length ? 'Your music, ready.' : 'A little less intro.<br>A lot more song.';
+    $('#mixCount').textContent = `${mixes.length} saved`;
+    $('#savedMixes').innerHTML = mixes.length ? mixes.map(m => `<button class="mix-tile" data-mix="${esc(m.id)}" aria-label="Open ${esc(m.name)}">${this.art(m.tracks)}<b>${esc(m.name)}</b><span>${m.tracks.length} songs · ${m.tracks.filter(t => cache[t.id]).length} AI picks ready</span></button>`).join('') : '<div class="empty-library" style="grid-column:1/-1">Your next favourite mix starts here.<br>Create one and it will be saved automatically.</div>';
+    const t = active?.tracks[active.idx || 0];
+    $('#continueMix').innerHTML = active ? `<div class="continue-card"><div class="eyebrow">Pick up where you left off</div><div><b>${esc(active.name)}</b><p>${esc(t?.name || '')} · song ${(active.idx || 0)+1} of ${active.tracks.length}</p></div><button class="btn pri" data-continue="${esc(active.id)}">Continue listening →</button></div>` : '';
+    const allSongs = Object.entries(cache).filter(([,c]) => c?.song?.id);
+    const query = ($('#savedSongSearch').value || '').trim().toLowerCase();
+    const songs = allSongs.filter(([,c]) => !query || `${c.song.name} ${(c.song.artists || []).join(' ')}`.toLowerCase().includes(query));
+    $('#recoverPicks').classList.toggle('hide', !Object.values(cache).some(c => c && !c.song));
+    $('#pickCount').textContent = `${Object.keys(cache).length} timings saved`;
+    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${fmt(c.start)}–${fmt(c.end)} · AI pick saved</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Songs appear here after AI chooses their best parts.'}</div>`;
+    this.mini();
+  },
+  mini(){
+    const t = ST.mix[DJ.idx], show = !!t && ST.view !== 'play';
+    $('#miniPlayer').classList.toggle('hide',!show); $('#scroller').classList.toggle('has-mini',show);
+    if (t) { $('#miniTitle').textContent=t.name; $('#miniState').textContent=DJ.playing ? 'Playing · tap to open' : DJ.busy ? 'Getting ready…' : 'Your mix · tap to open'; }
+    $('#miniPlay').textContent=DJ.playing || DJ.busy ? 'Pause' : 'Play';
+  },
+};
 
 /* ---------------- Sources UI ---------------- */
 function parseLink(s){
@@ -378,6 +553,7 @@ $('#results').addEventListener('click', e => {
   renderCrate(); renderResults(lastResults);
 });
 function renderCrate(){
+  Library.saveDraft();
   $('#crate').innerHTML = ST.crate.length ? ST.crate.map((c,i)=>`<span class="chip fadein"><span>${esc(c.name)}</span><button data-i="${i}">×</button></span>`).join('') : '<span class="dim small">Tap + on a playlist above.</span>';
   $('#buildBtn').disabled = !ST.crate.length;
 }
@@ -433,6 +609,7 @@ document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e
   const b = e.target.closest('.opt'); if (!b) return;
   seg.querySelectorAll('.opt').forEach(x => x.classList.toggle('on', x===b));
   ST[seg.dataset.k] = seg.dataset.k === 'max' ? +b.dataset.v : b.dataset.v;
+  Library.saveDraft();
   if ((seg.dataset.k === 'trans' || seg.dataset.k === 'len' || seg.dataset.k === 'part') && ST.mix.length) { planSegments(ST.mix, ST.vibe, ST.len); renderDeck(); }
 }));
 
@@ -719,11 +896,13 @@ const AI = {
     $('#aiSaved').textContent = `${n} saved song ${n === 1 ? 'pick' : 'picks'}. Reused across all playlists on this device, including after closing Segue. Clearing website data removes them.`;
   },
   save(c){
+    const previous = this.cache(); c = {...previous,...c};
+    for (const id of Object.keys(c)) if (c[id] && !c[id].song && previous[id]?.song) c[id].song = previous[id].song;
     if (!LS.set('ai4', JSON.stringify(c))) {
       this.lastErr = 'This device could not save AI picks. Check available browser storage.';
       toast(this.lastErr, 6000);
     }
-    this.savedStatus();
+    this.savedStatus(); Library.render();
   },
   prompt(batch){
     const songs = batch.map(t => `id: ${t.id} | title: ${t.name} | artists: ${t.artists.join(', ')} | length: ${Math.round(t.dur/1000)} s${t.tempo ? ` | bpm: ${Math.round(t.tempo)}` : ''}`).join('\n');
@@ -819,7 +998,7 @@ ${songs}`;
           let start = Number.isFinite(o.start) ? o.start * 1000 : null, end = Number.isFinite(o.end) ? o.end * 1000 : null;
           if (start != null && (start < 0 || start > t.dur - 20000)) start = null;
           if (start != null) { if (end == null || end - start < 20000) end = start + 45000; end = Math.min(end, start + 75000, t.dur - 2000); }
-          const res = { start, end, mood: MOODS.includes(o.mood) ? o.mood : null, why: String(o.why || '').slice(0, 60) };
+          const res = { start, end, song:Library.track(t), mood: MOODS.includes(o.mood) ? o.mood : null, why: String(o.why || '').slice(0, 60) };
           if (start != null) cache[t.id] = res; else { t.mood = res.mood; this.empty = (this.empty||0) + 1; }
           done++;
         }
@@ -836,7 +1015,7 @@ ${songs}`;
 function replanAhead(lockUpTo){
   const mix = ST.mix; mix.forEach((t,i) => t._lock = i <= lockUpTo);
   planSegments(mix, ST.vibe, ST.len); mix.forEach(t => t._lock = false);
-  renderDeck(); aiStatus();
+  renderDeck(); aiStatus(); Library.capture();
 }
 function aiStatus(){
   const mix = ST.mix, el = $('#aiStat'); if (!mix.length) return;
@@ -911,7 +1090,7 @@ async function remix(){
     planSegments(ST.mix, ST.vibe, ST.len);
     DJ.idx = 0; renderDeck(); drawCurve();
     $('#featNote').innerHTML = ST.featOk ? '' : `<div class="note warn">Couldn't get audio analysis for most songs. AI still chooses each best part, but tempo and key matching are less precise.</div>`;
-    aiStatus();
+    aiStatus(); Library.capture(true);
   } finally { DJ.busy = false; }
   aiAhead();
 }
@@ -1002,10 +1181,12 @@ const DJ = {
       $('#devSel').innerHTML = list.length ? list.map(d => `<option value="${esc(d.id)}" ${d.id === this.dev ? 'selected' : ''}>${esc(d.id === this.sdkDev ? 'This browser' : d.name)}</option>`).join('') : '<option value="">No device connected</option>';
       $('#devSel').value = this.dev || '';
       $('#deviceHelp').classList.toggle('hide', !!this.dev);
+      $('#deviceSummary').textContent = this.dev ? `Output · ${chosen.name}` : 'No playback device · tap to connect';
       $('#deviceNote').textContent = this.dev ? `Ready: ${chosen.name}. Press Play in Segue.` : 'Open Spotify on this phone, play a song briefly, then return here and refresh devices. Sign in to the same Spotify account.';
       if (!this.dev && required) throw new Error('No playback device connected. Open Spotify, play a song briefly, return here and tap Refresh devices.');
       return list;
     } catch(e) {
+      $('#deviceSummary').textContent = 'Spotify connection needs attention';
       $('#deviceNote').textContent = 'Could not connect to Spotify: ' + e.message;
       $('#deviceHelp').classList.remove('hide');
       if (required) throw e;
@@ -1055,12 +1236,12 @@ const DJ = {
     this.finished = this.externalPaused = false;
     this.pos = t.start; this.posAt = this.startedAt = performance.now();
     this.playing = true; showNow(i); setPlayIcon();
-    aiAhead();
+    Library.capture(); aiAhead();
     return true;
   },
   async go(i){
     if (i < 0 || i >= ST.mix.length || this.busy) return;
-    this.busy = true;
+    this.busy = true; setPlayIcon();
     const epoch = ++this.epoch, mix = ST.mix, g = mix[i];
     try {
       this.player?.activateElement?.();
@@ -1097,7 +1278,7 @@ const DJ = {
       toast(e.message, 6000); setStat(esc(e.message) + ' · Press Play to retry this song.'); setPlayIcon();
     } finally {
       this.busy = false; this.atBoundary = false;
-      this.loop();
+      setPlayIcon(); this.loop();
     }
   },
   async transition(){
@@ -1105,7 +1286,7 @@ const DJ = {
     const next = this.idx + 1;
     if (next >= ST.mix.length) {
       await this.pause(); this.finished = true; this.loadedMix = null; this.pos = this.posAt = 0;
-      setStat('Set finished · Press Play to replay'); return;
+      Library.capture(); setStat('Set finished · Press Play to replay'); return;
     }
     this.atBoundary = true;
     const g = ST.mix[next];
@@ -1172,6 +1353,7 @@ const DJ = {
         if (epoch !== this.epoch || this.busy || t !== ST.mix[this.idx]) return;
         if (!this.acceptState(state, t, this.remote)) return;
         const pos = this.pos;
+        Library.progress();
         $('#ph').style.left = clamp(pos/t.dur*100, 0, 100) + '%'; $('#tCur').textContent = fmt(pos);
         if (this.playing && performance.now() - this.startedAt > 2500 && pos >= t.end - this.lat) await this.transition();
       } catch(e) { /* A missing poll must not advance or skip the mix. */ }
@@ -1181,7 +1363,7 @@ const DJ = {
   },
   async pause(){
     ++this.epoch; this.cancelWait?.(); this.freeze(); this.playing = false; this.externalPaused = false;
-    setPlayIcon(); clearInterval(this.tick);
+    setPlayIcon(); clearInterval(this.tick); Library.capture();
     if (this.dev) {
       try { await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }); }
       catch(e) { setStat('Spotify did not confirm the pause. Check Spotify and try again.'); }
@@ -1194,7 +1376,7 @@ const DJ = {
     if (this.retryIdx != null) return this.go(this.retryIdx);
     const t = ST.mix[this.idx]; if (!t) return;
     if (this.loadedMix === ST.mix && this.loadedId === t.id && this.pos < t.end - 500) {
-      this.busy = true; const epoch = ++this.epoch;
+      this.busy = true; setPlayIcon(); setStat('Connecting to Spotify…'); const epoch = ++this.epoch;
       try {
         // Explicit URI + frozen position cannot resume an unrelated Spotify context.
         await api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', retry:0, body:{ uris:[t.uri], position_ms:Math.round(this.pos) } });
@@ -1204,7 +1386,7 @@ const DJ = {
         this.posAt = this.startedAt = performance.now(); this.playing = true; this.externalPaused = false;
         setPlayIcon(); setStat('<b>Live</b> · AI best parts'); aiAhead();
       } catch(e) { setStat(esc(e.message)); }
-      finally { this.busy = false; this.loop(); }
+      finally { this.busy = false; setPlayIcon(); this.loop(); }
       return;
     }
     return this.go(this.loadedMix === ST.mix ? Math.min(this.idx + 1, ST.mix.length - 1) : this.idx);
@@ -1223,7 +1405,7 @@ document.querySelectorAll('.refresh-devices').forEach(b => b.onclick = async () 
   finally { b.disabled = false; }
 });
 function setStat(h){ $('#stat').innerHTML = h; }
-function setPlayIcon(){ $('#playIco').innerHTML = DJ.playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>'; }
+function setPlayIcon(){ Library.mini(); $('#playBtn').title = DJ.playing || DJ.busy ? 'Pause' : 'Play'; $('#playIco').innerHTML = DJ.playing || DJ.busy ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>'; }
 $('#playBtn').onclick = () => DJ.playing || DJ.busy ? DJ.pause() : DJ.resume();
 $('#nextBtn').onclick = () => DJ.playing ? DJ.transition() : DJ.go(Math.min(DJ.idx+1, ST.mix.length-1), false);
 $('#prevBtn').onclick = () => DJ.go(Math.max(0, DJ.idx-1));
@@ -1233,7 +1415,7 @@ document.addEventListener('keydown', e => { if (e.target.tagName==='INPUT') retu
 function applyHook(ms, label){
   const t = ST.mix[DJ.idx]; if (!t) return;
   if (ms == null) HK.clear(t.id); else HK.set(t.id, clamp(ms, 0, t.dur - 20000));
-  planSegments(ST.mix, ST.vibe, ST.len); renderDeck();
+  planSegments(ST.mix, ST.vibe, ST.len); renderDeck(); Library.capture();
   toast(label);
 }
 $('#hkSet').onclick = () => { const t = ST.mix[DJ.idx]; if (!t) return; const pos = DJ.pos + (DJ.playing ? performance.now() - DJ.posAt : 0); applyHook(pos, `Hook saved at ${fmt(pos)} for "${t.name}"`); };
@@ -1243,12 +1425,33 @@ $('#hkReset').onclick = () => applyHook(null, 'Hook reset to automatic');
 
 /* ---------------- Tabs ---------------- */
 function showView(v){
-  ['mix','play','set'].forEach(k => $('#v-'+k).classList.toggle('hide', k !== v));
+  ST.view = v;
+  ['home','mix','play','set'].forEach(k => $('#v-'+k).classList.toggle('hide', k !== v));
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   $('#scroller').scrollTop = 0;
-  if (v === 'set') DJ.devices();
+  if (v === 'set') { DJ.devices(); AI.savedStatus(); }
+  if (v === 'home') Library.render();
+  Library.mini();
 }
 $('#nav').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showView(b.dataset.v); });
+$('#renameMix').onclick = () => {
+  const mix = Library.state.mixes.find(m => m.id === Library.state.activeId); if (!mix) return;
+  const name = window.prompt('Name this mix',mix.name); if (!name?.trim()) return;
+  mix.name = name.trim().slice(0,100); Library.write(); Library.render(); $('#mixTitle').textContent = mix.name;
+};
+$('#savedSongSearch').addEventListener('input', () => Library.render());
+$('#recoverPicks').onclick = () => Library.recoverPicks();
+$('#reloadApp').onclick = () => { DJ.freeze(); Library.capture(); location.replace(REDIRECT + '?v=' + APP_VERSION + '&reload=' + Date.now()); };
+$('#homeCreate').onclick = () => showView('mix');
+$('#playDevice').onclick = () => showView('set');
+$('#savedMixes').addEventListener('click', e => { const b=e.target.closest('[data-mix]'); if(b) Library.open(b.dataset.mix); });
+$('#continueMix').addEventListener('click', e => { const b=e.target.closest('[data-continue]'); if(b) Library.open(b.dataset.continue,true); });
+$('#savedSongs').addEventListener('click', e => { const b=e.target.closest('[data-song]'); if(b) Library.playSong(b.dataset.song); });
+$('#miniOpen').onclick = () => showView('play');
+$('#miniOpen').onkeydown = e => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showView('play'); } };
+$('#miniPlay').onclick = () => DJ.playing || DJ.busy ? DJ.pause() : DJ.resume();
+window.addEventListener('pagehide', () => { DJ.freeze(); Library.capture(); });
+document.addEventListener('visibilitychange', () => { if(document.hidden) { DJ.freeze(); Library.capture(); } });
 $('#verTop').textContent = $('#verLbl').textContent = 'Version ' + APP_VERSION;
 
 /* ---------------- Boot ---------------- */
@@ -1259,15 +1462,21 @@ $('#verTop').textContent = $('#verLbl').textContent = 'Version ' + APP_VERSION;
   $('#cid').addEventListener('keydown', e => e.key==='Enter' && login());
   try { await handleCallback(); } catch(e){ toast(e.message, 6000); }
   if (!LS.get('rt')) { $('#boot').classList.add('hide'); $('#connect').classList.remove('hide'); return; }
-  try { ST.me = await api('/me'); }
+  try { ST.me = await api('/me'); LS.set('account',JSON.stringify({id:ST.me.id,display_name:ST.me.display_name})); }
   catch(e){
     const msg = e.status===403 ? 'Your account isn\'t on this app\'s user list. Add it under User Management in the Spotify dashboard.' : e.message;
-    $('#bootMsg').textContent = msg; $('#bootBtns').classList.remove('hide'); return;
+    // A temporary Spotify outage must not hide a library already stored here.
+    if (!e.status || e.status >= 500 || e.status === 429) {
+      try { const cached = JSON.parse(LS.get('account') || 'null'); if (cached?.id) ST.me = cached; } catch {}
+    }
+    if (!ST.me) { $('#bootMsg').textContent = msg; $('#bootBtns').classList.remove('hide'); return; }
+    toast('Spotify is unavailable. Your saved library is here; reconnect to play.',7000);
   }
   $('#boot').classList.add('hide');
   $('#app').classList.remove('hide');
   $('#acct').textContent = ST.me.display_name || 'Connected to Spotify'; $('#nav').classList.remove('hide');
   $('#lo').onclick = logout;
+  Library.load();
   refreshSources();
   $('#aiKey').value = LS.get('aikey') || '';
   AI.savedStatus();
