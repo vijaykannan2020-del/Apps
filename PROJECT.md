@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-14, Claude: Segue Version 17 fixes the AI failing on retired Gemini model names: it now lists the key's available models and uses the newest gemini-N-flash, falling back to gemini-3.8-flash and gemini-flash-latest; the error text names the model tried.
+
 - 2026-11-14, Claude: Segue Version 16 shows an AI status box above the running order (off / working n of m / counts per method / error text). Empty AI answers are no longer cached, and the prompt now requires a numeric guess for songs without timed lyrics.
 
 - 2026-11-14, Claude: Segue Version 15 removes the Vibe, Which part and Transition options from the screen (Vijay found them confusing). Only sources, seconds per song and number of songs remain; internally it uses smooth flow, peak part and DJ cut.
