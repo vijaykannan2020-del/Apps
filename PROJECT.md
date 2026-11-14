@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-13, Claude: Segue Version 12 adds AI DJ: with a Gemini (AIza…) or Claude (sk-ant…) key saved in the browser (localStorage segue_aikey, never committed), songs are sent in batches of 10 with title/artist/bpm/energy/style and LRCLIB timed lyrics; the AI returns the best-loved start time (accepted only if it matches a real lyric line) plus mood. Results cached (segue_ai1). Hook priority: user > AI > lyrics chorus > estimate. Mood added to ordering cost and shown in tags and running order.
+
 - 2026-11-13, Claude: Segue Version 11: "Which part" option, Peak chorus (default: last chorus occurrence that still fits, usually the 2nd/3rd and biggest) or First chorus. Lyrics matching widened (±8 s, fallback free-text search, new cache key lrc2 so earlier misses retry). No-lyrics estimate moved to ~50-60% of the song for Peak. Build summary shows how many choruses came from lyrics.
 
 - 2026-11-13, Claude: Segue Version 10 orders by tempo and music type too: intensity = 72% energy + 28% tempo (Build-up speeds up), stronger BPM weight, and a style distance from the sound (dance, energy, acousticness, speechiness, mood, instrumental) plus Spotify artist genres when returned (cached, max 40 artist lookups). Shows a style tag per song and "same style / → new style" in the running order.
