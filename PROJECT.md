@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-14, Claude: Segue Version 25 player fixes. Skips: after a song change the Spotify SDK briefly reports the previous song's position, which triggered an instant second change; position is now only accepted when the reported track matches, plus a 2.5 s guard. Overruns: song changes no longer wait for the AI (only Play / tapping a song waits, up to 45 s for the first song); a failed start is retried, then the next song is tried. AI looks 4 songs ahead. Prompt now asks for the best passage anywhere (charanam, interlude, reprise), not the opening pallavi; cache key ai4.
+
 - 2026-11-14, Claude: Segue Version 24 redesign to match Cinema Book: fixed full-height shell with inner scrolling, rounded bottom tab bar (Mix, Playing, Settings), top/bottom safe areas only, nothing in the top-right corner, neutral black-and-white palette with automatic light and dark mode. AI key, Play-on device and Log out moved to Settings. Energy chart and technical transition notes hidden on phones. Version label is now set from APP_VERSION in JS (header and Settings). No logic changes.
 
 - 2026-11-14, Claude: Segue Version 23: song-change clock is also driven by a Web Worker and re-checked when the page becomes visible, because a song played far past its end (likely Safari throttling timers while the page was not in front).

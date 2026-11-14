@@ -268,7 +268,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 24;
+const APP_VERSION = 25;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -700,8 +700,8 @@ const MOOD_NEAR = { party:['energetic','happy'], energetic:['party','intense','h
 function moodDist(a, b){ if (!a || !b) return .3; if (a === b) return 0; return (MOOD_NEAR[a]||[]).includes(b) ? .4 : 1; }
 const AI = {
   key(){ return LS.get('aikey') || ''; },
-  cache(){ try { return JSON.parse(LS.get('ai3') || '{}'); } catch { return {}; } },
-  save(c){ const ks = Object.keys(c); if (ks.length > 3000) ks.slice(0, 500).forEach(k => delete c[k]); LS.set('ai3', JSON.stringify(c)); },
+  cache(){ try { return JSON.parse(LS.get('ai4') || '{}'); } catch { return {}; } },
+  save(c){ const ks = Object.keys(c); if (ks.length > 3000) ks.slice(0, 500).forEach(k => delete c[k]); LS.set('ai4', JSON.stringify(c)); },
   prompt(batch){
     const songs = batch.map(t => `id: ${t.id} | title: ${t.name} | artists: ${t.artists.join(', ')} | length: ${Math.round(t.dur/1000)} s${t.tempo ? ` | bpm: ${Math.round(t.tempo)}` : ''}`).join('\n');
     return `You are an expert DJ for Tamil, Hindi, Telugu, English and global pop. You know which part of each song is the famous one: the hook everyone sings along to, the part used in reels and shorts, the mass theme or the drop.
@@ -710,6 +710,7 @@ Think carefully about each song below, then give the best part to play in a DJ m
 - "end": the second where it should hand over to the next song. The part should be 30 to 75 seconds long and must end at least 2 seconds before the song ends.
 - "mood": one of ${MOODS.join(', ')}.
 - "why": at most 8 words.
+Do not default to the opening pallavi or the first chorus. Think through the whole song (prelude, pallavi, interludes, charanams, pallavi reprise, climax) and choose the passage listeners love most. That is often a charanam, the lift from a charanam back into the pallavi, a famous interlude theme, or the final high-energy reprise. Choose the first pallavi only when it truly is the most famous moment, and let the picks fall at different places across the songs.
 Always give numbers for start and end, using what you know of the song and its length.
 Reply with only a JSON array: [{"id":"...","start":number,"end":number,"mood":"...","why":"..."}].
 
@@ -823,7 +824,7 @@ async function aiAhead(){
   if (!AI.key() || !ST.mix.length || aheadBusy) return; aheadBusy = true;
   try {
     const mix = ST.mix, from = DJ.playing ? DJ.idx + 1 : DJ.idx;
-    for (const t of mix.slice(from, from + 2)) {
+    for (const t of mix.slice(from, from + 4)) {
       if (AI.cache()[t.id] || t.hookSrc === 'you') continue;
       t.aiPending = true; renderDeck();
       await AI.one(t); t.aiPending = false;
@@ -928,7 +929,7 @@ function drawCurve(){
 /* ---------------- Playback engine ---------------- */
 const DJ = {
   player:null, sdkDev:null, dev:null, remote:false, idx:0, playing:false, busy:false, master:.85, lat:450,
-  pos:0, posAt:0, tick:null, xfading:false,
+  pos:0, posAt:0, startedAt:0, tick:null, xfading:false,
 
   async init(){
     window.onSpotifyWebPlaybackSDKReady = () => {
@@ -938,7 +939,7 @@ const DJ = {
       this.player.addListener('initialization_error', ({message}) => { setStat('This browser can\'t play here — pick another device'); console.warn(message); this.devices(); });
       this.player.addListener('authentication_error', ({message}) => toast('Spotify auth error: '+message));
       this.player.addListener('account_error', () => toast('Spotify Premium is required for playback.', 6000));
-      this.player.addListener('player_state_changed', s => { if (!s || this.remote) return; this.pos = s.position; this.posAt = performance.now(); if (s.paused !== !this.playing && !this.busy && !this.xfading) { /* external pause */ } });
+      this.player.addListener('player_state_changed', s => { /* position is read in the tick, where it is checked against the song that should be playing */ });
       this.player.connect();
     };
     const sc = document.createElement('script'); sc.src = 'https://sdk.scdn.co/spotify-player.js'; document.head.appendChild(sc);
@@ -973,14 +974,15 @@ const DJ = {
   },
   async playTrack(i, fadeIn){
     const t = ST.mix[i];
-    if (AI.key() && t.hookSrc !== 'you' && !AI.cache()[t.id] && (t._aiTries || 0) < 2) { setStat('AI choosing the best part…'); t.aiPending = true; await within(AI.one(t), 12000); t.aiPending = false; replanAhead(i - 1); }
     this.idx = i; showNow(i);
     if (!this.dev) { await this.devices(); if (!this.dev) throw new Error('No playback device. Open Spotify on a device or use a desktop browser.'); }
     if (fadeIn) await this.vol(.02);
     const t0 = performance.now();
-    try { await api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', body:{ uris:[t.uri], position_ms:Math.round(t.start) } }); this.lat = clamp(.6*this.lat + .4*(performance.now() - t0), 150, 1500); }
-    catch(e){ if (e.status===404) { await this.devices(); } if (e.reason==='PREMIUM_REQUIRED' || e.status===403) throw new Error('Spotify Premium is required for playback.'); throw e; }
-    this.pos = t.start; this.posAt = performance.now();
+    const start = () => api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', body:{ uris:[t.uri], position_ms:Math.round(t.start) } });
+    try { try { await start(); } catch(e) { if (e.status === 403 || e.status === 401) throw e; if (e.status === 404) await this.devices(); await sleep(600); await start(); }
+      this.lat = clamp(.6*this.lat + .4*(performance.now() - t0), 150, 1500); }
+    catch(e){ if (e.reason==='PREMIUM_REQUIRED' || e.status===403) throw new Error('Spotify Premium is required for playback.'); throw e; }
+    this.pos = t.start; this.posAt = this.startedAt = performance.now();
     if (fadeIn) await this.ramp(.02, this.master, t.fadeIn); else await this.vol(this.master);
     $('#xf').style.width = '0';
     aiAhead();
@@ -990,6 +992,12 @@ const DJ = {
     if (this.busy) return; this.busy = true; this.abortRamp = false;
     try {
       this.player?.activateElement?.();
+      const g = ST.mix[i];
+      if (AI.key() && g.hookSrc !== 'you' && !AI.cache()[g.id] && (g._aiTries || 0) < 2) {
+        setStat('<span class="spin"></span> AI is choosing the best part…'); g.aiPending = true; renderDeck();
+        await within(AI.one(g), this.playing ? 12000 : 45000); g.aiPending = false;
+        replanAhead(Math.min(i - 1, this.playing ? this.idx : -1));
+      }
       if (this.playing && smooth) { this.xfading = true; setStat('Mixing…'); await this.ramp(this.master, 0, Math.min(2500, ST.mix[this.idx].fadeOut)); }
       this.playing = true; setPlayIcon();
       await this.playTrack(i, smooth);
@@ -1008,7 +1016,9 @@ const DJ = {
     else await this.ramp(this.master, 0, t.fadeOut);
     if (!this.playing) { this.xfading = this.busy = false; return; }
     if (next >= ST.mix.length) { await this.pause(); setStat('Set finished'); this.xfading = this.busy = false; return; }
-    try { await this.playTrack(next, !cut); } catch(e){ toast(e.message); }
+    let ok = false;
+    for (let k = next; k < Math.min(next + 3, ST.mix.length) && !ok; k++) { try { await this.playTrack(k, !cut); ok = true; } catch(e){ toast(`Could not play "${ST.mix[k].name}": ${e.message}`, 4000); } }
+    if (!ok) { await this.pause(); setStat('Spotify would not start the next songs. Press Play to try again.'); this.xfading = this.busy = false; return; }
     setStat(`<b>Live</b> · ${ST.len==='full'?'full songs':'best parts'}`);
     this.xfading = false; this.busy = false;
   },
@@ -1019,13 +1029,14 @@ const DJ = {
       if (!this.playing || this._ticking) return; this._ticking = true; try {
       const t = ST.mix[this.idx]; if (!t) return;
       // Position: SDK local state, or poll remote device every ~1.5s and interpolate
-      if (!this.remote && this.player) { const s = await this.player.getCurrentState(); if (s) { this.pos = s.position; this.posAt = performance.now(); if (s.track_window?.current_track?.id && s.track_window.current_track.id !== t.id && !this.busy && s.track_window.current_track.linked_from?.id !== t.id) {/* relinked track: ignore */} } }
-      else if (performance.now() - lastPoll > 1500) { lastPoll = performance.now(); try { const s = await api('/me/player', { retry:0 }); if (s?.progress_ms != null) { this.pos = s.progress_ms; this.posAt = performance.now(); } } catch {} }
+      if (!this.remote && this.player) { const s = await this.player.getCurrentState(); if (s) { const ct = s.track_window?.current_track, same = ct && (ct.id === t.id || ct.linked_from?.id === t.id || ct.uri === t.uri), est = this.pos + (performance.now() - this.posAt);
+        if (same || (performance.now() - this.startedAt > 4000 && Math.abs(s.position - est) < 5000)) { this.pos = s.position; this.posAt = performance.now(); } } }
+      else if (performance.now() - lastPoll > 1500) { lastPoll = performance.now(); try { const s = await api('/me/player', { retry:0 }); if (s?.progress_ms != null && (!s.item || s.item.id === t.id || s.item.linked_from?.id === t.id || s.item.uri === t.uri)) { this.pos = s.progress_ms; this.posAt = performance.now(); } } catch {} }
       const pos = this.pos + (performance.now() - this.posAt);
       $('#ph').style.left = clamp(pos/t.dur*100, 0, 100) + '%'; $('#tCur').textContent = fmt(pos);
       // For a cut, fire early by the measured Spotify delay so the new hook lands on the bar line
       const lead = t.fadeOut + (ST.trans === 'cut' && ST.len !== 'full' ? this.lat : 0);
-      if (!this.busy && pos >= t.end - lead) this.transition();
+      if (!this.busy && performance.now() - this.startedAt > 2500 && pos >= t.end - lead) this.transition();
       } finally { this._ticking = false; }
     };
     this.tickFn = fn; this.tick = setInterval(fn, 400);
