@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-13, Claude: Segue Version 14: clip length is now exact seconds (30/45/60/90/full). Running order shows "plays 1:34 → 2:19" and how each hook was chosen (it used to show only clip length, which read like a start time). AI now also handles songs without timed lyrics: untimed LRCLIB lyrics (line number) or its own estimate, labelled "AI estimate"; extra title-only lyric search; caches lrc3/ai2. AI card shows counts per source and any AI error. Order stays fixed once shown; AI works in play order in batches of 5 (thinking allowed, 90 s limit) while music plays and only updates songs not yet played. Tempo weight raised, arc weight lowered, to cut BPM jumps.
+
 - 2026-11-13, Claude: Segue Version 13 fixes very slow builds: time limits on every outside call (ReccoBeats 10 s, AI 45 s, genres step 12 s, lyrics step 40 s with 6 parallel lookups), Gemini 2.5 "thinking" turned off, and the AI now runs in the background after the mix is ready (saved AI picks apply instantly; new ones update hooks, or the whole order if not yet playing).
 
 - 2026-11-13, Claude: Segue Version 12 adds AI DJ: with a Gemini (AIza…) or Claude (sk-ant…) key saved in the browser (localStorage segue_aikey, never committed), songs are sent in batches of 10 with title/artist/bpm/energy/style and LRCLIB timed lyrics; the AI returns the best-loved start time (accepted only if it matches a real lyric line) plus mood. Results cached (segue_ai1). Hook priority: user > AI > lyrics chorus > estimate. Mood added to ordering cost and shown in tags and running order.
