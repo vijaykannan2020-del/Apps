@@ -123,9 +123,17 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 5</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 6</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
+
+  <section id="boot" class="card" style="max-width:460px;margin:12vh auto 0;text-align:center">
+    <div id="bootMsg" class="muted"><span class="spin"></span>&nbsp; Connecting to Spotify…</div>
+    <div id="bootBtns" class="row hide" style="justify-content:center;margin-top:14px">
+      <button class="btn pri" onclick="location.reload()">Try again</button>
+      <button class="btn ghost" onclick="logout()">Log out</button>
+    </div>
+  </section>
 
   <!-- CONNECT -->
   <section id="connect" class="hide">
@@ -238,7 +246,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 5;
+const APP_VERSION = 6;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -291,9 +299,14 @@ function logout(){ ['at','rt','exp','ver'].forEach(k=>LS.set(k,null)); location.
 /* ---------------- Spotify API ---------------- */
 async function api(path, { method='GET', body, retry=2 } = {}){
   const url = path.startsWith('http') ? path : 'https://api.spotify.com/v1' + path;
-  const r = await fetch(url, { method, headers:{ Authorization:'Bearer '+await token(), ...(body?{'Content-Type':'application/json'}:{}) }, body: body ? JSON.stringify(body) : undefined });
+  const ctl = new AbortController(); const tmo = setTimeout(() => ctl.abort(), 15000);
+  const r = await fetch(url, { signal: ctl.signal, method, headers:{ Authorization:'Bearer '+await token(), ...(body?{'Content-Type':'application/json'}:{}) }, body: body ? JSON.stringify(body) : undefined }).catch(e => { throw new Error(e.name === 'AbortError' ? 'Spotify did not answer. Check your connection and try again.' : 'Network error: ' + e.message); }).finally(() => clearTimeout(tmo));
   if (r.status === 401 && retry) { LS.set('exp','0'); return api(path, { method, body, retry: retry-1 }); }
-  if (r.status === 429 && retry) { await sleep((+r.headers.get('Retry-After') || 2) * 1000); return api(path, { method, body, retry: retry-1 }); }
+  if (r.status === 429) {
+    const wait = +r.headers.get('Retry-After') || 2;
+    if (retry && wait <= 8) { await sleep(wait * 1000); return api(path, { method, body, retry: retry-1 }); }
+    const e = new Error(`Spotify is limiting requests from this app right now. Try again in ${wait > 120 ? Math.ceil(wait/60) + ' minutes' : wait + ' seconds'}.`); e.status = 429; throw e;
+  }
   if (r.status === 204 || r.status === 202) return null;
   const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch {}
   if (!r.ok) { const e = new Error(j?.error?.message || ('HTTP '+r.status)); e.status = r.status; e.reason = j?.error?.reason; throw e; }
@@ -734,9 +747,13 @@ $('#saveBtn').onclick = async () => {
   $('#loginBtn').onclick = login;
   $('#cid').addEventListener('keydown', e => e.key==='Enter' && login());
   try { await handleCallback(); } catch(e){ toast(e.message, 6000); }
-  if (!LS.get('rt')) { $('#connect').classList.remove('hide'); return; }
+  if (!LS.get('rt')) { $('#boot').classList.add('hide'); $('#connect').classList.remove('hide'); return; }
   try { ST.me = await api('/me'); }
-  catch(e){ if (e.status===403) toast('Your account isn\'t on this app\'s user list. Add it under User Management in the Spotify dashboard.', 8000); else toast(e.message); $('#connect').classList.remove('hide'); return; }
+  catch(e){
+    const msg = e.status===403 ? 'Your account isn\'t on this app\'s user list. Add it under User Management in the Spotify dashboard.' : e.message;
+    $('#bootMsg').textContent = msg; $('#bootBtns').classList.remove('hide'); return;
+  }
+  $('#boot').classList.add('hide');
   $('#app').classList.remove('hide');
   $('#hdrRight').innerHTML = `<span class="small muted">${esc(ST.me.display_name || 'Connected')}</span><button class="btn ghost small" style="height:34px" id="lo">Log out</button>`;
   $('#lo').onclick = logout;

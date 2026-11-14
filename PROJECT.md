@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-13, Claude: Segue Version 6 fixes a blank page when signed in: shows a "Connecting to Spotify" screen, times out Spotify calls after 15 s, stops waiting on long rate-limit (429) delays, and shows the reason with Try again / Log out.
+
 - 2026-11-13, Claude: Segue Version 5 replaces "Save as playlist" with "Mix in Spotify": saves the DJ order as a private playlist, opens it in the Spotify app (open.spotify.com universal link) and shows how to use Spotify's Mix → Auto (or Crossfade) for real overlapping transitions.
 
 - 2026-11-13, Claude: Segue Version 4 removes YouTube mode at Vijay's request (embedded YouTube showed ads even with Premium on iPhone Safari). Back to Spotify-only playback as in Version 2; clears the stored YouTube key and match cache from the device.
