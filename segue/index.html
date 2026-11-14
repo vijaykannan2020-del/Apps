@@ -117,25 +117,13 @@ img[src=""],img:not([src]){visibility:hidden}
 .devsel{height:34px;border-radius:10px;background:var(--s2);border:1px solid var(--line);padding:0 10px;font-size:13px;max-width:220px}
 .note{font-size:12.5px;color:var(--mu);background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px}
 .note.warn{color:var(--warn);border-color:rgba(255,184,107,.25)}
-.decks{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:18px}
-@media(max-width:700px){.decks{grid-template-columns:1fr}}
-.deckv{position:relative;border-radius:14px;overflow:hidden;background:#000;border:1px solid var(--line);height:210px;transition:opacity .6s var(--ease),border-color .4s}
-.deckv.live{border-color:rgba(126,240,196,.6)}
-.deckv.idle{opacity:.55}
-.deckv iframe,.deckv>div{position:absolute;inset:0;width:100%!important;height:100%!important}
-.deckv .lab{position:absolute;left:8px;top:8px;z-index:2;font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(11,13,16,.75);color:var(--mu);pointer-events:none}
-.deckv.live .lab{color:var(--ac)}
-.fader{position:relative;height:30px;margin-top:12px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim)}
-.fader .rail{flex:1;height:4px;border-radius:2px;background:var(--s3);position:relative}
-.fader .knob{position:absolute;top:50%;width:26px;height:16px;border-radius:5px;background:var(--tx);transform:translate(-50%,-50%);left:0;transition:left .15s linear;box-shadow:0 2px 10px rgba(0,0,0,.5)}
-.style-pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;background:rgba(126,240,196,.12);color:var(--ac);margin-left:6px}
 .fadein{animation:fi .45s var(--ease)} @keyframes fi{from{opacity:0;transform:translateY(6px)}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 3</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 4</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -169,19 +157,6 @@ img[src=""],img:not([src]){visibility:hidden}
         <input id="q" class="input" placeholder="Search, or paste a Spotify link" autocomplete="off">
         <div class="results" id="results"></div>
         <div id="srcNote"></div>
-      </div>
-
-      <div class="card">
-        <h2>Play through</h2>
-        <div class="seg" data-k="out">
-          <button class="opt on" data-v="yt">YouTube<small>real overlapping DJ mixes</small></button>
-          <button class="opt" data-v="sp">Spotify<small>fade between songs</small></button>
-        </div>
-        <div id="ytBox">
-          <div class="lbl">YouTube API key <span class="dim">(free, kept only on this device)</span></div>
-          <div class="row"><input id="ytKey" class="input" placeholder="Paste key (starts with AIza…)" autocomplete="off" spellcheck="false"><button class="btn" id="ytSave">Save</button></div>
-          <div class="note small" id="ytHelp">Spotify picks and orders the songs; YouTube plays them on two decks so songs overlap and blend. Blends work in laptop/desktop browsers; iPhone Safari can't change video volume, so there it switches on the beat instead.</div>
-        </div>
       </div>
 
       <div class="card">
@@ -237,13 +212,6 @@ img[src=""],img:not([src]){visibility:hidden}
           <button class="round" id="nextBtn" title="Mix to next now"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
           <div class="status"><div id="stat">Ready</div><select class="devsel" id="devSel" title="Play on"></select></div>
         </div>
-        <div id="ytDecks" class="hide">
-          <div class="decks">
-            <div class="deckv live" id="dk0"><span class="lab" id="lab0">DECK A</span><div id="yt0"></div></div>
-            <div class="deckv idle" id="dk1"><span class="lab" id="lab1">DECK B</span><div id="yt1"></div></div>
-          </div>
-          <div class="fader"><span>A</span><div class="rail"><div class="knob" id="knob"></div></div><span>B</span></div>
-        </div>
         <div class="lbl" style="margin-top:22px">Energy arc <span class="dim">— line is the target, dots are your songs</span></div>
         <svg class="curve" id="curve" viewBox="0 0 600 84" preserveAspectRatio="none"></svg>
         <div class="row" style="justify-content:space-between;margin-top:18px">
@@ -269,7 +237,9 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 3;
+const APP_VERSION = 4;
+// YouTube mode was removed in Version 4: clear anything it stored on this device
+['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
 const CANON = 'https://vijaykannan2020-del.github.io/Apps/segue/';
 if (location.hostname === 'vijaykannan2020-del.github.io' && location.origin + location.pathname !== CANON) location.replace(CANON + location.search);
@@ -331,8 +301,7 @@ async function api(path, { method='GET', body, retry=2 } = {}){
 async function apiFirst(paths, opts){ let err; for (const p of paths) { try { return await api(p, opts); } catch(e){ err=e; if (![403,404,400].includes(e.status)) throw e; } } throw err; }
 
 /* ---------------- State ---------------- */
-const ST = { me:null, tab:'playlist', crate:[], vibe:'smooth', len:'medium', max:30, myPlaylists:null, mix:[], featOk:false, out: LS.get('out') || 'yt' };
-const E = () => ST.out === 'yt' ? YTDJ : DJ;
+const ST = { me:null, tab:'playlist', crate:[], vibe:'smooth', len:'medium', max:30, myPlaylists:null, mix:[], featOk:false };
 
 /* ---------------- Sources UI ---------------- */
 function parseLink(s){
@@ -415,18 +384,7 @@ document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e
   const b = e.target.closest('.opt'); if (!b) return;
   seg.querySelectorAll('.opt').forEach(x => x.classList.toggle('on', x===b));
   ST[seg.dataset.k] = seg.dataset.k === 'max' ? +b.dataset.v : b.dataset.v;
-  if (seg.dataset.k === 'out') setOut(b.dataset.v);
 }));
-function setOut(v){
-  const prev = E(); if (prev.playing) prev.pause();
-  ST.out = v; LS.set('out', v);
-  document.querySelectorAll('.seg[data-k=out] .opt').forEach(x => x.classList.toggle('on', x.dataset.v === v));
-  $('#ytBox').classList.toggle('hide', v !== 'yt');
-  $('#ytDecks').classList.toggle('hide', v !== 'yt' || !ST.mix.length);
-  $('#devSel').classList.toggle('hide', v === 'yt');
-  if (v === 'yt') YTDJ.init(); else if (ST.me) DJ.init();
-  if (ST.mix.length) { replan(); renderDeck(); }
-}
 
 /* ---------------- Track fetching ---------------- */
 const normTrack = (t, album) => (t && t.id && t.type !== 'episode' && !t.is_local) ? {
@@ -587,15 +545,13 @@ async function buildMix(){
   } catch(e){ msg.textContent = e.message; toast(e.message); }
   btn.disabled = !ST.crate.length;
 }
-function replan(){ ST.out === 'yt' ? planYT(ST.mix, ST.len) : planSegments(ST.mix, ST.vibe, ST.len); }
 function remix(){
-  const wasPlaying = E().playing; if (wasPlaying) E().pause();
+  const wasPlaying = DJ.playing;
   ST.mix = buildOrder(ST.pool, ST.vibe);
-  replan();
-  DJ.idx = 0; YTDJ.idx = 0; renderDeck(); drawCurve();
-  $('#ytDecks').classList.toggle('hide', ST.out !== 'yt');
+  planSegments(ST.mix, ST.vibe, ST.len);
+  DJ.idx = 0; renderDeck(); drawCurve();
   $('#featNote').innerHTML = ST.featOk ? '' : `<div class="note warn">Couldn't get audio analysis for most songs, so the order is based on artist spacing and the "best part" is estimated from song length. Mixing still works; it's just less precise.</div>`;
-  if (wasPlaying) E().go(0);
+  if (wasPlaying) DJ.go(0);
 }
 $('#buildBtn').onclick = buildMix;
 $('#reshuffle').onclick = () => ST.pool && remix();
@@ -603,13 +559,13 @@ $('#reshuffle').onclick = () => ST.pool && remix();
 /* ---------------- Deck UI ---------------- */
 function renderDeck(){
   $('#deckEmpty').classList.add('hide'); $('#deckOn').classList.remove('hide');
-  $('#queue').innerHTML = ST.mix.map((t,i)=>`<div class="q ${i===E().idx?'cur':''} ${i<E().idx?'done':''}" data-i="${i}">
+  $('#queue').innerHTML = ST.mix.map((t,i)=>`<div class="q ${i===DJ.idx?'cur':''} ${i<DJ.idx?'done':''}" data-i="${i}">
     <div class="n">${i+1}</div><img loading="lazy" src="${esc(t.imgS||t.img)}" alt="">
     <div class="t"><b>${esc(t.name)}</b><span>${esc(t.artists.join(', '))} · ${fmt(t.end-t.start)}</span></div>
     <div class="why">${t.why || '<em>opener</em>'}</div></div>`).join('');
-  showNow(E().idx, true);
+  showNow(DJ.idx, true);
 }
-$('#queue').addEventListener('click', e => { const q = e.target.closest('.q'); if (q) E().go(+q.dataset.i); });
+$('#queue').addEventListener('click', e => { const q = e.target.closest('.q'); if (q) DJ.go(+q.dataset.i); });
 function showNow(i, instant){
   const t = ST.mix[i]; if (!t) return;
   const img = $('#npImg');
@@ -620,7 +576,6 @@ function showNow(i, instant){
   if (t.tempo) tags.push(`${Math.round(t.tempo)} BPM`);
   if (t.cam) tags.push(`${t.keyName} · ${camStr(t.cam)}`);
   if (t.f) tags.push(`Energy ${Math.round(t.energy*100)}`);
-  if (ST.out==='yt' && t.inStyle && t.inStyle!=='open') tags.push(STYLE_NAME[t.inStyle]);
   tags.push(ST.len==='full' ? 'Full song' : `Plays ${fmt(t.start)}–${fmt(t.end)}`);
   $('#npTags').innerHTML = tags.map((x,k)=>`<span class="tag ${k===tags.length-1?'ok':''}">${esc(x)}</span>`).join('');
   $('#win').style.left = (t.start/t.dur*100)+'%'; $('#win').style.width = ((t.end-t.start)/t.dur*100)+'%';
@@ -635,7 +590,7 @@ function drawCurve(){
   const W = 600, H = 84, N = m.length, x = i => N>1 ? 8 + i*(W-16)/(N-1) : W/2, y = e => H - 8 - e*(H-16);
   let path = ''; for (let i=0;i<N;i++) path += (i?'L':'M') + x(i).toFixed(1) + ' ' + y(m.target ? m.target(i) : .5).toFixed(1);
   $('#curve').innerHTML = `<path d="${path}" fill="none" stroke="#3a414c" stroke-width="2" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>` +
-    m.map((t,i)=>`<circle cx="${x(i)}" cy="${y(t.energy)}" r="${i===E().idx?5:3}" fill="${i===E().idx?'#7ef0c4':i<E().idx?'#3a414c':'#8b929c'}"/>`).join('');
+    m.map((t,i)=>`<circle cx="${x(i)}" cy="${y(t.energy)}" r="${i===DJ.idx?5:3}" fill="${i===DJ.idx?'#7ef0c4':i<DJ.idx?'#3a414c':'#8b929c'}"/>`).join('');
 }
 
 /* ---------------- Playback engine ---------------- */
@@ -644,7 +599,6 @@ const DJ = {
   pos:0, posAt:0, tick:null, xfading:false,
 
   async init(){
-    if (this._inited) return; this._inited = true;
     window.onSpotifyWebPlaybackSDKReady = () => {
       this.player = new Spotify.Player({ name:'Segue AI DJ', getOAuthToken: cb => token().then(cb), volume:this.master });
       this.player.addListener('ready', ({ device_id }) => { this.sdkDev = device_id; if (!this.dev) this.dev = device_id; this.devices(); });
@@ -743,199 +697,11 @@ const DJ = {
   },
 };
 function setStat(h){ $('#stat').innerHTML = h; }
-function setPlayIcon(){ $('#playIco').innerHTML = E().playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>'; }
-$('#playBtn').onclick = () => E().playing ? E().pause() : E().resume();
-$('#nextBtn').onclick = () => E().playing ? E().transition() : E().go(Math.min(E().idx+1, ST.mix.length-1), false);
-$('#prevBtn').onclick = () => E().go(Math.max(0, E().idx-1));
+function setPlayIcon(){ $('#playIco').innerHTML = DJ.playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>'; }
+$('#playBtn').onclick = () => DJ.playing ? DJ.pause() : DJ.resume();
+$('#nextBtn').onclick = () => DJ.playing ? DJ.transition() : DJ.go(Math.min(DJ.idx+1, ST.mix.length-1), false);
+$('#prevBtn').onclick = () => DJ.go(Math.max(0, DJ.idx-1));
 document.addEventListener('keydown', e => { if (e.target.tagName==='INPUT') return; if (e.code==='Space'){ e.preventDefault(); $('#playBtn').click(); } if (e.code==='ArrowRight') $('#nextBtn').click(); if (e.code==='ArrowLeft') $('#prevBtn').click(); });
-
-
-/* ---------------- YouTube two-deck DJ ---------------- */
-const STYLE_NAME = { blend:'Blend · 8 bars', quick:'Quick mix · 4 bars', drop:'Drop swap', open:'Opener' };
-function planYT(ord, len){
-  const want = LEN[len] || 75000;
-  ord.forEach((t, i) => {
-    const bar = 240000 / (t.tempo || 120), phrase = bar * 8, p = ord[i-1];
-    const snap = ms => Math.round(ms / phrase) * phrase;
-    let ratio = .3; if (t.dance > .72) ratio = .26; if (t.energy < .4) ratio = .36; if (t.dur > 330000) ratio -= .05;
-    t.hook = clamp(snap(t.dur * ratio), 20000, t.dur - 30000);
-    // How this song comes in: the DJ picks a transition style per pair
-    if (!p) { t.inStyle = 'open'; t.overlap = 0; }
-    else {
-      const comp = (keyDist(p.cam,t.cam) + bpmDist(p.tempo,t.tempo)) / 2, dE = t.energy - p.energy;
-      if (comp <= .3 && ST.vibe !== 'peak') t.inStyle = 'blend';
-      else if (dE > .18 || ST.vibe === 'peak' || ST.vibe === 'party' && comp > .55) t.inStyle = 'drop';
-      else t.inStyle = 'quick';
-      if (ST.vibe === 'chill' && t.inStyle === 'drop') t.inStyle = 'quick';
-      t.overlap = t.inStyle === 'blend' ? Math.min(8*bar, 17000) : t.inStyle === 'quick' ? Math.min(4*bar, 9000) : Math.min(bar, 2500);
-    }
-    if (len === 'full') {
-      t.start = t.inStyle === 'drop' ? t.hook : 0;
-      t.end = t.dur - 1500;
-    } else {
-      // Blend/quick: next song's run-up plays under the outgoing one, so its hook lands as the overlap ends
-      t.start = !p ? Math.max(0, t.hook - 2*phrase) : t.inStyle === 'drop' ? t.hook : Math.max(0, t.hook - t.overlap);
-      t.end = Math.min(t.dur - 1000, t.hook + Math.ceil(want / phrase) * phrase);
-      if (t.end - t.start < 30000) t.end = Math.min(t.dur - 1000, t.start + 30000);
-    }
-  });
-  ord.forEach((t, i) => {
-    const n = ord[i+1]; t.outAt = t.end - (n ? n.overlap : 0); // when the next deck starts
-    t.fadeOut = n ? n.overlap : 2500; t.fadeIn = 1500;
-    const p = ord[i-1]; t.why = p ? `<em>${STYLE_NAME[t.inStyle]}</em><br>` + whyText(p, t) : null;
-  });
-}
-
-const ytDur = iso => { const m = String(iso).match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/) || []; return ((+m[1]||0)*3600 + (+m[2]||0)*60 + (+m[3]||0)) * 1000; };
-async function ytFind(t){
-  let cache = {}; try { cache = JSON.parse(LS.get('ytc') || '{}'); } catch {}
-  if (cache[t.id] !== undefined) return cache[t.id];
-  const key = LS.get('ytkey'); if (!key) throw new Error('Add your YouTube API key first (Play through → YouTube).');
-  const clean = t.name.replace(/\s*[\(\[].*?[\)\]]/g,'').replace(/\s+-\s+.*$/,'').trim();
-  const q = `${t.artists[0]} ${clean}`;
-  const sr = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=6&q=${encodeURIComponent(q)}&key=${key}`);
-  const sj = await sr.json();
-  if (!sr.ok) { const r = sj?.error?.errors?.[0]?.reason; throw new Error(r === 'quotaExceeded' ? 'YouTube daily search limit reached (about 100 new songs a day). Songs already found still play; try again tomorrow.' : r === 'keyInvalid' || sr.status === 400 ? 'YouTube key not valid. Check it in Play through.' : 'YouTube: ' + (sj?.error?.message || sr.status)); }
-  const ids = (sj.items || []).map(x => x.id?.videoId).filter(Boolean);
-  let best = null;
-  if (ids.length) {
-    const vj = await (await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,status&id=${ids.join(',')}&key=${key}`)).json();
-    const bad = /\b(live|remix|cover|reaction|karaoke|8d|slowed|sped|reverb|nightcore|instrumental|lyrics? video|bass boosted|1 hour|mashup|teaser|making)\b/i;
-    for (const v of vj.items || []) {
-      if (v.status?.embeddable === false) continue;
-      const d = ytDur(v.contentDetails?.duration), title = v.snippet?.title || '', ch = v.snippet?.channelTitle || '';
-      const diff = Math.abs(d - t.dur) / 1000;
-      let sc = diff;
-      if (/ - Topic$/.test(ch)) sc -= 10;                        // auto-generated "art track" = same audio as Spotify
-      if (/official (audio|music video|video)/i.test(title)) sc -= 3;
-      if (bad.test(title) && !bad.test(t.name)) sc += 40;
-      if (!title.toLowerCase().includes(clean.toLowerCase().slice(0, 12))) sc += 6;
-      if (!best || sc < best.sc) best = { v: v.id, sc, diff: (d - t.dur) / 1000, topic: / - Topic$/.test(ch) };
-    }
-  }
-  // Music videos often have a spoken/cinematic intro: shift timings by most of the extra length
-  const res = best && best.sc < 45 ? { v: best.v, off: (!best.topic && best.diff > 2 && best.diff < 30) ? +(best.diff * .7).toFixed(1) : 0 } : null;
-  cache[t.id] = res;
-  const keys = Object.keys(cache); if (keys.length > 1500) keys.slice(0, 300).forEach(k => delete cache[k]);
-  LS.set('ytc', JSON.stringify(cache));
-  return res;
-}
-
-const YTDJ = {
-  p: [null, null], ok: [false, false], prepped: [-1, -1], cur: 0, idx: 0, playing: false, busy: false, tick: null,
-  iOS: /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
-  init(){
-    if (this._inited) return; this._inited = true;
-    const mk = () => [0,1].forEach(k => {
-      this.p[k] = new YT.Player('yt'+k, { width:'100%', height:'100%', playerVars:{ controls:0, disablekb:1, playsinline:1, rel:0, iv_load_policy:3, fs:0, origin:location.origin },
-        events:{ onReady: () => { this.ok[k] = true; }, onError: e => { console.warn('YT error', k, e.data); this.err = e.data; } } });
-    });
-    if (window.YT?.Player) mk();
-    else { window.onYouTubeIframeAPIReady = mk; const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(sc); }
-    if (this.iOS) $('#ytHelp').innerHTML = 'On iPhone, Safari blocks web pages from changing video volume, so songs switch on the beat instead of blending. Open this on a laptop for full overlapping blends.';
-  },
-  async ready(){ for (let i = 0; i < 100 && !(this.ok[0] && this.ok[1]); i++) await sleep(100); if (!(this.ok[0] && this.ok[1])) throw new Error('YouTube player did not load.'); },
-  async waitPlaying(pl, ms=9000){ const t0 = performance.now(); this.err = null; while (performance.now() - t0 < ms) { if (this.err) return false; if (pl.getPlayerState?.() === 1) return true; await sleep(80); } return false; },
-  async resolveFrom(i){ // find the next playable song from i (skips songs with no YouTube match)
-    for (let j = i; j < ST.mix.length; j++) {
-      const t = ST.mix[j];
-      if (t.yt === undefined) { try { t.yt = await ytFind(t); } catch(e){ toast(e.message, 6000); if (!/limit|key/i.test(e.message)) { t.yt = null; continue; } throw e; } }
-      if (t.yt) return j;
-    }
-    return -1;
-  },
-  async prep(i, k){ // load song i on deck k, paused at its start point, silent
-    const t = ST.mix[i], pl = this.p[k];
-    pl.mute(); pl.loadVideoById({ videoId: t.yt.v, startSeconds: t.start/1000 + t.yt.off });
-    const ok = await this.waitPlaying(pl);
-    pl.pauseVideo(); pl.setVolume(0); pl.seekTo(t.start/1000 + t.yt.off, true); pl.unMute();
-    if (!ok) { t.yt = null; return false; }
-    this.prepped[k] = i; this.label(k, i); return true;
-  },
-  label(k, i){ const t = ST.mix[i]; $('#lab'+k).textContent = `DECK ${'AB'[k]} · ${t ? t.name : ''}`; },
-  setDecks(){ [0,1].forEach(k => { $('#dk'+k).classList.toggle('live', k === this.cur); $('#dk'+k).classList.toggle('idle', k !== this.cur); }); $('#knob').style.left = (this.cur ? 100 : 0) + '%'; },
-  posMs(){ const t = ST.mix[this.idx]; const s = this.p[this.cur]?.getCurrentTime?.() || 0; return (s - (t?.yt?.off || 0)) * 1000; },
-  async go(i, smooth=true){
-    if (this.busy || i < 0 || i >= ST.mix.length) return; this.busy = true;
-    try {
-      await this.ready();
-      const was = this.playing; this.playing = true; setPlayIcon();
-      setStat('<span class="spin"></span> Finding songs on YouTube…');
-      const j = await this.resolveFrom(i); if (j < 0) throw new Error('No YouTube matches found for the rest of the mix.');
-      const k = 1 - this.cur, A = this.p[this.cur], B = this.p[k];
-      if (!(await this.prep(j, k))) { this.busy = false; return this.go(j+1, smooth); }
-      B.playVideo(); await this.waitPlaying(B, 4000);
-      this.idx = j; showNow(j);
-      const steps = 20, dur = was && smooth && !this.iOS ? 1800 : 600;
-      for (let s = 1; s <= steps; s++) { const x = s/steps; if (was && !this.iOS) A.setVolume(Math.round(100*Math.cos(x*Math.PI/2))); B.setVolume(Math.round(100*Math.sin(x*Math.PI/2))); $('#knob').style.left = ((k ? x : 1-x)*100) + '%'; await sleep(dur/steps); }
-      A.pauseVideo?.(); B.setVolume(100);
-      this.cur = k; this.setDecks();
-      setStat(`<b>Live</b> · two-deck mix`);
-      this.busy = false; this.loop(); this.prefetch();
-    } catch(e){ toast(e.message, 6000); setStat(esc(e.message)); this.playing = false; setPlayIcon(); this.busy = false; }
-  },
-  async prefetch(){
-    if (this.prefetching) return; this.prefetching = true;
-    try {
-      const j = await this.resolveFrom(this.idx + 1);
-      const k = 1 - this.cur;
-      if (j >= 0 && this.prepped[k] !== j && this.playing) await this.prep(j, k);
-      // look one more ahead so searches stay ahead of the music
-      if (j >= 0) this.resolveFrom(j + 1).catch(()=>{});
-    } catch {}
-    this.prefetching = false;
-  },
-  async transition(){
-    if (this.busy) return; this.busy = true;
-    try {
-      const k = 1 - this.cur, A = this.p[this.cur], B = this.p[k];
-      let j = this.idx + 1;
-      if (this.prepped[k] !== j || !ST.mix[j]?.yt) { setStat('<span class="spin"></span> Cueing next deck…'); j = await this.resolveFrom(j); if (j < 0) { this.busy = false; setStat('Set finished'); return this.pause(); } if (this.prepped[k] !== j && !(await this.prep(j, k))) { this.busy = false; return this.transition(); } }
-      const nxt = ST.mix[j], style = nxt.inStyle, ov = Math.max(600, nxt.overlap);
-      B.setVolume(style === 'drop' || this.iOS ? 100 : 0); B.playVideo();
-      if (this.iOS) { await this.waitPlaying(B, 3000); A.pauseVideo(); }
-      this.idx = j; showNow(j); setStat(`Mixing · <b>${STYLE_NAME[style]}</b>`);
-      $('#lab'+k).textContent = `DECK ${'AB'[k]} · ${nxt.name}`;
-      const t0 = performance.now();
-      while (!this.iOS) {
-        if (!this.playing) { this.busy = false; return; }
-        const x = Math.min(1, (performance.now() - t0) / ov);
-        const outV = style === 'drop' ? Math.round(100 * (1 - x) * (1 - x)) : Math.round(100 * Math.cos(x * Math.PI / 2));
-        const inV = style === 'drop' ? 100 : Math.round(100 * Math.sin(Math.min(1, x * 1.15) * Math.PI / 2));
-        A.setVolume(outV); B.setVolume(inV);
-        $('#knob').style.left = ((k ? x : 1 - x) * 100) + '%';
-        $('#xf').style.width = (x * 100) + '%';
-        if (x >= 1) break;
-        await sleep(70);
-      }
-      A.pauseVideo(); B.setVolume(100); $('#xf').style.width = '0';
-      this.cur = k; this.prepped[1-k] = -1; this.setDecks();
-      setStat(`<b>Live</b> · two-deck mix`);
-    } catch(e){ toast(e.message, 6000); }
-    this.busy = false; this.prefetch();
-  },
-  loop(){
-    clearInterval(this.tick);
-    this.tick = setInterval(() => {
-      if (!this.playing) return;
-      const t = ST.mix[this.idx]; if (!t) return;
-      const pos = this.posMs();
-      $('#ph').style.left = clamp(pos / t.dur * 100, 0, 100) + '%'; $('#tCur').textContent = fmt(pos);
-      if (!this.busy && pos >= t.outAt) {
-        if (this.idx >= ST.mix.length - 1) { if (pos >= t.end) { this.pause(); setStat('Set finished'); } return; }
-        this.transition();
-      }
-      if (!this.busy && !this.prefetching && this.prepped[1-this.cur] !== this.idx + 1 && pos > t.start + 3000) this.prefetch();
-      if (this.p[this.cur]?.getPlayerState?.() === 0 && !this.busy) this.transition(); // video ended early
-    }, 150);
-  },
-  pause(){ this.playing = false; setPlayIcon(); clearInterval(this.tick); [0,1].forEach(k => this.p[k]?.pauseVideo?.()); setStat('Paused'); },
-  resume(){
-    const pl = this.p[this.cur];
-    if (pl && this.prepped[this.cur] === this.idx && pl.getCurrentTime?.() > 0) { this.playing = true; setPlayIcon(); pl.setVolume(100); pl.playVideo(); this.loop(); setStat('<b>Live</b> · two-deck mix'); return; }
-    this.go(this.idx, false);
-  },
-};
 
 /* ---------------- Save mix ---------------- */
 $('#saveBtn').onclick = async () => {
@@ -965,9 +731,7 @@ $('#saveBtn').onclick = async () => {
   $('#hdrRight').innerHTML = `<span class="small muted">${esc(ST.me.display_name || 'Connected')}</span><button class="btn ghost small" style="height:34px" id="lo">Log out</button>`;
   $('#lo').onclick = logout;
   refreshSources();
-  $('#ytKey').value = LS.get('ytkey') || '';
-  $('#ytSave').onclick = () => { LS.set('ytkey', $('#ytKey').value.trim() || null); toast($('#ytKey').value.trim() ? 'YouTube key saved on this device' : 'Key cleared'); };
-  setOut(ST.out);
+  DJ.init();
 })();
 </script>
 </body>

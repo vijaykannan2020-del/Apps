@@ -11,8 +11,3 @@ One file (`index.html`), plain HTML/CSS/JS, no Firebase, no backend.
 - Playback: Web Playback SDK in desktop browsers; on iPhone pick another Spotify Connect device under "Play on". Transitions are volume fades (one stream, no true overlap).
 - DJ brain: `buildOrder()` (energy-arc matching + key/tempo/artist cost, swap/reverse refinement) and `planSegments()` (hook estimate, 8-bar phrase snapping, fade lengths).
 - Raise `APP_VERSION` and the "Version N" label in the header on every change.
-
-## YouTube mode (Version 3)
-- `planYT()` picks a transition per pair (blend/quick/drop) and times start/outAt/end so the incoming hook lands as the overlap ends.
-- `ytFind()` searches YouTube Data API (search 100 units + videos 1 unit, ~100 new songs/day), prefers "- Topic" art tracks and duration matches, caches in localStorage `segue_ytc`.
-- `YTDJ` runs two YouTube IFrame players (must stay visible, 200px+ high, per YouTube policy) and crossfades volumes. iOS can't set volume, so it cuts.
