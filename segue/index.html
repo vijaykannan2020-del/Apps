@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 15</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 16</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -231,6 +231,7 @@ img[src=""],img:not([src]){visibility:hidden}
           <h2 style="margin:0">Running order</h2>
           <div class="row"><button class="btn ghost small" id="reshuffle" style="height:34px">Re-mix</button></div>
         </div>
+        <div id="aiStat"></div>
         <div class="queue" id="queue"></div>
         <div id="featNote"></div>
       </div>
@@ -252,7 +253,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 15;
+const APP_VERSION = 16;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -697,6 +698,7 @@ For each song, find where to drop in so that famous part plays for about ${LEN[S
 - If the song has TIMED lyrics: set "start" to exactly one of the listed line times (seconds) where that part begins. Prefer a later, fuller repeat of the hook if at least ${LEN[ST.len] ? LEN[ST.len]/1000 : 45} seconds of song remain after it. Set "line" and "guess" to null.
 - If it has UNTIMED lyrics: set "line" to the line number where that part begins, and "guess" to your best estimate in seconds of when that line is sung. Set "start" to null.
 - If it has no lyrics (themes, background scores, instrumentals): set "guess" to your best estimate in seconds of where the main theme or drop hits, using what you know of the song and its length. Set "start" and "line" to null.
+"guess" must always be a number when there are no timed lyrics: never null. It must be at least 10 and at most the song length minus 30.
 Also give "mood": one of ${MOODS.join(', ')}; and "why": at most 8 words.
 Reply with only a JSON array: [{"id":"...","start":number|null,"line":number|null,"guess":number|null,"mood":"...","why":"..."}].
 
@@ -724,7 +726,7 @@ ${songs}`;
   },
   async run(tracks, onProg, onBatch){
     if (!this.key()) return 0;
-    this.lastErr = null;
+    this.lastErr = null; this.empty = 0;
     const cache = this.cache(); const todo = tracks.filter(t => !cache[t.id]);
     todo.forEach(t => t.aiPending = true);
     const apply = list => list.forEach(t => { const c = cache[t.id]; if (c) { t.aiStart = c.start; t.aiApprox = !!c.approx; t.mood = c.mood; t.aiWhy = c.why; } });
@@ -748,7 +750,8 @@ ${songs}`;
             if (g != null) { start = g; approx = true; }
           }
           if (start != null && (start < 5000 || start > t.dur - 20000)) start = null;
-          cache[t.id] = { start, approx, mood: MOODS.includes(o.mood) ? o.mood : null, why: String(o.why || '').slice(0, 60) };
+          const res = { start, approx, mood: MOODS.includes(o.mood) ? o.mood : null, why: String(o.why || '').slice(0, 60) };
+          if (start != null) cache[t.id] = res; else { t.mood = res.mood; this.empty = (this.empty||0) + 1; }
           done++;
         }
         this.save(cache);
@@ -793,10 +796,13 @@ async function buildMix(){
     msg.textContent = summary();
     $('#deck').scrollIntoView({ behavior:'smooth', block:'start' });
     // AI refines in the background: you can press Play right away
+    const stat = h => { $('#aiStat').innerHTML = `<div class="note" style="margin:10px 0">${h}</div>`; };
+    if (!AI.key()) stat('<b style="color:var(--warn)">AI DJ is off.</b> No AI key is saved on this device, so best parts come from lyrics or a simple rule. Paste a Gemini key in the AI DJ box, tap Save, and build again.');
+    else if (!picked.some(t => !aic[t.id])) stat('AI DJ: every song in this mix uses an AI pick saved earlier.');
     if (AI.key() && picked.some(t => !aic[t.id])) {
       const pool = ST.pool, mix = ST.mix;
       const note = () => { const c = k => mix.filter(t => t.hookSrc === k).length;
-        $('#aiNote').innerHTML = (AI.lastErr ? `<b style="color:var(--bad)">AI error: ${esc(AI.lastErr)}</b><br>` : '') + `This mix: AI picked from timed lyrics for <b>${c('ai')}</b>, AI estimate for <b>${c('aiest')}</b>, lyrics chorus for <b>${c('lyrics')}</b>, rule estimate for <b>${c('estimate')}</b>, set by you <b>${c('you')}</b>.`; };
+        const h = (AI.lastErr ? `<b style="color:var(--bad)">AI error: ${esc(AI.lastErr)}</b><br>` : '') + `This mix: AI picked from timed lyrics for <b>${c('ai')}</b>, AI estimate for <b>${c('aiest')}</b>, lyrics chorus for <b>${c('lyrics')}</b>, rule estimate for <b>${c('estimate')}</b>, set by you <b>${c('you')}</b>.${AI.empty ? ` The AI gave no usable answer for ${AI.empty}.` : ''}`; $('#aiNote').innerHTML = h; stat(h); };
       // The AI works through the songs in play order while the music runs; each result updates the songs still to come
       const refresh = () => { if (ST.pool !== pool || ST.mix !== mix) return;
         mix.forEach((t,i) => t._lock = DJ.playing && i <= DJ.idx);
@@ -804,7 +810,7 @@ async function buildMix(){
         renderDeck(); note(); };
       renderDeck();
       msg.innerHTML = summary() + ' · <span class="spin"></span> AI DJ thinking… press Play any time';
-      AI.run(mix.slice(), (d,n) => { if (ST.pool === pool) msg.innerHTML = summary() + ` · <span class="spin"></span> AI DJ ${d}/${n} songs…`; }, refresh)
+      AI.run(mix.slice(), (d,n) => { if (ST.pool === pool) { msg.innerHTML = summary() + ` · <span class="spin"></span> AI DJ ${d}/${n} songs…`; stat(`<span class="spin"></span> AI DJ is working: ${d} of ${n} songs done. You can press Play; songs still to come update as it goes.`); } }, refresh)
         .then(() => { if (ST.pool !== pool) return; refresh(); msg.textContent = summary() + (AI.lastErr ? ' · AI stopped' : ' · AI done'); })
         .catch(() => { if (ST.pool === pool) msg.textContent = summary(); });
     }
