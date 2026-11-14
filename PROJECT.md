@@ -118,9 +118,10 @@ the top right and cover part of the page.
 - Test copy (`cinema-book-test/`): Version 22 (neutral black-and-white look, ticket stubs for the diary, floating glass tab bar). Adds over 13: Wikidata
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
-- Segue (`segue/`): Version 25. Spotify sign-in, AI best-part picks with a
+- Segue (`segue/`): Version 26. Spotify sign-in, AI best-part picks with a
   Gemini key, and a phone layout matching Cinema Book are in place. Player
-  fixes for skipped and overrunning songs are waiting for Vijay to confirm.
+  fixes now wait for AI picks, preserve pause/resume state and retry failed
+  songs without skipping. Simulated checks pass; live phone confirmation pending.
   Details, limits and open items: `segue/README.md`.
 
 ## Open items
@@ -136,6 +137,8 @@ the top right and cover part of the page.
 ## Change log
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-14, ChatGPT: Segue Version 26: waits for the first AI pick and uses eight-song batches ahead; exact AI passages, no timed fallback to estimates, finite quota retries and retained backup models. Stable current passage/order; no transition volume changes; retry the same failed song instead of silently skipping. Fresh matching-track/device state, external pause/resume, frozen pause position and explicit URI/position on resume, new-mix session reset, cancellation and late-start guards. Late AI pauses at the boundary rather than playing an unchosen passage. Added 19 simulated regression checks and updated the handoff/root README links. Chromium checks passed at four widths in light/dark with mocked Spotify, plus manifest/icons. Real Spotify/AI and iPhone background behavior remain unverified.
 
 - 2026-11-14, Claude: rewrote `segue/README.md` as a full Segue handoff (goal, what Vijay rejected, limits, code map, current state, open items) and added Segue to the rules and Current state sections here. No code change.
 

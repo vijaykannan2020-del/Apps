@@ -268,7 +268,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 25;
+const APP_VERSION = 26;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -565,7 +565,7 @@ function planSegments(ord, vibe, len){
     let ratio = .3; if (t.dance > .72) ratio = .26; if (t.energy < .4) ratio = .36; if (t.dur > 330000) ratio -= .05;
     const mine = HK.get()[t.id], beat = 60000 / (t.tempo || 120);
     if (mine != null) { t.hook = mine; t.hookSrc = 'you'; }
-    else if (t.aiStart != null && !(ST.part === 'first' && Array.isArray(t.lyricHook))) { t.hook = clamp(t.aiStart - beat, 0, Math.max(0, t.dur - (LEN[len] || 45000) - 3000)); t.hookSrc = 'ai'; }
+    else if (t.aiStart != null && !(ST.part === 'first' && Array.isArray(t.lyricHook))) { t.hook = clamp(t.aiStart, 0, Math.max(0, t.dur - 20000)); t.hookSrc = 'ai'; }
     else if (Array.isArray(t.lyricHook) && t.lyricHook.length) {
       const cs = t.lyricHook, need = len === 'full' ? 0 : (LEN[len] || 45000);
       // Peak = the last full chorus that still leaves room to play it (the second or third time round is usually the biggest)
@@ -597,8 +597,8 @@ function planSegments(ord, vibe, len){
         t.start = i === 0 && vibe !== 'peak' ? Math.max(0, t.hook - 2*phrase) : Math.max(0, t.hook - phrase);
         t.end = Math.min(t.dur - 1500, t.hook + Math.max(4, Math.round(want / bar)) * bar + t.fadeOut);
       }
-      if (t.hookSrc === 'ai' && t.aiEnd) t.end = Math.min(t.dur - 1500, t.hook + Math.max(8, Math.round((t.aiEnd - t.aiStart) / bar)) * bar + (ST.trans === 'cut' ? 0 : t.fadeOut)); // the AI's own length, to a whole bar
-      if (t.end - t.start < want * .8) t.start = Math.max(0, t.end - want);
+      if (t.hookSrc === 'ai' && t.aiEnd) { t.start = t.hook; t.end = Math.min(t.dur - 2000, t.aiEnd, t.start + 75000); }
+      else if (t.end - t.start < want * .8) t.start = Math.max(0, t.end - want);
     }
   });
   ord.forEach((t,i) => { const p = ord[i-1]; t.why = p ? (ST.trans === 'cut' && len !== 'full' ? '<em>DJ cut</em><br>' : '') + whyText(p,t) : null; });
@@ -736,42 +736,44 @@ ${songs}`;
       const flash = names.filter(n => !n.endsWith('-lite')), lite = names.filter(n => n.endsWith('-lite'));
       this.models = [...new Set([flash[0] || 'gemini-3.8-flash', lite[0] || 'gemini-3.8-flash-lite', 'gemini-flash-latest', 'gemini-flash-lite-latest'])];
     }
-    for (let mi = 0, retried = false; mi < this.models.length; mi++) {
-      const model = this.models[mi];
-      // Free Gemini keys allow only a few requests a minute: keep at least 13 s between them
-      const gap = (this.lastCall || 0) + 13000 - Date.now(); if (gap > 0) await sleep(gap);
-      this.lastCall = Date.now();
-      const gc = { temperature:.2, responseMimeType:'application/json' }; // the AI is allowed to think: it works ahead of the music
-      let r;
-      try { r = await tfetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, { method:'POST', headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ contents:[{ parts:[{ text }] }], generationConfig:gc }) }, 35000); }
-      catch(e) { // no answer in time: put this model last and try the next one
-        lastErr = new Error(`Gemini (${model}) did not answer within 35 seconds.`);
-        if (this.models.length > 1) { this.models.push(this.models.splice(mi, 1)[0]); mi--; if (++this.slow > this.models.length) { this.slow = 0; throw lastErr; } }
-        continue;
+    // A snapshot and a finite retry budget: quota errors cannot rotate forever.
+    const candidates = this.models.slice();
+    for (const model of candidates) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const gap = (this.lastCall || 0) + 13000 - Date.now(); if (gap > 0) await sleep(gap);
+        this.lastCall = Date.now();
+        let r;
+        try {
+          r = await tfetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, { method:'POST', headers:{ 'Content-Type':'application/json' },
+            body: JSON.stringify({ contents:[{ parts:[{ text }] }], generationConfig:{ temperature:.2, responseMimeType:'application/json' } }) }, 35000);
+        } catch(e) { lastErr = new Error(`Gemini (${model}) did not answer. Try again.`); break; }
+        const j = await r.json().catch(() => ({}));
+        if (r.ok) {
+          // Prefer the model that answered, retaining all backups for later batches.
+          this.models = [model, ...candidates.filter(n => n !== model)];
+          return j.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+        }
+        lastErr = new Error(`Gemini (${model}): ` + (j?.error?.message || r.status));
+        if (r.status === 401 || r.status === 403 || (r.status === 400 && /API key/i.test(j?.error?.message || ''))) throw lastErr;
+        const m = /retry in ([\d.]+)\s*s/i.exec(j?.error?.message || '');
+        // Only retry an explicitly temporary rate limit; exhausted daily quota moves on.
+        if (r.status === 429 && attempt === 0 && m && +m[1] <= 70 && !/per.?day|daily|limit:\s*0/i.test(j?.error?.message || '')) {
+          await sleep((+m[1] + 1) * 1000); continue;
+        }
+        break;
       }
-      this.slow = 0;
-      const j = await r.json().catch(() => ({}));
-      if (r.ok) { this.models = [model]; return j.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || ''; }
-      lastErr = new Error(`Gemini (${model}): ` + (j?.error?.message || r.status));
-      if (r.status === 429 && !retried) { // over the per-minute limit: wait as long as Google says, then ask again
-        const m = /retry in ([\d.]+)\s*s/i.exec(j?.error?.message || ''); const secs = m ? +m[1] : 30;
-        if (secs <= 70) { retried = true; await sleep((secs + 1) * 1000); mi--; continue; }
-      }
-      if (r.status === 429 && this.models.length > 1 && mi < this.models.length - 1) { this.models.push(this.models.splice(mi, 1)[0]); mi--; if (++this.slow > this.models.length) { this.slow = 0; throw lastErr; } continue; } // this model's allowance is used up: try the next
-      if (r.status === 401 || r.status === 403 || r.status === 429 || (r.status === 400 && /API key/i.test(j?.error?.message || ''))) throw lastErr; // key or quota problem: don't try other models
     }
     throw lastErr;
   },
-  slow: 0,
+  batchSize: 8,
   q: Promise.resolve(),
   one(t){ // decide this song and the next few in one request; requests are queued so they never overlap
     const cache = this.cache();
     if (!this.key() || cache[t.id] || (t._aiTries || 0) >= 2) return Promise.resolve();
     if (t._aiP) return t._aiP;
     const mix = ST.mix, i = Math.max(0, mix.indexOf(t));
-    const batch = mix.slice(i, i + 12).filter(x => !cache[x.id] && !x._aiP && (x._aiTries || 0) < 2 && x.hookSrc !== 'you').slice(0, 8);
-    if (!batch.includes(t)) batch.unshift(t);
+    const batch = mix.slice(i, i + 12).filter(x => !cache[x.id] && !x._aiP && (x._aiTries || 0) < 2 && x.hookSrc !== 'you').slice(0, this.batchSize);
+    if (!batch.includes(t)) { batch.unshift(t); batch.length = Math.min(batch.length, this.batchSize); }
     const p = this.q = this.q.then(async () => { batch.forEach(x => x._aiTries = (x._aiTries || 0) + 1); await this.run(batch); }).catch(() => {}).then(() => { batch.forEach(x => { x._aiP = null; x.aiPending = false; }); });
     batch.forEach(x => x._aiP = p);
     return p;
@@ -783,17 +785,17 @@ ${songs}`;
     todo.forEach(t => t.aiPending = true);
     const apply = list => list.forEach(t => { const c = cache[t.id]; if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     let done = 0;
-    for (let i = 0; i < todo.length; i += 5) {
-      const batch = todo.slice(i, i + 5);
+    for (let i = 0; i < todo.length; i += this.batchSize) {
+      const batch = todo.slice(i, i + this.batchSize);
       onProg?.(i, todo.length);
       try {
         const txt = await this.call(this.prompt(batch));
         const arr = JSON.parse(txt.replace(/^[^\[]*/, '').replace(/[^\]]*$/, ''));
         for (const o of arr) {
           const t = batch.find(x => x.id === o.id); if (!t) continue;
-          let start = typeof o.start === 'number' ? o.start * 1000 : null, end = typeof o.end === 'number' ? o.end * 1000 : null;
+          let start = Number.isFinite(o.start) ? o.start * 1000 : null, end = Number.isFinite(o.end) ? o.end * 1000 : null;
           if (start != null && (start < 0 || start > t.dur - 20000)) start = null;
-          if (start != null) { if (end == null || end - start < 20000) end = start + 45000; end = Math.min(end, start + 90000, t.dur - 1500); }
+          if (start != null) { if (end == null || end - start < 20000) end = start + 45000; end = Math.min(end, start + 75000, t.dur - 2000); }
           const res = { start, end, mood: MOODS.includes(o.mood) ? o.mood : null, why: String(o.why || '').slice(0, 60) };
           if (start != null) cache[t.id] = res; else { t.mood = res.mood; this.empty = (this.empty||0) + 1; }
           done++;
@@ -815,7 +817,7 @@ function replanAhead(lockUpTo){
 }
 function aiStatus(){
   const mix = ST.mix, el = $('#aiStat'); if (!mix.length) return;
-  if (!AI.key()) { el.innerHTML = '<div class="note" style="margin:10px 0"><b style="color:var(--warn)">AI DJ is off.</b> No AI key is saved on this device, so best parts come from a simple rule. Paste a Gemini key in the AI DJ box, tap Save, and build again.</div>'; return; }
+  if (!AI.key()) { el.innerHTML = '<div class="note" style="margin:10px 0"><b style="color:var(--warn)">AI DJ is off.</b> Save an AI key in Settings to build and play an AI mix.</div>'; return; }
   const n = mix.filter(t => t.hookSrc === 'ai').length;
   el.innerHTML = `<div class="note" style="margin:10px 0">${AI.lastErr ? `<b style="color:var(--bad)">AI error: ${esc(AI.lastErr)}</b><br>` : ''}AI DJ has chosen the best part for <b>${n}</b> of ${mix.length} songs. It decides the next few songs just before they play.</div>`;
 }
@@ -824,7 +826,7 @@ async function aiAhead(){
   if (!AI.key() || !ST.mix.length || aheadBusy) return; aheadBusy = true;
   try {
     const mix = ST.mix, from = DJ.playing ? DJ.idx + 1 : DJ.idx;
-    for (const t of mix.slice(from, from + 4)) {
+    for (const t of mix.slice(from, from + AI.batchSize)) {
       if (AI.cache()[t.id] || t.hookSrc === 'you') continue;
       t.aiPending = true; renderDeck();
       await AI.one(t); t.aiPending = false;
@@ -836,7 +838,7 @@ async function aiAhead(){
 function rowPlan(t){
   if (ST.len === 'full') return 'full song';
   if (t.aiPending && t.hookSrc !== 'you') return 'AI is choosing the best part…';
-  if (t.hookSrc === 'estimate' && AI.key() && (t._aiTries || 0) < 2 && ST.mix.indexOf(t) >= DJ.idx + (DJ.playing ? 1 : 0)) return 'AI decides shortly before it plays';
+  if (t.hookSrc === 'estimate') return (t._aiTries || 0) >= 2 ? 'AI pick unavailable · Press Play to retry' : 'Waiting for AI pick';
   return `plays ${fmt(t.start)} → ${fmt(t.end)} · ${SRC[t.hookSrc] || ''}${t.aiWhy && t.hookSrc === 'ai' ? ' · ' + esc(t.aiWhy) : ''}`;
 }
 
@@ -844,6 +846,8 @@ function rowPlan(t){
 async function buildMix(){
   const btn = $('#buildBtn'), msg = $('#buildMsg'); btn.disabled = true;
   try {
+    if (!AI.key()) throw new Error('Save an AI key in Settings first.');
+    if (DJ.busy) throw new Error('Wait for the current playback action to finish.');
     const cap = Math.max(ST.max * 3, 60);
     let all = [];
     for (const [i,src] of ST.crate.entries()) { msg.innerHTML = `<span class="spin"></span> Reading ${esc(src.name)} (${i+1}/${ST.crate.length})…`; all.push(...await tracksFromSource(src, Math.ceil(cap / ST.crate.length) + 20)); }
@@ -865,7 +869,7 @@ async function buildMix(){
     const aic = AI.cache(); picked.forEach(t => { const c = aic[t.id]; if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     msg.innerHTML = `<span class="spin"></span> Planning the set…`; await sleep(30);
     ST.pool = picked;
-    remix();
+    await remix();
     const summary = () => { const na = ST.mix.filter(t => t.hookSrc === 'ai').length;
       return `${ST.mix.length} songs · ~${Math.round(ST.mix.reduce((s,t)=>s+(t.end-t.start),0)/60000)} min${AI.key() ? ` · AI picked ${na} of ${ST.mix.length}` : ''}${ST.featOk?'':' · basic mode'}`; };
     msg.textContent = summary();
@@ -874,17 +878,22 @@ async function buildMix(){
   } catch(e){ msg.textContent = e.message; toast(e.message); }
   btn.disabled = !ST.crate.length;
 }
-function remix(){
-  const wasPlaying = DJ.playing;
-  ST.mix = buildOrder(ST.pool, ST.vibe);
-  planSegments(ST.mix, ST.vibe, ST.len);
-  DJ.idx = 0; renderDeck(); drawCurve();
-  $('#featNote').innerHTML = ST.featOk ? '' : `<div class="note warn">Couldn't get audio analysis for most songs, so the order is based on artist spacing and the "best part" is estimated from song length. Mixing still works; it's just less precise.</div>`;
-  aiStatus();
-  if (wasPlaying) DJ.go(0); else aiAhead();
+async function remix(){
+  if (DJ.busy) throw new Error('Wait for the current playback action to finish.');
+  DJ.busy = true;
+  try {
+    await DJ.pause();
+    DJ.loadedMix = DJ.loadedId = null; DJ.pos = DJ.posAt = 0; DJ.finished = false; DJ.retryIdx = null;
+    ST.mix = buildOrder(ST.pool, ST.vibe);
+    planSegments(ST.mix, ST.vibe, ST.len);
+    DJ.idx = 0; renderDeck(); drawCurve();
+    $('#featNote').innerHTML = ST.featOk ? '' : `<div class="note warn">Couldn't get audio analysis for most songs. AI still chooses each best part, but tempo and key matching are less precise.</div>`;
+    aiStatus();
+  } finally { DJ.busy = false; }
+  aiAhead();
 }
 $('#buildBtn').onclick = buildMix;
-$('#reshuffle').onclick = () => ST.pool && remix();
+$('#reshuffle').onclick = () => ST.pool && remix().catch(e => toast(e.message));
 
 /* ---------------- Deck UI ---------------- */
 function renderDeck(){
@@ -930,6 +939,7 @@ function drawCurve(){
 const DJ = {
   player:null, sdkDev:null, dev:null, remote:false, idx:0, playing:false, busy:false, master:.85, lat:450,
   pos:0, posAt:0, startedAt:0, tick:null, xfading:false,
+  epoch:0, loadedMix:null, loadedId:null, retryIdx:null, finished:false, externalPaused:false,
 
   async init(){
     window.onSpotifyWebPlaybackSDKReady = () => {
@@ -939,11 +949,11 @@ const DJ = {
       this.player.addListener('initialization_error', ({message}) => { setStat('This browser can\'t play here — pick another device'); console.warn(message); this.devices(); });
       this.player.addListener('authentication_error', ({message}) => toast('Spotify auth error: '+message));
       this.player.addListener('account_error', () => toast('Spotify Premium is required for playback.', 6000));
-      this.player.addListener('player_state_changed', s => { /* position is read in the tick, where it is checked against the song that should be playing */ });
+      this.player.addListener('player_state_changed', () => this.tickFn?.());
       this.player.connect();
     };
     const sc = document.createElement('script'); sc.src = 'https://sdk.scdn.co/spotify-player.js'; document.head.appendChild(sc);
-    $('#devSel').onchange = e => { this.dev = e.target.value; this.remote = this.dev !== this.sdkDev; if (this.playing) this.go(this.idx); };
+    $('#devSel').onchange = async e => { const dev = e.target.value; await this.pause(); this.dev = dev; this.remote = dev !== this.sdkDev; this.loadedMix = null; setStat('Device changed. Press Play.'); };
     setTimeout(()=>this.devices(), 2500);
   },
   async devices(){
@@ -972,82 +982,183 @@ const DJ = {
       await sleep(ms/steps);
     }
   },
-  async playTrack(i, fadeIn){
-    const t = ST.mix[i];
-    this.idx = i; showNow(i);
-    if (!this.dev) { await this.devices(); if (!this.dev) throw new Error('No playback device. Open Spotify on a device or use a desktop browser.'); }
-    if (fadeIn) await this.vol(.02);
+  async playTrack(i, epoch){
+    const mix = ST.mix, t = mix[i];
+    if (!this.dev) await this.devices();
+    if (epoch !== this.epoch) return false;
+    if (!this.dev) throw new Error('Open Spotify on a device, then press Play.');
     const t0 = performance.now();
-    const start = () => api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', body:{ uris:[t.uri], position_ms:Math.round(t.start) } });
-    try { try { await start(); } catch(e) { if (e.status === 403 || e.status === 401) throw e; if (e.status === 404) await this.devices(); await sleep(600); await start(); }
-      this.lat = clamp(.6*this.lat + .4*(performance.now() - t0), 150, 1500); }
-    catch(e){ if (e.reason==='PREMIUM_REQUIRED' || e.status===403) throw new Error('Spotify Premium is required for playback.'); throw e; }
+    const start = () => api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', retry:0, body:{ uris:[t.uri], position_ms:Math.round(t.start) } });
+    try { await start(); }
+    catch(e) {
+      if (epoch !== this.epoch) return false;
+      if (e.status === 401 || e.status === 403) throw e;
+      if (e.status === 404) await this.devices();
+      await sleep(600);
+      if (epoch !== this.epoch) return false;
+      await start(); // Retry this song only; never jump past a failed song.
+    }
+    if (epoch !== this.epoch || mix !== ST.mix) {
+      // A pause during an in-flight Spotify request must win over the late start.
+      await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }).catch(()=>{});
+      return false;
+    }
+    this.lat = clamp(.6*this.lat + .4*(performance.now() - t0), 150, 1500);
+    this.idx = i; this.loadedMix = mix; this.loadedId = t.id; this.retryIdx = null;
+    this.finished = this.externalPaused = false;
     this.pos = t.start; this.posAt = this.startedAt = performance.now();
-    if (fadeIn) await this.ramp(.02, this.master, t.fadeIn); else await this.vol(this.master);
-    $('#xf').style.width = '0';
+    this.playing = true; showNow(i); setPlayIcon();
     aiAhead();
+    return true;
   },
-  async go(i, smooth=true){
-    if (i < 0 || i >= ST.mix.length) return;
-    if (this.busy) return; this.busy = true; this.abortRamp = false;
+  async go(i){
+    if (i < 0 || i >= ST.mix.length || this.busy) return;
+    this.busy = true;
+    const epoch = ++this.epoch, mix = ST.mix, g = mix[i];
     try {
       this.player?.activateElement?.();
-      const g = ST.mix[i];
-      if (AI.key() && g.hookSrc !== 'you' && !AI.cache()[g.id] && (g._aiTries || 0) < 2) {
-        setStat('<span class="spin"></span> AI is choosing the best part…'); g.aiPending = true; renderDeck();
-        await within(AI.one(g), this.playing ? 12000 : 45000); g.aiPending = false;
-        replanAhead(Math.min(i - 1, this.playing ? this.idx : -1));
+      if (g.hookSrc !== 'you') {
+        if (!AI.cache()[g.id]) {
+          if (!AI.key()) throw new Error('Save an AI key in Settings first.');
+          if (!g._aiP) g._aiTries = 0; // An explicit Play retries a previous AI failure.
+          setStat('<span class="spin"></span> AI is choosing the best part…');
+          g.aiPending = true; renderDeck();
+          const cancelled = new Promise(resolve => { this.cancelWait = resolve; });
+          await Promise.race([AI.one(g), cancelled]); this.cancelWait = null; g.aiPending = false;
+        }
+        if (epoch !== this.epoch || mix !== ST.mix) return;
+        const pick = AI.cache()[g.id];
+        if (!pick || !Number.isFinite(pick.start) || !Number.isFinite(pick.end)) throw new Error(AI.lastErr || 'AI has not picked this song yet. Press Play to retry.');
+        g.aiStart = pick.start; g.aiEnd = pick.end; g.mood = pick.mood; g.aiWhy = pick.why;
+        replanAhead(this.loadedMix === mix ? this.idx : -1);
+        // An explicit jump/restart can replan its target, but not the song still playing.
+        if (!this.playing || i !== this.idx) planSegments([g], ST.vibe, ST.len);
       }
-      if (this.playing && smooth) { this.xfading = true; setStat('Mixing…'); await this.ramp(this.master, 0, Math.min(2500, ST.mix[this.idx].fadeOut)); }
-      this.playing = true; setPlayIcon();
-      await this.playTrack(i, smooth);
-      setStat(`<b>Live</b> · ${ST.len==='full'?'full songs':'best parts'}`);
-    } catch(e){ toast(e.message, 5000); setStat(e.message); this.playing = false; setPlayIcon(); }
-    this.xfading = false; this.busy = false; this.loop();
+      if (epoch !== this.epoch || mix !== ST.mix) return;
+      if (await this.playTrack(i, epoch)) setStat('<b>Live</b> · AI best parts');
+    } catch(e) {
+      if (epoch !== this.epoch) return;
+      this.retryIdx = i;
+      // On an explicit jump failure leave the current song alone. At an automatic
+      // boundary, pause rather than silently dropping this song from the mix.
+      if (this.atBoundary || !this.playing) {
+        this.freeze(); this.playing = false;
+        if (this.dev) await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }).catch(()=>{});
+      }
+      toast(e.message, 6000); setStat(esc(e.message) + ' · Press Play to retry this song.'); setPlayIcon();
+    } finally {
+      this.busy = false; this.atBoundary = false;
+      this.loop();
+    }
   },
   async transition(){
-    if (this.xfading || this.busy) return;
+    if (this.busy || !this.playing) return;
     const next = this.idx + 1;
-    this.xfading = true; this.busy = true;
-    const t = ST.mix[this.idx];
-    setStat(next < ST.mix.length ? 'Mixing into next…' : 'Closing the set…');
-    const cut = ST.trans === 'cut' && ST.len !== 'full' && next < ST.mix.length;
-    if (cut) { if (!this.remote) await this.ramp(this.master, this.master * .3, 260); setStat('<b>DJ cut</b>'); }
-    else await this.ramp(this.master, 0, t.fadeOut);
-    if (!this.playing) { this.xfading = this.busy = false; return; }
-    if (next >= ST.mix.length) { await this.pause(); setStat('Set finished'); this.xfading = this.busy = false; return; }
-    let ok = false;
-    for (let k = next; k < Math.min(next + 3, ST.mix.length) && !ok; k++) { try { await this.playTrack(k, !cut); ok = true; } catch(e){ toast(`Could not play "${ST.mix[k].name}": ${e.message}`, 4000); } }
-    if (!ok) { await this.pause(); setStat('Spotify would not start the next songs. Press Play to try again.'); this.xfading = this.busy = false; return; }
-    setStat(`<b>Live</b> · ${ST.len==='full'?'full songs':'best parts'}`);
-    this.xfading = false; this.busy = false;
+    if (next >= ST.mix.length) {
+      await this.pause(); this.finished = true; this.loadedMix = null; this.pos = this.posAt = 0;
+      setStat('Set finished · Press Play to replay'); return;
+    }
+    this.atBoundary = true;
+    const g = ST.mix[next];
+    if (g.hookSrc !== 'you' && !AI.cache()[g.id]) {
+      // Do not overrun the selected passage or play a rule-based replacement.
+      this.freeze(); this.playing = false; setPlayIcon();
+      const epoch = this.epoch;
+      this.busy = true;
+      try { await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }); }
+      catch(e) { this.atBoundary = false; setStat(esc(e.message)); return; }
+      finally { this.busy = false; }
+      if (epoch !== this.epoch) { this.atBoundary = false; return; }
+    }
+    await this.go(next);
+  },
+  freeze(){
+    if (this.playing && this.posAt) this.pos += Math.max(0, performance.now() - this.posAt);
+    this.posAt = performance.now();
+  },
+  acceptState(s, t, remote){
+    if (!s) return false;
+    if (remote && s.device?.id && s.device.id !== this.dev) {
+      this.freeze(); this.playing = false; this.loadedMix = null; setPlayIcon();
+      setStat('Playback moved to another device · Choose it in Settings'); return false;
+    }
+    const item = remote ? s.item : s.track_window?.current_track;
+    const same = item && (item.id === t.id || item.linked_from?.id === t.id || item.uri === t.uri);
+    if (!same) {
+      // Never use another song's clock or take over music started outside Segue.
+      if (performance.now() - this.startedAt > 4000 && item) {
+        this.freeze(); this.playing = false; this.loadedMix = null;
+        setPlayIcon(); setStat('Spotify is playing another song · Press Play to return to your mix');
+      }
+      return false;
+    }
+    const pos = remote ? s.progress_ms : s.position;
+    if (!Number.isFinite(pos)) return false;
+    // Ignore a stale paused state immediately after a successful start.
+    const paused = remote ? s.is_playing === false : s.paused === true;
+    if (paused && performance.now() - this.startedAt < 2500) return false;
+    if (this.playing && performance.now() - this.startedAt < 4000 && Math.abs(pos - (this.pos + performance.now() - this.posAt)) > 5000) return false;
+    this.pos = pos; this.posAt = performance.now();
+    if (paused) {
+      this.playing = false; this.externalPaused = true; setPlayIcon(); setStat('Paused in Spotify');
+    } else if (this.externalPaused) {
+      this.externalPaused = false; this.playing = true; setPlayIcon(); setStat('<b>Live</b> · AI best parts');
+    }
+    return true;
   },
   loop(){
     clearInterval(this.tick);
-    let lastPoll = 0;
+    let lastPoll = -Infinity;
     const fn = async () => {
-      if (!this.playing || this._ticking) return; this._ticking = true; try {
-      const t = ST.mix[this.idx]; if (!t) return;
-      // Position: SDK local state, or poll remote device every ~1.5s and interpolate
-      if (!this.remote && this.player) { const s = await this.player.getCurrentState(); if (s) { const ct = s.track_window?.current_track, same = ct && (ct.id === t.id || ct.linked_from?.id === t.id || ct.uri === t.uri), est = this.pos + (performance.now() - this.posAt);
-        if (same || (performance.now() - this.startedAt > 4000 && Math.abs(s.position - est) < 5000)) { this.pos = s.position; this.posAt = performance.now(); } } }
-      else if (performance.now() - lastPoll > 1500) { lastPoll = performance.now(); try { const s = await api('/me/player', { retry:0 }); if (s?.progress_ms != null && (!s.item || s.item.id === t.id || s.item.linked_from?.id === t.id || s.item.uri === t.uri)) { this.pos = s.progress_ms; this.posAt = performance.now(); } } catch {} }
-      const pos = this.pos + (performance.now() - this.posAt);
-      $('#ph').style.left = clamp(pos/t.dur*100, 0, 100) + '%'; $('#tCur').textContent = fmt(pos);
-      // For a cut, fire early by the measured Spotify delay so the new hook lands on the bar line
-      const lead = t.fadeOut + (ST.trans === 'cut' && ST.len !== 'full' ? this.lat : 0);
-      if (!this.busy && performance.now() - this.startedAt > 2500 && pos >= t.end - lead) this.transition();
-      } finally { this._ticking = false; }
+      if (this.busy || this._ticking || this.loadedMix !== ST.mix || (!this.playing && !this.externalPaused)) return;
+      this._ticking = true;
+      const epoch = this.epoch, t = ST.mix[this.idx];
+      try {
+        let state;
+        if (!this.remote && this.player) state = await this.player.getCurrentState();
+        else {
+          if (performance.now() - lastPoll < 1500) return;
+          lastPoll = performance.now(); state = await api('/me/player', { retry:0 });
+        }
+        if (epoch !== this.epoch || this.busy || t !== ST.mix[this.idx]) return;
+        if (!this.acceptState(state, t, this.remote)) return;
+        const pos = this.pos;
+        $('#ph').style.left = clamp(pos/t.dur*100, 0, 100) + '%'; $('#tCur').textContent = fmt(pos);
+        if (this.playing && performance.now() - this.startedAt > 2500 && pos >= t.end - this.lat) await this.transition();
+      } catch(e) { /* A missing poll must not advance or skip the mix. */ }
+      finally { this._ticking = false; }
     };
     this.tickFn = fn; this.tick = setInterval(fn, 400);
   },
-  async pause(){ this.playing = false; this.abortRamp = true; setPlayIcon(); clearInterval(this.tick); try { await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }); } catch {} await this.vol(this.master); },
-  async resume(){
-    this.player?.activateElement?.();
-    if (this.posAt && this.pos > 0) {
-      try { this.playing = true; setPlayIcon(); this.abortRamp = false; await api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', retry:0 }); this.posAt = performance.now(); this.loop(); setStat(`<b>Live</b>`); return; } catch {}
+  async pause(){
+    ++this.epoch; this.cancelWait?.(); this.freeze(); this.playing = false; this.externalPaused = false;
+    setPlayIcon(); clearInterval(this.tick);
+    if (this.dev) {
+      try { await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }); }
+      catch(e) { setStat('Spotify did not confirm the pause. Check Spotify and try again.'); }
     }
-    this.go(this.idx, false);
+  },
+  async resume(){
+    if (this.busy) return;
+    this.player?.activateElement?.();
+    if (this.finished) { this.finished = false; this.idx = 0; }
+    if (this.retryIdx != null) return this.go(this.retryIdx);
+    const t = ST.mix[this.idx]; if (!t) return;
+    if (this.loadedMix === ST.mix && this.loadedId === t.id && this.pos < t.end - 500) {
+      this.busy = true; const epoch = ++this.epoch;
+      try {
+        // Explicit URI + frozen position cannot resume an unrelated Spotify context.
+        await api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', retry:0, body:{ uris:[t.uri], position_ms:Math.round(this.pos) } });
+        if (epoch !== this.epoch) {
+          await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }).catch(()=>{}); return;
+        }
+        this.posAt = this.startedAt = performance.now(); this.playing = true; this.externalPaused = false;
+        setPlayIcon(); setStat('<b>Live</b> · AI best parts'); aiAhead();
+      } catch(e) { setStat(esc(e.message)); }
+      finally { this.busy = false; this.loop(); }
+      return;
+    }
+    return this.go(this.loadedMix === ST.mix ? Math.min(this.idx + 1, ST.mix.length - 1) : this.idx);
   },
 };
 // A background worker keeps the song-change clock running when Safari slows the page's own timers (other tab or app in front)
@@ -1055,7 +1166,7 @@ try { const w = new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMe
 document.addEventListener('visibilitychange', () => { if (!document.hidden && DJ.playing) DJ.tickFn?.(); });
 function setStat(h){ $('#stat').innerHTML = h; }
 function setPlayIcon(){ $('#playIco').innerHTML = DJ.playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>'; }
-$('#playBtn').onclick = () => DJ.playing ? DJ.pause() : DJ.resume();
+$('#playBtn').onclick = () => DJ.playing || DJ.busy ? DJ.pause() : DJ.resume();
 $('#nextBtn').onclick = () => DJ.playing ? DJ.transition() : DJ.go(Math.min(DJ.idx+1, ST.mix.length-1), false);
 $('#prevBtn').onclick = () => DJ.go(Math.max(0, DJ.idx-1));
 document.addEventListener('keydown', e => { if (e.target.tagName==='INPUT') return; if (e.code==='Space'){ e.preventDefault(); $('#playBtn').click(); } if (e.code==='ArrowRight') $('#nextBtn').click(); if (e.code==='ArrowLeft') $('#prevBtn').click(); });
@@ -1101,7 +1212,7 @@ $('#verTop').textContent = $('#verLbl').textContent = 'Version ' + APP_VERSION;
   $('#lo').onclick = logout;
   refreshSources();
   $('#aiKey').value = LS.get('aikey') || '';
-  $('#aiSave').onclick = () => { const v = $('#aiKey').value.trim(); LS.set('aikey', v || null); toast(v ? 'AI key saved on this device' : 'AI key removed'); };
+  $('#aiSave').onclick = () => { const v = $('#aiKey').value.trim(); LS.set('aikey', v || null); AI.models = null; AI.lastErr = null; toast(v ? 'AI key saved on this device' : 'AI key removed'); };
   DJ.init();
 })();
 </script>

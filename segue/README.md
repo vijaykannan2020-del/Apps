@@ -1,7 +1,7 @@
 # Segue: handoff
 
 Read `PROJECT.md` in the repository root first (deploy, phone layout rules,
-change log). This file covers Segue only. Last updated: 2026-11-14, Version 25.
+change log). This file covers Segue only. Last updated: 2026-11-14, Version 26.
 
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
@@ -86,23 +86,46 @@ the top-right corner. Colours are CSS variables with a dark-mode override.
 2. `buildOrder()` orders songs: neighbours close in tempo, key (Camelot),
    style and AI mood; no artist twice in a row.
 3. `planSegments()` sets `start`, `end`, `hook` per song. Priority:
-   Vijay's mark (`HK`) > AI pick (`aiStart`/`aiEnd`) > simple rule. End is
-   rounded to a whole bar. Songs with `_lock` are left alone.
-4. AI: `aiAhead()` keeps the AI ahead of the music. It looks at the next 4
-   songs; `AI.one(t)` sends that song plus up to 7 undecided ones after it
-   in one request (`AI.prompt`), queued so requests never overlap, 13 s
-   apart. `AI.call` lists the key's Gemini models, uses the newest Flash,
-   and moves to Flash-Lite or the `-latest` names on a timeout (35 s) or a
-   used-up allowance. Results go to `ai4`; `replanAhead()` then updates only
-   songs not yet played.
-5. Player (`DJ`): `go(i)` starts a song (waits for the AI pick first: up to
-   45 s when starting, 12 s when jumping while playing). `loop()` ticks
-   every 400 ms plus a Web Worker tick, reads position and calls
-   `transition()` near the song's `end`. `transition()` never waits for the
-   AI; if Spotify refuses a song it retries, then tries the next one.
-6. Position is trusted only when the SDK reports the track that should be
-   playing, and no change happens in a song's first 2.5 s. Without this,
-   songs were skipped (Version 25 fix).
+   Vijay's mark (`HK`) > AI pick (`aiStart`/`aiEnd`) > simple rule. AI start and end times are used directly, bounded by the song length
+   and a maximum 75-second passage. Songs with `_lock` are left alone.
+4. AI: `aiAhead()` looks up to eight songs ahead. `AI.one(t)` queues up to
+   eight undecided songs in one request. Requests never overlap. Gemini calls
+   are at least 13 seconds apart. Model discovery and backup selection remain;
+   a successful model is preferred without discarding backups. Each model has
+   at most one explicitly signalled temporary rate-limit retry per request.
+   Daily quota failures and timeouts move to the next model, then stop.
+5. `DJ.go(i)` waits for an actual AI pick before starting a song. There is no
+   12/45-second cutoff that silently substitutes an estimate. A saved manual
+   start remains an override. Build mix requires an AI key. A missing/failed
+   AI answer displays a retry message; it does not play an estimated passage.
+6. Player position comes only from the expected Spotify track (including
+   relinked IDs). Poll results from an earlier action are ignored. External
+   Spotify pause/resume is reflected; another song/device stops Segue's
+   scheduling rather than taking over that playback. Cuts require a fresh
+   confirmed state; a failed/missing poll never advances the mix on its own.
+7. At a passage boundary `DJ.transition()` starts the next song with its ready
+   AI pick, without waiting on a new AI call or changing volume. If that pick
+   is late, playback pauses at the boundary and waits for it. A Spotify start
+   failure retries the same song once, then stops with Play-to-retry. It never
+   silently skips forward. Network errors or late AI can therefore cause a
+   pause; uninterrupted playback cannot be guaranteed under those failures.
+8. Pause freezes elapsed position; resume sends the intended URI and position.
+   Replacing a mix clears the previous session. Pause cancels an AI wait, and
+   a late Spotify play acknowledgement is followed by pause if cancelled.
+   A finished set can replay from its first AI-picked passage.
+
+## Checks
+
+Run `node segue/tests/playback.test.cjs` from the repository root. No package
+installation or credentials needed. These 19 checks use simulated services:
+AI batching/quotas/fallbacks, first-song wait, cancellation, no estimate
+substitution, exact passage bounds, manual overrides, stable current passage,
+pause/resume, stale states, device changes, late AI and no failed-song skipping.
+
+Chromium browser checks passed on 320, 390, 768 and 1024 pixel-wide viewports
+in light/dark mode, all three tabs, with simulated Spotify responses. No page
+JavaScript errors, horizontal overflow or clipped bottom navigation. Manifest
+and actual icon dimensions passed. Real iPhone/Spotify/AI checks remain below.
 
 ## Leftover code that is not used
 
@@ -122,13 +145,13 @@ Safe to delete in a clean-up; ask Vijay first.
   assistants' workspaces. Say plainly what was tested with stand-ins and
   what only he can test on the phone.
 
-## Current state (Version 25)
+## Current state (Version 26)
 
 - AI picks work with a Gemini key (confirmed by Vijay: 14 of 15 songs).
 - Phone layout redesigned to match Cinema Book; not yet confirmed by Vijay
   on the iPhone Duo.
-- Version 25 player fixes (skipped songs, songs running past their end,
-  first song starting before the AI answered) are not yet confirmed.
+- Version 26 playback and AI regression checks pass with simulated services.
+  Live phone playback, real quotas and real model availability are not yet confirmed.
 
 ## Open items
 
