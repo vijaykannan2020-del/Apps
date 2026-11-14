@@ -5,7 +5,7 @@ It says what is in this repository, how it is deployed, and the rules for
 changing it safely. Update the "Change log" at the bottom after every change.
 
 Owner: Vijay (GitHub: vijaykannan2020-del). Family use only, for now.
-Last updated: 2026-11-13.
+Last updated: 2026-11-14.
 
 ## What is here
 
@@ -15,7 +15,7 @@ Last updated: 2026-11-13.
 | `cinema-book-test/` | Test copy of Cinema Book, for trying changes | https://vijaykannan2020-del.github.io/Apps/cinema-book-test/ |
 | `sideline/` | Sideline: movies, Webtor, server connection and live TV | https://vijaykannan2020-del.github.io/Apps/sideline/ |
 | `plate-log/` | Plate Log, a separate food diary app | https://vijaykannan2020-del.github.io/Apps/plate-log/ |
-| `segue/` | Segue, AI auto-DJ for Spotify (see `segue/README.md`) | https://vijaykannan2020-del.github.io/Apps/segue/ |
+| `segue/` | Segue: plays the AI-chosen best part of each song from Spotify playlists. Full handoff in `segue/README.md` | https://vijaykannan2020-del.github.io/Apps/segue/ |
 
 Hosting is GitHub Pages from the `main` branch. A push to `main` is live in
 one to two minutes. There is no build step and no package manager.
@@ -94,6 +94,9 @@ Tanglish).
 7. One change per commit, with a plain message such as
    "Cinema Book test copy: Version 16 - short description".
 8. Do not touch `plate-log/` unless Vijay asks.
+9. Segue has no test copy. Changes go straight to `segue/index.html`; raise
+   its `APP_VERSION` (the labels read from it) and tell Vijay to open the
+   address with `?v=N` at the end.
 
 ## Phone layout notes
 
@@ -115,6 +118,10 @@ the top right and cover part of the page.
 - Test copy (`cinema-book-test/`): Version 22 (neutral black-and-white look, ticket stubs for the diary, floating glass tab bar). Adds over 13: Wikidata
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
+- Segue (`segue/`): Version 25. Spotify sign-in, AI best-part picks with a
+  Gemini key, and a phone layout matching Cinema Book are in place. Player
+  fixes for skipped and overrunning songs are waiting for Vijay to confirm.
+  Details, limits and open items: `segue/README.md`.
 
 ## Open items
 
@@ -129,6 +136,8 @@ the top right and cover part of the page.
 ## Change log
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-14, Claude: rewrote `segue/README.md` as a full Segue handoff (goal, what Vijay rejected, limits, code map, current state, open items) and added Segue to the rules and Current state sections here. No code change.
 
 - 2026-11-14, Claude: Segue Version 25 player fixes. Skips: after a song change the Spotify SDK briefly reports the previous song's position, which triggered an instant second change; position is now only accepted when the reported track matches, plus a 2.5 s guard. Overruns: song changes no longer wait for the AI (only Play / tapping a song waits, up to 45 s for the first song); a failed start is retried, then the next song is tried. AI looks 4 songs ahead. Prompt now asks for the best passage anywhere (charanam, interlude, reprise), not the opening pallavi; cache key ai4.
 
