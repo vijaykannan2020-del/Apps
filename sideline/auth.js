@@ -19,7 +19,7 @@ function scopeStorage(uid){
   }
  }catch{}
 }
-function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src+'?v=6';script.onload=resolve;script.onerror=()=>reject(new Error('app-load'));document.body.appendChild(script)})}
+function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src+'?v=7';script.onload=resolve;script.onerror=()=>reject(new Error('app-load'));document.body.appendChild(script)})}
 form.onsubmit=async e=>{
  e.preventDefault();if(!auth)return;submit.disabled=true;status('Signing in…');
  try{await auth.signInWithEmailAndPassword(q('#authEmail').value.trim(),q('#authPassword').value);q('#authPassword').value=''}
