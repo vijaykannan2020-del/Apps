@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 8</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 9</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -214,6 +214,12 @@ img[src=""],img:not([src]){visibility:hidden}
             <div class="np-t" id="npT"></div>
             <div class="np-a" id="npA"></div>
             <div class="tags" id="npTags"></div>
+            <div class="row" id="hookCtl" style="margin-top:12px;flex-wrap:wrap;gap:6px">
+              <button class="btn ghost small" style="height:32px" id="hkSet">Set hook here</button>
+              <button class="btn ghost small" style="height:32px;padding:0 12px" id="hkBack">−2s</button>
+              <button class="btn ghost small" style="height:32px;padding:0 12px" id="hkFwd">+2s</button>
+              <button class="btn ghost small" style="height:32px;padding:0 12px" id="hkReset">Reset</button>
+            </div>
           </div>
         </div>
         <div class="wave" id="wave"><div class="win" id="win"></div><div class="hook" id="hook">hook</div><div class="ph2" id="ph"></div></div>
@@ -250,7 +256,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 8;
+const APP_VERSION = 9;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -511,7 +517,10 @@ function planSegments(ord, vibe, len){
     const snap = ms => Math.round(ms / phrase) * phrase;
     // Where the hook/chorus usually lands: earlier for dance tracks, later for slow builds
     let ratio = .3; if (t.dance > .72) ratio = .26; if (t.energy < .4) ratio = .36; if (t.dur > 330000) ratio -= .05;
-    t.hook = clamp(snap(t.dur * ratio), 20000, t.dur - 30000);
+    const mine = HK.get()[t.id], beat = 60000 / (t.tempo || 120);
+    if (mine != null) { t.hook = mine; t.hookSrc = 'you'; }
+    else if (t.lyricHook != null) { t.hook = Math.max(0, t.lyricHook - beat); t.hookSrc = 'lyrics'; } // land on the downbeat just before the vocal
+    else { t.hook = clamp(snap(t.dur * ratio), 20000, t.dur - 30000); t.hookSrc = 'estimate'; }
     const next = ord[i+1];
     const comp = next ? (keyDist(t.cam,next.cam) + bpmDist(t.tempo,next.tempo))/2 : 0;
     // Smooth, compatible pairs get a longer blend; clashing pairs a quicker one
@@ -544,6 +553,76 @@ function whyText(a,b){
   return [keyPart, bpmPart, ePart].filter(Boolean).join('<br>');
 }
 
+
+/* ---------------- Hook finder: lyrics chorus + your own marks ---------------- */
+const HK = {
+  get(){ try { return JSON.parse(LS.get('hooks') || '{}'); } catch { return {}; } },
+  set(id, ms){ const h = this.get(); h[id] = Math.round(ms); LS.set('hooks', JSON.stringify(h)); },
+  clear(id){ const h = this.get(); delete h[id]; LS.set('hooks', JSON.stringify(h)); },
+};
+function parseLRC(txt){
+  const out = [];
+  for (const raw of String(txt||'').split('\n')) {
+    const stamps = [...raw.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)]; if (!stamps.length) continue;
+    const text = raw.replace(/\[[^\]]*\]/g,'').trim(); if (!text) continue;
+    for (const m of stamps) out.push({ t: (+m[1]*60 + +m[2]) * 1000, text });
+  }
+  return out.sort((a,b)=>a.t-b.t);
+}
+const normLine = s => s.toLowerCase().replace(/\(.*?\)/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+// The chorus = the block of consecutive lines that repeats most often in the song
+function chorusFromLRC(lines, durMs){
+  if (lines.length < 6) return null;
+  const keys = lines.map(l => normLine(l.text));
+  const count = {}; keys.forEach(k => { if (k.length > 2) count[k] = (count[k]||0) + 1; });
+  const runs = []; let cur = null;
+  keys.forEach((k, i) => {
+    if ((count[k]||0) >= 2) { if (!cur) cur = { i, len:0, keys:[] }; cur.len++; cur.keys.push(k); }
+    else if (cur) { runs.push(cur); cur = null; }
+  });
+  if (cur) runs.push(cur);
+  if (!runs.length) return null;
+  const groups = {};
+  for (const r of runs) { const g = r.keys[0]; (groups[g] ||= []).push(r); }
+  let best = null;
+  for (const [g, rs] of Object.entries(groups)) {
+    const len = Math.max(...rs.map(r=>r.len)), occ = rs.length;
+    if (occ < 2 && len < 4) continue;
+    const score = occ * Math.min(len, 8) + (count[g]||0);
+    if (!best || score > best.score) best = { score, rs };
+  }
+  if (!best) return null;
+  const starts = best.rs.map(r => lines[r.i].t).sort((a,b)=>a-b);
+  // Prefer the first chorus that isn't the very opening of the song
+  const t = starts.find(x => x >= 20000 && x < durMs - 30000) ?? starts[0];
+  return t >= 8000 && t < durMs - 25000 ? t : null;
+}
+async function lyricHook(t){
+  let cache = {}; try { cache = JSON.parse(LS.get('lrc') || '{}'); } catch {}
+  if (cache[t.id] !== undefined) return cache[t.id];
+  let hook = null;
+  try {
+    const clean = t.name.replace(/\s*[\(\[].*?[\)\]]/g,'').replace(/\s+-\s+.*$/,'').trim();
+    const ctl = new AbortController(); const tm = setTimeout(()=>ctl.abort(), 7000);
+    const r = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(clean)}&artist_name=${encodeURIComponent(t.artists[0]||'')}`, { signal: ctl.signal });
+    clearTimeout(tm);
+    if (r.ok) {
+      const list = (await r.json()).filter(x => x.syncedLyrics && !x.instrumental && Math.abs((x.duration||0)*1000 - t.dur) < 4000)
+        .sort((a,b) => Math.abs(a.duration*1000 - t.dur) - Math.abs(b.duration*1000 - t.dur));
+      if (list[0]) hook = chorusFromLRC(parseLRC(list[0].syncedLyrics), t.dur);
+    } else if (r.status !== 404) return null; // don't cache server errors
+  } catch { return null; }
+  cache[t.id] = hook;
+  const ks = Object.keys(cache); if (ks.length > 3000) ks.slice(0, 500).forEach(k => delete cache[k]);
+  LS.set('lrc', JSON.stringify(cache));
+  return hook;
+}
+async function findHooks(tracks, onProg){
+  let done = 0; const q = tracks.slice();
+  const worker = async () => { while (q.length) { const t = q.shift(); t.lyricHook = await lyricHook(t); onProg?.(++done, tracks.length); } };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+}
+
 /* ---------------- Build mix ---------------- */
 async function buildMix(){
   const btn = $('#buildBtn'), msg = $('#buildMsg'); btn.disabled = true;
@@ -563,6 +642,8 @@ async function buildMix(){
       const f = fm.get(t.id);
       t.f = f || null; t.tempo = f?.tempo || null; t.energy = f?.energy ?? .5; t.dance = f?.danceability ?? .5; t.valence = f?.valence ?? .5; t.cam = camelot(f); t.keyName = f && f.key>=0 ? KEYN[f.key] + (f.mode===0?'m':'') : null;
     }
+    msg.innerHTML = `<span class="spin"></span> Finding each song's chorus…`;
+    await findHooks(picked, (d,n)=> msg.innerHTML = `<span class="spin"></span> Finding choruses ${d}/${n}…`);
     msg.innerHTML = `<span class="spin"></span> Planning the set…`; await sleep(30);
     ST.pool = picked;
     remix();
@@ -602,6 +683,7 @@ function showNow(i, instant){
   if (t.tempo) tags.push(`${Math.round(t.tempo)} BPM`);
   if (t.cam) tags.push(`${t.keyName} · ${camStr(t.cam)}`);
   if (t.f) tags.push(`Energy ${Math.round(t.energy*100)}`);
+  if (ST.len!=='full') tags.push({ you:'Hook: set by you', lyrics:'Hook: chorus from lyrics', estimate:'Hook: estimated' }[t.hookSrc] || 'Hook');
   tags.push(ST.len==='full' ? 'Full song' : `Plays ${fmt(t.start)}–${fmt(t.end)}`);
   $('#npTags').innerHTML = tags.map((x,k)=>`<span class="tag ${k===tags.length-1?'ok':''}">${esc(x)}</span>`).join('');
   $('#win').style.left = (t.start/t.dur*100)+'%'; $('#win').style.width = ((t.end-t.start)/t.dur*100)+'%';
@@ -734,6 +816,18 @@ $('#playBtn').onclick = () => DJ.playing ? DJ.pause() : DJ.resume();
 $('#nextBtn').onclick = () => DJ.playing ? DJ.transition() : DJ.go(Math.min(DJ.idx+1, ST.mix.length-1), false);
 $('#prevBtn').onclick = () => DJ.go(Math.max(0, DJ.idx-1));
 document.addEventListener('keydown', e => { if (e.target.tagName==='INPUT') return; if (e.code==='Space'){ e.preventDefault(); $('#playBtn').click(); } if (e.code==='ArrowRight') $('#nextBtn').click(); if (e.code==='ArrowLeft') $('#prevBtn').click(); });
+
+/* ---------------- Hook controls ---------------- */
+function applyHook(ms, label){
+  const t = ST.mix[DJ.idx]; if (!t) return;
+  if (ms == null) HK.clear(t.id); else HK.set(t.id, clamp(ms, 0, t.dur - 20000));
+  planSegments(ST.mix, ST.vibe, ST.len); renderDeck();
+  toast(label);
+}
+$('#hkSet').onclick = () => { const t = ST.mix[DJ.idx]; if (!t) return; const pos = DJ.pos + (DJ.playing ? performance.now() - DJ.posAt : 0); applyHook(pos, `Hook saved at ${fmt(pos)} for "${t.name}"`); };
+$('#hkBack').onclick = () => { const t = ST.mix[DJ.idx]; if (t) applyHook(t.hook - 2000, `Hook moved to ${fmt(t.hook - 2000)}`); };
+$('#hkFwd').onclick = () => { const t = ST.mix[DJ.idx]; if (t) applyHook(t.hook + 2000, `Hook moved to ${fmt(t.hook + 2000)}`); };
+$('#hkReset').onclick = () => applyHook(null, 'Hook reset to automatic');
 
 /* ---------------- Boot ---------------- */
 (async function boot(){

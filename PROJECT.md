@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-13, Claude: Segue Version 9 finds each song's hook from time-stamped lyrics (LRCLIB search; chorus = most-repeated block of lines, first chorus after 20 s, minus one beat), with Set hook here / ±2s / Reset controls saved per song in the browser. Priority: user mark > lyrics > old estimate. Lyrics are only used for timing, never shown.
+
 - 2026-11-13, Claude: Segue Version 8 removes the Mix in Spotify button (at Vijay's request) and never changes volume on phones/tablets (fades could leave the phone near silent); auto-picks this browser, else the active device, else the phone.
 
 - 2026-11-13, Claude: Segue Version 7 adds Transition: DJ cut (default) / Smooth fade. DJ cut starts each song on its hook, ends the previous one at a phrase boundary with a quick 260 ms duck, and fires early by the measured Spotify play delay so the hook lands on the bar line.
