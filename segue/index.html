@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 7</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 8</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -229,9 +229,8 @@ img[src=""],img:not([src]){visibility:hidden}
         <svg class="curve" id="curve" viewBox="0 0 600 84" preserveAspectRatio="none"></svg>
         <div class="row" style="justify-content:space-between;margin-top:18px">
           <h2 style="margin:0">Running order</h2>
-          <div class="row"><button class="btn ghost small" id="reshuffle" style="height:34px">Re-mix</button><button class="btn pri small" id="saveBtn" style="height:34px">Mix in Spotify</button></div>
+          <div class="row"><button class="btn ghost small" id="reshuffle" style="height:34px">Re-mix</button></div>
         </div>
-        <div id="mixNote"></div>
         <div class="queue" id="queue"></div>
         <div id="featNote"></div>
       </div>
@@ -251,7 +250,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 7;
+const APP_VERSION = 8;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -645,14 +644,15 @@ const DJ = {
       const j = await api('/me/player/devices'); const list = j.devices || [];
       if (this.sdkDev && !list.some(d=>d.id===this.sdkDev)) list.unshift({ id:this.sdkDev, name:'Segue AI DJ', type:'This browser' });
       $('#devSel').innerHTML = list.map(d=>`<option value="${d.id}" ${d.id===this.dev?'selected':''}>${esc(d.id===this.sdkDev?'This browser':d.name)}${d.volume_percent==null&&d.id!==this.sdkDev?' (no fades)':''}</option>`).join('') || '<option>No devices — open Spotify</option>';
-      if (!this.dev && list[0]) { this.dev = list[0].id; this.remote = this.dev !== this.sdkDev; }
+      if (!this.dev || !list.some(d=>d.id===this.dev)) { const pick = (this.sdkDev && list.find(d=>d.id===this.sdkDev)) || list.find(d=>d.is_active) || list.find(d=>/smartphone/i.test(d.type||'')) || list[0]; if (pick) { this.dev = pick.id; this.remote = this.dev !== this.sdkDev; } }
       this.devList = list;
     } catch {}
   },
   async vol(v){
     v = clamp(v, 0, 1);
     if (!this.remote && this.player) return this.player.setVolume(Math.max(v, 0.0001));
-    const d = this.devList?.find(x=>x.id===this.dev); if (d && d.volume_percent == null && d.supports_volume === false) return;
+    const d = this.devList?.find(x=>x.id===this.dev);
+    if (!d || d.supports_volume === false || d.volume_percent == null || /smartphone|tablet/i.test(d.type||'')) return; // phones: leave volume alone
     try { await api(`/me/player/volume?volume_percent=${Math.round(v*100)}&device_id=${this.dev}`, { method:'PUT', retry:0 }); } catch {}
   },
   async ramp(from, to, ms){
@@ -734,29 +734,6 @@ $('#playBtn').onclick = () => DJ.playing ? DJ.pause() : DJ.resume();
 $('#nextBtn').onclick = () => DJ.playing ? DJ.transition() : DJ.go(Math.min(DJ.idx+1, ST.mix.length-1), false);
 $('#prevBtn').onclick = () => DJ.go(Math.max(0, DJ.idx-1));
 document.addEventListener('keydown', e => { if (e.target.tagName==='INPUT') return; if (e.code==='Space'){ e.preventDefault(); $('#playBtn').click(); } if (e.code==='ArrowRight') $('#nextBtn').click(); if (e.code==='ArrowLeft') $('#prevBtn').click(); });
-
-/* ---------------- Save mix ---------------- */
-$('#saveBtn').onclick = async () => {
-  if (!ST.mix.length) return;
-  const b = $('#saveBtn'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Saving…';
-  try {
-    if (DJ.playing) await DJ.pause();
-    const vibeName = { smooth:'Smooth flow', party:'Build-up', peak:'Peak time', chill:'Chill' }[ST.vibe];
-    const name = `Segue · ${vibeName} · ${new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'})}`;
-    const pl = await api('/me/playlists', { method:'POST', body:{ name, public:false, description:`DJ order by Segue (${vibeName}) from: ${ST.crate.map(c=>c.name).join(', ')}. Tap Mix → Auto for DJ transitions.`.slice(0,280) } });
-    const uris = ST.mix.map(t=>t.uri);
-    for (let i = 0; i < uris.length; i += 100) await apiFirst([`/playlists/${pl.id}/items`, `/playlists/${pl.id}/tracks`], { method:'POST', body:{ uris:uris.slice(i,i+100) } });
-    ST.myPlaylists = null;
-    const url = `https://open.spotify.com/playlist/${pl.id}`;
-    $('#mixNote').innerHTML = `<div class="note fadein" style="margin:12px 0 4px">
-      <b style="color:var(--tx)">Saved “${esc(name)}”.</b> In Spotify: open it → tap <b style="color:var(--tx)">Mix</b> (top of the playlist) → <b style="color:var(--tx)">Auto</b>, then play.
-      No Mix button? Turn on <b style="color:var(--tx)">Settings → Playback → Crossfade</b> (6–8 s) instead.
-      <div class="row" style="margin-top:10px"><a class="btn pri small" style="height:34px;text-decoration:none" href="${url}">Open in Spotify</a></div></div>`;
-    toast('Opening Spotify…');
-    setTimeout(() => { location.href = url; }, 600); // universal link: opens the Spotify app if installed
-  } catch(e){ toast('Could not save: '+e.message, 5000); }
-  b.disabled = false; b.textContent = 'Mix in Spotify';
-};
 
 /* ---------------- Boot ---------------- */
 (async function boot(){
