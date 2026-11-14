@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 20</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 21</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -245,7 +245,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 20;
+const APP_VERSION = 21;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -706,9 +706,11 @@ ${songs}`;
       let names = [];
       try { const r = await tfetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(key)}`, {}, 10000);
         if (r.ok) names = ((await r.json()).models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace('models/', ''))
-          .filter(n => /^gemini-[\d.]+-flash$/.test(n)).sort((a,b) => parseFloat(b.split('-')[1]) - parseFloat(a.split('-')[1]));
+          .filter(n => /^gemini-[\d.]+-flash(-lite)?$/.test(n)).sort((a,b) => parseFloat(b.split('-')[1]) - parseFloat(a.split('-')[1]));
       } catch {}
-      this.models = [...new Set([...names.slice(0, 2), 'gemini-3.8-flash', 'gemini-flash-latest'])];
+      // Newest Flash first, then the faster Flash-Lite as a backup when Flash is slow or busy
+      const flash = names.filter(n => !n.endsWith('-lite')), lite = names.filter(n => n.endsWith('-lite'));
+      this.models = [...new Set([flash[0] || 'gemini-3.8-flash', lite[0] || 'gemini-3.8-flash-lite', 'gemini-flash-latest', 'gemini-flash-lite-latest'])];
     }
     for (let mi = 0, retried = false; mi < this.models.length; mi++) {
       const model = this.models[mi];
@@ -716,8 +718,15 @@ ${songs}`;
       const gap = (this.lastCall || 0) + 13000 - Date.now(); if (gap > 0) await sleep(gap);
       this.lastCall = Date.now();
       const gc = { temperature:.2, responseMimeType:'application/json' }; // the AI is allowed to think: it works ahead of the music
-      const r = await tfetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, { method:'POST', headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ contents:[{ parts:[{ text }] }], generationConfig:gc }) }, 90000);
+      let r;
+      try { r = await tfetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, { method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ contents:[{ parts:[{ text }] }], generationConfig:gc }) }, 35000); }
+      catch(e) { // no answer in time: put this model last and try the next one
+        lastErr = new Error(`Gemini (${model}) did not answer within 35 seconds.`);
+        if (this.models.length > 1) { this.models.push(this.models.splice(mi, 1)[0]); mi--; if (++this.slow > this.models.length) { this.slow = 0; throw lastErr; } }
+        continue;
+      }
+      this.slow = 0;
       const j = await r.json().catch(() => ({}));
       if (r.ok) { this.models = [model]; return j.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || ''; }
       lastErr = new Error(`Gemini (${model}): ` + (j?.error?.message || r.status));
@@ -729,6 +738,7 @@ ${songs}`;
     }
     throw lastErr;
   },
+  slow: 0,
   q: Promise.resolve(),
   one(t){ // ask about a single song; requests are queued so they never overlap
     if (!this.key() || this.cache()[t.id] || (t._aiTries || 0) >= 2) return Promise.resolve();

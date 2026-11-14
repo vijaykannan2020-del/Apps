@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-14, Claude: Segue Version 21 fixes "AI error: Fetch is aborted" (Gemini Flash gave no answer within the time limit): 35 s limit per request, then it moves to the next model (newest Flash-Lite, then the -latest aliases) and remembers which one answered.
+
 - 2026-11-14, Claude: Segue Version 20 respects Gemini's free limit (5 requests a minute): at least 13 s between AI requests, and on a 429 it waits the time Google gives and asks once more instead of failing.
 
 - 2026-11-14, Claude: Segue Version 19: the AI is asked about one song at a time, just before it plays (current song plus the next two; `AI.one`, `aiAhead`), instead of the whole mix up front. Playback waits up to 12 s for the answer on the song about to start. Rows not yet decided say "AI decides just before it plays".
