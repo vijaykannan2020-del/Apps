@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-13, Claude: Segue Version 3 adds "Play through: YouTube" (default). Spotify still supplies sources, order and key/tempo/energy; each song is matched to a YouTube video (YouTube Data API key typed into the app, stored only in the browser; matches cached) and played on two visible YouTube decks with real overlapping transitions chosen per pair: Blend (8 bars), Quick mix (4 bars) or Drop swap. Blends need a desktop browser; iPhone Safari ignores video volume so it switches on the beat. Spotify mode unchanged.
+
 - 2026-11-13, Claude: Segue Version 2 always uses the exact address https://vijaykannan2020-del.github.io/Apps/segue/ as the Spotify redirect (moves the page there if opened at a different case/path), fixing "redirect_uri: Not matching configuration".
 
 - 2026-11-13, Claude: added Segue Version 1 in `segue/`. Spotify auto-DJ: pick playlists/albums/artists/Liked, orders songs by key, tempo and energy arc (ReccoBeats data), plays the best part of each with beat-aligned fades, saves the running order as a playlist. No Firebase; Spotify Client ID typed into the app. Other apps unchanged.
