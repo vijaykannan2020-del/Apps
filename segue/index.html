@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 6</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 7</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -184,6 +184,11 @@ img[src=""],img:not([src]){visibility:hidden}
           <button class="opt on" data-v="medium">Best part<small>~75s</small></button>
           <button class="opt" data-v="long">Long<small>~2 min</small></button>
           <button class="opt" data-v="full">Full songs<small>smart order</small></button>
+        </div>
+        <div class="lbl">Transition</div>
+        <div class="seg" data-k="trans">
+          <button class="opt on" data-v="cut">DJ cut<small>hook hits on the beat</small></button>
+          <button class="opt" data-v="fade">Smooth fade<small>fade out, fade in</small></button>
         </div>
         <div class="lbl">Songs in the mix</div>
         <div class="seg" data-k="max">
@@ -246,7 +251,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 6;
+const APP_VERSION = 7;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -315,7 +320,7 @@ async function api(path, { method='GET', body, retry=2 } = {}){
 async function apiFirst(paths, opts){ let err; for (const p of paths) { try { return await api(p, opts); } catch(e){ err=e; if (![403,404,400].includes(e.status)) throw e; } } throw err; }
 
 /* ---------------- State ---------------- */
-const ST = { me:null, tab:'playlist', crate:[], vibe:'smooth', len:'medium', max:30, myPlaylists:null, mix:[], featOk:false };
+const ST = { me:null, tab:'playlist', crate:[], vibe:'smooth', len:'medium', max:30, trans:'cut', myPlaylists:null, mix:[], featOk:false };
 
 /* ---------------- Sources UI ---------------- */
 function parseLink(s){
@@ -398,6 +403,7 @@ document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e
   const b = e.target.closest('.opt'); if (!b) return;
   seg.querySelectorAll('.opt').forEach(x => x.classList.toggle('on', x===b));
   ST[seg.dataset.k] = seg.dataset.k === 'max' ? +b.dataset.v : b.dataset.v;
+  if ((seg.dataset.k === 'trans' || seg.dataset.k === 'len') && ST.mix.length) { planSegments(ST.mix, ST.vibe, ST.len); renderDeck(); }
 }));
 
 /* ---------------- Track fetching ---------------- */
@@ -516,13 +522,20 @@ function planSegments(ord, vibe, len){
       t.start = 0; t.end = t.dur - 1500;
     } else {
       const want = LEN[len];
-      // Start one phrase (8 bars) before the hook so the chorus lands after the fade-in
-      t.start = i === 0 && vibe !== 'peak' ? Math.max(0, t.hook - 2*phrase) : Math.max(0, t.hook - phrase);
-      t.end = Math.min(t.dur - 1500, t.start + Math.max(phrase*2, Math.ceil(want / phrase) * phrase) + t.fadeOut);
+      if (ST.trans === 'cut') {
+        // DJ cut: come in right on the hook's downbeat, leave exactly at the end of a phrase
+        t.start = i === 0 ? Math.max(0, t.hook - 2*phrase) : Math.max(0, t.hook - 120);
+        t.end = Math.min(t.dur - 1500, t.hook + Math.max(phrase*2, Math.ceil(want / phrase) * phrase));
+        t.fadeOut = 300; t.fadeIn = 0;
+      } else {
+        // Start one phrase (8 bars) before the hook so the chorus lands after the fade-in
+        t.start = i === 0 && vibe !== 'peak' ? Math.max(0, t.hook - 2*phrase) : Math.max(0, t.hook - phrase);
+        t.end = Math.min(t.dur - 1500, t.start + Math.max(phrase*2, Math.ceil(want / phrase) * phrase) + t.fadeOut);
+      }
       if (t.end - t.start < 30000) t.start = Math.max(0, t.end - Math.max(30000, want));
     }
   });
-  ord.forEach((t,i) => { const p = ord[i-1]; t.why = p ? whyText(p,t) : null; });
+  ord.forEach((t,i) => { const p = ord[i-1]; t.why = p ? (ST.trans === 'cut' && len !== 'full' ? '<em>DJ cut</em><br>' : '') + whyText(p,t) : null; });
 }
 function whyText(a,b){
   const k = keyDist(a.cam,b.cam), r = bpmRatio(a.tempo,b.tempo);
@@ -609,7 +622,7 @@ function drawCurve(){
 
 /* ---------------- Playback engine ---------------- */
 const DJ = {
-  player:null, sdkDev:null, dev:null, remote:false, idx:0, playing:false, busy:false, master:.85,
+  player:null, sdkDev:null, dev:null, remote:false, idx:0, playing:false, busy:false, master:.85, lat:450,
   pos:0, posAt:0, tick:null, xfading:false,
 
   async init(){
@@ -656,7 +669,8 @@ const DJ = {
     const t = ST.mix[i]; this.idx = i; showNow(i);
     if (!this.dev) { await this.devices(); if (!this.dev) throw new Error('No playback device. Open Spotify on a device or use a desktop browser.'); }
     if (fadeIn) await this.vol(.02);
-    try { await api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', body:{ uris:[t.uri], position_ms:Math.round(t.start) } }); }
+    const t0 = performance.now();
+    try { await api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', body:{ uris:[t.uri], position_ms:Math.round(t.start) } }); this.lat = clamp(.6*this.lat + .4*(performance.now() - t0), 150, 1500); }
     catch(e){ if (e.status===404) { await this.devices(); } if (e.reason==='PREMIUM_REQUIRED' || e.status===403) throw new Error('Spotify Premium is required for playback.'); throw e; }
     this.pos = t.start; this.posAt = performance.now();
     if (fadeIn) await this.ramp(.02, this.master, t.fadeIn); else await this.vol(this.master);
@@ -680,10 +694,12 @@ const DJ = {
     this.xfading = true; this.busy = true;
     const t = ST.mix[this.idx];
     setStat(next < ST.mix.length ? 'Mixing into next…' : 'Closing the set…');
-    await this.ramp(this.master, 0, t.fadeOut);
+    const cut = ST.trans === 'cut' && ST.len !== 'full' && next < ST.mix.length;
+    if (cut) { if (!this.remote) await this.ramp(this.master, this.master * .3, 260); setStat('<b>DJ cut</b>'); }
+    else await this.ramp(this.master, 0, t.fadeOut);
     if (!this.playing) { this.xfading = this.busy = false; return; }
     if (next >= ST.mix.length) { await this.pause(); setStat('Set finished'); this.xfading = this.busy = false; return; }
-    try { await this.playTrack(next, true); } catch(e){ toast(e.message); }
+    try { await this.playTrack(next, !cut); } catch(e){ toast(e.message); }
     setStat(`<b>Live</b> · ${ST.len==='full'?'full songs':'best parts'}`);
     this.xfading = false; this.busy = false;
   },
@@ -698,8 +714,10 @@ const DJ = {
       else if (performance.now() - lastPoll > 1500) { lastPoll = performance.now(); try { const s = await api('/me/player', { retry:0 }); if (s?.progress_ms != null) { this.pos = s.progress_ms; this.posAt = performance.now(); } } catch {} }
       const pos = this.pos + (performance.now() - this.posAt);
       $('#ph').style.left = clamp(pos/t.dur*100, 0, 100) + '%'; $('#tCur').textContent = fmt(pos);
-      if (!this.busy && pos >= t.end - t.fadeOut) this.transition();
-    }, 250);
+      // For a cut, fire early by the measured Spotify delay so the new hook lands on the bar line
+      const lead = t.fadeOut + (ST.trans === 'cut' && ST.len !== 'full' ? this.lat : 0);
+      if (!this.busy && pos >= t.end - lead) this.transition();
+    }, 120);
   },
   async pause(){ this.playing = false; this.abortRamp = true; setPlayIcon(); clearInterval(this.tick); try { await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }); } catch {} await this.vol(this.master); },
   async resume(){

@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-13, Claude: Segue Version 7 adds Transition: DJ cut (default) / Smooth fade. DJ cut starts each song on its hook, ends the previous one at a phrase boundary with a quick 260 ms duck, and fires early by the measured Spotify play delay so the hook lands on the bar line.
+
 - 2026-11-13, Claude: Segue Version 6 fixes a blank page when signed in: shows a "Connecting to Spotify" screen, times out Spotify calls after 15 s, stops waiting on long rate-limit (429) delays, and shows the reason with Try again / Log out.
 
 - 2026-11-13, Claude: Segue Version 5 replaces "Save as playlist" with "Mix in Spotify": saves the DJ order as a private playlist, opens it in the Spotify app (open.spotify.com universal link) and shows how to use Spotify's Mix → Auto (or Crossfade) for real overlapping transitions.
