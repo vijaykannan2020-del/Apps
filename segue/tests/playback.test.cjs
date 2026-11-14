@@ -7,7 +7,7 @@ const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
 const source = html.match(/<script>([\s\S]*?)<\/script>/)[1].split('(async function boot(){')[0];
 function context() {
   const els = new Map(), storage = new Map(); let now = 10000;
-  const element = () => ({value:'',dataset:{},style:{},classList:{add(){},remove(){},toggle(){}},addEventListener(){},querySelectorAll(){return []}});
+  const element = () => ({value:'',dataset:{},style:{},classList:{values:new Set(),add(x){this.values.add(x)},remove(x){this.values.delete(x)},toggle(x,on){if(on===undefined)on=!this.values.has(x);on?this.values.add(x):this.values.delete(x);return on},contains(x){return this.values.has(x)}},addEventListener(){},querySelectorAll(){return []},focus(){},scrollIntoView(){}});
   const c = vm.createContext({console,URL,URLSearchParams,Blob,AbortController,TextEncoder,Uint8Array,Math,JSON,Date,performance:{now:()=>now},
     document:{querySelector(s){if(!els.has(s)) els.set(s,element());return els.get(s)},querySelectorAll(){return []},addEventListener(){}},
     location:{hostname:'localhost',origin:'http://localhost',pathname:'/segue/',search:''},
@@ -24,6 +24,31 @@ const run = (c,s) => vm.runInContext(s,c);
 const track = `({id:'one',uri:'spotify:track:one',name:'Song',artists:['Artist'],dur:240000,tempo:120,energy:.5,dance:.5,start:30000,end:75000,fadeOut:300,fadeIn:0,hookSrc:'ai'})`;
 let count = 0;
 async function test(name,fn) { await fn(); console.log('PASS:',name);count++; }
+function backend(c,options={}){
+ let now=10000;
+ const state={id:null,pos:0,paused:true,dev:'phone',frozen:false,offline:false,missing:false,ignoreStart:false,ignoreSeek:false,volume:70,...options};
+ const calls=[];
+ c.hostAPI=async(p,o={})=>{
+  calls.push({p,o});
+  if(state.offline){now+=2200;c.setNow(now);throw Error('Network offline');}
+  if(p.includes('/devices'))return {devices:[{id:state.dev,name:'My phone',type:'Smartphone',is_active:true,volume_percent:state.volume}]};
+  if(p.includes('/play?')){state.id=o.body.uris[0].split(':').at(-1);state.pos=state.ignoreStart?0:o.body.position_ms;state.paused=false;return null;}
+  if(p.includes('/pause?')){state.paused=true;return null;}
+  if(p.includes('/seek?')){if(!state.ignoreSeek)state.pos=+new URL('https://x'+p).searchParams.get('position_ms');return null;}
+  if(p==='/me/player'){
+   now+=400;c.setNow(now);if(state.missing)return null;
+   if(!state.paused&&!state.frozen)state.pos+=400;
+   return {item:state.id?{id:state.id,uri:'spotify:track:'+state.id}:null,progress_ms:state.pos,is_playing:!state.paused,device:{id:state.dev,volume_percent:state.volume}};
+  }
+  return null;
+ };
+ run(c,"api=hostAPI;DJ.dev='phone';DJ.remote=true;DJ.verifyStart=realVerifyStart;");
+ return {state,calls,advance(ms){now+=ms;c.setNow(now);},plays:()=>calls.filter(x=>x.p.includes('/play?')),seeks:()=>calls.filter(x=>x.p.includes('/seek?'))};
+}
+function ready(c,n=3){
+ run(c,`ST.me={id:'tester'};ST.mix=Array.from({length:${n}},(_,i)=>({...${track},id:'song'+i,uri:'spotify:track:song'+i,name:'Song '+i,aiStart:30000,aiEnd:75000}));ST.pool=ST.mix;DJ.baseOrder=ST.mix.map(t=>t.id);LS.set('ai4',JSON.stringify(Object.fromEntries(ST.mix.map(t=>[t.id,{start:30000,end:75000,song:t}]))));`);
+}
+
 (async()=>{
 await test('one request covers eight songs and requests stay serialized', async()=>{
  const c=context();run(c,`ST.mix=Array.from({length:16},(_,i)=>({...${track},id:String(i)}));LS.set('aikey','test');globalThis.sizes=[];globalThis.active=0;globalThis.maxActive=0;AI.call=async text=>{active++;maxActive=Math.max(active,maxActive);sizes.push((text.match(/id: /g)||[]).length);await Promise.resolve();active--;return '[]'};`);
@@ -61,53 +86,6 @@ await test('AI failure never plays an estimated replacement',async()=>{
  const c=context();run(c,`ST.mix=[${track}];DJ.dev='device';LS.set('aikey','test');AI.call=async()=>{throw Error('quota exhausted')};globalThis.calls=[];api=async(p,o)=>calls.push(p);`);
  await run(c,'DJ.go(0)');assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.retryIdx'),0);assert.equal(run(c,"calls.filter(p=>p.includes('/play?')).length"),0);
 });
-await test('pause freezes elapsed position and resume includes URI and position',async()=>{
- const c=context();run(c,`ST.mix=[${track}];DJ.dev='device';DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.pos=30000;DJ.posAt=1000;DJ.playing=true;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.calls=[];api=async(p,o)=>calls.push({p,o});`);
- await run(c,'DJ.pause()');assert.equal(run(c,'DJ.pos'),39000);c.setNow(20000);await run(c,'DJ.resume()');assert.equal(run(c,'calls[1].o.body.position_ms'),39000);assert.equal(run(c,'calls[1].o.body.uris[0]'),'spotify:track:one');
-});
-await test('new mix cannot resume old Spotify context',async()=>{
- const c=context();run(c,`ST.mix=[${track}];DJ.dev='device';DJ.pos=90000;DJ.posAt=1000;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.calls=[];api=async(p,o)=>calls.push(o);`);
- await run(c,'DJ.resume()');assert.equal(run(c,'calls[0].body.position_ms'),30000);assert.equal(run(c,'calls[0].body.uris[0]'),'spotify:track:one');
-});
-await test('wrong SDK track is never used and does not advance mix',async()=>{
- const c=context();run(c,`ST.mix=[${track}];DJ.loadedMix=ST.mix;DJ.playing=true;DJ.pos=30000;DJ.posAt=1000;DJ.startedAt=1000;DJ.player={getCurrentState:async()=>({position:41000,paused:false,track_window:{current_track:{id:'wrong'}}})};api=async()=>({item:{id:'wrong'},progress_ms:41000,is_playing:true});DJ.loop();`);
- await run(c,'DJ.tickFn()');assert.equal(run(c,'DJ.idx'),0);assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.pos'),39000);
-});
-await test('external Spotify pause and resume synchronize',async()=>{
- const c=context();run(c,`ST.mix=[${track}];DJ.loadedMix=ST.mix;DJ.playing=true;DJ.pos=30000;DJ.posAt=1000;DJ.startedAt=1000;globalThis.paused=true;DJ.player={getCurrentState:async()=>({position:32000,paused,track_window:{current_track:{id:'one'}}})};DJ.loop();`);
- await run(c,'DJ.tickFn()');assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.pos'),32000);
- run(c,'paused=false');await run(c,'DJ.tickFn()');assert.equal(run(c,'DJ.playing'),true);
-});
-await test('failed next song is retried but never skipped',async()=>{
- const c=context();run(c,`ST.mix=[${track},{...${track},id:'two',uri:'spotify:track:two'},{...${track},id:'three',uri:'spotify:track:three'}];DJ.dev='device';DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.playing=true;DJ.posAt=1000;LS.set('ai4',JSON.stringify({two:{start:40000,end:80000}}));globalThis.uris=[];api=async(p,o)=>{if(o.body?.uris){uris.push(o.body.uris[0]);throw Error('unavailable')}return null};`);
- await run(c,'DJ.transition()');assert.equal(run(c,'JSON.stringify(uris)'),'["spotify:track:two","spotify:track:two"]');assert.equal(run(c,'DJ.idx'),0);assert.equal(run(c,'DJ.retryIdx'),1);assert.equal(run(c,'DJ.playing'),false);
-});
-await test('automatic transition does not wait for AI when next pick is cached',async()=>{
- const c=context();run(c,`ST.mix=[${track},{...${track},id:'two',uri:'spotify:track:two'}];DJ.dev='device';DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.playing=true;LS.set('ai4',JSON.stringify({two:{start:40000,end:80000}}));globalThis.calls=[];api=async(p,o)=>calls.push({p,o});`);
- await run(c,'DJ.transition()');assert.equal(run(c,'DJ.idx'),1);assert.equal(run(c,'calls.length'),1);assert.equal(run(c,'calls[0].o.body.position_ms'),40000);
-});
-await test('late play acknowledgement cannot undo pause',async()=>{
- const c=context();run(c,`ST.mix=[${track}];DJ.dev='device';LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.calls=[];api=(p,o)=>{calls.push(p);return p.includes('/play?')?new Promise(r=>globalThis.ack=r):Promise.resolve()};globalThis.pending=DJ.go(0);`);
- await new Promise(r=>setImmediate(r));await run(c,'DJ.pause()');run(c,'ack()');await run(c,'pending');assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,"calls.filter(x=>x.includes('/pause?')).length"),2);
-});
-await test('final song pauses and Play restarts first AI passage',async()=>{
- const c=context();run(c,`ST.mix=[${track}];DJ.dev='device';DJ.playing=true;DJ.loadedMix=ST.mix;DJ.loadedId='one';LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.calls=[];api=async(p,o)=>calls.push({p,o});`);
- await run(c,'DJ.transition()');assert.equal(run(c,'DJ.finished'),true);await run(c,'DJ.resume()');assert.equal(run(c,'calls[1].o.body.position_ms'),30000);assert.equal(run(c,'DJ.idx'),0);
-});
-await test('late AI at a boundary pauses, then plays that next song',async()=>{
- const c=context();run(c,`ST.mix=[${track},{...${track},id:'two',uri:'spotify:track:two'}];DJ.dev='device';DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.playing=true;LS.set('aikey','test');globalThis.calls=[];api=async(p,o)=>calls.push({p,o});AI.call=()=>new Promise(r=>globalThis.answer=r);globalThis.pending=DJ.transition();`);
- await new Promise(r=>setImmediate(r));assert.equal(run(c,'calls.length'),1);assert.match(run(c,'calls[0].p'),/pause/);assert.equal(run(c,'DJ.playing'),false);
- run(c,`answer(JSON.stringify([{id:'two',start:50000/1000,end:90000/1000}]))`);await run(c,'pending');assert.equal(run(c,'DJ.idx'),1);assert.equal(run(c,'calls[1].o.body.uris[0]'),'spotify:track:two');
-});
-await test('remote state pauses and does not take over a different device',async()=>{
- const c=context();run(c,`ST.mix=[${track}];DJ.dev='phone';DJ.loadedMix=ST.mix;DJ.playing=true;DJ.startedAt=1000;`);
- run(c,`DJ.acceptState({item:{id:'one'},progress_ms:32000,is_playing:false,device:{id:'phone'}},ST.mix[0],true)`);assert.equal(run(c,'DJ.externalPaused'),true);assert.equal(run(c,'DJ.pos'),32000);
- run(c,`DJ.acceptState({item:{id:'one'},progress_ms:33000,is_playing:true,device:{id:'other'}},ST.mix[0],true)`);assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.loadedMix'),null);
-});
-await test('background AI cannot change the current passage or running order',async()=>{
- const c=context();run(c,`ST.mix=[${track},{...${track},id:'two',start:40000,end:80000,aiStart:100000,aiEnd:140000}];DJ.idx=0;DJ.playing=true;ST.mix[0].aiStart=90000;ST.mix[0].aiEnd=130000;replanAhead(DJ.idx);`);
- assert.equal(run(c,'ST.mix[0].start'),30000);assert.equal(run(c,'ST.mix[0].end'),75000);assert.equal(run(c,'ST.mix[1].start'),100000);assert.equal(run(c,"ST.mix.map(t=>t.id).join(',')"),'one,two');
-});
 await test('empty device list clears stale selection instead of retaining phantom output',async()=>{
  const c=context();run(c,`DJ.dev='stale';api=async()=>({devices:[]});`);
  await run(c,'DJ.devices()');assert.equal(run(c,'DJ.dev'),null);assert.equal(run(c,'DJ.devList.length'),0);
@@ -122,10 +100,6 @@ await test('explicit device preference respected and restricted outputs excluded
  const c=context();c.navigator={userAgent:'iPhone'};
  run(c,`DJ.sdkDev='browser';LS.set('device','browser');api=async()=>({devices:[{id:'blocked',name:'Blocked',is_restricted:true},{id:'phone',name:'My iPhone',type:'Smartphone',is_active:true}]});`);
  await run(c,'DJ.devices()');assert.equal(run(c,'DJ.dev'),'browser');assert.equal(run(c,'DJ.devList.length'),2);
-});
-await test('404 browser device recovers to phone, retrying only requested song',async()=>{
- const c=context();run(c,`ST.mix=[${track}];DJ.dev=DJ.sdkDev='ghost-browser';LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.plays=[];api=async(p,o)=>{if(p.includes('/devices'))return {devices:[{id:'phone',name:'My iPhone',type:'Smartphone',is_active:true}]};if(p.includes('/play?')){plays.push(p);if(plays.length===1){const e=Error('Device not found');e.status=404;throw e}}return null};`);
- await run(c,'DJ.go(0)');assert.equal(run(c,'DJ.sdkDev'),null);assert.equal(run(c,'DJ.dev'),'phone');assert.equal(run(c,'DJ.playing'),true);assert.equal(run(c,'plays.length'),2);assert.match(run(c,'plays[1]'),/device_id=phone/);
 });
 await test('device API errors remain visible instead of pretending no outputs exist',async()=>{
  const c=context();run(c,`api=async()=>{throw Error('Spotify is limiting requests')};`);
@@ -204,65 +178,158 @@ await test('a pending AI answer from the current queue cannot refill a cleared s
  const c=context();run(c,`ST.me={id:'user-a'};ST.mix=[${track}];Library.clearSongs();AI.save({one:{start:30000,end:75000,song:ST.mix[0]}});`);
  assert.match(run(c,"$('#savedSongs').innerHTML"),/List cleared/);assert.equal(run(c,'AI.cache().one.start'),30000);
 });
-await test('ignored Spotify start position is repaired once and confirmed before Live',async()=>{
- const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.dev='phone';DJ.remote=true;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.position=0;globalThis.seeks=0;globalThis.liveDuringSeek=null;api=async(p,o)=>{if(p.includes('/seek?')){seeks++;liveDuringSeek=DJ.playing;position=30000;return null}if(p==='/me/player')return {item:{id:'one'},progress_ms:position,is_playing:true,device:{id:'phone'}};return null};`);
- await run(c,'DJ.go(0)');assert.equal(run(c,'seeks'),1);assert.equal(run(c,'liveDuringSeek'),false);assert.equal(run(c,'DJ.confirmed'),true);assert.equal(run(c,'DJ.pos'),30000);assert.equal(run(c,'DJ.playing'),true);
-});
-await test('correct Spotify start position needs no corrective seek',async()=>{
- const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.dev='phone';DJ.remote=true;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;if(p==='/me/player')return {item:{id:'one'},progress_ms:31000,is_playing:true,device:{id:'phone'}};return null};`);
- await run(c,'DJ.go(0)');assert.equal(run(c,'seeks'),0);assert.equal(run(c,'DJ.pos'),31000);assert.equal(run(c,'DJ.playing'),true);
-});
-await test('a different track is never seeked as if it were the AI-picked song',async()=>{
- const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.dev='phone';DJ.remote=true;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;if(p==='/me/player')return {item:{id:'other-song'},progress_ms:0,is_playing:true,device:{id:'phone'}};return null};`);
- await run(c,'DJ.go(0)');assert.equal(run(c,'seeks'),0);assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.retryIdx'),0);
-});
-await test('ignored corrective seek stops safely without looping or skipping',async()=>{
- const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track},{...${track},id:'two',uri:'spotify:track:two'}];DJ.dev='phone';DJ.remote=true;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.seeks=0;globalThis.pauses=0;globalThis.reads=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;if(p.includes('/pause?'))pauses++;if(p==='/me/player'){reads++;return {item:{id:'one'},progress_ms:0,is_playing:true,device:{id:'phone'}}}return null};`);
- await run(c,'DJ.go(0)');assert.equal(run(c,'seeks'),1);assert.equal(run(c,'reads'),8);assert.equal(run(c,'pauses'),1);assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.idx'),0);
-});
-await test('pause during position verification prevents a corrective seek or late start',async()=>{
- const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.dev='phone';DJ.remote=true;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;if(p==='/me/player')return new Promise(r=>globalThis.reply=r);return null};globalThis.pending=DJ.go(0);`);
- await new Promise(r=>setImmediate(r));await run(c,'DJ.pause()');run(c,`reply({item:{id:'one'},progress_ms:0,is_playing:true,device:{id:'phone'}})`);await run(c,'pending');assert.equal(run(c,'seeks'),0);assert.equal(run(c,'DJ.playing'),false);
-});
 await test('a restored undecided mix waits for AI instead of resuming an estimate',async()=>{
  const c=context();run(c,`ST.mix=[{...${track},hookSrc:'estimate'}];DJ.dev='phone';DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.pos=30000;DJ.posAt=1000;LS.set('aikey','test');globalThis.plays=[];api=async(p,o)=>{if(o?.body?.uris)plays.push(o.body.position_ms);return null};AI.call=()=>new Promise(r=>globalThis.answer=r);globalThis.pending=DJ.resume();`);
  await new Promise(r=>setImmediate(r));assert.equal(run(c,'plays.length'),0);run(c,`answer(JSON.stringify([{id:'one',start:90,end:135}]))`);await run(c,'pending');assert.equal(run(c,'plays[0]'),90000);
-});
-await test('resume verifies and repairs the saved listening position, not only track identity',async()=>{
- const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[{...${track},end:140000}];DJ.dev='phone';DJ.remote=true;DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.pos=100000;DJ.posAt=1000;LS.set('ai4',JSON.stringify({one:{start:30000,end:140000}}));globalThis.position=0;globalThis.target=null;api=async(p,o)=>{if(p.includes('/seek?')){target=Number(new URL('https://x'+p).searchParams.get('position_ms'));position=target}if(p==='/me/player')return {item:{id:'one'},progress_ms:position,is_playing:true,device:{id:'phone'}};return null};`);
- await run(c,'DJ.resume()');assert.equal(run(c,'target'),100000);assert.equal(run(c,'DJ.pos'),100000);assert.equal(run(c,'DJ.playing'),true);
 });
 await test('invalid cached timestamps are refreshed rather than played from zero',async()=>{
  const c=context();run(c,`ST.mix=[${track}];DJ.dev='phone';LS.set('aikey','test');LS.set('ai4',JSON.stringify({one:{start:-1000,end:45000}}));globalThis.aiCalls=0;globalThis.positions=[];AI.call=async()=>{aiCalls++;return JSON.stringify([{id:'one',start:90,end:135}])};api=async(p,o)=>{if(o?.body?.uris)positions.push(o.body.position_ms);return null};`);
  await run(c,'DJ.go(0)');assert.equal(run(c,'aiCalls'),1);assert.equal(run(c,'positions[0]'),90000);
 });
-await test('a valid AI pick at the actual beginning is not arbitrarily changed',async()=>{
- const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.dev='phone';DJ.remote=true;LS.set('ai4',JSON.stringify({one:{start:0,end:45000}}));globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;if(p==='/me/player')return {item:{id:'one'},progress_ms:0,is_playing:true,device:{id:'phone'}};return null};`);
- await run(c,'DJ.go(0)');assert.equal(run(c,'DJ.pos'),0);assert.equal(run(c,'seeks'),0);assert.equal(run(c,'DJ.playing'),true);
-});
-await test('a late Spotify reset to the intro is corrected without skipping the song',async()=>{
- const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.dev='phone';DJ.remote=true;DJ.playing=true;DJ.confirmed=true;DJ.startedAt=1000;DJ.pos=40000;DJ.posAt=1000;globalThis.position=0;globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?')){seeks++;position=30000}if(p==='/me/player')return {item:{id:'one'},progress_ms:position,is_playing:true,device:{id:'phone'}};return null};DJ.loop();`);
- await run(c,'DJ.tickFn()');assert.equal(run(c,'seeks'),1);assert.equal(run(c,'DJ.pos'),30000);assert.equal(run(c,'DJ.idx'),0);assert.equal(run(c,'DJ.playing'),true);
-});
-await test('stale SDK intro position is checked against Spotify before a seek',async()=>{
- const c=context();run(c,`ST.mix=[${track}];DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.dev=DJ.sdkDev='browser';DJ.remote=false;DJ.playing=true;DJ.confirmed=true;DJ.startedAt=1000;DJ.pos=40000;DJ.posAt=1000;DJ.player={getCurrentState:async()=>({position:0,paused:false,track_window:{current_track:{id:'one'}}})};globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;return {item:{id:'one'},progress_ms:40000,is_playing:true,device:{id:'browser'}}};DJ.loop();`);
- await run(c,'DJ.tickFn()');assert.equal(run(c,'seeks'),0);assert.equal(run(c,'DJ.pos'),40000);assert.equal(run(c,'DJ.playing'),true);
-});
-await test('repeated device resets cannot cause an endless corrective-seek loop',async()=>{
- const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.dev='phone';DJ.remote=true;DJ.playing=true;DJ.confirmed=true;DJ.positionRepairs=1;DJ.startedAt=1000;DJ.pos=40000;DJ.posAt=1000;globalThis.seeks=0;api=async(p,o)=>{if(p.includes('/seek?'))seeks++;if(p==='/me/player')return {item:{id:'one'},progress_ms:0,is_playing:true,device:{id:'phone'}};return null};DJ.loop();`);
- await run(c,'DJ.tickFn()');assert.equal(run(c,'seeks'),0);assert.equal(run(c,'DJ.idx'),0);assert.equal(run(c,'DJ.playing'),false);
-});
-await test('a failed SDK state read falls back to Spotify API confirmation',async()=>{
- const c=context();run(c,`DJ.verifyStart=realVerifyStart;ST.mix=[${track}];DJ.dev=DJ.sdkDev='browser';DJ.remote=false;DJ.player={getCurrentState:async()=>{throw Error('SDK stale')}};LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));api=async(p,o)=>p==='/me/player'?{item:{id:'one'},progress_ms:30000,is_playing:true,device:{id:'browser'}}:null;`);
- await run(c,'DJ.go(0)');assert.equal(run(c,'DJ.playing'),true);assert.equal(run(c,'DJ.confirmed'),true);assert.equal(run(c,'DJ.pos'),30000);
-});
 await test('a stuck token refresh cannot hold a Spotify request indefinitely',async()=>{
  const c=context();c.setTimeout=fn=>{queueMicrotask(fn);return 1};run(c,`token=()=>new Promise(()=>{});`);
  await assert.rejects(run(c,"api('/me/player',{retry:0,timeout:1})"),/Spotify did not answer/);
 });
-await test('resume cannot use a zero checkpoint before the saved AI passage',async()=>{
- const c=context();run(c,`ST.mix=[${track}];DJ.dev='phone';DJ.loadedMix=ST.mix;DJ.loadedId='one';DJ.pos=0;DJ.posAt=1000;LS.set('ai4',JSON.stringify({one:{start:30000,end:75000}}));globalThis.target=null;api=async(p,o)=>{if(o?.body?.uris)target=o.body.position_ms;return null};`);
- await run(c,'DJ.resume()');assert.equal(run(c,'target'),30000);assert.equal(run(c,'DJ.pos'),30000);
+
+// New shared-transport regressions follow.
+await test('a frozen timestamp never becomes Playing, even when Spotify says is_playing',async()=>{
+ const c=context();ready(c);const b=backend(c,{frozen:true});await run(c,'DJ.resume()');
+ assert.equal(run(c,'DJ.playing'),false);assert.equal(run(c,'DJ.phase'),'error');assert.notEqual(run(c,"$('#playerAction').textContent"),'Pause');assert.equal(b.plays().length,1);assert.equal(b.state.paused,true);
+});
+await test('real progress is required before the shared Pause control appears',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');assert.equal(run(c,'DJ.phase'),'playing');assert.equal(run(c,"$('#playerAction').textContent"),'Pause');assert.equal(run(c,"$('#miniState').textContent"),'Playing');assert.equal(b.plays().length,1);
+});
+await test('all screens use the same transport and status without issuing playback commands',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');const count=b.calls.length;
+ for(const view of ['home','mix','play','set']){run(c,`showView('${view}')`);assert.equal(run(c,"$('#playerAction').textContent"),'Pause');assert.equal(run(c,"$('#miniState').textContent"),'Playing');}
+ assert.equal(b.plays().length,1);assert(b.calls.length>=count);
+});
+await test('Next while paused selects the next song without starting music',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.next()');assert.equal(run(c,'DJ.idx'),1);assert.equal(run(c,'DJ.phase'),'paused');assert.equal(b.plays().length,0);
+});
+await test('Next while playing starts exactly the next song and preserves mix size',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');await run(c,'DJ.next()');assert.equal(run(c,'DJ.idx'),1);assert.equal(b.state.id,'song1');assert.equal(run(c,'ST.mix.length'),3);assert.equal(b.plays().length,2);
+});
+await test('Previous restarts after three seconds, otherwise returns through listening history',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.go(0)');await run(c,'DJ.go(1)');await run(c,'DJ.go(2)');
+ b.state.pos=37000;await run(c,'DJ.poll(true)');await run(c,'DJ.previous()');assert.equal(run(c,'DJ.idx'),2);
+ await run(c,'DJ.previous()');assert.equal(run(c,'DJ.idx'),1);await run(c,'DJ.previous()');assert.equal(run(c,'DJ.idx'),0);
+});
+await test('shuffle preserves the current passage, played prefix and every track without audio commands',async()=>{
+ const c=context();ready(c,12);const b=backend(c);run(c,'DJ.idx=3;DJ.pos=45000;DJ.posAt=10000;globalThis.before=ST.mix.slice(0,4).map(t=>t.id).join();globalThis.start=ST.mix[3].start;globalThis.end=ST.mix[3].end;');
+ for(let i=0;i<20;i++)run(c,'DJ.shuffleUpcoming(true,true)');
+ assert.equal(run(c,'ST.mix.slice(0,4).map(t=>t.id).join()'),run(c,'before'));assert.equal(run(c,'new Set(ST.mix.map(t=>t.id)).size'),12);assert.equal(run(c,'ST.mix[3].start'),run(c,'start'));assert.equal(run(c,'ST.mix[3].end'),run(c,'end'));assert.equal(b.plays().length,0);
+ run(c,'DJ.shuffleUpcoming(false)');assert.equal(run(c,'ST.mix.map(t=>t.id).join()'),run(c,'DJ.baseOrder.join()'));
+});
+await test('repeat-one repeats automatically but manual Next still advances',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');run(c,"DJ.repeat='one'");await run(c,'DJ.transition()');assert.equal(run(c,'DJ.idx'),0);await run(c,'DJ.next()');assert.equal(run(c,'DJ.idx'),1);assert.equal(b.plays().length,3);
+});
+await test('repeat-all wraps and repeat-off ends without playing an unrelated song',async()=>{
+ const c=context();ready(c,2);const b=backend(c);await run(c,'DJ.go(1)');run(c,"DJ.repeat='all'");await run(c,'DJ.transition()');assert.equal(run(c,'DJ.idx'),0);
+ await run(c,'DJ.go(1)');run(c,"DJ.repeat='off'");await run(c,'DJ.transition()');assert.equal(run(c,'DJ.phase'),'ended');assert.equal(b.state.paused,true);const n=b.plays().length;await run(c,'DJ.resume()');assert.equal(run(c,'DJ.idx'),0);assert.equal(b.plays().length,n+1);
+});
+await test('paused seeking records a bounded checkpoint without starting or seeking Spotify',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.seekTo(0)');assert.equal(run(c,'DJ.pos'),30000);assert.equal(b.plays().length,0);assert.equal(b.seeks().length,0);await run(c,'DJ.resume()');assert.equal(b.plays()[0].o.body.position_ms,30000);
+});
+await test('playing seek stays within the AI window and verifies actual progress',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');await run(c,'DJ.seekTo(60000)');assert.equal(run(c,'DJ.phase'),'playing');assert(run(c,'DJ.pos')>=60000);assert.equal(b.seeks().length,1);
+});
+await test('an ignored initial seek is corrected once and frozen output still cannot fake Playing',async()=>{
+ const c=context();ready(c);const b=backend(c,{ignoreStart:true});await run(c,'DJ.resume()');assert.equal(b.seeks().length,1);assert.equal(run(c,'DJ.phase'),'playing');assert(run(c,'DJ.pos')>=30000);
+});
+await test('external pause and external resume use observed state with no new Play command',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');b.state.paused=true;await run(c,'DJ.poll(true)');assert.equal(run(c,'DJ.phase'),'paused');
+ b.state.paused=false;await run(c,'DJ.poll(true)');await run(c,'DJ.poll(true)');assert.equal(run(c,'DJ.phase'),'playing');assert.equal(b.plays().length,1);
+});
+await test('stale network status removes Playing and never skips forward',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');b.state.offline=true;b.advance(4000);await run(c,'DJ.poll(true)');assert.notEqual(run(c,'DJ.phase'),'playing');assert.notEqual(run(c,"$('#miniState').textContent"),'Playing');assert.equal(run(c,'DJ.idx'),0);assert.equal(b.plays().length,1);
+ b.state.offline=false;await run(c,'DJ.poll(true)');assert.equal(run(c,'DJ.phase'),'playing');assert.equal(b.plays().length,1);
+});
+await test('a stream that stops moving buffers then stops with Retry, without skipping',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');b.state.frozen=true;b.advance(4000);await run(c,'DJ.poll(true)');assert.equal(run(c,'DJ.phase'),'buffering');b.advance(11000);await run(c,'DJ.poll(true)');assert.equal(run(c,'DJ.phase'),'error');assert.equal(run(c,'DJ.idx'),0);assert.equal(b.state.paused,true);
+});
+await test('another device or track disables mix scheduling without seeking or taking over',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');b.state.id='another';await run(c,'DJ.poll(true)');assert.equal(run(c,'DJ.phase'),'external');assert.equal(run(c,'DJ.loadedMix'),null);assert.equal(b.plays().length,1);assert.equal(b.seeks().length,0);
+});
+await test('opening the already active mix never pauses, restarts, or issues another Play',async()=>{
+ const c=context();ready(c);const b=backend(c);run(c,'Library.capture(true)');await run(c,'DJ.resume()');const n=b.calls.length;await run(c,'Library.open(Library.state.activeId,true)');assert.equal(b.calls.length,n);assert.equal(run(c,'DJ.phase'),'playing');
+});
+await test('a cancelled in-flight start is stopped before the replacement start',async()=>{
+ const c=context();ready(c);const b=backend(c);const api=c.hostAPI;let finish;
+ c.hostAPI=async(p,o)=>{if(p.includes('/play?')&&o.body.uris[0].endsWith('song0')){await api(p,o);return new Promise(r=>finish=r);}return api(p,o);};run(c,'api=hostAPI;globalThis.a=DJ.go(0)');await new Promise(r=>setImmediate(r));run(c,'globalThis.b=DJ.go(1)');finish();await run(c,'Promise.all([a,b])');
+ assert.equal(run(c,'DJ.idx'),1);assert.equal(run(c,'DJ.phase'),'playing');const commands=b.calls.filter(x=>/player\/(play|pause)\?/.test(x.p));assert(commands[0].p.includes('/play?'));assert(commands[1].p.includes('/pause?'));assert(commands[2].p.includes('/play?'));assert.equal(commands.length,3);
+});
+await test('waiting for AI shows Cancel and never a fake Pause icon',async()=>{
+ const c=context();ready(c);backend(c);run(c,"LS.set('ai4','{}');LS.set('aikey','test');AI.call=()=>new Promise(r=>globalThis.answer=r);globalThis.pending=DJ.resume()");await new Promise(r=>setImmediate(r));assert.equal(run(c,'DJ.phase'),'waiting-ai');assert.equal(run(c,"$('#playerAction').textContent"),'Cancel');assert.equal(run(c,'DJ.playing'),false);await run(c,'DJ.pause()');await run(c,'pending');assert.equal(run(c,'DJ.phase'),'paused');
+});
+await test('shuffle and repeat survive reopening with the saved order',async()=>{
+ const c=context();ready(c,8);backend(c);run(c,'Library.capture(true);DJ.shuffleUpcoming(true);DJ.cycleRepeat();');const ids=run(c,'ST.mix.map(t=>t.id).join()');const d=context();for(const[k,v]of c.storage)d.storage.set(k,v);run(d,"ST.me={id:'tester'};Library.load()");assert.equal(run(d,'DJ.shuffle'),true);assert.equal(run(d,'DJ.repeat'),'all');assert.equal(run(d,'ST.mix.map(t=>t.id).join()'),ids);
+});
+await test('a finished single-song mix replays its AI passage from the beginning',async()=>{
+ const c=context();ready(c,1);const b=backend(c);await run(c,'DJ.resume()');await run(c,'DJ.transition()');assert.equal(run(c,'DJ.phase'),'ended');await run(c,'DJ.resume()');assert.equal(b.plays().at(-1).o.body.position_ms,30000);
+});
+await test('building a new mix while playing saves it without interrupting the current queue',async()=>{
+ const c=context();ready(c,3);const b=backend(c);run(c,'Library.capture(true)');await run(c,'DJ.resume()');run(c,`globalThis.old=ST.mix;ST.pool=[...ST.mix].reverse();ST.crate=[{type:'playlist',id:'new',name:'New mix'}];buildOrder=tracks=>tracks.slice();`);const n=b.calls.length;
+ const selected=await run(c,'remix()');assert.equal(selected,false);assert.equal(run(c,'ST.mix===old'),true);assert.equal(run(c,'DJ.phase'),'playing');assert.equal(run(c,'Library.state.mixes.length'),2);assert.equal(b.calls.length,n);
+});
+await test('a failed next track stops with retry on that track instead of skipping',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');const previous=c.hostAPI;c.hostAPI=async(p,o)=>{if(p.includes('/play?')&&o.body.uris[0].endsWith('song1'))throw Error('Track unavailable');return previous(p,o);};run(c,'api=hostAPI');await run(c,'DJ.next()');assert.equal(run(c,'DJ.idx'),1);assert.equal(run(c,'DJ.phase'),'error');assert.equal(b.state.paused,true);assert.equal(b.plays().length,1);
+});
+await test('a failed pause is shown as unconfirmed and Retry pause does not resume audio',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');const previous=c.hostAPI;c.hostAPI=async(p,o)=>{if(p.includes('/pause?'))throw Error('Pause failed');return previous(p,o);};run(c,'api=hostAPI');await run(c,'DJ.pause()');assert.equal(run(c,'DJ.phase'),'pause-unconfirmed');assert.equal(run(c,"$('#playerAction').textContent"),'Retry pause');await run(c,'DJ.toggle()');assert.equal(b.plays().length,1);
+});
+await test('zero output volume is disclosed without changing user volume',async()=>{
+ const c=context();ready(c);const b=backend(c,{volume:0});await run(c,'DJ.resume()');assert.equal(run(c,'DJ.phase'),'playing');assert.match(run(c,"$('#stat').textContent"),/volume at zero/);assert.equal(b.calls.filter(x=>x.p.includes('/volume')).length,0);
+});
+await test('stale source-search responses cannot replace newer results',async()=>{
+ const c=context();run(c,`ST.tab='album';$('#q').value='old';api=path=>new Promise(r=>{if(path.includes('old'))globalThis.oldAnswer=r;else globalThis.newAnswer=r});globalThis.oldSearch=refreshSources();$('#q').value='new';globalThis.newSearch=refreshSources();newAnswer({albums:{items:[{id:'new',name:'New result',artists:[]}]}});`);await run(c,'newSearch');run(c,`oldAnswer({albums:{items:[{id:'old',name:'Stale result',artists:[]}]}})`);await run(c,'oldSearch');assert.equal(run(c,'lastResults[0].id'),'new');
+});
+await test('unavailable, restricted and malformed tracks are filtered before building',async()=>{
+ const c=context();assert.equal(run(c,`normTrack({id:'one',uri:'spotify:track:one',duration_ms:100000,is_playable:false})`),null);assert.equal(run(c,`normTrack({id:'one',uri:'spotify:track:one',duration_ms:100000,restrictions:{reason:'market'}})`),null);assert.equal(run(c,`normTrack({id:'one',uri:'spotify:track:one',duration_ms:0})`),null);
+});
+await test('short songs can have a valid AI passage without being forced to zero',async()=>{
+ const c=context();run(c,`ST.mix=[{...${track},dur:15000}];LS.set('aikey','test');AI.call=async()=>JSON.stringify([{id:'one',start:2,end:13}]);`);await run(c,'AI.run(ST.mix)');run(c,`planSegments(ST.mix,'smooth','ai')`);assert.equal(run(c,'ST.mix[0].start'),2000);assert.equal(run(c,'ST.mix[0].end'),13000);
+});
+await test('end of mix is not claimed if Spotify refuses the pause',async()=>{
+ const c=context();ready(c,1);const b=backend(c);await run(c,'DJ.resume()');const prior=c.hostAPI;c.hostAPI=async(p,o)=>{if(p.includes('/pause?'))throw Error('Pause refused');return prior(p,o)};run(c,'api=hostAPI');await run(c,'DJ.transition()');assert.equal(run(c,'DJ.phase'),'pause-unconfirmed');assert.equal(run(c,'DJ.finished'),false);
+});
+await test('manual hook corrections save without moving the currently playing window',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');const n=b.calls.length;run(c,`globalThis.originalStart=ST.mix[0].start;globalThis.originalEnd=ST.mix[0].end;applyHook(50000,'Saved')`);assert.equal(run(c,'HK.get().song0'),50000);assert.equal(run(c,'ST.mix[0].start'),run(c,'originalStart'));assert.equal(run(c,'ST.mix[0].end'),run(c,'originalEnd'));assert.equal(b.calls.length,n);
+});
+await test('next-song AI wait is not shown as safely paused when Spotify ignored pause',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');const prior=c.hostAPI;c.hostAPI=async(p,o)=>p.includes('/pause?')?null:prior(p,o);run(c,`api=hostAPI;const cache=AI.cache();delete cache.song1;LS.set('ai4',JSON.stringify(cache));LS.set('aikey','test');globalThis.requests=0;AI.call=async()=>{requests++;return '[]'};`);await run(c,'DJ.go(1)');assert.equal(run(c,'DJ.phase'),'pause-unconfirmed');assert.equal(run(c,'requests'),0);
+});
+await test('buffering seek is a verified transport action, not a local-only checkpoint',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');run(c,`DJ.setPhase('buffering','Checking')`);await run(c,'DJ.seekTo(50000)');assert.equal(b.seeks().length,1);assert.equal(run(c,'DJ.phase'),'playing');assert(run(c,'DJ.pos')>=50000);
+});
+await test('duplicate Play commands for the same pending song are coalesced',async()=>{
+ const c=context();ready(c);const b=backend(c);const prior=c.hostAPI;let finish;c.hostAPI=async(p,o)=>{if(p.includes('/play?')){await prior(p,o);return new Promise(r=>finish=r);}return prior(p,o);};run(c,'api=hostAPI;globalThis.first=DJ.go(0)');await new Promise(r=>setImmediate(r));run(c,'globalThis.second=DJ.go(0)');finish();await run(c,'Promise.all([first,second])');assert.equal(b.plays().length,1);assert.equal(b.calls.filter(x=>x.p.includes('/pause?')).length,0);assert.equal(run(c,'DJ.phase'),'playing');
+});
+await test('an unavailable local SDK state falls back to the authoritative API clock',async()=>{
+ const c=context();ready(c);const b=backend(c);run(c,`DJ.remote=false;DJ.sdkDev='phone';DJ.player={getCurrentState:async()=>null};`);await run(c,'DJ.resume()');assert.equal(run(c,'DJ.phase'),'playing');assert.equal(b.plays().length,1);
+});
+await test('browser autoplay denial is an error rather than a fake playing state',async()=>{
+ const c=context();ready(c);const b=backend(c);run(c,`DJ.remote=false;DJ.sdkDev='phone';DJ.player={activateElement:async()=>{throw Error('Audio permission denied')}};`);await run(c,'DJ.resume()');assert.equal(run(c,'DJ.phase'),'error');assert.equal(b.plays().length,0);assert.notEqual(run(c,"$('#playerAction').textContent"),'Pause');
+});
+await test('a changed external context during pause is not falsely labelled Paused',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');const prior=c.hostAPI;c.hostAPI=async(p,o)=>{if(p.includes('/pause?')){b.state.id='external';return null;}return prior(p,o);};run(c,'api=hostAPI');await run(c,'DJ.pause()');assert.equal(run(c,'DJ.phase'),'external');assert.equal(run(c,'DJ.loadedMix'),null);
+});
+await test('paused navigation cannot discard an unconfirmed active stream',async()=>{
+ const c=context();ready(c);const b=backend(c);await run(c,'DJ.resume()');run(c,`DJ.desiredPlaying=false;DJ.setPhase('pause-unconfirmed','Not confirmed')`);await run(c,'DJ.next()');assert.equal(run(c,'DJ.idx'),0);assert.equal(run(c,'DJ.phase'),'pause-unconfirmed');assert.equal(run(c,"$('#nextBtn').disabled"),true);
+});
+await test('Cancel does not wait for a device lookup and its late result cannot start audio',async()=>{
+ const c=context();ready(c);run(c,`DJ.dev=null;globalThis.plays=0;api=(p,o)=>p.includes('/devices')?new Promise(r=>globalThis.devicesAnswer=r):(plays++,Promise.resolve(null));globalThis.pending=DJ.resume();`);await new Promise(r=>setImmediate(r));await run(c,'DJ.pause()');await run(c,'pending');assert.equal(run(c,'DJ.phase'),'paused');assert.equal(run(c,'DJ.busy'),false);run(c,`devicesAnswer({devices:[{id:'phone',name:'Phone',is_active:true}]})`);await new Promise(r=>setImmediate(r));assert.equal(run(c,'plays'),0);assert.equal(run(c,'DJ.phase'),'paused');
+});
+await test('a failed next song saves its intended start rather than the previous song time',async()=>{
+ const c=context();ready(c);const b=backend(c);run(c,'Library.capture(true)');await run(c,'DJ.resume()');b.state.pos=70000;await run(c,'DJ.poll(true)');const prior=c.hostAPI;c.hostAPI=async(p,o)=>{if(p.includes('/play?')&&o.body.uris[0].endsWith('song1'))throw Error('Unavailable');return prior(p,o)};run(c,'api=hostAPI');await run(c,'DJ.next()');assert.equal(run(c,'DJ.phase'),'error');assert.equal(run(c,'DJ.pos'),30000);
+ const d=context();for(const[k,v]of c.storage)d.storage.set(k,v);run(d,"ST.me={id:'tester'};Library.load()");assert.equal(run(d,'DJ.idx'),1);assert.equal(run(d,'DJ.pos'),30000);
+});
+await test('reopening a mix that closed during AI wait does not reuse an estimated checkpoint',async()=>{
+ const c=context();ready(c);backend(c);run(c,`Library.capture(true);LS.set('ai4','{}');LS.set('aikey','test');AI.call=()=>new Promise(()=>{});globalThis.pending=DJ.go(1);`);await new Promise(r=>setImmediate(r));run(c,'Library.capture()');await run(c,'DJ.pause()');await run(c,'pending');
+ const d=context();for(const[k,v]of c.storage)d.storage.set(k,v);run(d,"ST.me={id:'tester'};Library.load()");assert.equal(run(d,'DJ.idx'),1);assert.equal(run(d,'DJ.checkpointId'),null);assert.equal(run(d,'DJ.loadedMix'),null);assert.equal(run(d,'DJ.playing'),false);
+});
+await test('resume at a completed passage advances rather than playing a half-second tail',async()=>{
+ const c=context();ready(c);const b=backend(c);run(c,`DJ.loadedMix=ST.mix;DJ.loadedId=DJ.checkpointId='song0';DJ.pos=75000;DJ.posAt=10000;DJ.setPhase('paused','')`);await run(c,'DJ.resume()');assert.equal(run(c,'DJ.idx'),1);assert.equal(b.plays()[0].o.body.position_ms,30000);
 });
 console.log(`${count} checks passed`);
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -140,6 +140,12 @@ img[src=""],img:not([src]){visibility:hidden}
 @media(min-width:700px){.library-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.hero{padding:34px}.now{max-width:530px}.cover{width:240px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
 
+
+/* Version 31: one transport, outside the scrolling views. */
+.mini-player{position:relative;left:auto;bottom:auto;transform:none;flex:none;width:100%;max-width:none;margin:0;border-radius:20px 20px 0 0;box-shadow:0 -4px 24px #0001;background:var(--s1);color:var(--tx);border:1px solid var(--line);padding:10px max(14px,calc((100% - 780px)/2));display:flex;flex-direction:column;gap:5px;z-index:20}
+.transport-head{display:flex;width:100%;gap:12px;align-items:center}.transport-head #miniOpen{flex:1;min-width:0;cursor:pointer}.mini-player b{font-size:13px}.mini-player small{font-size:11px;color:var(--mu);opacity:1}.mini-player button{padding:6px;font-size:12px}.output-button{max-width:38%;color:var(--ac);overflow-wrap:anywhere;text-align:right}.transport-seek{display:flex;align-items:center;gap:8px;width:100%;font-size:10px;color:var(--mu);font-variant-numeric:tabular-nums}.transport-seek input{flex:1;min-width:0;accent-color:var(--ac);height:16px}.transport-controls{display:flex;align-items:center;justify-content:center;gap:9px;width:100%}.mini-player .round{width:44px;height:44px;flex:none}.mini-player .round.big{width:76px;height:44px;border-radius:22px;display:flex;gap:4px;color:var(--on);padding:4px 7px}.mini-player .round svg{width:17px;height:17px}.mini-player .round.big svg{width:15px}.transport-option{width:44px;flex:none;min-height:44px;color:var(--mu);display:flex;align-items:center;justify-content:center;gap:2px;flex-direction:column}.transport-option svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none}.transport-option.on{color:var(--ac)}#repeatLabel{font-size:8px}.transport-detail{width:100%;font-size:11px;color:var(--mu);text-align:center;line-height:1.3;min-height:14px;overflow-wrap:anywhere}.mini-player button:disabled{opacity:.4;cursor:default}.transport-wait{animation:sp 1s linear infinite}.app.has-mini{padding-bottom:28px}.hero.returning{align-items:flex-start;flex-direction:column}.hero.returning .btn{align-self:flex-start}.continue-card b,.player-head h2{overflow-wrap:anywhere}.toast{bottom:calc(245px + env(safe-area-inset-bottom,0px))}.now{max-width:470px}.np-t{text-align:left;padding-right:54px}.np-a{text-align:left;padding-right:40px}.player-head #mixSaveState{line-height:1.5}.nav{border-top-left-radius:0;border-top-right-radius:0}.mini-player+.nav{border-top:0}
+@media(max-height:650px){.transport-detail{max-height:28px;overflow:auto}.mini-player{gap:2px;padding-top:7px;padding-bottom:7px}.transport-controls{gap:8px}}
+
 </style>
 </head>
 <body>
@@ -236,12 +242,6 @@ img[src=""],img:not([src]){visibility:hidden}
           <div class="wave" id="wave"><div class="win" id="win"></div><div class="hook" id="hook">hook</div><div class="ph2" id="ph"></div></div>
           <div class="times"><span id="tCur">0:00</span><span id="tSeg"></span><span id="tDur">0:00</span></div>
           <div class="xfade"><i id="xf"></i></div>
-          <div class="ctl">
-            <button class="round" id="prevBtn" title="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
-            <button class="round big" id="playBtn" title="Play"><svg id="playIco" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg></button>
-            <button class="round" id="nextBtn" title="Next song"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
-          </div>
-          <div class="status" id="stat">Ready</div>
           <div class="note hide" id="deviceHelp">
             <b>Connect a playback device</b>
             <p>Open Spotify on this phone and play a song briefly. Return here, refresh devices, then press Play.</p>
@@ -265,6 +265,7 @@ img[src=""],img:not([src]){visibility:hidden}
           <h2 style="margin:0">Running order</h2>
           <div class="row" style="gap:6px"><button class="btn ghost small" id="renameMix">Rename</button><button class="btn ghost small" id="reshuffle">New order</button></div>
         </div>
+        <div class="note hide" id="renamePanel"><label for="mixName">Mix name</label><input class="input" id="mixName" maxlength="100" style="margin-top:8px"><div class="row" style="margin-top:10px"><button class="btn small pri" id="saveMixName">Save name</button><button class="btn small ghost" id="cancelMixName">Cancel</button></div></div>
         <div id="aiStat"></div>
         <div class="queue" id="queue"></div>
         <div id="featNote"></div>
@@ -288,7 +289,7 @@ img[src=""],img:not([src]){visibility:hidden}
           <a class="btn small" href="https://open.spotify.com/" target="_blank" rel="noopener">Open Spotify</a>
           <button class="btn small ghost refresh-devices">Refresh devices</button>
         </div>
-        <div class="note" id="deviceNote">On iPhone, open Spotify and play a song briefly. Return here and refresh devices. Use the same Spotify account.</div>
+        <div class="note" id="deviceNote">Open Spotify on this phone, then refresh devices here.</div><p class="local-note" style="margin-top:12px">Keep Segue open for timed song changes. Your phone can suspend web apps when locked. Use your phone or Spotify volume controls.</p>
       </div>
       <div class="card">
         <h2>Account</h2>
@@ -299,13 +300,26 @@ img[src=""],img:not([src]){visibility:hidden}
   </div>
 </main>
 
+<section class="mini-player hide" id="miniPlayer" aria-label="Shared music player">
+  <div class="transport-head"><div id="miniOpen" role="button" tabindex="0" aria-label="Open current mix"><b id="miniTitle">Your mix</b><small id="miniState">Ready</small></div><button id="globalDevice" class="output-button" title="Choose output"><span id="transportOutput">Choose output</span></button></div>
+  <div class="transport-seek"><span id="playerElapsed">0:00</span><input id="playerSeek" type="range" min="0" max="100" step="500" value="0" aria-label="Seek within the selected best part"><span id="playerDuration">0:00</span></div>
+  <div class="transport-controls">
+    <button id="shuffleBtn" class="transport-option" aria-label="Shuffle upcoming songs" aria-pressed="false" title="Shuffle upcoming songs"><svg viewBox="0 0 24 24"><path d="M3 6h3c5 0 6 12 11 12h4M17 14l4 4-4 4M3 18h3c2 0 3-2 5-6M14 8c1-2 2-2 4-2h3M17 2l4 4-4 4"/></svg></button>
+    <button class="round" id="prevBtn" title="Previous or restart"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+    <button class="round big" id="playBtn" title="Play"><svg id="playIco" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg><span id="playerAction">Play</span></button>
+    <button class="round" id="nextBtn" title="Next song"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+    <button id="repeatBtn" class="transport-option" aria-label="Repeat off" aria-pressed="false" title="Repeat off"><svg viewBox="0 0 24 24"><path d="M4 11V7h15M16 3l4 4-4 4M20 13v4H5M8 13l-4 4 4 4"/></svg><span id="repeatLabel">Off</span></button>
+  </div>
+  <div class="transport-detail" id="stat" role="status" aria-live="polite">Ready</div>
+</section>
+
 <nav class="nav hide" id="nav">
   <button data-v="home" class="on" type="button"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10H3zM9 20v-7h6v7"/></svg>Home</button>
   <button data-v="mix" type="button"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7"/><path d="M17 15v6M14 18h6"/></svg>Create</button>
   <button data-v="play" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/></svg>Playing</button>
   <button data-v="set" type="button"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>Settings</button>
 </nav>
-<div class="mini-player hide" id="miniPlayer"><div id="miniOpen" role="button" tabindex="0"><b id="miniTitle">Your mix</b><small id="miniState">Ready to play</small></div><button id="miniPlay" aria-label="Play or pause mix">Play</button></div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -321,7 +335,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 30;
+const APP_VERSION = 31;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -439,6 +453,10 @@ const Library = {
     if (active) this.restore(active);
     showView('home'); this.render();
   },
+  addPrepared(tracks){
+    const mix={id:'mix-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),name:ST.crate.map(s=>s.name).join(' + ')||'My mix',tracks:tracks.map(t=>this.track(t)),idx:0,position:tracks[0].start,createdAt:Date.now(),updatedAt:Date.now(),sources:ST.crate.map(s=>this.source(s)),positionReady:false,pendingSeek:true,shuffle:false,repeat:'off',baseOrder:tracks.map(t=>t.id),history:[]};
+    this.state.mixes.unshift(mix);this.write();this.render();return mix;
+  },
   capture(create=false, title=null, sources=ST.crate){
     if (!this.key() || !ST.mix.length) return;
     if (!create && this.ref !== ST.mix) return;
@@ -449,7 +467,7 @@ const Library = {
       mix = {id:'mix-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8),name:title || sources.map(s => s.name).join(' + ') || 'My mix',createdAt:Date.now(),sources:sources.map(s => this.source(s))};
       this.state.mixes.unshift(mix); this.state.activeId = mix.id;
     }
-    Object.assign(mix,{tracks,idx:clamp(DJ.idx,0,tracks.length-1),finished:DJ.finished,position:DJ.posAt ? DJ.pos : tracks[DJ.idx]?.start || 0,updatedAt:Date.now()});
+    Object.assign(mix,{tracks,positionReady:DJ.checkpointId===ST.mix[DJ.idx]?.id,pendingSeek:!!DJ.pendingSeek,shuffle:DJ.shuffle,repeat:DJ.repeat,baseOrder:DJ.baseOrder.slice(),history:DJ.history.slice(),idx:clamp(DJ.idx,0,tracks.length-1),finished:DJ.finished,position:DJ.posAt ? DJ.pos : tracks[DJ.idx]?.start || 0,updatedAt:Date.now()});
     this.ref = ST.mix; this.lastWrite = Date.now();
     const cache = AI.cache(); let changed = false;
     for (const t of tracks) if (cache[t.id] && !cache[t.id].song) { cache[t.id].song = t; changed = true; }
@@ -489,8 +507,10 @@ const Library = {
     ST.mix.forEach((x,i) => x._lock = i <= DJ.idx && ['ai','you'].includes(x.hookSrc) && Number.isFinite(x.start) && Number.isFinite(x.end) && x.end > x.start);
     planSegments(ST.mix,ST.vibe,ST.len); ST.mix.forEach(x => x._lock = false);
     DJ.pos = Number.isFinite(mix.position) ? clamp(mix.position,t.start,t.end) : t.start;
-    DJ.posAt = performance.now(); DJ.loadedMix = ST.mix; DJ.loadedId = t.id;
-    DJ.playing = false; DJ.externalPaused = false; DJ.confirmed = false; DJ.finished = !!mix.finished; DJ.retryIdx = null;
+    DJ.posAt = performance.now();DJ.pendingSeek=!!mix.pendingSeek;DJ.loadedMix=mix.pendingSeek||mix.positionReady===false?null:ST.mix;DJ.loadedId=t.id;
+    DJ.phase = mix.finished?'ended':'ready';DJ.detail='Saved mix · press Play when ready';DJ.desiredPlaying=false;DJ.streamOwned=false;DJ.lastSample=null;DJ.lastFrameAt=DJ.lastMotionAt=0;DJ._renderTrack=null;DJ.checkpointId=mix.positionReady===false?null:t.id;
+    DJ.shuffle=!!mix.shuffle;DJ.repeat=['off','all','one'].includes(mix.repeat)?mix.repeat:'off';DJ.baseOrder=Array.isArray(mix.baseOrder)?mix.baseOrder.slice():ST.mix.map(x=>x.id);DJ.history=Array.isArray(mix.history)?mix.history.slice():[];
+    DJ.externalPaused = false; DJ.confirmed = false; DJ.finished = !!mix.finished; DJ.retryIdx = null;
     if (DJ.finished) { DJ.loadedMix = null; DJ.pos = t.start; }
     this.ref = ST.mix; this.state.activeId = mix.id;
     renderDeck(); aiStatus(); setPlayIcon();
@@ -500,18 +520,18 @@ const Library = {
     setStat('Your place is saved · press Play when ready');
   },
   async open(id, play=false){
-    if (DJ.busy) return toast('Pause or finish the current action first.');
     const mix = this.state.mixes.find(m => m.id === id); if (!mix) return;
-    if (DJ.playing) await DJ.pause(); else this.capture();
+    if(this.ref===ST.mix&&this.state.activeId===id){showView('play');if(play&&!DJ.playing&&!DJ.busy)await DJ.resume();return;}
+    if(DJ.busy||DJ.streamOwned){if(!await DJ.pause())return;}else this.capture();
     this.restore(mix); this.write(); showView('play');
     if (play) await DJ.resume();
   },
   async playSong(id){
     if (DJ.busy) return toast('Pause or finish the current action first.');
     const c = AI.cache()[id], t = this.track(c?.song); if (!t) return;
-    if (DJ.playing) await DJ.pause(); else this.capture();
+    if(DJ.busy||DJ.streamOwned){if(!await DJ.pause())return;}else this.capture();
     t.aiStart=c.start; t.aiEnd=c.end; t.aiWhy=c.why; t.mood=c.mood;
-    ST.mix=[t]; ST.pool=[t]; DJ.idx=0; DJ.pos=DJ.posAt=0; DJ.loadedMix=null; DJ.retryIdx=null; DJ.finished=false;
+    ST.mix=[t]; ST.pool=[t]; DJ.shuffle=false;DJ.repeat='off';DJ.baseOrder=[t.id];DJ.history=[];DJ.checkpointId=null;DJ.idx=0; DJ.pos=DJ.posAt=0; DJ.loadedMix=null; DJ.retryIdx=null; DJ.finished=false;
     planSegments(ST.mix,ST.vibe,ST.len); this.capture(true,t.name,[]); renderDeck(); showView('play'); await DJ.go(0);
   },
   async recoverPicks(){
@@ -555,11 +575,7 @@ const Library = {
     $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${fmt(c.start)}–${fmt(c.end)} · AI pick saved</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : hidden.size && !Object.keys(cache).some(id => !hidden.has(id)) ? 'List cleared. Your AI best-part timings are still saved and will be reused when you build another mix.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Songs appear here after AI chooses their best parts.'}</div>`;
     this.mini();
   },
-  mini(){
-    const t = ST.mix[DJ.idx], show = !!t && ST.view !== 'play';
-    $('#miniPlayer').classList.toggle('hide',!show); $('#scroller').classList.toggle('has-mini',show);
-    if (t) { $('#miniTitle').textContent=t.name; $('#miniState').textContent=DJ.playing ? 'Playing · tap to open' : DJ.busy ? 'Getting ready…' : 'Your mix · tap to open'; }
-    $('#miniPlay').textContent=DJ.playing || DJ.busy ? 'Pause' : 'Play';
+  mini(){ DJ.render();
   },
 };
 
@@ -606,38 +622,40 @@ async function loadMyPlaylists(){
   while (url && out.length < 300) { const j = await api(url); out.push(...j.items.filter(Boolean)); url = j.next; }
   return ST.myPlaylists = out.map(mapPl);
 }
-let searchTimer;
+let searchTimer,sourceRequest=0;
 async function refreshSources(){
-  const q = $('#q').value.trim(); const t = ST.tab;
+  const q = $('#q').value.trim(); const t = ST.tab,request=++sourceRequest;
+  const current=()=>request===sourceRequest&&ST.tab===t&&$('#q').value.trim()===q;
+  const publish=(...args)=>{if(current())renderResults(...args);};
   $('#srcNote').innerHTML = '';
   const link = parseLink(q);
   try {
     if (link) {
-      if (link.type === 'track') return renderResults([], 'Paste a playlist, album or artist link.');
+      if (link.type === 'track') return publish([], 'Paste a playlist, album or artist link.');
       const path = { playlist:`/playlists/${link.id}?fields=id,name,images,owner(id,display_name),collaborative,items(total),tracks(total)`, album:`/albums/${link.id}`, artist:`/artists/${link.id}` }[link.type];
       const j = await api(path);
-      return renderResults([{ playlist:mapPl, album:mapAl, artist:mapAr }[link.type](j)]);
+      return publish([{ playlist:mapPl, album:mapAl, artist:mapAr }[link.type](j)]);
     }
     if (t === 'liked') {
-      return renderResults([{ type:'liked', id:'me', name:'Liked Songs', img:'', sub:'Your saved tracks' }]);
+      return publish([{ type:'liked', id:'me', name:'Liked Songs', img:'', sub:'Your saved tracks' }]);
     }
     if (t === 'playlist' && !q) {
       $('#results').innerHTML = '<div class="small dim" style="padding:14px 8px"><span class="spin"></span></div>';
       const list = await loadMyPlaylists();
-      renderResults(list, 'No playlists yet.');
-      if (list.some(x=>x.locked)) $('#srcNote').innerHTML = `<div class="note">Dimmed playlists are ones you follow but don't own. Spotify blocks apps from reading those, so copy one to your own playlist (or paste its link after copying).</div>`;
+      publish(list, 'No playlists yet.');
+      if (current() && list.some(x=>x.locked)) $('#srcNote').innerHTML = `<div class="note">Dimmed playlists are ones you follow but don't own. Spotify blocks apps from reading those, so copy one to your own playlist (or paste its link after copying).</div>`;
       return;
     }
-    if (!q) return renderResults([], t==='album' ? 'Search for an album.' : t==='artist' ? 'Search for an artist.' : '');
+    if (!q) return publish([], t==='album' ? 'Search for an album.' : t==='artist' ? 'Search for an artist.' : '');
     const type = t === 'playlist' ? 'playlist' : t;
     const j = await api(`/search?type=${type}&limit=10&q=${encodeURIComponent(q)}`);
     const items = (j[type+'s']?.items || []).filter(Boolean);
-    renderResults(items.map({ playlist:mapPl, album:mapAl, artist:mapAr }[type]));
+    publish(items.map({ playlist:mapPl, album:mapAl, artist:mapAr }[type]));
     if (t === 'playlist') {
       const mine = (ST.myPlaylists||[]).filter(p => p.name.toLowerCase().includes(q.toLowerCase()));
-      if (mine.length) renderResults([...mine, ...items.map(mapPl).filter(p=>!mine.some(m=>m.id===p.id))]);
+      if (mine.length) publish([...mine, ...items.map(mapPl).filter(p=>!mine.some(m=>m.id===p.id))]);
     }
-  } catch(e){ renderResults([], 'Error: '+esc(e.message)); }
+  } catch(e){ publish([], 'Error: '+esc(e.message)); }
 }
 $('#q').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(refreshSources, 320); });
 $('#tabs').addEventListener('click', e => { const b=e.target.closest('.tab'); if(!b) return; document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on', x===b)); ST.tab=b.dataset.t; refreshSources(); });
@@ -650,7 +668,7 @@ document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e
 }));
 
 /* ---------------- Track fetching ---------------- */
-const normTrack = (t, album) => (t && t.id && t.type !== 'episode' && !t.is_local) ? {
+const normTrack = (t, album) => (t && t.id && t.uri && Number.isFinite(t.duration_ms) && t.duration_ms > 0 && t.type !== 'episode' && !t.is_local && t.is_playable !== false && !t.restrictions?.reason) ? {
   id:t.id, uri:t.uri, name:t.name, dur:t.duration_ms, artists:(t.artists||[]).map(a=>a.name), artistId:t.artists?.[0]?.id,
   img:(t.album||album)?.images?.[0]?.url || '', imgS:(t.album||album)?.images?.slice(-1)[0]?.url || '' } : null;
 
@@ -791,7 +809,7 @@ function planSegments(ord, vibe, len){
     let ratio = .3; if (t.dance > .72) ratio = .26; if (t.energy < .4) ratio = .36; if (t.dur > 330000) ratio -= .05;
     const mine = HK.get()[t.id], beat = 60000 / (t.tempo || 120);
     if (mine != null) { t.hook = mine; t.hookSrc = 'you'; }
-    else if (t.aiStart != null && !(ST.part === 'first' && Array.isArray(t.lyricHook))) { t.hook = clamp(t.aiStart, 0, Math.max(0, t.dur - 20000)); t.hookSrc = 'ai'; }
+    else if (t.aiStart != null && !(ST.part === 'first' && Array.isArray(t.lyricHook))) { t.hook = clamp(t.aiStart, 0, Math.max(0, t.dur - 2000)); t.hookSrc = 'ai'; }
     else if (Array.isArray(t.lyricHook) && t.lyricHook.length) {
       const cs = t.lyricHook, need = len === 'full' ? 0 : (LEN[len] || 45000);
       // Peak = the last full chorus that still leaves room to play it (the second or third time round is usually the biggest)
@@ -950,6 +968,7 @@ const AI = {
 Think carefully about each song below, then give the best part to play in a DJ mix:
 - "start": the second where that famous part begins (the first beat of the hook, not mid-line).
 - "end": the second where it should hand over to the next song. The part should be 30 to 75 seconds long and must end at least 2 seconds before the song ends.
+For a song shorter than 30 seconds, choose a shorter passage that fits its actual length.
 - "mood": one of ${MOODS.join(', ')}.
 - "why": at most 8 words.
 Do not default to the opening pallavi or the first chorus. Think through the whole song (prelude, pallavi, interludes, charanams, pallavi reprise, climax) and choose the passage listeners love most. That is often a charanam, the lift from a charanam back into the pallavi, a famous interlude theme, or the final high-energy reprise. Choose the first pallavi only when it truly is the most famous moment, and let the picks fall at different places across the songs.
@@ -1036,7 +1055,7 @@ ${songs}`;
         for (const o of arr) {
           const t = batch.find(x => x.id === o.id); if (!t) continue;
           let start = Number.isFinite(o.start) ? o.start * 1000 : null, end = Number.isFinite(o.end) ? o.end * 1000 : null;
-          if (start != null && (start < 0 || start > t.dur - 20000)) start = null;
+          if (start != null && (start < 0 || start > (t.dur < 30000 ? Math.max(0,t.dur-3000) : t.dur-20000))) start = null;
           if (start != null) { if (end == null || end - start < 20000) end = start + 45000; end = Math.min(end, start + 75000, t.dur - 2000); }
           const res = { start, end, song:Library.track(t), mood: MOODS.includes(o.mood) ? o.mood : null, why: String(o.why || '').slice(0, 60) };
           if (start != null) cache[t.id] = res; else { t.mood = res.mood; this.empty = (this.empty||0) + 1; }
@@ -1073,7 +1092,7 @@ async function aiAhead(){
       t.aiPending = true; renderDeck();
       await AI.one(t); t.aiPending = false;
       if (ST.mix !== mix) break;
-      replanAhead(DJ.playing ? DJ.idx : -1);
+      replanAhead(DJ.streamOwned || DJ.confirmed ? DJ.idx : -1);
     }
   } finally { aheadBusy = false; }
 }
@@ -1111,31 +1130,24 @@ async function buildMix(){
     const aic = AI.cache(); picked.forEach(t => { const c = AI.pick(t,aic); if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     msg.innerHTML = `<span class="spin"></span> Planning the set…`; await sleep(30);
     ST.pool = picked;
-    await remix();
+    const selected=await remix();
     const summary = () => { const na = ST.mix.filter(t => t.hookSrc === 'ai').length;
       return `${ST.mix.length} songs · ~${Math.round(ST.mix.reduce((s,t)=>s+(t.end-t.start),0)/60000)} min${AI.key() ? ` · AI picked ${na} of ${ST.mix.length}` : ''}${ST.featOk?'':' · basic mode'}`; };
     msg.textContent = summary();
-    showView('play');
+    showView(selected?'play':'home');
     // AI refines in the background: you can press Play right away
   } catch(e){ msg.textContent = e.message; toast(e.message); }
   btn.disabled = !ST.crate.length;
 }
 async function remix(){
-  if (DJ.busy) throw new Error('Wait for the current playback action to finish.');
-  DJ.busy = true;
-  try {
-    await DJ.pause();
-    DJ.loadedMix = DJ.loadedId = null; DJ.pos = DJ.posAt = 0; DJ.finished = false; DJ.retryIdx = null;
-    ST.mix = buildOrder(ST.pool, ST.vibe);
-    planSegments(ST.mix, ST.vibe, ST.len);
-    DJ.idx = 0; renderDeck(); drawCurve();
-    $('#featNote').innerHTML = ST.featOk ? '' : `<div class="note warn">Couldn't get audio analysis for most songs. AI still chooses each best part, but tempo and key matching are less precise.</div>`;
-    aiStatus(); Library.capture(true);
-  } finally { DJ.busy = false; }
-  aiAhead();
+  const ordered=buildOrder(ST.pool,ST.vibe);planSegments(ordered,ST.vibe,ST.len);
+  if(DJ.streamOwned||DJ.desiredPlaying||DJ.busy){Library.addPrepared(ordered);toast('New mix saved. Your current playback continues.');return false;}
+  Library.capture();ST.mix=ordered;DJ.idx=0;DJ.loadedMix=DJ.loadedId=null;DJ.pos=DJ.posAt=0;DJ.finished=false;DJ.retryIdx=null;DJ.checkpointId=null;
+  DJ.pendingSeek=true;DJ.shuffle=false;DJ.repeat='off';DJ.baseOrder=ordered.map(t=>t.id);DJ.history=[];DJ.setPhase('ready','Mix saved · press Play');
+  renderDeck();drawCurve();aiStatus();Library.capture(true);aiAhead();return true;
 }
 $('#buildBtn').onclick = buildMix;
-$('#reshuffle').onclick = () => ST.pool && remix().catch(e => toast(e.message));
+$('#reshuffle').onclick = () => DJ.shuffleUpcoming(true,true);
 
 /* ---------------- Deck UI ---------------- */
 function renderDeck(){
@@ -1150,7 +1162,7 @@ $('#queue').addEventListener('click', e => { const q = e.target.closest('.q'); i
 function showNow(i, instant){
   const t = ST.mix[i]; if (!t) return;
   const img = $('#npImg');
-  if (img.dataset.src !== t.img) { img.classList.add('swap'); setTimeout(()=>{ img.src = t.img; img.dataset.src = t.img; img.onload = () => img.classList.remove('swap'); }, instant?0:250); }
+  if (img.dataset.src !== t.img) { img.src=t.img;img.dataset.src=t.img;img.classList.remove('swap'); }
   $('#npIdx').textContent = `TRACK ${i+1} OF ${ST.mix.length}`;
   $('#npT').textContent = t.name; $('#npA').textContent = t.artists.join(', ');
   const tags = [];
@@ -1179,29 +1191,297 @@ function drawCurve(){
 
 /* ---------------- Playback engine ---------------- */
 const DJ = {
-  player:null, sdkDev:null, dev:null, remote:false, idx:0, playing:false, busy:false, master:.85, lat:450,
-  pos:0, posAt:0, startedAt:0, tick:null, xfading:false,
-  epoch:0, loadedMix:null, loadedId:null, retryIdx:null, finished:false, externalPaused:false, confirmed:false, positionRepairs:0,
-
+  player:null,sdkDev:null,dev:null,remote:false,idx:0,master:.85,lat:450,
+  phase:'ready',detail:'Choose a mix, then press Play.',desiredPlaying:false,busy:false,action:null,
+  pos:0,posAt:0,startedAt:0,loadedMix:null,loadedId:null,confirmed:false,streamOwned:false,
+  epoch:0,flow:Promise.resolve(),cancelWait:null,retryIdx:null,finished:false,externalPaused:false,
+  positionRepairs:0,lastFrameAt:0,lastMotionAt:0,lastPollAt:-Infinity,lastSample:null,
+  shuffle:false,repeat:'off',baseOrder:[],history:[],tick:null,_ticking:false,seekPreview:null,
+  get playing(){return this.phase==='playing';},
+  set playing(v){this.phase=v?'playing':'paused';},
+  setPhase(phase,detail=''){
+    this.phase=phase;this.detail=detail;this.render();
+  },
+  position(){
+    const t=ST.mix[this.idx];if(!t)return 0;
+    const elapsed=this.playing&&this.confirmed&&performance.now()-this.lastMotionAt<3500 ? Math.max(0,performance.now()-this.posAt):0;
+    return clamp(this.pos+elapsed,0,t.dur);
+  },
+  freeze(){this.pos=this.position();this.posAt=performance.now();},
+  render(){renderTransport();},
+  current(epoch){return epoch===this.epoch;},
+  activate(){
+    if(this.dev!==this.sdkDev||!this.player?.activateElement)return Promise.resolve();
+    try{return Promise.resolve(this.player.activateElement()).then(()=>null,e=>e);}catch(e){return Promise.resolve(e);}
+  },
+  enqueue(kind,idx,work){
+    const epoch=++this.epoch;this.cancelWait?.();this.cancelWait=null;
+    const op={epoch,kind,idx,dev:this.dev,touched:false};this.action=op;this.busy=true;
+    if(kind==='play'&&!this.playing){this.phase='starting';this.detail='Preparing playback…';}
+    this.desiredPlaying=kind==='pause'?false:kind==='seek'?this.desiredPlaying:true;
+    this.render();
+    const task=this.flow.catch(()=>{}).then(async()=>{
+      if(!this.current(epoch))return false;
+      try{const result=await work(epoch,op);if(result===false&&this.current(epoch)&&(['starting','seeking'].includes(this.phase)||kind==='repair')){this.desiredPlaying=false;this.confirmed=false;this.setPhase('disconnected','Output changed or playback was not confirmed. Choose an output and retry.');}return result;}
+      catch(e){
+        if(!this.current(epoch))return false;
+        if(op.touched){await this.stopDevice(op.dev).catch(()=>{});this.streamOwned=false;}
+        if(kind==='pause'||e.pauseFailed){if(kind!=='pause')this.retryIdx=idx;this.desiredPlaying=false;this.confirmed=false;this.setPhase('pause-unconfirmed',e.message);return false;}
+        this.retryIdx=idx;this.desiredPlaying=false;this.confirmed=false;
+        this.setPhase('error',e.message||'Spotify could not complete this action.');Library.capture();return false;
+      }finally{
+        if(this.current(epoch)){this.busy=false;this.action=null;this.render();this.loop();}
+      }
+    });
+    this.flow=task.catch(()=>{});return task;
+  },
+  async waitPreparation(promise,epoch){
+    await Promise.race([promise,new Promise(resolve=>{this.cancelWait=resolve;})]);
+    if(this.current(epoch))this.cancelWait=null;
+    return this.current(epoch);
+  },
+  matches(item,t){return !!item&&(item.id===t.id||item.linked_from?.id===t.id||item.uri===t.uri);},
+  async sdkState(timeout=900){try{return await within(this.player.getCurrentState(),timeout);}catch{return null;}},
+  async playbackState(timeout=2200){
+    if(!this.remote&&this.player){
+      const s=await this.sdkState(Math.min(800,timeout));
+      const t=ST.mix[this.idx];
+      if(s&&(!t||this.matches(s.track_window?.current_track,t))&&Number.isFinite(s.position)&&(!t||s.position>=t.start-2000))
+        return {item:s.track_window?.current_track,position:s.position,paused:s.paused,deviceId:this.sdkDev||this.dev,volume:null};
+    }
+    const s=await api('/me/player',{retry:0,timeout:Math.max(300,timeout)});
+    return s?{item:s.item,position:s.progress_ms,paused:s.is_playing!==true,deviceId:s.device?.id,volume:s.device?.volume_percent}:null;
+  },
+  async verifyStart(t,target,epoch,dev,playedFor=0){
+    const began=performance.now(),deadline=began+10000;let wrong=0,baseline=null,repaired=false,error=null;
+    for(let attempt=0;attempt<18&&performance.now()<deadline;attempt++){
+      if(!this.current(epoch)||dev!==this.dev)return null;
+      let s;try{s=await this.playbackState(Math.min(1800,deadline-performance.now()));}catch(e){error=e;if([401,403,429].includes(e.status))break;}
+      if(!this.current(epoch)||dev!==this.dev)return null;
+      const now=performance.now();
+      if(s&&s.deviceId===dev&&this.matches(s.item,t)&&Number.isFinite(s.position)&&!s.paused){
+        const inRange=s.position>=Math.max(0,target-1200)&&s.position<=target+Math.max(6000,playedFor+now-began+1800);
+        if(inRange){
+          wrong=0;
+          // A flag or a frozen timestamp is not proof of a running stream.
+          if(baseline&&now-baseline.at>=200&&s.position-baseline.pos>=100){this.outputMuted=s.volume===0;return s.position;}
+          if(!baseline||s.position<baseline.pos-1000)baseline={pos:s.position,at:now};
+        }else{
+          baseline=null;
+          if(++wrong>=2&&!repaired){
+            if(this.positionRepairs>=1)break;
+            this.positionRepairs++;repaired=true;this.detail='Aligning Spotify to the saved best part…';this.render();
+            await api(`/me/player/seek?position_ms=${Math.round(target)}&device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0,timeout:3500});
+          }
+        }
+      }else{wrong=0;baseline=null;}
+      await sleep(350);
+    }
+    throw new Error(error?.message||'Spotify has not confirmed a moving stream at this position. Check the output device, then press Retry.');
+  },
+  async stopDevice(dev){if(dev)await api(`/me/player/pause?device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0,timeout:4000});},
+  async confirmPaused(t,dev){
+    for(let i=0;i<6;i++){
+      const s=await this.playbackState(1500);
+      if(s&&s.deviceId===dev&&this.matches(s.item,t)&&s.paused){this.pos=s.position;this.posAt=performance.now();return 'paused';}
+      if(s&&(s.deviceId!==dev||!this.matches(s.item,t)))return 'external'; // Our stream is no longer the active context.
+      await sleep(200);
+    }
+    return false;
+  },
+  async startAt(i,target,epoch,op){
+    const mix=ST.mix,t=mix[i];if(!t)return false;
+    if(!this.dev&&!await this.waitPreparation(this.devices({required:true}),epoch))return false;if(!this.current(epoch))return false;
+    const previous=op.previous??this.loadedId;this.freeze();this.idx=i;this.pos=target;this.posAt=performance.now();this.checkpointId=t.id;this.pendingSeek=true;this.confirmed=false;this.positionRepairs=0;
+    this.setPhase('starting','Checking the selected Spotify output…');
+    const started=performance.now();let dev=this.dev;
+    const play=async()=>{op.dev=dev;op.touched=true;await api(`/me/player/play?device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0,timeout:7000,body:{uris:[t.uri],position_ms:Math.round(target)}});};
+    try{await play();}catch(e){
+      if(!this.current(epoch)){if(op.touched)await this.stopDevice(op.dev).catch(()=>{});return false;}
+      if(e.status!==404)throw e;
+      await this.devices({required:true,exclude:dev});dev=this.dev;if(!this.current(epoch))return false;await play();
+    }
+    if(!this.current(epoch)||mix!==ST.mix){await this.stopDevice(dev).catch(()=>{});return false;}
+    const actual=await this.verifyStart(t,target,epoch,dev,performance.now()-started);
+    if(actual==null||!this.current(epoch)||mix!==ST.mix){await this.stopDevice(dev).catch(()=>{});return false;}
+    if(!op.back&&previous&&previous!==t.id&&this.history.at(-1)!==previous)this.history.push(previous);
+    this.pendingSeek=false;this.loadedMix=mix;this.loadedId=this.checkpointId=t.id;this.retryIdx=null;this.finished=false;this.externalPaused=false;
+    this.pos=actual;this.posAt=this.startedAt=this.lastFrameAt=this.lastMotionAt=performance.now();
+    this.lastSample={pos:actual,at:this.posAt};this.confirmed=this.streamOwned=true;this.desiredPlaying=true;
+    this.setPhase('playing',this.outputMuted?'Selected Spotify output has volume at zero.':'');showNow(i,true);Library.capture();aiAhead();this.mediaSession();return true;
+  },
+  go(i,options={}){
+    if(this.busy&&this.action?.kind==='play'&&this.action.idx===i)return this.flow;
+    if(i<0||i>=ST.mix.length)return Promise.resolve(false);
+    const activation=options.automatic?Promise.resolve():this.activate();
+    return this.enqueue('play',i,async(epoch,op)=>{
+      op.back=!!options.historyBack;op.previous=this.loadedId;const t=ST.mix[i];if(!await this.waitPreparation(activation,epoch))return false;const activationError=await activation;if(activationError)throw activationError;
+      if(!this.dev&&!await this.waitPreparation(this.devices({required:true}),epoch))return false;if(!this.current(epoch))return false;
+      if(t.hookSrc!=='you'&&!AI.pick(t)){
+        if(this.streamOwned){const previous=ST.mix[this.idx];try{await this.stopDevice(this.dev);if(!await this.confirmPaused(previous,this.dev))throw new Error('Spotify did not confirm pause before preparing the next song.');}catch(e){e.pauseFailed=true;throw e;}this.streamOwned=false;this.confirmed=false;}
+        this.idx=i;this.pos=this.posAt=0;this.loadedMix=this.loadedId=this.checkpointId=null;this.pendingSeek=true;this.setPhase('waiting-ai','Choosing the best part. Other picks prepare in batches of eight.');
+        if(!AI.key())throw new Error('Save an AI key in Settings first.');
+        if(!t._aiP&& !options.automatic)t._aiTries=0;
+        if(!await this.waitPreparation(AI.one(t),epoch))return false;
+        if(!AI.pick(t))throw new Error(AI.lastErr||'AI has not chosen this song yet. Press Retry.');
+      }
+      if(!this.current(epoch))return false;
+      const c=AI.pick(t);if(c){t.aiStart=c.start;t.aiEnd=c.end;t.aiWhy=c.why;t.mood=c.mood;}
+      planSegments([t],ST.vibe,ST.len);
+      const target=Number.isFinite(options.position)?clamp(options.position,t.start,Math.max(t.start,t.end-500)):t.start;
+      return this.startAt(i,target,epoch,op);
+    });
+  },
+  resume(){
+    if(this.busy&&this.desiredPlaying)return this.flow;
+    if(!ST.mix.length)return Promise.resolve(false);
+    if(this.playing&&!this.busy)return Promise.resolve(true);
+    if(this.finished){this.idx=0;this.finished=false;this.posAt=0;this.loadedMix=this.loadedId=this.checkpointId=null;this.pos=ST.mix[0].start;}
+    const i=this.retryIdx??this.idx,t=ST.mix[i];
+    const canResume=((this.loadedMix===ST.mix&&this.loadedId===t?.id)||this.checkpointId===t?.id)&&!this.finished;
+    if(canResume&&this.retryIdx==null&&this.pos>=t.end-500)return this.go(this.nextIndex(true)??0);
+    return this.go(i,{position:canResume?this.position():undefined});
+  },
+  pause(){
+    if(this.busy&&this.action?.kind==='pause')return this.flow;
+    if(!this.busy&&this.phase==='paused'&&!this.streamOwned)return Promise.resolve(true);
+    const hadStream=this.streamOwned,dev=this.dev,t=ST.mix[this.idx];this.freeze();this.desiredPlaying=false;
+    this.setPhase('pausing','Waiting for Spotify to confirm pause…');
+    return this.enqueue('pause',this.idx,async(epoch)=>{
+      if(hadStream){await this.stopDevice(dev);if(!this.current(epoch))return false;const outcome=await this.confirmPaused(t,dev);if(outcome==='external'){this.streamOwned=this.confirmed=false;this.loadedMix=null;this.setPhase('external','Spotify playback changed. This mix is no longer the active context.');Library.capture();return true;}if(!outcome){this.setPhase('pause-unconfirmed','Spotify did not confirm pause. Tap Retry pause or check Spotify.');return false;}}
+      if(!this.current(epoch))return false;
+      this.confirmed=false;this.streamOwned=false;this.externalPaused=false;this.setPhase('paused','');Library.capture();return true;
+    });
+  },
+  toggle(){
+    if(this.phase==='pause-unconfirmed')return this.pause();
+    return this.playing||this.busy||this.desiredPlaying||['checking','buffering','reconnecting'].includes(this.phase)?this.pause():this.resume();
+  },
+  select(i){
+    if(i<0||i>=ST.mix.length||this.busy||this.streamOwned)return false;
+    this.freeze();this.idx=i;this.loadedMix=null;this.loadedId=null;this.confirmed=false;this.streamOwned=false;
+    this.retryIdx=null;this.finished=false;this.pendingSeek=true;this.checkpointId=ST.mix[i].id;this.pos=ST.mix[i].start;this.posAt=performance.now();
+    this.setPhase('paused','Selected · press Play when ready');showNow(i,true);Library.capture();return true;
+  },
+  nextIndex(automatic=false){
+    if(automatic&&this.repeat==='one')return this.idx;
+    if(this.idx+1<ST.mix.length)return this.idx+1;
+    return this.repeat==='all'?0:null;
+  },
+  async next(automatic=false){
+    if(this.busy||this.phase==='pause-unconfirmed')return false;
+    const next=this.nextIndex(automatic);
+    if(next==null){if(automatic){if(!await this.pause()||this.phase==='external')return false;this.finished=true;this.desiredPlaying=false;this.setPhase('ended','Mix finished · press Play to replay');Library.capture();}return false;}
+    if(automatic||this.playing||this.desiredPlaying)return this.go(next,{automatic});
+    return this.select(next);
+  },
+  transition(){return this.next(true);},
+  previous(){
+    if(this.busy||this.phase==='pause-unconfirmed')return Promise.resolve(false);
+    const t=ST.mix[this.idx];if(!t)return Promise.resolve(false);
+    let i=this.idx;
+    if(this.position()-t.start<=3000){const id=this.history.pop();i=id?ST.mix.findIndex(x=>x.id===id):Math.max(0,this.idx-1);if(i<0)i=0;}
+    return this.playing||this.desiredPlaying?this.go(i,{position:ST.mix[i].start,historyBack:true}):this.select(i);
+  },
+  shuffleUpcoming(enabled=!this.shuffle,fresh=false){
+    if(this.busy||!ST.mix.length)return false;
+    if(!this.baseOrder.length)this.baseOrder=ST.mix.map(t=>t.id);
+    const tail=ST.mix.slice(this.idx+1);
+    if(enabled||fresh){for(let i=tail.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[tail[i],tail[j]]=[tail[j],tail[i]];}}
+    else tail.sort((a,b)=>this.baseOrder.indexOf(a.id)-this.baseOrder.indexOf(b.id));
+    ST.mix.splice(this.idx+1,tail.length,...tail);this.shuffle=enabled;
+    replanAhead(this.idx);Library.capture();this.render();aiAhead();return true;
+  },
+  cycleRepeat(){if(this.busy)return false;this.repeat={off:'all',all:'one',one:'off'}[this.repeat]||'off';Library.capture();this.render();},
+  seekTo(value){
+    const t=ST.mix[this.idx];if(!t||this.busy||this.phase==='pause-unconfirmed'||!Number.isFinite(+value)||!(t.hookSrc==='you'||AI.pick(t)))return Promise.resolve(false);
+    const target=clamp(+value,t.start,Math.max(t.start,t.end-500));this.seekPreview=null;
+    if(!this.playing&&!this.streamOwned){this.pos=target;this.posAt=performance.now();this.pendingSeek=true;this.loadedMix=null;this.checkpointId=t.id;this.finished=false;Library.capture();this.render();return Promise.resolve(true);}
+    return this.enqueue('seek',this.idx,async(epoch,op)=>{
+      const s=await this.playbackState();if(!this.current(epoch))return false;
+      if(!s||s.deviceId!==this.dev||!this.matches(s.item,t))throw new Error('Spotify is playing another context. Return to this mix before seeking.');
+      this.setPhase('seeking','Checking the new position…');this.positionRepairs=1;op.dev=this.dev;op.touched=true;
+      await api(`/me/player/seek?position_ms=${Math.round(target)}&device_id=${encodeURIComponent(this.dev)}`,{method:'PUT',retry:0,timeout:3500});
+      const actual=await this.verifyStart(t,target,epoch,this.dev);if(actual==null)return false;
+      this.pos=actual;this.posAt=this.lastFrameAt=this.lastMotionAt=performance.now();this.lastSample={pos:actual,at:this.posAt};this.confirmed=true;
+      this.setPhase('playing','');Library.capture();return true;
+    });
+  },
+  async observe(s,epoch){
+    const t=ST.mix[this.idx];if(!t||!this.current(epoch))return;
+    const now=performance.now();
+    if(!s){this.confirmed=false;this.setPhase('disconnected','No active Spotify playback was reported. Open Spotify and refresh devices.');return;}
+    if(s.deviceId!==this.dev||!this.matches(s.item,t)){
+      this.freeze();this.confirmed=false;this.streamOwned=false;this.desiredPlaying=false;
+      this.loadedMix=null;this.setPhase('external',s.deviceId!==this.dev?'Spotify moved to another output. Choose it in Settings.':'Spotify is playing a different song. Press Play to return to this mix.');return;
+    }
+    if(!Number.isFinite(s.position))return;
+    this.lastFrameAt=now;this.outputMuted=s.volume===0;
+    if(s.paused){this.pos=s.position;this.posAt=now;this.confirmed=false;this.desiredPlaying=false;this.streamOwned=false;this.externalPaused=true;this.lastSample=null;this.checkSince=0;this.setPhase('paused','Paused in Spotify');Library.progress();return;}
+    if(!(t.hookSrc==='you'||AI.pick(t))){this.setPhase('external','This song is playing in Spotify. Its AI mix pick is not ready.');return;}
+    if(s.position<t.start-2000){
+      if(this.positionRepairs>=1){await this.pause();this.setPhase('error','Spotify left the selected passage again. Press Retry.');return;}
+      return this.enqueue('repair',this.idx,async(nextEpoch,op)=>{
+        this.setPhase('buffering','Spotify reset the position. Checking the saved best part…');op.dev=this.dev;op.touched=true;
+        const actual=await this.verifyStart(t,t.start,nextEpoch,this.dev);if(actual==null)return false;
+        this.pos=actual;this.posAt=this.lastMotionAt=this.lastFrameAt=performance.now();this.confirmed=this.streamOwned=true;this.lastSample={pos:actual,at:this.posAt};this.setPhase('playing','');return true;
+      });
+    }
+    this.streamOwned=true;
+    const moved=this.lastSample&&Math.abs(s.position-this.lastSample.pos)>=100;
+    if(moved){this.checkSince=0;this.lastMotionAt=now;this.confirmed=true;this.streamOwned=true;this.desiredPlaying=true;this.externalPaused=false;this.setPhase('playing',this.outputMuted?'Selected Spotify output has volume at zero.':'');}
+    else if(!this.lastSample){this.checkSince=now;this.setPhase('checking','Waiting for Spotify playback progress…');}
+    if(!this.confirmed&&this.checkSince&&now-this.checkSince>10000){await this.pause();this.setPhase('error','Spotify reports a frozen position. Press Retry after checking the output.');return;}
+    this.lastSample={pos:s.position,at:now};this.pos=s.position;this.posAt=now;
+    if(this.confirmed&&now-this.lastMotionAt>3500)this.setPhase('buffering','Spotify reports no playback progress.');
+    if(this.confirmed&&now-this.lastMotionAt>10000){await this.pause();this.setPhase('error','Spotify playback stalled. Check the output, then Retry.');return;}
+    this.render();Library.progress();
+    if(this.playing&&this.confirmed&&s.position>=t.end-this.lat)await this.next(true);
+  },
+  async poll(force=false){
+    if(this._ticking||this.busy||this.loadedMix!==ST.mix||!ST.mix.length)return;
+    const now=performance.now(),t=ST.mix[this.idx];
+    const gap=this.remote?(this.playing&&t.end-this.position()<10000?700:1600):400;
+    if(!force&&now-this.lastPollAt<gap){this.watchdog();return;}
+    this._ticking=true;this.lastPollAt=now;const epoch=this.epoch;
+    try{const s=await this.playbackState(2000);if(this.current(epoch)&&!this.busy)await this.observe(s,epoch);}
+    catch(e){if(this.current(epoch)){this.watchdog();if(!this.confirmed)this.setPhase('disconnected',e.message);}}
+    finally{this._ticking=false;this.render();}
+  },
+  watchdog(){
+    if(this.playing&&performance.now()-this.lastFrameAt>3500)this.setPhase('reconnecting','Playback status is stale. Reconnecting to Spotify…');
+    this.render();
+  },
+  loop(){clearInterval(this.tick);this.tickFn=()=>this.poll();this.tick=setInterval(this.tickFn,400);},
+  mediaSession(){
+    if(this.remote||typeof navigator==='undefined'||!navigator.mediaSession)return;
+    const t=ST.mix[this.idx];if(!t)return;
+    try{
+      if(typeof MediaMetadata!=='undefined')navigator.mediaSession.metadata=new MediaMetadata({title:t.name,artist:t.artists.join(', '),album:'Segue AI mix',artwork:t.img?[{src:t.img}]:[]});
+      const actions={play:()=>this.resume(),pause:()=>this.pause(),nexttrack:()=>this.next(),previoustrack:()=>this.previous(),seekto:d=>this.seekTo(d.seekTime*1000)};
+      for(const [name,fn]of Object.entries(actions))try{navigator.mediaSession.setActionHandler(name,fn);}catch{}
+    }catch{}
+  },
   async init(){
     window.onSpotifyWebPlaybackSDKReady = () => {
-      this.player = new Spotify.Player({ name:'Segue AI DJ', getOAuthToken: cb => token().then(cb), volume:this.master });
+      this.player = new Spotify.Player({ name:'Segue AI DJ', getOAuthToken: cb => token().then(cb).catch(e=>this.setPhase('error',e.message)), volume:this.master });
       this.player.addListener('ready', ({ device_id }) => { this.sdkDev = device_id; this.devices(); });
-      this.player.addListener('not_ready', () => { if (this.dev === this.sdkDev) this.dev = null; this.sdkDev = null; this.devices(); });
-      this.player.addListener('initialization_error', ({message}) => { setStat('This browser can\'t play here — pick another device'); console.warn(message); this.devices(); });
-      this.player.addListener('authentication_error', ({message}) => toast('Spotify auth error: '+message));
-      this.player.addListener('account_error', () => toast('Spotify Premium is required for playback.', 6000));
-      this.player.addListener('player_state_changed', () => this.tickFn?.());
+      this.player.addListener('not_ready', () => { const selected=this.dev===this.sdkDev;if(selected)this.dev=null;this.sdkDev=null;if(selected){this.confirmed=this.streamOwned=false;this.desiredPlaying=false;this.setPhase('disconnected','This browser output disconnected. Choose an output in Settings.');}this.devices(); });
+      this.player.addListener('initialization_error', () => this.sdkUnavailable());
+      this.player.addListener('authentication_error', ({message}) => {this.confirmed=false;this.setPhase('error','Spotify sign-in needs attention: '+message);});
+      this.player.addListener('account_error', () => {this.confirmed=false;this.setPhase('error','Spotify Premium is required for playback.');});
+      this.player.addListener('player_state_changed', () => this.poll(true));
+      this.player.addListener('autoplay_failed', () => this.setPhase('error','This browser needs a Play tap to allow audio.'));
       this.player.connect().then(ok => { if (!ok) this.sdkUnavailable(); }).catch(() => this.sdkUnavailable());
     };
     const sc = document.createElement('script'); sc.src = 'https://sdk.scdn.co/spotify-player.js'; sc.onerror = () => this.sdkUnavailable(); document.head.appendChild(sc);
-    $('#devSel').onchange = async e => { const dev = e.target.value; await this.pause(); this.dev = dev; this.remote = dev !== this.sdkDev; LS.set('device', dev); this.loadedMix = null; setStat('Device changed. Press Play.'); };
+    $('#devSel').onchange = async e => { const dev=e.target.value; if(!await this.pause())return;this.dev=dev;this.remote=dev!==this.sdkDev;LS.set('device',dev);this.loadedMix=null;this.setPhase('ready','Output changed · press Play.'); };
     setTimeout(()=>this.devices(), 2500);
   },
   sdkUnavailable(){
     if (this.dev === this.sdkDev) this.dev = null;
     this.sdkDev = null;
-    this.devices();
+    this.setPhase('disconnected','This browser output is unavailable. Choose Spotify on your phone.');this.devices();
   },
   async devices({ required=false, exclude=null } = {}){
     try {
@@ -1213,7 +1493,7 @@ const DJ = {
       const saved = LS.get('device');
       const phone = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
       const native = list.filter(d => d.id !== this.sdkDev);
-      const chosen = (this.playing && list.find(d => d.id === this.dev)) || list.find(d => d.id === saved) ||
+      const chosen = ((this.playing || this.busy) && list.find(d => d.id === this.dev)) || list.find(d => d.id === saved) ||
         (phone && (!this.dev || this.dev === this.sdkDev) && (native.find(d => d.is_active) || native.find(d => /smartphone/i.test(d.type)))) ||
         list.find(d => d.id === this.dev) || list.find(d => d.is_active) ||
         list.find(d => d.id === this.sdkDev) || native.find(d => /smartphone/i.test(d.type)) || list[0];
@@ -1224,6 +1504,7 @@ const DJ = {
       $('#deviceSummary').textContent = this.dev ? `Output · ${chosen.name}` : 'No playback device · tap to connect';
       $('#deviceNote').textContent = this.dev ? `Ready: ${chosen.name}. Press Play in Segue.` : 'Open Spotify on this phone, play a song briefly, then return here and refresh devices. Sign in to the same Spotify account.';
       if (!this.dev && required) throw new Error('No playback device connected. Open Spotify, play a song briefly, return here and tap Refresh devices.');
+      this.render();if(this.loadedMix===ST.mix)this.loop();
       return list;
     } catch(e) {
       $('#deviceSummary').textContent = 'Spotify connection needs attention';
@@ -1250,274 +1531,13 @@ const DJ = {
       await sleep(ms/steps);
     }
   },
-  matches(item,t){
-    return !!item && (item.id === t.id || item.linked_from?.id === t.id || item.uri === t.uri);
-  },
-  async sdkState(timeout=900){
-    try { return await within(this.player.getCurrentState(),timeout); } catch { return null; }
-  },
-  async playbackState(timeout=2200){
-    if (!this.remote && this.player) {
-      const s = await this.sdkState(Math.min(900,timeout));
-      if (s) return {item:s.track_window?.current_track,position:s.position,paused:s.paused,deviceId:this.sdkDev || this.dev};
-    }
-    const s = await api('/me/player',{retry:0,timeout:Math.max(250,timeout - (!this.remote && this.player ? 900 : 0))});
-    return s ? {item:s.item,position:s.progress_ms,paused:!s.is_playing,deviceId:s.device?.id} : null;
-  },
-  async verifyStart(t,target,epoch,dev,playedFor=0){
-    const began = performance.now(), deadline = began + 10000;
-    let wrong = 0, repaired = false, lastError = null;
-    for (let attempt=0; attempt<8 && performance.now()<deadline; attempt++) {
-      if (epoch !== this.epoch || dev !== this.dev) return null;
-      let state;
-      try { state = await this.playbackState(Math.min(2200,deadline-performance.now())); }
-      catch(e) { lastError=e; if ([401,403,429].includes(e.status)) break; }
-      if (epoch !== this.epoch || dev !== this.dev) return null;
-      if (state && state.deviceId === dev && this.matches(state.item,t) && Number.isFinite(state.position) && !state.paused) {
-        // A 204 play response is not proof that Spotify applied position_ms.
-        if (state.position >= Math.max(0,target-1500) && state.position <= target+Math.max(6500,playedFor+performance.now()-began+2500)) return state.position;
-        if (++wrong >= 2 && !repaired) {
-          if ((this.positionRepairs || 0) >= 1) break;
-          repaired = true; this.positionRepairs = (this.positionRepairs || 0) + 1;
-          setStat('<span class="spin"></span> Aligning Spotify to the saved best part…');
-          // Seek only the expected song on the selected device, at most once.
-          try { await api(`/me/player/seek?position_ms=${Math.round(target)}&device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0,timeout:4000}); }
-          catch(e) { lastError=e; break; }
-        }
-      } else wrong=0;
-      await sleep(400);
-    }
-    const e = new Error(lastError?.message || 'Spotify did not confirm the saved best-part position. Press Play to retry this song.');
-    e.stopPlayback = true; throw e;
-  },
-  async playTrack(i, epoch){
-    const mix = ST.mix, t = mix[i];
-    if (!this.dev) await this.devices({ required:true });
-    if (epoch !== this.epoch) return false;
-    if (!this.dev) throw new Error('Open Spotify on a device, then press Play.');
-    const t0 = performance.now();
-    let commandDev = this.dev;
-    const start = () => { commandDev = this.dev; return api(`/me/player/play?device_id=${this.dev}`, { method:'PUT', retry:0, body:{ uris:[t.uri], position_ms:Math.round(t.start) } }); };
-    this.confirmed = false; this.positionRepairs = 0;
-    try { await start(); }
-    catch(e) {
-      if (epoch !== this.epoch) return false;
-      if (e.status === 401 || e.status === 403) throw e;
-      if (e.status === 404) await this.devices({ required:true, exclude:this.dev });
-      await sleep(600);
-      if (epoch !== this.epoch) return false;
-      await start(); // Retry this song only; never jump past a failed song.
-    }
-    if (epoch !== this.epoch || mix !== ST.mix) {
-      // A pause during an in-flight Spotify request must win over the late start.
-      await api(`/me/player/pause?device_id=${encodeURIComponent(commandDev)}`, { method:'PUT', retry:0 }).catch(()=>{});
-      return false;
-    }
-    const commandLatency = performance.now() - t0;
-    setStat('<span class="spin"></span> Checking Spotify is at the best part…');
-    const actual = await this.verifyStart(t,t.start,epoch,commandDev,commandLatency);
-    if (actual == null || epoch !== this.epoch || mix !== ST.mix) {
-      await api(`/me/player/pause?device_id=${encodeURIComponent(commandDev)}`,{method:'PUT',retry:0}).catch(()=>{}); return false;
-    }
-    this.confirmed = true;
-    this.lat = clamp(.6*this.lat + .4*commandLatency, 150, 1500);
-    this.idx = i; this.loadedMix = mix; this.loadedId = t.id; this.retryIdx = null;
-    this.finished = this.externalPaused = false;
-    this.pos = actual; this.posAt = this.startedAt = performance.now();
-    this.playing = true; showNow(i); setPlayIcon();
-    Library.capture(); aiAhead();
-    return true;
-  },
-  async go(i){
-    if (i < 0 || i >= ST.mix.length || this.busy) return;
-    this.busy = true; setPlayIcon();
-    const epoch = ++this.epoch, mix = ST.mix, g = mix[i];
-    try {
-      this.player?.activateElement?.();
-      if (!this.dev) await this.devices({ required:true });
-      if (epoch !== this.epoch || mix !== ST.mix) return;
-      if (g.hookSrc !== 'you') {
-        if (!AI.pick(g)) {
-          if (!AI.key()) throw new Error('Save an AI key in Settings first.');
-          if (!g._aiP) g._aiTries = 0; // An explicit Play retries a previous AI failure.
-          setStat('<span class="spin"></span> AI is choosing the best part…');
-          g.aiPending = true; renderDeck();
-          const cancelled = new Promise(resolve => { this.cancelWait = resolve; });
-          await Promise.race([AI.one(g), cancelled]); this.cancelWait = null; g.aiPending = false;
-        }
-        if (epoch !== this.epoch || mix !== ST.mix) return;
-        const pick = AI.pick(g);
-        if (!pick || !Number.isFinite(pick.start) || !Number.isFinite(pick.end)) throw new Error(AI.lastErr || 'AI has not picked this song yet. Press Play to retry.');
-        g.aiStart = pick.start; g.aiEnd = pick.end; g.mood = pick.mood; g.aiWhy = pick.why;
-        replanAhead(this.loadedMix === mix ? this.idx : -1);
-        // An explicit jump/restart can replan its target, but not the song still playing.
-        if (!this.playing || i !== this.idx) planSegments([g], ST.vibe, ST.len);
-      }
-      if (epoch !== this.epoch || mix !== ST.mix) return;
-      if (await this.playTrack(i, epoch)) setStat('<b>Live</b> · AI best parts');
-    } catch(e) {
-      if (epoch !== this.epoch) return;
-      this.retryIdx = i;
-      // On an explicit jump failure leave the current song alone. At an automatic
-      // boundary, pause rather than silently dropping this song from the mix.
-      if (e.stopPlayback || this.atBoundary || !this.playing) {
-        this.freeze(); this.playing = false; this.confirmed = false;
-        if (this.dev) await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }).catch(()=>{});
-      }
-      toast(e.message, 6000); setStat(esc(e.message) + ' · Press Play to retry this song.'); setPlayIcon();
-    } finally {
-      this.busy = false; this.atBoundary = false;
-      setPlayIcon(); this.loop();
-    }
-  },
-  async transition(){
-    if (this.busy || !this.playing) return;
-    const next = this.idx + 1;
-    if (next >= ST.mix.length) {
-      await this.pause(); this.finished = true; this.loadedMix = null; this.pos = this.posAt = 0;
-      Library.capture(); setStat('Set finished · Press Play to replay'); return;
-    }
-    this.atBoundary = true;
-    const g = ST.mix[next];
-    if (g.hookSrc !== 'you' && !AI.pick(g)) {
-      // Do not overrun the selected passage or play a rule-based replacement.
-      this.freeze(); this.playing = false; setPlayIcon();
-      const epoch = this.epoch;
-      this.busy = true;
-      try { await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }); }
-      catch(e) { this.atBoundary = false; setStat(esc(e.message)); return; }
-      finally { this.busy = false; }
-      if (epoch !== this.epoch) { this.atBoundary = false; return; }
-    }
-    await this.go(next);
-  },
-  freeze(){
-    if (this.playing && this.posAt) this.pos += Math.max(0, performance.now() - this.posAt);
-    this.posAt = performance.now();
-  },
-  acceptState(s, t, remote){
-    if (!s) return false;
-    if (remote && s.device?.id && s.device.id !== this.dev) {
-      this.freeze(); this.playing = false; this.loadedMix = null; setPlayIcon();
-      setStat('Playback moved to another device · Choose it in Settings'); return false;
-    }
-    const item = remote ? s.item : s.track_window?.current_track;
-    const same = item && (item.id === t.id || item.linked_from?.id === t.id || item.uri === t.uri);
-    if (!same) {
-      // Never use another song's clock or take over music started outside Segue.
-      if (performance.now() - this.startedAt > 4000 && item) {
-        this.freeze(); this.playing = false; this.loadedMix = null;
-        setPlayIcon(); setStat('Spotify is playing another song · Press Play to return to your mix');
-      }
-      return false;
-    }
-    const pos = remote ? s.progress_ms : s.position;
-    if (!Number.isFinite(pos)) return false;
-    // Ignore a stale paused state immediately after a successful start.
-    const paused = remote ? s.is_playing === false : s.paused === true;
-    if (paused && performance.now() - this.startedAt < 2500) return false;
-    if (this.playing && performance.now() - this.startedAt < 4000 && Math.abs(pos - (this.pos + performance.now() - this.posAt)) > 5000) return false;
-    this.pos = pos; this.posAt = performance.now();
-    if (paused) {
-      this.playing = false; this.externalPaused = true; setPlayIcon(); setStat('Paused in Spotify');
-    } else if (this.externalPaused) {
-      this.externalPaused = false; this.playing = true; setPlayIcon(); setStat('<b>Live</b> · AI best parts');
-    }
-    return true;
-  },
-  loop(){
-    clearInterval(this.tick);
-    let lastPoll = -Infinity;
-    const fn = async () => {
-      if (this.busy || this._ticking || this.loadedMix !== ST.mix || (!this.playing && !this.externalPaused)) return;
-      this._ticking = true;
-      const epoch = this.epoch, t = ST.mix[this.idx];
-      try {
-        let state, fromAPI = this.remote;
-        if (!this.remote && this.player) {
-          state = await this.sdkState(900);
-          if (!state || !this.matches(state.track_window?.current_track,t) || state.position < t.start-2000) {
-            state = await api('/me/player',{retry:0,timeout:2500}); fromAPI = true;
-          }
-        }
-        else {
-          const estimate = this.pos + (this.playing ? performance.now()-this.posAt : 0);
-          const pollGap = this.playing && t.end-estimate < 10000 ? 700 : 2000;
-          if (performance.now() - lastPoll < pollGap) return;
-          lastPoll = performance.now(); state = await api('/me/player', { retry:0, timeout:2500 });
-        }
-        if (epoch !== this.epoch || this.busy || t !== ST.mix[this.idx]) return;
-        const item = fromAPI ? state?.item : state?.track_window?.current_track;
-        const position = fromAPI ? state?.progress_ms : state?.position;
-        const paused = fromAPI ? state?.is_playing === false : state?.paused;
-        if (this.confirmed && this.playing && !paused && this.matches(item,t) && (!fromAPI || state?.device?.id === this.dev) && Number.isFinite(position) && position < t.start-2000) {
-          this.busy = true; setPlayIcon();
-          try {
-            const actual = await this.verifyStart(t,t.start,epoch,this.dev);
-            if (actual != null && epoch === this.epoch) { this.pos=actual; this.posAt=this.startedAt=performance.now(); setStat('<b>Live</b> · AI best parts'); }
-          } catch(e) { await this.pause(); setStat(esc(e.message)); }
-          finally { this.busy=false; setPlayIcon(); }
-          return;
-        }
-        if (!this.acceptState(state, t, fromAPI)) return;
-        const pos = this.pos;
-        Library.progress();
-        $('#ph').style.left = clamp(pos/t.dur*100, 0, 100) + '%'; $('#tCur').textContent = fmt(pos);
-        if (this.playing && this.confirmed && pos >= t.end - this.lat) await this.transition();
-      } catch(e) { /* A missing poll must not advance or skip the mix. */ }
-      finally { this._ticking = false; }
-    };
-    this.tickFn = fn; this.tick = setInterval(fn, 400);
-  },
-  async pause(){
-    ++this.epoch; this.cancelWait?.(); this.freeze(); this.playing = false; this.externalPaused = false; this.confirmed = false;
-    setPlayIcon(); clearInterval(this.tick); Library.capture();
-    if (this.dev) {
-      try { await api(`/me/player/pause?device_id=${this.dev}`, { method:'PUT', retry:0 }); }
-      catch(e) { setStat('Spotify did not confirm the pause. Check Spotify and try again.'); }
-    }
-  },
-  async resume(){
-    if (this.busy) return;
-    this.player?.activateElement?.();
-    if (this.finished) { this.finished = false; this.idx = 0; }
-    if (this.retryIdx != null) return this.go(this.retryIdx);
-    const t = ST.mix[this.idx]; if (!t) return;
-    // Restoring a not-yet-decided mix is not permission to play its estimate.
-    const pick = AI.pick(t);
-    const hasPick = t.hookSrc === 'you' || (pick && Number.isFinite(pick.start) && Number.isFinite(pick.end));
-    if (!hasPick) return this.go(this.idx);
-    if (this.loadedMix === ST.mix && this.loadedId === t.id && this.pos < t.end - 500) {
-      this.busy = true; this.confirmed = false; this.positionRepairs = 0; setPlayIcon(); setStat('Connecting to Spotify…');
-      const epoch = ++this.epoch, target = clamp(this.pos,t.start,t.end-500);
-      let dev = this.dev, requested = false;
-      try {
-        if (!this.dev) await this.devices({required:true});
-        if (epoch !== this.epoch) return;
-        dev = this.dev; requested = true; const requestedAt=performance.now();
-        await api(`/me/player/play?device_id=${encodeURIComponent(dev)}`, { method:'PUT', retry:0, body:{ uris:[t.uri], position_ms:Math.round(target) } });
-        const actual = await this.verifyStart(t,target,epoch,dev,performance.now()-requestedAt);
-        if (actual == null || epoch !== this.epoch) {
-          await api(`/me/player/pause?device_id=${encodeURIComponent(dev)}`, { method:'PUT', retry:0 }).catch(()=>{}); return;
-        }
-        this.pos = actual; this.posAt = this.startedAt = performance.now(); this.playing = true;
-        this.confirmed = true; this.externalPaused = false;
-        setPlayIcon(); setStat('<b>Live</b> · AI best parts'); Library.capture(); aiAhead();
-      } catch(e) {
-        this.playing = false; this.confirmed = false;
-        if (requested) await api(`/me/player/pause?device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0}).catch(()=>{});
-        setStat(esc(e.message));
-      } finally { this.busy = false; setPlayIcon(); this.loop(); }
-      return;
-    }
-    return this.go(this.loadedMix === ST.mix ? Math.min(this.idx + 1, ST.mix.length - 1) : this.idx);
-  },
+
 };
 // A background worker keeps the song-change clock running when Safari slows the page's own timers (other tab or app in front)
-try { const w = new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),150)'], { type:'text/javascript' }))); w.onmessage = () => { if (DJ.playing) DJ.tickFn?.(); }; } catch {}
+try { const w = new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),150)'], { type:'text/javascript' }))); w.onmessage = () => { DJ.tickFn?.(); }; } catch {}
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
-  if (DJ.playing) DJ.tickFn?.(); else if (!DJ.busy) DJ.devices();
+  DJ.watchdog();DJ.poll(true); if(!DJ.busy)DJ.devices();
 });
 document.querySelectorAll('.refresh-devices').forEach(b => b.onclick = async () => {
   b.disabled = true;
@@ -1525,21 +1545,60 @@ document.querySelectorAll('.refresh-devices').forEach(b => b.onclick = async () 
   catch(e) { toast(e.message, 6000); }
   finally { b.disabled = false; }
 });
-function setStat(h){ $('#stat').innerHTML = h; }
-function setPlayIcon(){ Library.mini(); $('#playBtn').title = DJ.playing || DJ.busy ? 'Pause' : 'Play'; $('#playIco').innerHTML = DJ.playing || DJ.busy ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>'; }
-$('#playBtn').onclick = () => DJ.playing || DJ.busy ? DJ.pause() : DJ.resume();
-$('#nextBtn').onclick = () => DJ.playing ? DJ.transition() : DJ.go(Math.min(DJ.idx+1, ST.mix.length-1), false);
-$('#prevBtn').onclick = () => DJ.go(Math.max(0, DJ.idx-1));
-document.addEventListener('keydown', e => { if (e.target.tagName==='INPUT') return; if (e.code==='Space'){ e.preventDefault(); $('#playBtn').click(); } if (e.code==='ArrowRight') $('#nextBtn').click(); if (e.code==='ArrowLeft') $('#prevBtn').click(); });
+function renderTransport(){
+  const t=ST.mix[DJ.idx],exists=!!t,now=performance.now();
+  $('#miniPlayer').classList.toggle('hide',!exists||!ST.me);
+  $('#scroller').classList.remove('has-mini');
+  if(!exists)return;
+  const fresh=DJ.confirmed&&now-DJ.lastFrameAt<3500&&now-DJ.lastMotionAt<3500;
+  const phase=DJ.playing&&!fresh?'reconnecting':DJ.phase;
+  const labels={ready:'Ready',paused:'Paused',playing:'Playing',starting:'Starting Spotify…','waiting-ai':'Waiting for AI…',buffering:'Buffering…',checking:'Checking playback…',reconnecting:'Reconnecting…',disconnected:'No confirmed output',external:'Playback changed in Spotify',error:'Playback needs attention',ended:'Mix finished',pausing:'Confirming pause…','pause-unconfirmed':'Pause not confirmed',seeking:'Seeking…'};
+  const running=phase==='playing',pending=DJ.busy||['checking','buffering','reconnecting'].includes(phase)||(DJ.desiredPlaying&&phase==='disconnected');
+  const action=running?'Pause':phase==='pausing'?'Pausing':phase==='pause-unconfirmed'?'Retry pause':pending?'Cancel':phase==='error'||phase==='disconnected'?'Retry':phase==='ended'?'Replay':'Play';
+  $('#miniTitle').textContent=t.name;$('#miniState').textContent=labels[phase]||'Ready';
+  $('#playerAction').textContent=action;$('#playBtn').title=action;$('#playBtn').ariaLabel=action;$('#playBtn').disabled=phase==='pausing';
+  $('#playIco').innerHTML=running?'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>':pending?'<path d="M6 6h12v12H6z"/>':'<path d="M7 4v16l13-8z"/>';
+  const detail=DJ.detail||(DJ.outputMuted?'Selected Spotify output has volume at zero.':'')||`${DJ.devList?.find(d=>d.id===DJ.dev)?.name||'Choose a Spotify output'} · song ${DJ.idx+1} of ${ST.mix.length}`;
+  if($('#stat').textContent!==detail)$('#stat').textContent=detail;
+  if(!DJ.remote&&typeof navigator!=='undefined'&&navigator.mediaSession){try{navigator.mediaSession.playbackState=running?'playing':phase==='paused'?'paused':'none';}catch{}}
+  $('#transportOutput').textContent=DJ.devList?.find(d=>d.id===DJ.dev)?.name||'Choose output';
+  const pos=DJ.seekPreview??DJ.position(),start=Number.isFinite(t.start)?t.start:0,end=Number.isFinite(t.end)?t.end:t.dur;
+  $('#playerElapsed').textContent=fmt(Math.max(0,pos-start));$('#playerDuration').textContent=fmt(Math.max(0,end-start));
+  $('#playerSeek').min=start;$('#playerSeek').max=Math.max(start,end-500);if(DJ.seekPreview==null)$('#playerSeek').value=clamp(pos,start,end-500);
+  $('#playerSeek').disabled=DJ.busy||phase==='pause-unconfirmed'||!(t.hookSrc==='you'||AI.pick(t));
+  $('#tCur').textContent=fmt(pos);$('#ph').style.left=clamp(pos/t.dur*100,0,100)+'%';
+  $('#hkSet').disabled=!running;$('#hkBack').disabled=$('#hkFwd').disabled=DJ.busy||!(t.hookSrc==='you'||AI.pick(t));$('#hkReset').disabled=DJ.busy;
+  $('#renameMix').disabled=DJ.busy||!Library.state.activeId;$('#reshuffle').disabled=DJ.busy||ST.mix.length<2;
+  $('#prevBtn').disabled=DJ.busy||phase==='pause-unconfirmed';$('#nextBtn').disabled=DJ.busy||phase==='pause-unconfirmed'||DJ.nextIndex(false)==null;
+  $('#shuffleBtn').disabled=DJ.busy||ST.mix.length<2;$('#shuffleBtn').classList.toggle('on',DJ.shuffle);$('#shuffleBtn').ariaPressed=String(DJ.shuffle);
+  $('#repeatBtn').disabled=DJ.busy;$('#repeatBtn').classList.toggle('on',DJ.repeat!=='off');$('#repeatBtn').ariaPressed=String(DJ.repeat!=='off');$('#repeatBtn').ariaLabel='Repeat '+DJ.repeat;$('#repeatLabel').textContent={off:'Off',all:'All',one:'One'}[DJ.repeat];
+  const key=[t.id,DJ.idx,t.start,t.end,t.hookSrc,t.aiWhy].join('|');if(DJ._renderTrack!==key){DJ._renderTrack=key;showNow(DJ.idx,true);}
+  const active=Library.state.activeId&&Library.ref===ST.mix;
+  if(active){const b=$('#continueMix button');if(b)b.textContent=running||DJ.busy?'Open player':'Continue listening →';}
+}
+function setStat(h){DJ.detail=String(h).replace(/<[^>]*>/g,'');DJ.render();}
+function setPlayIcon(){DJ.render();}
+$('#playBtn').onclick=()=>DJ.toggle();
+$('#nextBtn').onclick=()=>DJ.next(false);$('#prevBtn').onclick=()=>DJ.previous();
+$('#shuffleBtn').onclick=()=>DJ.shuffleUpcoming();$('#repeatBtn').onclick=()=>DJ.cycleRepeat();
+$('#globalDevice').onclick=()=>showView('set');
+$('#playerSeek').onpointercancel=$('#playerSeek').onblur=()=>{DJ.seekPreview=null;DJ.render();};
+$('#playerSeek').oninput=e=>{DJ.seekPreview=+e.target.value;DJ.render();};
+$('#playerSeek').onchange=e=>{const value=+e.target.value;DJ.seekPreview=null;DJ.seekTo(value);};
+document.addEventListener('keydown',e=>{
+  if(e.target.isContentEditable||['INPUT','TEXTAREA','SELECT','BUTTON','A'].includes(e.target.tagName)||e.altKey||e.ctrlKey||e.metaKey)return;
+  if(e.code==='Space'){e.preventDefault();DJ.toggle();}if(e.code==='ArrowRight'){e.preventDefault();DJ.next();}if(e.code==='ArrowLeft'){e.preventDefault();DJ.previous();}
+});
 
 /* ---------------- Hook controls ---------------- */
 function applyHook(ms, label){
   const t = ST.mix[DJ.idx]; if (!t) return;
   if (ms == null) HK.clear(t.id); else HK.set(t.id, clamp(ms, 0, t.dur - 20000));
-  planSegments(ST.mix, ST.vibe, ST.len); renderDeck(); Library.capture();
-  toast(label);
+  const locked=DJ.streamOwned||DJ.confirmed;if(locked)t._lock=true;
+  planSegments(ST.mix, ST.vibe, ST.len);t._lock=false;renderDeck();Library.capture();
+  toast(label+(locked?' · applies next play':''));
 }
-$('#hkSet').onclick = () => { const t = ST.mix[DJ.idx]; if (!t) return; const pos = DJ.pos + (DJ.playing ? performance.now() - DJ.posAt : 0); applyHook(pos, `Hook saved at ${fmt(pos)} for "${t.name}"`); };
+$('#hkSet').onclick = () => { const t = ST.mix[DJ.idx]; if (!t) return; const pos = DJ.position(); applyHook(pos, `Hook saved at ${fmt(pos)} for "${t.name}"`); };
 $('#hkBack').onclick = () => { const t = ST.mix[DJ.idx]; if (t) applyHook(t.hook - 2000, `Hook moved to ${fmt(t.hook - 2000)}`); };
 $('#hkFwd').onclick = () => { const t = ST.mix[DJ.idx]; if (t) applyHook(t.hook + 2000, `Hook moved to ${fmt(t.hook + 2000)}`); };
 $('#hkReset').onclick = () => applyHook(null, 'Hook reset to automatic');
@@ -1556,10 +1615,14 @@ function showView(v){
 }
 $('#nav').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showView(b.dataset.v); });
 $('#renameMix').onclick = () => {
-  const mix = Library.state.mixes.find(m => m.id === Library.state.activeId); if (!mix) return;
-  const name = window.prompt('Name this mix',mix.name); if (!name?.trim()) return;
-  mix.name = name.trim().slice(0,100); Library.write(); Library.render(); $('#mixTitle').textContent = mix.name;
+  const mix=Library.state.mixes.find(m=>m.id===Library.state.activeId);if(!mix)return;
+  Library.renameTargetId=mix.id;$('#mixName').value=mix.name;$('#renamePanel').classList.remove('hide');$('#mixName').focus();
 };
+$('#saveMixName').onclick=()=>{
+  const mix=Library.state.mixes.find(m=>m.id===Library.renameTargetId),name=$('#mixName').value.trim();if(!mix||!name)return;
+  mix.name=name.slice(0,100);Library.write();Library.render();if(mix.id===Library.state.activeId)$('#mixTitle').textContent=mix.name;$('#renamePanel').classList.add('hide');
+};
+$('#cancelMixName').onclick=()=>$('#renamePanel').classList.add('hide');
 $('#savedSongSearch').addEventListener('input', () => Library.render());
 $('#recoverPicks').onclick = () => Library.recoverPicks();
 $('#reloadApp').onclick = () => { DJ.freeze(); Library.capture(); location.replace(REDIRECT + '?v=' + APP_VERSION + '&reload=' + Date.now()); };
@@ -1577,8 +1640,8 @@ $('#savedMixes').addEventListener('click', e => { const b=e.target.closest('[dat
 $('#continueMix').addEventListener('click', e => { const b=e.target.closest('[data-continue]'); if(b) Library.open(b.dataset.continue,true); });
 $('#savedSongs').addEventListener('click', e => { const b=e.target.closest('[data-song]'); if(b) Library.playSong(b.dataset.song); });
 $('#miniOpen').onclick = () => showView('play');
-$('#miniOpen').onkeydown = e => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showView('play'); } };
-$('#miniPlay').onclick = () => DJ.playing || DJ.busy ? DJ.pause() : DJ.resume();
+$('#miniOpen').onkeydown = e => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault();e.stopPropagation(); showView('play'); } };
+
 window.addEventListener('pagehide', () => { DJ.freeze(); Library.capture(); });
 document.addEventListener('visibilitychange', () => { if(document.hidden) { DJ.freeze(); Library.capture(); } });
 $('#verTop').textContent = $('#verLbl').textContent = 'Version ' + APP_VERSION;

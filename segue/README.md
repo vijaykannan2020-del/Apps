@@ -1,7 +1,7 @@
 # Segue: handoff
 
 Read `PROJECT.md` in the repository root first (deploy, phone layout rules,
-change log). This file covers Segue only. Last updated: 2026-11-14, Version 30.
+change log). This file covers Segue only. Last updated: 2026-11-14, Version 31.
 
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
@@ -31,9 +31,10 @@ each song and play it, that's all".
 
 - Spotify gives apps one stream, no audio access, and its developer policy
   forbids overlapping or mixing Spotify content. So no true DJ overlap or
-  beat-matching. Segue switches songs on the bar line ("DJ cut").
-- On phones, Spotify volume cannot be changed by the app, so there are no
-  fades there. Fades only happen with "This browser" on a computer.
+  beat-matching. Segue requests timed switches between chosen passages;
+  timing depends on Spotify and foreground scheduling.
+- The transport does not fade songs or change phone volume. Use Spotify or
+  device volume controls. Exposed zero output volume is reported in the player.
 - Spotify dev mode (Feb 2026 rules): Premium required, 5 users, playlist
   songs readable only for playlists the user owns or collaborates on
   (`/playlists/{id}/items`), no artist top-tracks (search is used), search
@@ -90,10 +91,11 @@ refreshes discovery when not playing; it does not auto-start playback.
 Four tabs: **Home**, **Create**, **Playing**, **Settings**. The existing fixed
 shell, inner scrolling, top/bottom safe areas and light/dark modes remain.
 Home has a compact returning-user header, Continue listening, saved mix cards
-with album mosaics and a searchable list of AI-picked songs. A mini-player
-opens Playing or plays/pauses the active mix. Playing shows the mix name,
-saved status, selected output, controls, correction tools and running order.
-Mixes can be renamed; New order creates a separate saved mix.
+with album mosaics and a searchable list of AI-picked songs. Version 31
+uses one shared transport on every tab, including Playing. Playing contains
+artwork, passage details, correction tools and queue; it has no second Play
+button. Renaming is in-page. New order shuffles upcoming songs without
+restarting the current song.
 
 `Library` stores `segue_library_{Spotify user id}` independently of the
 existing `segue_ai4` song-timing cache. It remembers selected sources and song
@@ -137,39 +139,56 @@ shows its songs again using those retained mappings. Pending picks from the curr
 created mix can appear as usual. The timings-kept count remains visible. No Spotify
 playlist or Liked Songs is modified. Failed storage writes leave lists intact.
 
-## Verified playback positions (Version 30)
+## Shared transport and player rules (Version 31)
 
-A Spotify play acknowledgement is no longer enough to show Live. Both new
-song starts and resume verify the expected track/relinked ID, selected device,
-playing state and actual position. Verification polls for up to eight reads
-with a roughly ten-second deadline and short request budgets. Two wrong
-positions for the expected song allow one corrective Spotify seek to the
-saved target. A successful seek is then verified too. Another track/device
-never receives that correction. If confirmation fails, playback pauses with
-a retry message instead of silently playing the intro or skipping a song.
+Read [PLAYER_REQUIREMENTS.md](PLAYER_REQUIREMENTS.md) for the full review,
+behaviour contract, evidence and real-phone acceptance checks.
 
-The one-seek budget is shared with later resets during the same start/resume.
-A late reset before the selected passage can be corrected, but cannot create
-an endless correction loop. Stale/missing/erroring local SDK state falls
-back to Spotify's Web API before a suspected intro reset is acted on. Pause
-and device changes cancel verification; pending seeks cannot trigger resume.
+`DJ.phase` is the playback state; `DJ.action` is the pending command. Busy
+is not playing. One `renderTransport()` renders the same footer outside the
+scrolling views. Ready, waiting for AI, starting, checking, playing, paused,
+buffering/reconnecting, disconnected, external playback, unconfirmed pause,
+error and finished are distinct. A Pause icon appears only for fresh confirmed
+playback. Pending work shows Cancel/progress; errors expose Retry. The footer
+never floats over page content or hides on Playing.
 
-Resume checkpoints are clamped to the selected passage, so a stored zero
-cannot override an AI start later in the song. Restored mixes with no valid
-AI pick must wait for AI through `go`, rather
-than use the direct resume path with an estimated segment. Cache picks must
-have finite nonnegative start/end within this song; invalid records are not
-played. A genuinely chosen start of zero is still valid. Saved AI mappings
-and manual corrections are retained. Remote polling is faster near the end
-of a passage, and request budgets also cover a stuck token refresh.
+`DJ.enqueue()` serializes transport actions and assigns an intent epoch.
+Same-target pending Play is coalesced. New intent cancels an AI wait; a late
+cancelled start is stopped before the replacement start. Stale completions
+cannot restore a previous UI state. AI processing remains independent.
 
-These controls verify transport position, not AI musical accuracy. AI still
-estimates timings without hearing audio. Spotify may briefly emit the intro
-before a missed start seek is detected/corrected; instant, gapless native-app
-behaviour is not guaranteed. Real iPhone/background playback remains unverified.
+Both start and seek verification require the expected track/relinked ID,
+selected device, unpaused state and actual forward position movement over
+multiple samples. Static `is_playing: true` is insufficient. An ignored start
+position allows one corrective seek; a frozen stream still fails verification.
+SDK state has a bounded fallback to Web API. Missing/stale state cannot leave
+Playing visible forever. Progress stalls buffer, then stop with Retry.
+A changed Spotify track/device ends mix scheduling without taking it over.
+
+Pause is confirmed before Paused; failed pause shows Retry pause, and cannot
+be labelled Mix finished. Next while paused selects silently. Previous restarts
+after three seconds, otherwise follows listening history. Shuffle only changes
+unplayed songs; disabling it restores their base order. Repeat Off/All/One,
+base order and history persist with the mix. Manual Next ignores repeat-one.
+Seeking is limited to the AI/manual passage. A paused local seek stores a
+pending checkpoint so stale paused-device state cannot overwrite it on reopen.
+
+Opening an already active mix only navigates. Building another mix while one
+is playing saves it separately without pausing/replacing the queue. Manual
+hook corrections while playing affect the next play, preserving the active
+window. Unavailable/restricted tracks are filtered, short songs can have shorter
+AI passages, and stale search responses cannot replace newer source results.
+
+The shared output control names the selected device. Zero volume is shown when
+Spotify exposes it; the app never guesses speaker audibility or forces volume.
+Browser SDK Media Session actions use this same controller; remote playback
+leaves the native Spotify app's lock screen ownership alone. Keep Segue active
+for timed cuts: iOS may suspend web timers when locked.
 
 ## Code map
 
+- `renderTransport`: the only playback-controls/status renderer.
+- `DJ`: command serialization, observed phases, queue, shuffle/repeat/seek.
 - `Library`: serialization, account-scoped source draft/mix storage, restore,
   Home rendering, old-pick metadata recovery and mini-player.
 - `v-home`: `continueMix`, `savedMixes`, `savedSongSearch`, `savedSongs`.
@@ -185,7 +204,7 @@ behaviour is not guaranteed. Real iPhone/background playback remains unverified.
    (`fetchFeatures`) and artist genres (`fetchGenres`), applies saved AI
    picks, then calls `remix()`.
 2. `buildOrder()` orders songs: neighbours close in tempo, key (Camelot),
-   style and AI mood; no artist twice in a row.
+   style and cached AI mood; repeated artists are penalized, not strictly forbidden.
 3. `planSegments()` sets `start`, `end`, `hook` per song. Priority:
    Vijay's mark (`HK`) > AI pick (`aiStart`/`aiEnd`) > simple rule. AI start and end times are used directly, bounded by the song length
    and a maximum 75-second passage. Songs with `_lock` are left alone.
@@ -207,7 +226,7 @@ behaviour is not guaranteed. Real iPhone/background playback remains unverified.
 7. At a passage boundary `DJ.transition()` starts the next song with its ready
    AI pick, without waiting on a new AI call or changing volume. If that pick
    is late, playback pauses at the boundary and waits for it. A Spotify start
-   failure retries the same song once, then stops with Play-to-retry. It never
+   failure stops with Retry on that song (a stale-device 404 can recover once). It never
    silently skips forward. Network errors or late AI can therefore cause a
    pause; uninterrupted playback cannot be guaranteed under those failures.
 8. Pause freezes elapsed position; resume sends the intended URI and position.
@@ -218,34 +237,22 @@ behaviour is not guaranteed. Real iPhone/background playback remains unverified.
 ## Checks
 
 Run `node segue/tests/playback.test.cjs` from the repository root. No package
-installation or credentials needed. These 55 checks use simulated services:
-AI batching/quotas/fallbacks, first-song wait, cancellation, no estimate
-substitution, exact passage bounds, manual overrides, stable current passage,
-pause/resume, stale states, device changes, late AI and no failed-song skipping.
-Also covers empty/stale devices, phone preference, 404 recovery, visible device
-errors, pick reuse after reload/from another playlist, retaining old picks,
-account-scoped mix/draft restoration without autoplay, serialization privacy,
-completed-set replay, metadata recovery, concurrent cache merges, list clears
-without touching playback/cache/keys/corrections, persistent hidden lists,
-ignored-seek correction, resume verification, stale SDK recovery, cancellation,
-restored AI gating, late intro resets and bounded token-refresh waits. Transport
-verification is stubbed in unrelated unit checks and exercised directly in
-the dedicated transport cases; browser flows use the actual verifier.
+installation or credentials needed. Version 31 has 72 regressions covering
+AI/cache/library behaviour and the shared transport rules. Unrelated scenarios
+stub confirmation; the transport tests and browser flows exercise the real
+moving-clock verifier. Frozen timestamps are explicit negative cases now.
 
-Optional browser regression: `python segue/tests/browser_flow.py` (requires
-Python Playwright plus Chromium; `SEGUE_CHROMIUM` can specify the executable).
-`SEGUE_PREVIEW_DIR` optionally chooses the screenshot directory; otherwise it
-uses a temporary folder. Uses synthetic accounts and intercepts every request.
+Optional `python segue/tests/browser_flow.py` needs Playwright and Chromium.
+`SEGUE_CHROMIUM` selects an executable; `SEGUE_PREVIEW_DIR` selects where
+synthetic screenshots are written. All requests are intercepted; no live
+account/key is used. Four populated views at 320/390/768/1024 widths passed in
+light/dark with a moving simulator, no overflow/JS errors, and a single footer
+that does not overlap main or nav. Phone fault flows cover frozen start,
+external pause/resume, network recovery and muted-output notice. Final phone
+recheck includes inline renaming and 44px transport targets.
 
-Browser flow passed at 320/390/768/1024-pixel widths, in light/dark modes:
-create → saved mix/song list → search/rename → play/pause → reopen → same
-order/song/position without autoplay → continue with no extra AI request →
-saved library visible during a simulated Spotify outage, plus cancelling and
-confirming Clear and reopening with empty lists and unchanged AI cache.
-The simulated Spotify backend deliberately ignores requested start/resume
-positions and begins at zero; the actual verifier/seek correction must recover
-the AI timestamp or saved listening position without another AI request. Four populated views
-had no horizontal overflow or JavaScript errors. Real device checks remain.
+Complete checklist and limits: [PLAYER_REQUIREMENTS.md](PLAYER_REQUIREMENTS.md).
+Real Spotify/iPhone speaker output and lock-screen behaviour are not verified.
 
 ## Leftover code that is not used
 
@@ -265,13 +272,13 @@ Safe to delete in a clean-up; ask Vijay first.
   assistants' workspaces. Say plainly what was tested with stand-ins and
   what only he can test on the phone.
 
-## Current state (Version 30)
+## Current state (Version 31)
 
 - AI picks work with a Gemini key (confirmed by Vijay: 14 of 15 songs).
 - Phone layout redesigned to match Cinema Book; not yet confirmed by Vijay
   on the iPhone Duo.
-- Version 30 verified starts/resume, list clearing, library and playback
-  regression checks pass with simulated services.
+- Version 31 shared player, observed playback phases, queue controls, shuffle,
+  repeat, seeking and persistence checks pass with moving/fault simulators.
   Live phone playback, real quotas and real model availability are not yet confirmed.
 
 ## Open items
