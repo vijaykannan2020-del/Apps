@@ -123,7 +123,7 @@ img[src=""],img:not([src]){visibility:hidden}
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 1</span></div>
+    <div class="logo"><i></i>Segue <span class="tiny dim" style="font-weight:400">Version 2</span></div>
     <div class="row" id="hdrRight"></div>
   </header>
 
@@ -237,8 +237,11 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 1;
-const REDIRECT = location.origin + location.pathname.replace(/index\.html$/, '');
+const APP_VERSION = 2;
+// One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
+const CANON = 'https://vijaykannan2020-del.github.io/Apps/segue/';
+if (location.hostname === 'vijaykannan2020-del.github.io' && location.origin + location.pathname !== CANON) location.replace(CANON + location.search);
+const REDIRECT = location.hostname === 'vijaykannan2020-del.github.io' ? CANON : location.origin + location.pathname.replace(/index\.html$/, '');
 const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative user-library-read playlist-modify-private playlist-modify-public';
 const LS = {
   get: k => { try { return localStorage.getItem('segue_'+k); } catch { return null; } },

@@ -130,6 +130,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-13, Claude: Segue Version 2 always uses the exact address https://vijaykannan2020-del.github.io/Apps/segue/ as the Spotify redirect (moves the page there if opened at a different case/path), fixing "redirect_uri: Not matching configuration".
+
 - 2026-11-13, Claude: added Segue Version 1 in `segue/`. Spotify auto-DJ: pick playlists/albums/artists/Liked, orders songs by key, tempo and energy arc (ReccoBeats data), plays the best part of each with beat-aligned fades, saves the running order as a playlist. No Firebase; Spotify Client ID typed into the app. Other apps unchanged.
 
 - 2026-11-14, ChatGPT: Sideline Version 12 separates title discovery from stream providers: default Cinemeta movie/show metadata search (no playback provider auto-added), plus connected catalogs. All enabled providers remain in source filters even with zero results. Selected titles show per-provider checking, result count, empty, authorization/rate/server/network/timeout or unsupported-ID states. Stream requests allow 45 seconds and results update progressively; metadata retains 12-second limit. Stream resource ID-prefix guards prevent incompatible queries. No user's Flix account configuration was inspected; source output/playback availability still depends on provider. Mocked discovery/status/filter and provider regression checks passed.
