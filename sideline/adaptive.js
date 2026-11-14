@@ -1,3 +1,4 @@
+function mediaRequestHeaders(channel,requestURL){try{if(new URL(requestURL).origin!==new URL(channel.stream).origin)return {};return channel.headerPolicy?.allowed||{}}catch{return {}}}
 /* Unencrypted DASH playback. No license keys or DRM bypass configuration. */
 let dashPlayer=null,dashRelease=Promise.resolve(),shakaLoading=null;
 function stopDASH(){if(dashPlayer){const old=dashPlayer;dashPlayer=null;dashRelease=Promise.resolve(old.destroy()).catch(()=>{})}}
@@ -7,6 +8,8 @@ async function playDASH(video,url,attempt,failed){try{
  shaka.polyfill.installAll();
  if(!shaka.Player.isBrowserSupported()){failed('DASH playback is unavailable in this browser. Try a compatible external player or an HLS result.');return}
  const player=new shaka.Player();dashPlayer=player;
+ const channel=channels.find(c=>c.id===current);
+ if(channel)player.getNetworkingEngine().registerRequestFilter((type,request)=>{if(type!==shaka.net.NetworkingEngine.RequestType.MANIFEST&&type!==shaka.net.NetworkingEngine.RequestType.SEGMENT)return;for(const [name,value] of Object.entries(mediaRequestHeaders(channel,request.uris[0])))request.headers[name]=value});
  player.addEventListener('error',event=>{if(attempt===playAttempt)failed('DASH playback failed (code '+String(event.detail?.code||'unknown')+'). The stream may require provider headers, a license, or another codec.');});
  await player.attach(video);if(attempt!==playAttempt)return;
  await player.load(url);if(attempt!==playAttempt)return;

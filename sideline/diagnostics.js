@@ -6,7 +6,7 @@ function playbackReport(){
  const network=['No source','Idle','Loading','No supported source'];
  const code=video.error?.code||window.sidelineMediaError||0;
  const names={1:'Playback aborted',2:'Network fetch failed',3:'Video/audio decode failed',4:'Source or format rejected'};
- return ['Sideline Version 9','Add-on: '+addon,'Cloud service reported in result: '+(channel?.cloudProviderHint||'Not identified (configuration cannot be inferred)'),'Format: '+(channel?.mediaFormat||'Automatic / unknown'),'Custom headers supplied: '+(channel?.requiresHeaders?'Yes; direct playback does not forward them':'None reported'),'Video ready state: '+(ready[video.readyState]||'Not started'),'Video network state: '+(network[video.networkState]||'Not started'),'Media error: '+(names[code]||'None reported'),'This report excludes private URLs, access tokens and account details.'].join('\n');
+ return ['Sideline Version 10','Add-on: '+addon,'Cloud service reported in result: '+(channel?.cloudProviderHint||'Not identified (configuration cannot be inferred)'),'Format: '+(channel?.mediaFormat||'Automatic / unknown'),'Supported request headers available: '+Object.keys(channel?.headerPolicy?.allowed||{}).length,'Headers requiring relay: '+(channel?.headerPolicy?.blocked?.join(', ')||'None reported'),'Video ready state: '+(ready[video.readyState]||'Not started'),'Video network state: '+(network[video.networkState]||'Not started'),'Media error: '+(names[code]||'None reported'),'This report excludes private URLs, access tokens and account details.'].join('\n');
 }
 window.updatePlaybackReport=()=>{$('#playbackReport').textContent=playbackReport()};
 $('#playbackDetails').ontoggle=window.updatePlaybackReport;
