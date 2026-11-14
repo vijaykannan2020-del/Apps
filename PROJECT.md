@@ -129,6 +129,8 @@ the top right and cover part of the page.
 
 Newest first. Add one line per change: date, who, version, what.
 
+- 2026-11-14, ChatGPT: Sideline Version 6 adds lazy-loaded Shaka 4.16.8 clear-DASH playback with quality selection, teardown and stale-request guards. Empty proxyHeaders no longer block video; header-bearing HLS/DASH expose an explicit direct attempt plus Infuse handoff, warning that custom headers are not forwarded. Genuine DRM results remain unsupported without provider authorization. externalUrl results open provider pages. Improved media error messages; no stream relay, license keys, or provider credentials added. Mocked tests cover formats, header handling, handoffs, DASH lifecycle and movie/show regressions. Actual iPhone/provider playback unverified.
+
 - 2026-11-14, ChatGPT: Sideline Version 5 adds generic Stremio `tv` catalog browsing via TV/Events, selectable catalogs and sport/language genres, including required genre parameters and catalogs beyond the first four. TV live streams use live playback semantics; replay/highlight catalogs remain on-demand. DASH-only/DRM results are not offered as browser video playback. No add-on preconfigured and no membership credentials committed. Mocked tests cover TV lookup, Tamil genre, replay defaults, live flag, plus movie/show regression checks.
 
 - 2026-11-13, ChatGPT: Sideline Version 4 removes the left sidebar at every screen width in favor of a consistent floating bottom bar. Replaced native movie/show dropdown with touch tabs, aligned search actions, hid scrollbars, and hid the dock while the software keyboard is open. Search submission dismisses the keyboard. Firebase login preserved. Actual iPhone visual testing remains pending.

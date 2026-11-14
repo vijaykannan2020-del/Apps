@@ -19,7 +19,7 @@ function scopeStorage(uid){
   }
  }catch{}
 }
-function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src+'?v=5';script.onload=resolve;script.onerror=()=>reject(new Error('app-load'));document.body.appendChild(script)})}
+function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src+'?v=6';script.onload=resolve;script.onerror=()=>reject(new Error('app-load'));document.body.appendChild(script)})}
 form.onsubmit=async e=>{
  e.preventDefault();if(!auth)return;submit.disabled=true;status('Signing in…');
  try{await auth.signInWithEmailAndPassword(q('#authEmail').value.trim(),q('#authPassword').value);q('#authPassword').value=''}
@@ -50,7 +50,7 @@ try{
    activeUid=user.uid;scopeStorage(user.uid);
    q('#accountStatus').textContent='Signed in as '+(user.email||'your Cinema Book account')+'. Settings are saved on this browser.';
    status('Opening Sideline…');
-   for(const src of ['directory.js','app.js','providers.js','bridge.js','navigation.js']){await loadScript(src);if(turn!==generation)return}
+   for(const src of ['directory.js','adaptive.js','app.js','providers.js','bridge.js','navigation.js']){await loadScript(src);if(turn!==generation)return}
    booted=true;gate.hidden=true;document.body.classList.remove('auth-locked');
   }catch(error){
    if(turn!==generation)return;
