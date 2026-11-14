@@ -1,4 +1,4 @@
-# Segue player contract and review — Version 31
+# Segue player contract and review — Version 32 layout / Version 31 transport
 
 Reviewed 2026-11-14 against the reported Version 30 screenshots. This is a
 review of application behaviour, not a claim that real Spotify/iPhone audio
@@ -41,7 +41,7 @@ clock and deliberately frozen/misleading playback states.
 | Rename/clear | In-page controls do not block song timers; lists clear without deleting AI timings | Browser name editing, clear/cancel, reopen and retained cache |
 | Audio volume | Never force phone volume or fade a transition; report zero output volume when Spotify exposes it | Zero-volume simulator and no volume API calls |
 | Persistence | Source draft, order, checkpoint, shuffle, repeat and history stored per Spotify account; no autoplay on reopen | Reload/account/privacy/queue-mode checks |
-| Phone layout | Persistent footer does not cover main content or nav; touch controls >=44 px; actions kept away from top-right pill | 320/390/768/1024 widths, both themes; final phone recheck |
+| Phone layout | Capped responsive grids; floating player/nav with measured bottom scroll space; final content scrolls clear; targets >=44px; important top actions left | 7 portrait/landscape/unfolded sizes in both themes; rotation and reduced-transparency checks |
 
 ## Verification
 
@@ -56,9 +56,20 @@ clock and deliberately frozen/misleading playback states.
   and transport scenarios and browser flows exercise the real verifier.
 - No live keys, accounts, production playlists or downloaded audio used.
 
+## Version 32 visual-only update
+
+Playback controller verified byte-for-byte identical to Version 31. The tab
+capsule copies Cinema Book's glass material/geometry. The player has a bounded
+floating surface above it; main content uses responsive grids with a 1120px
+cap, rather than stretched full-width portrait cards. `layout_browser.py`
+checks 14 size/theme combinations, rotation, 44px targets, scroll clearance,
+reduced-transparency and observer-free measurement fallback. Existing player
+flows pass with the new dock geometry. No saved data or audio command logic
+changed. Synthetic previews are not real Spotify device tests.
+
 ## Real phone acceptance still required
 
-1. Confirm Version 31 in the same Home Screen app; open Spotify on the same
+1. Confirm Version 32 in the same Home Screen app; open Spotify on the same
    account and expose the intended output. Hear that the displayed song,
    device and AI start time match the actual audio.
 2. Move through every tab while listening. The same footer must stay visible

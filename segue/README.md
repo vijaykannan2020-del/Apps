@@ -1,7 +1,7 @@
 # Segue: handoff
 
 Read `PROJECT.md` in the repository root first (deploy, phone layout rules,
-change log). This file covers Segue only. Last updated: 2026-11-14, Version 31.
+change log). This file covers Segue only. Last updated: 2026-11-14, Version 32.
 
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
@@ -122,6 +122,36 @@ audio. Clearing website data removes it. Reopening in Safari may use different
 storage from the Home Screen app. Settings includes Reload app, which saves
 the current snapshot and requests a fresh page without clearing local data.
 
+## Foldable layout and Liquid Glass (Version 32)
+
+The navigation uses Cinema Book Version 22's material tokens: a floating
+520px-capped capsule, translucent light/dark surfaces, 26px blur/saturation,
+soft outer shadows, inset highlights and a rounded selected-tab pill. The
+shared player is a separate floating glass surface above it, capped at 840px.
+The one transport and Version 31 playback engine are unchanged.
+
+Main content has an explicit 1120px maximum instead of width-dependent side
+padding. At 720px and wider, Home puts its intro and Continue side by side,
+Create separates source selection and mix configuration, Playing places compact
+artwork/details beside its queue, and Settings uses columns. Artwork and long
+mix names are bounded; wide layouts do not simply enlarge the portrait page.
+On phones everything returns to one column. Important top actions remain left.
+
+`measureChrome` measures actual player/nav heights and reserves scrollable
+bottom padding. Fixed docks never overlap one another; the last content can
+scroll fully above them. ResizeObserver, window/visual viewport resize, page
+restore, and an observer-free renderer fallback keep this correct through
+rotation and status wrapping. Only top/bottom safe-area insets are used.
+Reduced transparency removes blur and uses solid surfaces; unsupported blur
+also retains a solid fallback. Reduced motion disables tab transitions.
+
+`python segue/tests/layout_browser.py` checks populated 120-song layouts at
+320×740, 390×844, 430×932, 844×390, 900×600, 1280×900 and 1536×960 in both
+themes, four views, 44px transport targets, dock bounds/reserved scroll room,
+rotation without player/cache changes and no playback writes. It also emulates
+reduced transparency. Extra phone/Duo runs verify the no-ResizeObserver
+measurement fallback. Screenshots use synthetic account/music metadata.
+
 ## Clear lists (Version 29)
 
 Home has separate Clear controls beside Your mixes and Saved AI picks. Each
@@ -149,8 +179,8 @@ is not playing. One `renderTransport()` renders the same footer outside the
 scrolling views. Ready, waiting for AI, starting, checking, playing, paused,
 buffering/reconnecting, disconnected, external playback, unconfirmed pause,
 error and finished are distinct. A Pause icon appears only for fresh confirmed
-playback. Pending work shows Cancel/progress; errors expose Retry. The footer
-never floats over page content or hides on Playing.
+playback. Pending work shows Cancel/progress; errors expose Retry. The footer never hides on Playing. Version 32 gives it a floating glass
+surface with measured scroll padding so final controls remain reachable.
 
 `DJ.enqueue()` serializes transport actions and assigns an intent epoch.
 Same-target pending Play is coalesced. New intent cancels an AI wait; a late
@@ -246,8 +276,8 @@ Optional `python segue/tests/browser_flow.py` needs Playwright and Chromium.
 `SEGUE_CHROMIUM` selects an executable; `SEGUE_PREVIEW_DIR` selects where
 synthetic screenshots are written. All requests are intercepted; no live
 account/key is used. Four populated views at 320/390/768/1024 widths passed in
-light/dark with a moving simulator, no overflow/JS errors, and a single footer
-that does not overlap main or nav. Phone fault flows cover frozen start,
+light/dark with a moving simulator, no overflow/JS errors, and one shared footer. Version 32 uses measured scroll space for its floating
+player and glass nav; the final content scrolls clear of both. Phone fault flows cover frozen start,
 external pause/resume, network recovery and muted-output notice. Final phone
 recheck includes inline renaming and 44px transport targets.
 
@@ -272,13 +302,13 @@ Safe to delete in a clean-up; ask Vijay first.
   assistants' workspaces. Say plainly what was tested with stand-ins and
   what only he can test on the phone.
 
-## Current state (Version 31)
+## Current state (Version 32)
 
 - AI picks work with a Gemini key (confirmed by Vijay: 14 of 15 songs).
 - Phone layout redesigned to match Cinema Book; not yet confirmed by Vijay
   on the iPhone Duo.
-- Version 31 shared player, observed playback phases, queue controls, shuffle,
-  repeat, seeking and persistence checks pass with moving/fault simulators.
+- Version 32 responsive/foldable layout and glass docks pass the size/theme
+  matrix; Version 31 transport remains unchanged and all 72 playback checks pass.
   Live phone playback, real quotas and real model availability are not yet confirmed.
 
 ## Open items

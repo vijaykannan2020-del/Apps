@@ -50,14 +50,16 @@ with sync_playwright() as p:
     assert not page.evaluate('document.documentElement.scrollWidth>innerWidth'),(width,theme,view,'overflow')
     assert page.locator('#playBtn').count()==1
     assert page.locator('#miniPlayer').is_visible()
-    bounds=page.evaluate("({app:document.querySelector('#scroller').getBoundingClientRect().bottom,player:document.querySelector('#miniPlayer').getBoundingClientRect().toJSON(),nav:document.querySelector('#nav').getBoundingClientRect().top,height:innerHeight})")
-    assert bounds['app']<=bounds['player']['top']+1
-    assert bounds['player']['bottom']<=bounds['nav']+1
-    assert bounds['player']['bottom']<=height
+    page.wait_for_function("document.querySelector('#miniPlayer').getBoundingClientRect().bottom < document.querySelector('#nav').getBoundingClientRect().top")
+    bounds=page.evaluate("({player:document.querySelector('#miniPlayer').getBoundingClientRect().toJSON(),nav:document.querySelector('#nav').getBoundingClientRect().toJSON(),height:innerHeight,width:innerWidth,reserve:parseFloat(getComputedStyle(document.querySelector('#scroller')).paddingBottom)})")
+    assert bounds['player']['bottom']<=bounds['nav']['top']-4
+    assert bounds['player']['left']>=10 and bounds['player']['right']<=width-10
+    assert bounds['nav']['width']<=521 and bounds['nav']['left']>=10 and bounds['nav']['bottom']<=height
+    assert bounds['reserve']>=height-bounds['player']['top']
    page.locator('#nav [data-v=home]').click();assert page.locator('#savedMixes .mix-tile').count()==1;assert page.locator('#savedSongs .saved-song').count()==3
    page.locator('#savedSongSearch').fill('Going Home');assert page.locator('#savedSongs .saved-song').count()==1
    page.locator('#savedSongSearch').fill('');assert page.locator('#savedSongs .saved-song').count()==3
-   if width==390:page.screenshot(path=str(preview_dir/f'v31-home-{theme}.png'),full_page=True)
+   if width==390:page.screenshot(path=str(preview_dir/f'v32-home-{theme}.png'),full_page=True)
    page.locator('#continueMix button').click();page.wait_for_function('DJ.playing===true');assert counts['play']==1;assert counts['seek']==1;assert 60000<=state['pos']<64000
    current=page.evaluate('({id:ST.mix[DJ.idx].id,start:ST.mix[DJ.idx].start,end:ST.mix[DJ.idx].end})');plays_before=counts['play']
    for view in ['home','mix','set','play']:
@@ -68,7 +70,7 @@ with sync_playwright() as p:
    page.locator('#repeatBtn').click();assert page.evaluate('DJ.repeat')=='off'
    if width==390:
     for view in ['home','play']:
-     page.locator(f'#nav [data-v={view}]').click();page.screenshot(path=str(preview_dir/f'v31-{view}-playing-{theme}.png'),full_page=True)
+     page.locator(f'#nav [data-v={view}]').click();page.screenshot(path=str(preview_dir/f'v32-{view}-playing-{theme}.png'),full_page=True)
    page.locator('#renameMix').click();page.locator('#mixName').fill('Night Drive Edit');page.locator('#mixName').press('Space');page.locator('#saveMixName').click();assert page.locator('#mixTitle').inner_text()=='Night Drive Edit'
    page.locator('#playBtn').click();page.wait_for_function("DJ.phase==='paused'&&!DJ.busy")
    previous_plays=counts['play'];page.locator('#nextBtn').click();page.wait_for_function('DJ.idx===1');assert counts['play']==previous_plays;assert page.evaluate('DJ.phase')=='paused'

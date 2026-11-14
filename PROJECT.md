@@ -118,7 +118,7 @@ the top right and cover part of the page.
 - Test copy (`cinema-book-test/`): Version 22 (neutral black-and-white look, ticket stubs for the diary, floating glass tab bar). Adds over 13: Wikidata
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
-- Segue (`segue/`): Version 31. Spotify sign-in, AI best-part picks with a
+- Segue (`segue/`): Version 32. Spotify sign-in, AI best-part picks with a
   Gemini key, and a phone layout matching Cinema Book are in place. Player
   now uses one shared transport on every screen, observed playback phases,
   shuffle/repeat/seek and saved queues. Pending work is not shown as Playing. Simulated checks pass; live phone confirmation pending.
@@ -137,6 +137,8 @@ the top right and cover part of the page.
 ## Change log
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-14, ChatGPT: Segue Version 32 visual/foldable update: explicit 1120px content cap; wide Home/Create/Playing/Settings grids; compact wide artwork and player, bounded long names. Reuses Cinema Book Version 22 Liquid Glass capsule tokens/520px geometry and selected pill; floating shared player capped at 840px above it. Actual chrome heights reserve scroll room across rotation/status wrapping, with observer-free fallback; solid/reduced-transparency and reduced-motion fallbacks retained. 14 populated size/theme cases (including phone landscape and 1280×900 Duo), rotation, 44px targets, scroll clearance, glass/fallback checks passed. Playback controller is byte-identical to Version 31; all 72 regressions and phone playback browser flow pass. Other apps and saved mappings untouched.
 
 - 2026-11-14, ChatGPT: Segue Version 31 deep player correction: replaces duplicate small/full controls with one persistent shared transport and central phases; busy is not playing. Moving track/device-matched progress is required, frozen/stale streams buffer/fail honestly, pause is verified and failures stay unconfirmed. Serialized/cancellable/coalesced actions prevent late-start races. Added upcoming-only shuffle, repeat Off/All/One, bounded seek, correct paused Next/Previous and restart/history semantics, checkpoint/mode persistence. Opening active mix and creating another mix do not restart current audio; live correction marks apply next play; rename is nonblocking. Filters unavailable tracks, supports short-song picks, rejects stale searches, reports muted output without forcing volume. 72 regressions plus all-view browser flows at four widths/both themes and phone fault injection passed. Full contract and live-phone limits in `segue/PLAYER_REQUIREMENTS.md`; actual Spotify/iPhone sound and locked-screen reliability remain unverified.
 
