@@ -277,7 +277,7 @@ h1,h2,h3{letter-spacing:-.02em}
 @media(prefers-reduced-motion:reduce){.nav button{transition:none}}
 
 /* Version 23: rewatch history */
-.hist{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--tint-pink);font-size:14px}.hrow b{margin-left:6px}.hrow .link{font-size:12px;color:var(--soft);flex:none}
+.hist{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--tint-pink);font-size:14px}.hrow b{margin-left:6px}.hrow .link{font-size:12px;color:var(--soft);flex:none}.hrow>span{flex:1;min-width:0}.hdate{display:block;margin-top:8px;padding:8px 10px;font-size:15px;background:var(--paper)}
 </style>
 </head>
 <body>
@@ -392,7 +392,7 @@ h1,h2,h3{letter-spacing:-.02em}
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 23</p>
+    <p class="note" style="text-align:center">Version 24</p>
   </section>
 </div>
 
@@ -448,7 +448,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=23;
+const APP_VERSION=24;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -808,13 +808,16 @@ function wireViews(pst,pw,pl){
   const paint=()=>{const v=form.views.slice().sort((a,b)=>(b.on||'').localeCompare(a.on||''));
     el.innerHTML=(form.re?'<p class="notice" style="margin:0 0 4px">Logging a new watch. Your earlier watch is kept under Earlier watches.</p>':'')
      +(form.canRe&&!form.re?'<button class="btn quiet" id="fRe" type="button" style="width:100%;margin:2px 0 6px">I watched it again</button>':'')
-     +(v.length?`<label class="fl">Earlier watches</label><div class="hist">${v.map(x=>{const i=form.views.indexOf(x);return `<div class="hrow"><span>${esc([fmtDate(x.on),x.where,x.lang].filter(Boolean).join(', ')||'No details')}${+x.rating?' <b>'+fmtR(+x.rating)+'</b>':''}</span><button type="button" class="link" data-rm="${i}" aria-label="Remove this watch">Remove</button></div>`}).join('')}</div>`:'')};
+     +'<button class="link" id="fBefore" type="button" style="display:block;margin:2px 0 8px">+ I had also watched it before</button>'
+     +(v.length?`<label class="fl">Earlier watches</label><div class="hist">${v.map(x=>{const i=form.views.indexOf(x);return `<div class="hrow"><span>${x.on||!x.before?esc([fmtDate(x.on),x.where,x.lang].filter(Boolean).join(', ')||'No details'):'Watched before, date not known'}${+x.rating?' <b>'+fmtR(+x.rating)+'</b>':''}${x.before?`<input class="inp hdate" type="date" data-dt="${i}" max="${today()}" value="${esc(x.on||'')}" aria-label="Date of this earlier watch, optional">`:''}</span><button type="button" class="link" data-rm="${i}" aria-label="Remove this watch">Remove</button></div>`}).join('')}</div>`:'')};
   paint();
   el.onclick=e=>{
     if(e.target.id==='fRe'){form.views.push({on:form.watchedOn,where:form.where,lang:form.watchedLang,rating:form.rating});form.re=true;form.canRe=false;form.watchedOn=today();form.where='';$('#fWhereO').value='';$('#fDate').value=form.watchedOn;pw();pl();paint();return}
+    if(e.target.id==='fBefore'){form.views.push({on:'',where:'',lang:'',rating:0,before:true});paint();return}
     const b=e.target.closest('[data-rm]');if(!b)return;
     if(!b.dataset.c){b.dataset.c='1';b.textContent='Tap again';return}
     form.views.splice(+b.dataset.rm,1);paint()};
+  el.onchange=e=>{const t=e.target.closest('[data-dt]');if(!t)return;form.views[+t.dataset.dt].on=t.value;paint()};
 }
 
 function wireSeasons(d){

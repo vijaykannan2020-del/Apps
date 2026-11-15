@@ -115,7 +115,7 @@ the top right and cover part of the page.
 ## Current state
 
 - Real app (`cinema-book/`): Version 22 (moved from the test copy on 2026-11-12).
-- Test copy (`cinema-book-test/`): Version 23 (rewatches); earlier: Version 22 (neutral black-and-white look, ticket stubs for the diary, floating glass tab bar). Adds over 13: Wikidata
+- Test copy (`cinema-book-test/`): Version 24 (rewatches, including watches from before the app); earlier: Version 22 (neutral black-and-white look, ticket stubs for the diary, floating glass tab bar). Adds over 13: Wikidata
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
 - Segue (`segue/`): Version 38. Spotify sign-in, AI best-part picks with a
@@ -149,6 +149,8 @@ the top right and cover part of the page.
 - 2026-11-14, ChatGPT: Segue Version 33 places the wide Playing queue left and deck right, and adds a silent one-second cassette opening animation with no input/startup blocking and a reduced-motion skip. Spotify starts now carry current + up to 99 upcoming URIs; observed native Next in that submitted mix/output follows the selected song and seeks its saved AI passage without another Play. Paused selection stays silent; missing AI pauses while preparing; unrelated outputs/songs still detach. Browser SDK media actions refresh on state events, guard output ownership, include stop/skip-seek, and update metadata/position without clearing transient paused sessions. All 80 controller checks, 14 layout/theme cases and browser playback flows pass. Native queue snapshots/shuffle/history and iOS suspension/CarPlay limits are documented; real phone/CarPlay confirmation is pending. No Spotify playlist created; AI mappings retained.
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-14, Claude: test copy Version 24, "+ I had also watched it before" adds an earlier watch from before the app (`views` item with `before:true`, date optional, editable inline). Counts toward "Watched N times" and the rewatches tile; undated ones are left out of the monthly chart.
 
 - 2026-11-14, Claude: test copy Version 23, rewatch support. Entry field `views` is a list of earlier watches `{on, where, lang, rating}`; the main fields stay the latest watch. Title page has "I watched it again" (moves the current watch into `views` and starts a new one dated today) and an "Earlier watches" list with Remove. Ticket shows "Watched N times"; Numbers counts every watch in the 12-month chart and adds a rewatches tile.
 
