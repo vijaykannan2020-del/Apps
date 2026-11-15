@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SpeakNative</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SpeakNative">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F5F5F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#F5F5F7;--paper:#FFFFFF;--ink:#1D1D1F;--soft:#6E6E73;--line:#D2D2D7;--tint:#E8E8ED;
+  --green:#0F7A66;--amber:#8A6100;--red:#D70015;--blue:#0A63D6;
+  --primary:#1D1D1F;--primary-text:#FFFFFF;
+  --glass:rgba(255,255,255,.72);--glass-edge:rgba(0,0,0,.08);--shadow:0 8px 24px #0000000f;
+  --dock:rgba(255,255,255,.62);--dock-edge:rgba(255,255,255,.75);--dock-on:rgba(0,0,0,.08);--dock-shadow:0 10px 30px #0000001f,0 2px 6px #00000014;
+  --me:#1D1D1F;--me-text:#FFFFFF;
+  --font:-apple-system,"SF Pro Text",system-ui,"Helvetica Neue",sans-serif;
+}
+@media(prefers-color-scheme:dark){:root{
+  color-scheme:dark;
+  --bg:#000000;--paper:#1C1C1E;--ink:#FFFFFF;--soft:#98989F;--line:#2C2C2E;--tint:#2C2C2E;
+  --green:#63D2B4;--amber:#E6C36A;--red:#FF6961;--blue:#64A8FF;
+  --primary:#FFFFFF;--primary-text:#000000;
+  --glass:rgba(28,28,30,.72);--glass-edge:rgba(255,255,255,.1);--shadow:0 10px 30px #0006;
+  --dock:rgba(58,58,62,.5);--dock-edge:rgba(255,255,255,.16);--dock-on:rgba(255,255,255,.18);--dock-shadow:0 12px 34px #000000a0,0 2px 8px #00000066;
+  --me:#FFFFFF;--me-text:#000000;
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.45}
+body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+button,input,textarea,select{font:inherit;color:inherit;background:none;border:0}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.hidden{display:none!important}
+h1,h2,h3{letter-spacing:-.02em}
+
+/* shell: body fixed, .app scrolls; top and bottom safe areas only */
+.app{flex:1;min-height:0;width:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,calc((100% - 760px)/2)) calc(112px + env(safe-area-inset-bottom,0px))}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.top h1{font-size:28px;font-weight:700}
+.mark{width:32px;height:32px;border-radius:9px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:15px;font-weight:800}
+.streak{font-size:13px;font-weight:600;color:var(--soft);margin:0 0 14px 2px}
+.view{display:none;animation:fade .22s ease}
+.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.view{animation:none}}
+.h2{font-size:24px;font-weight:700;margin:4px 0 2px}
+.sub{color:var(--soft);font-size:14px;margin-bottom:14px}
+.panel{background:var(--paper);border:1px solid var(--glass-edge);border-radius:22px;padding:16px;box-shadow:var(--shadow)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 8px;margin:0 -16px 8px;padding-left:16px;padding-right:16px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;min-height:40px;padding:9px 15px;border-radius:999px;background:var(--paper);border:1px solid var(--line);font-size:14px;font-weight:500;color:var(--soft)}
+.chip.on{background:var(--tint);border-color:transparent;color:var(--ink);font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 18px;border-radius:14px;background:var(--paper);border:1px solid var(--line);font-weight:600;font-size:15px}
+.btn.go{background:var(--primary);color:var(--primary-text);border-color:transparent}
+.btn:disabled{opacity:.45}
+.row{display:flex;gap:10px;margin:12px 0}
+.row .btn{flex:1}
+.mini{display:inline-flex;align-items:center;gap:4px;min-height:32px;font-size:13px;color:var(--soft);padding:5px 10px;border-radius:999px;background:var(--tint)}
+.lbl{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--soft);margin:10px 0 4px}
+.toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:60;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+
+/* chat */
+.chat{display:flex;flex-direction:column;gap:12px;padding:6px 0 14px;min-height:30vh}
+.msg{max-width:86%;padding:11px 15px;border-radius:20px;font-size:16px}
+.msg.ai{background:var(--paper);border:1px solid var(--glass-edge);align-self:flex-start;border-bottom-left-radius:6px}
+.msg.me{background:var(--me);color:var(--me-text);align-self:flex-end;border-bottom-right-radius:6px}
+.msg .who{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;opacity:.6;margin-bottom:2px}
+.msg .acts{margin-top:7px;display:flex;gap:6px}
+.fb{align-self:flex-end;width:min(92%,560px);background:var(--paper);border:1px solid var(--glass-edge);border-radius:18px;padding:13px 15px;font-size:15px;box-shadow:var(--shadow)}
+.fb .head{display:flex;justify-content:space-between;align-items:center}
+.score{font-weight:700;font-size:13px;padding:3px 10px;border-radius:999px}
+.native{color:var(--green);font-weight:600}
+.issue{padding:8px 0;border-top:1px solid var(--line)}
+.issue:first-of-type{border-top:0}
+.strike{color:var(--red);text-decoration:line-through}
+.good{color:var(--green);font-weight:600}
+.why{color:var(--soft);font-size:13px}
+.typing{align-self:flex-start;color:var(--soft);font-size:14px;padding:4px}
+.typing i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--soft);margin-right:3px;animation:dot 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes dot{50%{opacity:.2}}
+
+/* composer sits above the floating nav */
+.composer{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(12px,env(safe-area-inset-bottom,0px)) + 70px);width:min(calc(100% - 24px),740px);display:flex;gap:8px;align-items:flex-end;z-index:15}
+.composer textarea{flex:1;resize:none;min-height:50px;max-height:130px;background:var(--glass);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);border:1px solid var(--glass-edge);border-radius:25px;padding:13px 16px;outline:none;font-size:16px;box-shadow:var(--shadow)}
+.round{width:50px;height:50px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--glass);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);border:1px solid var(--glass-edge);box-shadow:var(--shadow)}
+.round.go{background:var(--primary);color:var(--primary-text);border-color:transparent}
+.round.live{background:var(--red);color:#fff;border-color:transparent;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 9px rgba(215,0,21,.18)}}
+.round svg{width:22px;height:22px}
+#v-coach.on~.spacer{display:block}
+.coachpad{height:72px}
+.livebar{font-size:13px;color:var(--soft);text-align:center;min-height:18px;margin-top:-4px}
+
+/* talk mode */
+.modes{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.toggle{display:flex;align-items:center;gap:7px;white-space:nowrap;min-height:36px;font-size:13px;font-weight:600;color:var(--soft);padding:7px 12px;border-radius:999px;background:var(--paper);border:1px solid var(--line)}
+.toggle.on{color:var(--ink);background:var(--tint);border-color:transparent}
+.toggle .dot{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.toggle.on .dot{background:var(--green)}
+
+/* polish */
+.big{width:100%;min-height:120px;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:14px 16px;outline:none;resize:vertical;font-size:16px}
+.ver{margin-top:10px}
+.ver .tag{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--soft)}
+.ver p{margin:4px 0 8px;font-size:17px}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+
+/* drills */
+.decks{display:flex;gap:10px;overflow-x:auto;margin:0 -16px 4px;padding:2px 16px 8px;scrollbar-width:none}.decks::-webkit-scrollbar{display:none}
+.deck{flex:none;width:158px;text-align:left;background:var(--paper);border:1px solid var(--glass-edge);border-radius:18px;padding:13px 14px;box-shadow:var(--shadow)}
+.deck.on{outline:2px solid var(--ink)}
+.deck b{display:block;font-size:14px}
+.deck small{color:var(--soft);font-size:12px}
+.prog{height:4px;background:var(--line);border-radius:99px;overflow:hidden;margin:12px 0}
+.prog i{display:block;height:100%;background:var(--ink);transition:width .3s}
+.flash{min-height:250px;display:flex;flex-direction:column;justify-content:center;text-align:center;cursor:pointer;user-select:none}
+.flash .q{font-size:12px;color:var(--soft);text-transform:uppercase;letter-spacing:.6px;font-weight:700}
+.flash .front{font-size:23px;font-weight:700;margin:12px 0;letter-spacing:-.3px}
+.flash .back{display:none}
+.flash.rev .back{display:block}
+.flash .ans{font-size:20px;color:var(--green);font-weight:700;margin:4px 0}
+.flash .ex{color:var(--soft);font-size:15px;margin-top:6px}
+.flash .tap{font-size:12px;color:var(--soft);margin-top:14px}
+.flash.rev .tap{display:none}
+.check{margin-top:12px;font-size:15px;line-height:1.7}
+.check .w{padding:1px 3px;border-radius:5px}
+.check .ok{background:rgba(15,122,102,.15);color:var(--green)}
+.check .miss{background:rgba(215,0,21,.12);color:var(--red)}
+
+/* me */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat{background:var(--paper);border:1px solid var(--glass-edge);border-radius:18px;padding:14px 8px;text-align:center;box-shadow:var(--shadow)}
+.stat b{display:block;font-size:26px;letter-spacing:-.04em}
+.stat small{color:var(--soft);font-size:12px}
+.list{display:flex;flex-direction:column;gap:10px;margin:10px 0 20px}
+.item{display:flex;gap:10px;align-items:flex-start}
+.item>div{flex:1;min-width:0}
+.item .note{color:var(--soft);font-size:13px}
+.empty{color:var(--soft);text-align:center;padding:24px 10px;border:1px dashed var(--line);border-radius:18px;font-size:14px}
+.set{display:flex;flex-direction:column;gap:12px}
+.set label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--soft);font-weight:600}
+.inp{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px;color:var(--ink)}
+.note{font-size:13px;color:var(--soft);line-height:1.6}
+
+/* sign-in */
+.gate{flex:1;overflow-y:auto;width:100%;max-width:440px;margin:0 auto;padding:calc(70px + env(safe-area-inset-top,0px)) 20px 40px}
+.gate h1{font-size:40px;font-weight:800;letter-spacing:-.05em;margin:8px 0 10px}
+.gate p{color:var(--soft);font-size:15px;margin-bottom:18px}
+.gate form{display:flex;flex-direction:column;gap:10px;background:var(--paper);border:1px solid var(--glass-edge);border-radius:24px;padding:20px;box-shadow:var(--shadow)}
+.err{color:var(--red);font-size:13px;min-height:16px}
+
+/* floating glass tab bar */
+.nav{position:fixed;left:50%;transform:translateX(-50%);bottom:max(12px,env(safe-area-inset-bottom,0px));width:min(calc(100% - 28px),520px);display:flex;padding:6px;gap:2px;border:1px solid var(--dock-edge);border-radius:999px;background:var(--paper);box-shadow:var(--dock-shadow),inset 0 1px 0 rgba(255,255,255,.28);z-index:20}
+@supports ((backdrop-filter:blur(20px)) or (-webkit-backdrop-filter:blur(20px))){.nav{background:var(--dock);backdrop-filter:blur(26px) saturate(190%);-webkit-backdrop-filter:blur(26px) saturate(190%)}}
+.nav button{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:999px;padding:8px 2px 7px;font-size:10px;font-weight:600;color:var(--ink);opacity:.7;transition:background .25s,opacity .25s}
+.nav button.on{opacity:1;background:var(--dock-on)}
+.nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+</style>
+</head>
+<body>
+
+<div class="gate hidden" id="gate">
+  <div class="mark" style="width:44px;height:44px;font-size:20px;border-radius:12px">Aa</div>
+  <h1>SpeakNative</h1>
+  <p>Your personal American English speaking coach. Sign in with the same email and password you use for Cinema Book and Plate Log.</p>
+  <form id="authForm">
+    <input class="inp" id="aEmail" type="email" placeholder="Email" autocomplete="email" aria-label="Email">
+    <input class="inp" id="aPw" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+    <div class="err" id="aErr"></div>
+    <button class="btn go" type="submit" id="aBtn">Sign in</button>
+  </form>
+</div>
+
+<div class="app hidden" id="app">
+  <header class="top"><div class="mark">Aa</div><h1>SpeakNative</h1></header>
+  <div class="streak" id="streak">🔥 Start your streak today</div>
+
+  <!-- COACH -->
+  <section class="view on" id="v-coach">
+    <div class="h2">Talk practice</div>
+    <p class="sub">Pick a situation and answer out loud. After every reply you'll see how a native speaker would say it.</p>
+    <div class="chips" id="scenarios"></div>
+    <div class="modes">
+      <button class="toggle" id="tgHands"><span class="dot"></span>Hands-free</button>
+      <button class="toggle" id="tgSpeak"><span class="dot"></span>Read replies aloud</button>
+      <button class="toggle" id="tgNew" style="margin-left:auto">↺ New</button>
+    </div>
+    <div class="chat" id="chat"></div>
+    <div class="livebar" id="liveBar"></div>
+    <div class="coachpad"></div>
+  </section>
+
+  <!-- POLISH -->
+  <section class="view" id="v-polish">
+    <div class="h2">Sound native</div>
+    <p class="sub">Say or type anything: an email line, a meeting update, a text to a neighbor. Get the natural American version.</p>
+    <textarea class="big" id="polishIn" placeholder="e.g. Kindly do the needful and revert back at the earliest."></textarea>
+    <div class="row">
+      <button class="btn" id="polishMic">🎤 Speak</button>
+      <button class="btn go" id="polishBtn">Make it native</button>
+    </div>
+    <div id="polishOut"></div>
+  </section>
+
+  <!-- DRILLS -->
+  <section class="view" id="v-drills">
+    <div class="h2">Daily drills</div>
+    <p class="sub">Tap to flip, listen, then press <b>Say it</b> and the app checks your pronunciation.</p>
+    <div class="decks" id="decks"></div>
+    <div class="prog"><i id="progBar"></i></div>
+    <div class="panel flash" id="flash"></div>
+    <div class="row">
+      <button class="btn" id="prevCard" aria-label="Previous">←</button>
+      <button class="btn" id="listenCard">🔊 Listen</button>
+      <button class="btn go" id="sayCard">🎤 Say it</button>
+      <button class="btn" id="nextCard" aria-label="Next">→</button>
+    </div>
+    <button class="btn" id="saveCard" style="width:100%">☆ Save to phrasebook</button>
+  </section>
+
+  <!-- ME -->
+  <section class="view" id="v-me">
+    <div class="h2">Progress</div>
+    <p class="sub">Your streak, your phrasebook, and the mistakes you make most.</p>
+    <div class="stats">
+      <div class="stat"><b id="sStreak">0</b><small>day streak</small></div>
+      <div class="stat"><b id="sMsgs">0</b><small>replies coached</small></div>
+      <div class="stat"><b id="sAvg">–</b><small>avg score</small></div>
+    </div>
+    <div class="h2" style="font-size:19px">Phrasebook</div>
+    <div class="list" id="saved"></div>
+    <div class="h2" style="font-size:19px">Mistakes to fix</div>
+    <p class="note">Collected from your Talk practice. They also show up as a drill deck.</p>
+    <div class="list" id="mistakes"></div>
+
+    <div class="h2" style="font-size:19px">Settings</div>
+    <div class="panel set" style="margin-top:10px">
+      <label>Coach voice
+        <select class="inp" id="voiceSel"></select>
+      </label>
+      <p class="note">For a more natural voice on iPhone: Settings › Accessibility › Spoken Content › Voices › English, then download an <b>Enhanced</b> or <b>Premium</b> voice (Ava, Zoe or Evan). It appears here afterwards.</p>
+      <label>Speaking speed
+        <input type="range" id="rateIn" min="0.6" max="1.2" step="0.05">
+      </label>
+      <button class="btn" id="testVoice">🔊 Test voice</button>
+      <label>AI key (Claude or Gemini)
+        <input class="inp" id="aiIn" type="password" placeholder="Paste a key to replace the saved one" autocomplete="off">
+      </label>
+      <p class="note" id="aiState">Checking for a saved key…</p>
+      <button class="btn" id="aiSave">Save key</button>
+      <p class="note">Microphone: the first time you tap 🎤, allow access. If it says not allowed, go to iPhone Settings › Apps › Safari › Microphone and choose Allow.</p>
+      <button class="btn" id="signOut">Sign out</button>
+      <p class="note" id="verLbl">Version</p>
+    </div>
+  </section>
+</div>
+
+<div class="composer hidden" id="composer">
+  <button class="round" id="micBtn" aria-label="Speak"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+  <textarea id="input" rows="1" placeholder="Tap 🎤 and speak, or type"></textarea>
+  <button class="round go" id="sendBtn" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+</div>
+
+<nav class="nav hidden" id="nav">
+  <button class="on" data-v="coach"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Talk</button>
+  <button data-v="polish"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>Polish</button>
+  <button data-v="drills"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/></svg>Drills</button>
+  <button data-v="me"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Me</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+window.FIREBASE_CONFIG={apiKey:"AIzaSyAxCgkTuz8RS93U9mwb6bqjBgvARM69DYY",authDomain:"my-apps-1ed9e.firebaseapp.com",projectId:"my-apps-1ed9e",storageBucket:"my-apps-1ed9e.firebasestorage.app",messagingSenderId:"253592763233",appId:"1:253592763233:web:2edd357a442c0e0c42a320"};
+window.APP_NS="apps/speaknative/";
+</script>
+<script>
+const APP_VERSION=1;
+const NS=window.APP_NS;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function toast(t,ms=2200){const el=$('toast');el.textContent=t;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('on'),ms);}
+$('verLbl').textContent='Version '+APP_VERSION;
+
+/* ---------- state: local first, synced to Firestore ---------- */
+const LKEY='sn_state';
+const DEF={days:[],msgs:0,scores:[],saved:[],mistakes:[],voice:'',rate:0.95,hands:false,speak:true};
+let S=Object.assign({},DEF,(()=>{try{return JSON.parse(localStorage.getItem(LKEY)||'{}')}catch(e){return{}}})());
+let progDoc=null,syncT=null;
+function persist(){
+  try{localStorage.setItem(LKEY,JSON.stringify(S))}catch(e){}
+  clearTimeout(syncT);syncT=setTimeout(()=>{progDoc?.set(JSON.parse(JSON.stringify(S))).catch(()=>{})},1200);
+  renderMe();
+}
+function merge(r){
+  if(!r)return;
+  S.days=[...new Set([...(r.days||[]),...S.days])].sort().slice(-400);
+  S.msgs=Math.max(S.msgs,r.msgs||0);
+  if((r.scores||[]).length>S.scores.length)S.scores=r.scores;
+  const seen=new Set(S.saved.map(x=>x.text));(r.saved||[]).forEach(x=>{if(!seen.has(x.text))S.saved.push(x)});
+  const ms=new Map(S.mistakes.map(x=>[x.said.toLowerCase(),x]));(r.mistakes||[]).forEach(x=>{const k=x.said.toLowerCase();if(!ms.has(k))S.mistakes.push(x);else ms.get(k).n=Math.max(ms.get(k).n,x.n)});
+  ['voice','rate','hands','speak'].forEach(k=>{if(r[k]!==undefined&&S[k]===DEF[k])S[k]=r[k]});
+}
+const dayKey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function markPractice(){const k=dayKey(new Date());if(!S.days.includes(k)){S.days.push(k);persist();}renderStreak();}
+function streak(){let n=0;const d=new Date();if(!S.days.includes(dayKey(d)))d.setDate(d.getDate()-1);while(S.days.includes(dayKey(d))){n++;d.setDate(d.getDate()-1);}return n;}
+function renderStreak(){const s=streak(),done=S.days.includes(dayKey(new Date()));$('streak').textContent=s?`🔥 ${s}-day streak${done?' · done today':' · practice today to keep it'}`:'🔥 Start your streak today';}
+
+/* ---------- Firebase ---------- */
+firebase.initializeApp(window.FIREBASE_CONFIG);
+const auth=firebase.auth(),fs=firebase.firestore();
+let AIKEY='',ownKey='',sharedKey='';
+function paintKey(){AIKEY=ownKey||sharedKey||'';const t=k=>k.startsWith('sk-ant')?'Claude':/^(AIza|AQ\.)/.test(k)?'Google Gemini':'unknown type';
+  $('aiState').textContent=ownKey?`A ${t(ownKey)} key is saved for SpeakNative.`:sharedKey?`Using your Cinema Book ${t(sharedKey)} key. Paste a key here only if you want a separate one.`:'No AI key yet. Paste a Claude key (starts with sk-ant) or a free Gemini key from aistudio.google.com.';}
+$('authForm').onsubmit=async e=>{e.preventDefault();$('aErr').textContent='';$('aBtn').disabled=true;
+  try{await auth.signInWithEmailAndPassword($('aEmail').value.trim(),$('aPw').value)}catch(err){$('aErr').textContent='Sign-in failed. Check the email and password.'}
+  $('aBtn').disabled=false;};
+auth.onAuthStateChanged(async u=>{
+  $('gate').classList.toggle('hidden',!!u);['app','nav'].forEach(id=>$(id).classList.toggle('hidden',!u));
+  showComposer();
+  if(!u){progDoc=null;return;}
+  progDoc=fs.doc(NS+'users/'+u.uid);
+  try{const s=await progDoc.get();if(s.exists)merge(s.data());persist();}catch(e){}
+  fs.doc(NS+'config/ai').get().then(s=>{ownKey=(s.exists&&s.data().key)||'';paintKey()}).catch(()=>paintKey());
+  fs.doc('apps/cinemabook/config/ai').get().then(s=>{sharedKey=(s.exists&&s.data().key)||'';paintKey()}).catch(()=>paintKey());
+  renderAll();
+});
+$('aiSave').onclick=async()=>{const k=$('aiIn').value.trim();if(!k)return;
+  try{await fs.doc(NS+'config/ai').set({key:k});ownKey=k;$('aiIn').value='';paintKey();toast('AI key saved')}catch(e){toast('Not saved. Try again.')}};
+$('signOut').onclick=()=>auth.signOut();
+
+/* ---------- voice out ---------- */
+let voices=[];
+function loadVoices(){
+  try{voices=speechSynthesis.getVoices().filter(v=>/^en[-_]/i.test(v.lang));}catch(e){voices=[]}
+  const rank=v=>(/premium/i.test(v.name)?0:/enhanced/i.test(v.name)?1:2)+(/en[-_]US/i.test(v.lang)?0:.5);
+  voices.sort((a,b)=>rank(a)-rank(b)||a.name.localeCompare(b.name));
+  $('voiceSel').innerHTML=voices.length?voices.map(v=>`<option value="${esc(v.voiceURI)}">${esc(v.name)} · ${esc(v.lang)}</option>`).join(''):'<option>Default voice</option>';
+  if(!S.voice&&voices[0])S.voice=voices[0].voiceURI;
+  if(voices.length)$('voiceSel').value=S.voice;
+}
+try{speechSynthesis.onvoiceschanged=loadVoices;}catch(e){}
+loadVoices();setTimeout(loadVoices,800);
+$('voiceSel').onchange=()=>{S.voice=$('voiceSel').value;persist();say('Hi! This is how I sound.');};
+$('rateIn').value=S.rate;$('rateIn').oninput=()=>{S.rate=+$('rateIn').value;persist();};
+$('testVoice').onclick=()=>say("Hey, how's it going? Let's get some practice in today.");
+function say(text,slow,onEnd){
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    const v=voices.find(x=>x.voiceURI===S.voice);if(v){u.voice=v;u.lang=v.lang}else u.lang='en-US';
+    u.rate=slow?Math.max(.55,S.rate-.25):S.rate;
+    if(onEnd){u.onend=onEnd;u.onerror=onEnd;}
+    speechSynthesis.speak(u);
+  }catch(e){onEnd&&onEnd();}
+}
+
+/* ---------- microphone (Safari speech recognition) ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const Mic={rec:null,on:false,text:'',btn:null,silenceT:null,
+  start({target=null,btn=null,onDone=null,autoStop=false}={}){
+    if(!SR){toast('Speech input is not supported here. Use the 🎤 on your keyboard.',3500);return false;}
+    if(this.on)this.stop();
+    try{speechSynthesis.cancel();}catch(e){}
+    const r=new SR();r.lang='en-US';r.interimResults=true;r.continuous=true;r.maxAlternatives=1;
+    const base=target?target.value.trim():'';this.text=base;this.btn=btn;this.rec=r;
+    r.onresult=e=>{let t='';for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript;
+      this.text=(base+' '+t).replace(/\s+/g,' ').trim();
+      if(target){target.value=this.text;grow(target);}
+      $('liveBar').textContent='Listening…';
+      if(autoStop){clearTimeout(this.silenceT);this.silenceT=setTimeout(()=>this.stop(),1800);}};
+    r.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed')toast('Microphone blocked. iPhone Settings › Apps › Safari › Microphone › Allow.',4500);
+      else if(e.error==='no-speech')toast("Didn't hear anything. Try again.");};
+    r.onend=()=>{clearTimeout(this.silenceT);const was=this.rec===r;if(!was)return;this.on=false;this.rec=null;paintMic();$('liveBar').textContent='';onDone&&onDone(this.text);};
+    try{r.start();this.on=true;paintMic();$('liveBar').textContent='Listening… speak now';if(autoStop)this.silenceT=setTimeout(()=>this.stop(),7000);return true;}
+    catch(e){this.rec=null;this.on=false;paintMic();return false;}
+  },
+  stop(){try{this.rec?.stop();}catch(e){}}
+};
+function paintMic(){
+  $('micBtn').classList.toggle('live',Mic.on&&Mic.btn===$('micBtn'));
+  $('polishMic').textContent=Mic.on&&Mic.btn===$('polishMic')?'⏹ Stop':'🎤 Speak';
+  $('sayCard').textContent=Mic.on&&Mic.btn===$('sayCard')?'⏹ Stop':'🎤 Say it';
+}
+function grow(t){t.style.height='auto';t.style.height=Math.min(t.scrollHeight,130)+'px';}
+
+/* ---------- AI ---------- */
+let geminiModels=null;
+async function tfetch(url,opt,ms){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);try{return await fetch(url,{...opt,signal:c.signal})}finally{clearTimeout(t)}}
+async function aiCall(text){
+  const key=AIKEY;if(!key)throw new Error('Add an AI key on the Me page first.');
+  if(key.startsWith('sk-ant')){
+    const r=await tfetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':key,'anthropic-version':'2023-06-01','content-type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-5-5',max_tokens:1200,temperature:.5,messages:[{role:'user',content:text}]})},45000);
+    const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error('Claude: '+(j?.error?.message||r.status));
+    return (j.content||[]).map(c=>c.text||'').join('');
+  }
+  if(!geminiModels){let names=[];
+    try{const r=await tfetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(key)}`,{},10000);
+      if(r.ok)names=((await r.json()).models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>m.name.replace('models/','')).filter(n=>/^gemini-[\d.]+-flash(-lite)?$/.test(n)).sort((a,b)=>parseFloat(b.split('-')[1])-parseFloat(a.split('-')[1]));}catch(e){}
+    const fl=names.filter(n=>!n.endsWith('-lite')),li=names.filter(n=>n.endsWith('-lite'));
+    geminiModels=[...new Set([fl[0]||'gemini-flash-latest',li[0]||'gemini-flash-lite-latest','gemini-flash-latest','gemini-flash-lite-latest'])];}
+  let last;
+  for(const m of geminiModels.slice()){
+    let r;try{r=await tfetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text}]}],generationConfig:{temperature:.5,responseMimeType:'application/json'}})},35000);}catch(e){last=new Error('Gemini did not answer. Try again.');continue;}
+    const j=await r.json().catch(()=>({}));
+    if(r.ok){geminiModels=[m,...geminiModels.filter(x=>x!==m)];return j.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';}
+    last=new Error('Gemini: '+(j?.error?.message||r.status));
+    if(r.status===401||r.status===403||(r.status===400&&/API key/i.test(j?.error?.message||'')))throw last;
+  }
+  throw last;
+}
+async function askJSON(prompt){const t=await aiCall(prompt);const m=t.match(/\{[\s\S]*\}/);return JSON.parse(m?m[0]:t);}
+
+const RULES=`You are SpeakNative, an expert American English speaking coach. The learner is an Indian professional (a global immigration compliance manager at an IT company) living in the Dallas, Texas area. Goal: sound like a natural native US English speaker at work and in daily life. The learner's text usually comes from speech recognition, so ignore punctuation and capitalization and do not penalize obvious transcription glitches.
+Watch for Indian-English patterns and give the natural American alternative: "do the needful", "revert"/"revert back" (=reply), "prepone", "kindly", "I have a doubt" (=question), "itself"/"only" for emphasis, "out of station", "pass out" (=graduate), continuous tense with stative verbs ("I am having", "I am knowing"), missing or extra articles, "the same" as a pronoun, "updation", "discuss about", "today morning", "myself X" introductions, "isn't it?" as a universal tag, overly formal or word-for-word translated phrasing. Also coach contractions, phrasal verbs, idioms, softeners and natural fillers. Keep explanations very short and practical.`;
+
+/* ---------- TALK ---------- */
+const SCEN=[
+  {id:'small',name:'☕ Small talk',who:'Jake',role:'Jake, a friendly American coworker chatting by the coffee machine on a Monday morning in a Dallas office',open:"Hey, morning! How was your weekend?"},
+  {id:'standup',name:'📊 Team meeting',who:'Sarah',role:'Sarah, an American team lead running a weekly status meeting, asking the learner for their update and any blockers',open:"Alright, let's go around. What've you been working on this week?"},
+  {id:'manager',name:'🤝 1:1 with boss',who:'Mike',role:"Mike, the learner's American director, in a one-on-one about priorities, growth and taking on more responsibility",open:"Thanks for grabbing time. So, what's on your mind?"},
+  {id:'client',name:'📞 Client call',who:'Rachel',role:"Rachel, an American HR business partner at a client company, on a call asking about an employee's visa transfer timeline and documents",open:"Hi, thanks for hopping on. Where are we on the visa transfer?"},
+  {id:'present',name:'🎤 Presenting',who:'Tom',role:'Tom, a senior executive who interrupts a short presentation with sharp, practical questions',open:"Sorry to jump in. What's the bottom line here?"},
+  {id:'neighbor',name:'🏡 Neighbor',who:'Linda',role:'Linda, a chatty neighbor at an apartment complex in Frisco, Texas, talking about weekend plans, weather, football and the kids',open:"Hey there! Crazy weather we're having, huh?"},
+  {id:'restaurant',name:'🍔 Restaurant',who:'Server',role:'a fast-talking server at a busy Texas restaurant taking an order and making casual conversation',open:"Hi y'all! Can I get you started with something to drink?"},
+  {id:'phone',name:'☎️ Customer service',who:'Ashley',role:'Ashley, a customer service rep at an internet provider; the learner is calling about a billing problem and should be polite but firm',open:"Thanks for calling, this is Ashley. How can I help you today?"},
+  {id:'interview',name:'💼 Interview',who:'Interviewer',role:'a hiring manager at a US company interviewing the learner for a senior global mobility leadership role, using behavioral questions',open:"Great to meet you. Tell me a little about yourself."},
+  {id:'free',name:'💬 Free chat',who:'Alex',role:'Alex, a warm, curious American friend having a relaxed conversation about anything',open:"Hey! What's new with you?"}
+];
+let scen=SCEN[0],convo=[],busy=false;
+function renderScen(){
+  $('scenarios').innerHTML=SCEN.map(s=>`<button class="chip ${s.id===scen.id?'on':''}" data-s="${s.id}">${s.name}</button>`).join('');
+  $('scenarios').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{scen=SCEN.find(x=>x.id===b.dataset.s);renderScen();startScen(true);});
+}
+function paintToggles(){$('tgHands').classList.toggle('on',S.hands);$('tgSpeak').classList.toggle('on',S.speak);}
+$('tgHands').onclick=()=>{S.hands=!S.hands;if(S.hands)S.speak=true;persist();paintToggles();toast(S.hands?'Hands-free on: tap 🎤 once, then just talk':'Hands-free off');};
+$('tgSpeak').onclick=()=>{S.speak=!S.speak;persist();paintToggles();};
+$('tgNew').onclick=()=>startScen(true);
+function startScen(speakIt){convo=[];$('chat').innerHTML='';addAI(scen.open,speakIt);}
+function addAI(text,speakIt){
+  convo.push({r:'ai',t:text});
+  const el=document.createElement('div');el.className='msg ai';
+  el.innerHTML=`<div class="who">${esc(scen.who)}</div>${esc(text)}<div class="acts"><button class="mini">🔊 Listen</button><button class="mini">🐢 Slow</button></div>`;
+  const [a,b]=el.querySelectorAll('.mini');a.onclick=()=>say(text);b.onclick=()=>say(text,true);
+  $('chat').appendChild(el);scrollEnd();
+  if(speakIt&&S.speak)say(text,false,()=>{if(S.hands&&isView('coach'))setTimeout(()=>listenTalk(),250);});
+}
+function addMe(text){convo.push({r:'me',t:text});const el=document.createElement('div');el.className='msg me';el.innerHTML=`<div class="who">You</div>${esc(text)}`;$('chat').appendChild(el);scrollEnd();}
+function addFb(f){
+  if(!f)return;const sc=Math.max(0,Math.min(10,Math.round(+f.score||0)));
+  const col=sc>=8?'var(--green)':sc>=5?'var(--amber)':'var(--red)';
+  const iss=(f.issues||[]).filter(i=>i&&i.said);
+  const el=document.createElement('div');el.className='fb';
+  el.innerHTML=`<div class="head"><b style="font-size:14px">Coach</b><span class="score" style="color:${col};background:color-mix(in srgb,${col} 14%,transparent)">${sc}/10 natural</span></div>
+    <div class="lbl">A native speaker would say</div><div class="native">${esc(f.native)}</div>
+    <div class="acts" style="margin-top:7px"><button class="mini" data-a="l">🔊 Listen</button><button class="mini" data-a="r">🎤 Repeat it</button><button class="mini" data-a="s">☆ Save</button></div>
+    <div class="rep"></div>
+    ${iss.length?`<div class="lbl">Fixes</div>${iss.map(i=>`<div class="issue"><span class="strike">${esc(i.said)}</span> → <span class="good">${esc(i.better)}</span><div class="why">${esc(i.why)}</div></div>`).join('')}`:''}
+    ${f.tip?`<div class="lbl">Tip</div><div style="font-size:14px">${esc(f.tip)}</div>`:''}`;
+  el.querySelector('[data-a=l]').onclick=()=>say(f.native);
+  el.querySelector('[data-a=s]').onclick=()=>savePhrase(f.native,f.tip||scen.name);
+  const rb=el.querySelector('[data-a=r]');rb.onclick=()=>{if(Mic.on&&Mic.btn===rb){Mic.stop();return;}rb.textContent='⏹ Stop';Mic.start({btn:rb,autoStop:true,onDone:t=>{rb.textContent='🎤 Repeat it';el.querySelector('.rep').innerHTML=checkHTML(t,f.native);}});};
+  $('chat').appendChild(el);scrollEnd();
+  S.msgs++;S.scores.push(sc);if(S.scores.length>300)S.scores.shift();
+  iss.forEach(i=>{const k=String(i.said).toLowerCase().trim();const ex=S.mistakes.find(m=>m.said.toLowerCase()===k);if(ex){ex.n++;ex.better=i.better;}else S.mistakes.unshift({said:i.said,better:i.better,why:i.why||'',n:1});});
+  S.mistakes=S.mistakes.slice(0,150);persist();
+}
+let typingEl=null;
+function typing(on){typingEl?.remove();typingEl=null;if(on){typingEl=document.createElement('div');typingEl.className='typing';typingEl.innerHTML='<i></i><i></i><i></i> Coach is listening';$('chat').appendChild(typingEl);scrollEnd();}}
+function scrollEnd(){requestAnimationFrame(()=>{const a=$('app');a.scrollTo({top:a.scrollHeight,behavior:'smooth'});});}
+function listenTalk(){
+  return Mic.start({target:$('input'),btn:$('micBtn'),autoStop:S.hands,onDone:t=>{if(S.hands&&t.trim())send();}});
+}
+$('micBtn').onclick=()=>{if(Mic.on&&Mic.btn===$('micBtn')){Mic.stop();return;}listenTalk();};
+async function send(){
+  const text=$('input').value.trim();if(!text||busy)return;
+  if(Mic.on)Mic.stop();
+  $('input').value='';grow($('input'));addMe(text);markPractice();
+  if(!AIKEY){toast('Add an AI key on the Me page to get coaching',3500);return;}
+  busy=true;typing(true);
+  const tr=convo.map(m=>(m.r==='ai'?'PARTNER: ':'LEARNER: ')+m.t).join('\n');
+  try{
+    const j=await askJSON(`${RULES}
+
+ROLE-PLAY: You play ${scen.role}. Stay in character.
+
+CONVERSATION SO FAR:
+${tr}
+
+TASKS:
+1. Evaluate ONLY the learner's last message for how natural it sounds to a native American speaker in this situation (grammar, word choice, tone, Indian-English patterns). Be encouraging but honest; a 10 means a native speaker could have said it.
+2. Write your next in-character reply: 1-3 short sentences of natural spoken American English with contractions. Keep the conversation going, usually with a question.
+
+Return ONLY JSON:
+{"feedback":{"score":0,"native":"the learner's message rewritten as a native US speaker would say it here","issues":[{"said":"exact phrase they used","better":"natural alternative","why":"very short reason"}],"tip":"one short practical tip, or praise if already natural"},"reply":"your in-character reply"}
+At most 3 issues; [] if already natural.`);
+    typing(false);addFb(j.feedback);if(j.reply)addAI(j.reply,true);
+  }catch(e){typing(false);toast(e.message||'Could not reach the coach. Try again.',4000);}
+  busy=false;
+}
+$('sendBtn').onclick=send;
+$('input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+$('input').addEventListener('input',()=>grow($('input')));
+
+/* ---------- POLISH ---------- */
+$('polishMic').onclick=()=>{if(Mic.on&&Mic.btn===$('polishMic')){Mic.stop();return;}Mic.start({target:$('polishIn'),btn:$('polishMic')});};
+$('polishBtn').onclick=async()=>{
+  const text=$('polishIn').value.trim();if(!text)return;if(Mic.on)Mic.stop();
+  if(!AIKEY){toast('Add an AI key on the Me page first',3500);return;}
+  const b=$('polishBtn');b.disabled=true;b.textContent='Polishing…';
+  try{
+    const j=await askJSON(`${RULES}
+
+The learner wrote or said: """${text}"""
+Rewrite it so it sounds like a native American speaker. Keep the meaning. Return ONLY JSON:
+{"versions":[{"tag":"Casual / spoken","text":"..."},{"tag":"Professional","text":"..."},{"tag":"Short & confident","text":"..."}],"issues":[{"said":"...","better":"...","why":"short reason"}],"tip":"one short takeaway"}
+At most 4 issues; [] if already natural.`);
+    const V=j.versions||[];
+    $('polishOut').innerHTML=V.map((v,i)=>`<div class="panel ver"><span class="tag">${esc(v.tag)}</span><p>${esc(v.text)}</p><div class="acts"><button class="mini" data-l="${i}">🔊 Listen</button><button class="mini" data-c="${i}">⧉ Copy</button><button class="mini" data-s="${i}">☆ Save</button></div></div>`).join('')
+      +((j.issues||[]).length?`<div class="panel ver"><span class="tag">What changed</span>${j.issues.map(i=>`<div class="issue"><span class="strike">${esc(i.said)}</span> → <span class="good">${esc(i.better)}</span><div class="why">${esc(i.why)}</div></div>`).join('')}</div>`:'')
+      +(j.tip?`<div class="panel ver"><span class="tag">Remember</span><p style="font-size:15px">${esc(j.tip)}</p></div>`:'');
+    $('polishOut').querySelectorAll('[data-l]').forEach(x=>x.onclick=()=>say(V[x.dataset.l].text));
+    $('polishOut').querySelectorAll('[data-s]').forEach(x=>x.onclick=()=>savePhrase(V[x.dataset.s].text,'Instead of: '+text));
+    $('polishOut').querySelectorAll('[data-c]').forEach(x=>x.onclick=()=>navigator.clipboard?.writeText(V[x.dataset.c].text).then(()=>toast('Copied'),()=>toast('Could not copy')));
+    markPractice();
+  }catch(e){toast(e.message||'Could not polish that. Try again.',4000);}
+  b.disabled=false;b.textContent='Make it native';
+};
+
+/* ---------- pronunciation check ---------- */
+const norm=s=>String(s).toLowerCase().replace(/[’']/g,"'").replace(/[^a-z0-9' ]+/g,' ').split(/\s+/).filter(Boolean);
+function checkHTML(said,target){
+  const t=norm(target),s=norm(said);if(!s.length)return'<div class="check why">Didn\'t catch that. Try again.</div>';
+  const m=t.map(()=>Array(s.length+1).fill(0)).concat([Array(s.length+1).fill(0)]);
+  for(let i=t.length-1;i>=0;i--)for(let j=s.length-1;j>=0;j--)m[i][j]=t[i]===s[j]?1+m[i+1][j+1]:Math.max(m[i+1][j],m[i][j+1]);
+  const hit=new Set();let i=0,j=0;while(i<t.length&&j<s.length){if(t[i]===s[j]){hit.add(i);i++;j++}else if(m[i+1][j]>=m[i][j+1])i++;else j++;}
+  const pct=Math.round(hit.size/t.length*100);
+  const msg=pct>=90?'Excellent — sounds native! 🎉':pct>=70?'Good. Repeat the red words.':'Keep going. Listen once more, then try again.';
+  return `<div class="check"><b>${pct}% clear</b> · ${msg}<br>${t.map((w,k)=>`<span class="w ${hit.has(k)?'ok':'miss'}">${esc(w)}</span>`).join(' ')}<div class="why">Heard: “${esc(said)}”</div></div>`;
+}
+
+/* ---------- DRILLS ---------- */
+const DECKS={
+ indian:{name:'Indian → American',desc:'Swap the giveaway phrases',q:'Instead of saying…',cards:[
+  ['Please do the needful.','Could you take care of this?','Could you take care of this by Friday?'],
+  ['Kindly revert back.','Let me know. / Get back to me.','Let me know what you think when you get a chance.'],
+  ['I have a doubt.','I have a question.','Quick question about the filing.'],
+  ['Can we prepone the meeting?','Can we move the meeting up?','Any chance we can move it up to two?'],
+  ['I will be out of station.',"I'll be out of town.","I'll be out of town next week, back Monday."],
+  ['Today morning / yesterday night','This morning / last night','I sent it this morning.'],
+  ['Let us discuss about it.',"Let's talk about it.","Let's talk it through on Thursday."],
+  ['I am having two kids.','I have two kids.','I have two daughters.'],
+  ['Please find attached herewith.',"I've attached…","I've attached the updated tracker."],
+  ['He passed out in 2015.','He graduated in 2015.','She graduated from college in 2015.'],
+  ["It is very nice, isn't it?","It's really nice, right?",'Great turnout today, right?'],
+  ['I will update you the same.',"I'll keep you posted.","I'll keep you posted on that."],
+  ['What is your good name?',"Sorry, I didn't catch your name.","Sorry, I didn't catch your name."],
+  ['Do one thing…',"Why don't you…","Why don't you send it over and I'll take a look?"],
+  ['I am from Chennai only.',"I'm from Chennai.","I'm originally from Chennai."],
+  ['Updation of records','Updating the records',"We're updating the records this week."],
+  ['Myself Vijay.',"I'm Vijay. / This is Vijay.",'Hi, this is Vijay from HCL.'],
+  ['Tell me. (answering the phone)',"Hey, what's up? / Go ahead.","Hey, what's up?"],
+  ['Cent percent sure','A hundred percent sure',"I'm a hundred percent sure."],
+  ['Long back','A while back / a long time ago','I worked on that a while back.']]},
+ work:{name:'Work power phrases',desc:'Sound like a leader',q:'When you want to…',cards:[
+  ['Disagree politely',"I see where you're coming from, but…","I see where you're coming from, but I think the risk is bigger."],
+  ['Buy time to think','Let me get back to you on that.','Good question. Let me get back to you by end of day.'],
+  ['Interrupt in a meeting','Sorry to jump in, but…','Sorry to jump in. Can I add one thing?'],
+  ['Push back on a deadline',"That timeline's going to be tight.","Friday's going to be tight. Can we do Tuesday?"],
+  ['Give a quick status',"Quick update: we're on track.","Quick update, we're on track, just waiting on legal."],
+  ['Ask for help','Do you have a sec?','Hey, do you have a sec to look at this?'],
+  ['Agree strongly',"Couldn't agree more.","Couldn't agree more. Let's go with that."],
+  ['Say no nicely',"I don't have the bandwidth right now.","I'd love to help, but I don't have the bandwidth this week."],
+  ['Wrap up a meeting',"Let's wrap up here.","Let's wrap up here. I'll send out next steps."],
+  ['Check understanding','Are we on the same page?',"Just want to make sure we're on the same page."],
+  ['Admit a mistake',"That's on me.","That one's on me. I'll have it fixed today."],
+  ['Escalate politely','I want to flag something.','I want to flag a risk on the timeline.'],
+  ['Follow up','Just circling back on…','Just circling back on my email from Tuesday.'],
+  ['Take credit gracefully','It was a team effort, but I led…','Team effort, but I drove the process redesign.'],
+  ['Recommend something','My recommendation would be…','My recommendation would be to file premium.']]},
+ phrasal:{name:'Phrasal verbs',desc:'The secret of native speech',q:'Formal word →',cards:[
+  ['Postpone','Push back / put off',"Let's push the meeting back a week."],
+  ['Investigate','Look into',"I'll look into it and get back to you."],
+  ['Cancel','Call off','They called off the offsite.'],
+  ['Discover','Find out / figure out',"I'll find out who approved it."],
+  ['Tolerate','Put up with',"I can't put up with these delays."],
+  ['Reduce','Cut back on','We need to cut back on overtime.'],
+  ['Mention a topic','Bring up',"I'll bring it up with my manager."],
+  ['Arrive','Show up','Only half the team showed up.'],
+  ['Visit briefly','Stop by / drop by','Feel free to stop by my desk.'],
+  ['Complete','Wrap up',"Let's wrap this up by five."],
+  ['Handle','Take care of / deal with',"I'll take care of it."],
+  ['Review quickly','Go over / run through',"Let's run through the deck once."],
+  ['Recover','Bounce back','We bounced back after a slow quarter.'],
+  ['Continue','Keep going / carry on','Sorry, keep going.'],
+  ['Explain in detail','Walk someone through','Can you walk me through the process?']]},
+ sounds:{name:'Pronunciation',desc:'Fix sounds that give it away',q:'Practice this sound',cards:[
+  ['V vs W','Top teeth on lower lip for V. Round lips for W, no teeth.','We visited Virginia and it was very well worth it.'],
+  ['TH in "think, three"','Tongue tip lightly between teeth and blow. Not "tink" or "tree".','I think three of them thought so.'],
+  ['TH in "this, that"','Same tongue position, add voice. Not "dis" or "dat".','This, that, these and those.'],
+  ['Soft T: "water, better"','A T between vowels sounds like a quick D in American English.','A little better water, please.'],
+  ['Z sound in "is, was, has"','Many final S letters are buzzing Z sounds.','He was busy, so his boss called.'],
+  ['Stress: develop','It is de-VEL-op, not DE-ve-lop.','We need to develop a plan.'],
+  ['Stress: competent, hotel, event','COM-pe-tent, ho-TEL, e-VENT.','She is a competent manager at the hotel event.'],
+  ['Linking words','Connect words: "turn it off" sounds like "tur-ni-doff".','Pick it up, check it out, not at all.'],
+  ['Contractions','Always contract in speech: I\'m, you\'re, it\'s, won\'t, gonna.',"I'm gonna check, and I'll let you know."],
+  ['Short i vs long ee','Short i is quick and relaxed; long ee is stretched.','Sit in the seat. This is cheap, not a chip.'],
+  ['American R','Curl the tongue back, never tap it. "Car" ends with a clear R.','Our record for the first quarter was great.'],
+  ['Rhythm','Stress the content words and glide over small words.','I want to go to the store after work.']]},
+ idioms:{name:'Everyday idioms',desc:"Expressions you'll hear",q:'What does it mean?',cards:[
+  ['Touch base','Briefly check in with someone',"Let's touch base on Monday."],
+  ['Ballpark figure','A rough estimate','Can you give me a ballpark?'],
+  ['Heads up','Advance warning','Just a heads up, the client is upset.'],
+  ['Hit the ground running','Start fast and effectively','She hit the ground running in her new role.'],
+  ['Drop the ball','Make a mistake or forget a task','Sorry, I dropped the ball on that.'],
+  ['Under the weather','Feeling a bit sick',"I'm a little under the weather today."],
+  ['Call it a day','Stop working for today',"Let's call it a day."],
+  ['Get the ball rolling','Start something',"Let's get the ball rolling on the audit."],
+  ['No-brainer','An obvious decision','Filing early is a no-brainer.'],
+  ['Back to square one','Start over','That sent us back to square one.'],
+  ['Low-hanging fruit','Easy wins',"Let's start with the low-hanging fruit."],
+  ['Run it by me','Tell me so I can review it','Run it by me before you send it.']]},
+ small:{name:'Small talk',desc:'Never get stuck again',q:'Situation',cards:[
+  ['Monday morning','How was your weekend? Do anything fun?','Pretty low-key, honestly. Took the kids to the park.'],
+  ['Friday afternoon','Any big plans for the weekend?','Not much, just catching up on stuff. You?'],
+  ['Elevator','Crazy weather lately, huh?','Tell me about it. Texas, right?'],
+  ['Someone asks "How are you?"','Good, thanks! How about you?','Doing well. Busy week, but good.'],
+  ['Football season','Did you catch the Cowboys game?','I did! That last quarter was wild.'],
+  ['Meeting someone new','Nice to meet you. What team are you on?',"Nice to meet you too. I'm on global mobility."],
+  ['Leaving a conversation',"Well, I'll let you get back to it.",'Good catching up. Talk soon!'],
+  ['Good news',"That's awesome! Congrats!","No way, that's huge. Good for you."],
+  ['Bad news',"Oh no, I'm sorry to hear that.","That's rough. Let me know if I can help."],
+  ['Lunch','Have you tried that new place downstairs?','Not yet. Is it any good?']]}
+};
+function mistakeDeck(){return{name:'My mistakes',desc:'From your Talk practice',q:'Instead of saying…',cards:S.mistakes.slice().sort((a,b)=>b.n-a.n).slice(0,40).map(m=>[m.said,m.better,m.why])};}
+let deckId='indian',idx=0;
+const deck=()=>deckId==='mine'?mistakeDeck():DECKS[deckId];
+function renderDecks(){
+  const all=[...Object.entries(DECKS),['mine',mistakeDeck()]];
+  $('decks').innerHTML=all.map(([k,d])=>`<button class="deck ${k===deckId?'on':''}" data-d="${k}"><b>${esc(d.name)}</b><small>${esc(d.desc)} · ${d.cards.length}</small></button>`).join('');
+  $('decks').querySelectorAll('.deck').forEach(b=>b.onclick=()=>{deckId=b.dataset.d;idx=0;renderDecks();renderCard();});
+}
+function renderCard(){
+  const d=deck();
+  if(!d.cards.length){$('flash').innerHTML='<div class="why">No mistakes collected yet. Do some Talk practice first.</div>';$('progBar').style.width='0';return;}
+  idx=Math.min(idx,d.cards.length-1);const c=d.cards[idx];
+  $('flash').classList.remove('rev');
+  $('flash').innerHTML=`<div class="q">${esc(d.q)}</div><div class="front">${esc(c[0])}</div><div class="back"><div class="ans">${esc(c[1])}</div><div class="ex">“${esc(c[2])}”</div></div><div class="tap">Tap to reveal</div><div class="res"></div>`;
+  $('progBar').style.width=((idx+1)/d.cards.length*100)+'%';
+}
+const target=()=>deck().cards[idx][2];
+$('flash').onclick=e=>{if(e.target.closest('.res'))return;$('flash').classList.toggle('rev');markPractice();};
+$('nextCard').onclick=()=>{const n=deck().cards.length;if(n){idx=(idx+1)%n;renderCard();}};
+$('prevCard').onclick=()=>{const n=deck().cards.length;if(n){idx=(idx-1+n)%n;renderCard();}};
+$('listenCard').onclick=()=>{if(!deck().cards.length)return;$('flash').classList.add('rev');say(target());markPractice();};
+$('sayCard').onclick=()=>{
+  if(!deck().cards.length)return;
+  if(Mic.on&&Mic.btn===$('sayCard')){Mic.stop();return;}
+  $('flash').classList.add('rev');const t=target();
+  Mic.start({btn:$('sayCard'),autoStop:true,onDone:s=>{const r=$('flash').querySelector('.res');if(r)r.innerHTML=checkHTML(s,t);markPractice();}});
+};
+$('saveCard').onclick=()=>{const c=deck().cards[idx];if(c)savePhrase(c[2],c[0]+' → '+c[1]);};
+
+/* ---------- ME ---------- */
+function savePhrase(text,note){if(S.saved.some(s=>s.text===text)){toast('Already saved');return;}S.saved.unshift({text,note,at:Date.now()});persist();toast('Saved to phrasebook');}
+function renderMe(){
+  $('sStreak').textContent=streak();$('sMsgs').textContent=S.msgs;
+  const last=S.scores.slice(-20);$('sAvg').textContent=last.length?(last.reduce((a,b)=>a+b,0)/last.length).toFixed(1):'–';
+  $('saved').innerHTML=S.saved.length?S.saved.map((p,i)=>`<div class="panel item"><div><div>${esc(p.text)}</div><div class="note">${esc(p.note)}</div></div><button class="mini" data-l="${i}" aria-label="Listen">🔊</button><button class="mini" data-x="${i}" aria-label="Remove">✕</button></div>`).join(''):'<div class="empty">Tap ☆ Save on any phrase you want to remember.</div>';
+  $('saved').querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>say(S.saved[b.dataset.l].text));
+  $('saved').querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{S.saved.splice(b.dataset.x,1);persist();});
+  const top=S.mistakes.slice().sort((a,b)=>b.n-a.n).slice(0,8);
+  $('mistakes').innerHTML=top.length?top.map(m=>`<div class="panel"><span class="strike">${esc(m.said)}</span> → <span class="good">${esc(m.better)}</span>${m.n>1?` <span class="why">· ${m.n}×</span>`:''}<div class="why">${esc(m.why)}</div></div>`).join(''):'<div class="empty">Nothing yet. Your most common slips will collect here.</div>';
+  renderStreak();
+}
+
+/* ---------- nav ---------- */
+const isView=v=>$('v-'+v).classList.contains('on');
+function showComposer(){$('composer').classList.toggle('hidden',!(auth.currentUser&&isView('coach')));}
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{
+  if(Mic.on)Mic.stop();
+  document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+b.dataset.v));
+  if(b.dataset.v==='drills')renderDecks();
+  $('app').scrollTo({top:0});showComposer();
+});
+function renderAll(){renderScen();paintToggles();renderDecks();renderCard();renderMe();if(!convo.length)startScen(false);}
+renderAll();
+</script>
+</body>
+</html>

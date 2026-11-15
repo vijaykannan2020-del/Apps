@@ -15,6 +15,7 @@ Last updated: 2026-11-15.
 | `cinema-book-test/` | Test copy of Cinema Book, for trying changes | https://vijaykannan2020-del.github.io/Apps/cinema-book-test/ |
 | `sideline/` | Sideline: movies, Webtor, server connection and live TV | https://vijaykannan2020-del.github.io/Apps/sideline/ |
 | `plate-log/` | Plate Log, a separate food diary app | https://vijaykannan2020-del.github.io/Apps/plate-log/ |
+| `speaknative/` | SpeakNative: American English speaking coach (AI role-play with feedback, Polish rewrites, drills with pronunciation check). Same Firebase sign-in | https://vijaykannan2020-del.github.io/Apps/speaknative/ |
 | `segue/` | Segue: plays saved passages selected from timed lyrics in Spotify albums, artists and playlists. Full handoff in `segue/README.md` | https://vijaykannan2020-del.github.io/Apps/segue/ |
 
 Hosting is GitHub Pages from the `main` branch. A push to `main` is live in
@@ -124,6 +125,14 @@ the top right and cover part of the page.
   shuffle/repeat/seek and saved queues. Pending work is not shown as Playing. Simulated checks pass; live phone confirmation pending.
   Details, limits and open items: `segue/README.md`.
 
+- SpeakNative (`speaknative/`): Version 1. No test copy; changes go straight
+  to `speaknative/index.html` with `APP_VERSION` raised. Firestore paths under
+  `apps/speaknative/`: `users/{uid}` (one progress document: days, scores,
+  phrasebook, mistakes, voice settings) and `config/ai` (optional own key).
+  With no own key it reads Cinema Book's `apps/cinemabook/config/ai`.
+  Microphone uses Safari's built-in speech recognition (`webkitSpeechRecognition`);
+  voice uses the phone's speech voices. AI: Claude (`claude-sonnet-5-5`) or Gemini.
+
 ## Open items
 
 - Confirm the full-width bottom bar on the Duo, then move 15 to the real app.
@@ -153,6 +162,8 @@ the top right and cover part of the page.
 - 2026-11-14, ChatGPT: Segue Version 33 places the wide Playing queue left and deck right, and adds a silent one-second cassette opening animation with no input/startup blocking and a reduced-motion skip. Spotify starts now carry current + up to 99 upcoming URIs; observed native Next in that submitted mix/output follows the selected song and seeks its saved AI passage without another Play. Paused selection stays silent; missing AI pauses while preparing; unrelated outputs/songs still detach. Browser SDK media actions refresh on state events, guard output ownership, include stop/skip-seek, and update metadata/position without clearing transient paused sessions. All 80 controller checks, 14 layout/theme cases and browser playback flows pass. Native queue snapshots/shuffle/history and iOS suspension/CarPlay limits are documented; real phone/CarPlay confirmation is pending. No Spotify playlist created; AI mappings retained.
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-15, Claude: new app SpeakNative Version 1 in `speaknative/`: Talk (10 role-play scenarios, per-reply native rewrite, fixes, score, hands-free mode, repeat-after-coach check), Polish (three native versions of any sentence), Drills (6 decks plus a My mistakes deck, Listen and Say it pronunciation scoring), Me (streak, phrasebook, mistakes, voice/speed, AI key, sign out). Cinema Book look and floating tab bar, light/dark, top/bottom safe areas only. Firebase sign-in shared with the other apps.
 
 - 2026-11-14, Claude: Version 26 in both test copy and real app. Rewatch button shows on every watched entry (not only dated ones). A new rewatch must have a place and date before saving. Every earlier watch is editable (date, where, language, rating). Numbers: counts every watch (monthly/yearly lists show rewatches, Where/Language bars include them), rewatches tile always shown, new hours-watched tile counting rewatches.
 
