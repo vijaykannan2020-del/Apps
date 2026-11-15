@@ -23,7 +23,7 @@ with sync_playwright() as p:
  for width,height in [(320,740),(390,844),(430,932),(844,390),(900,600),(1280,900),(1536,960)]:
   for theme in ['light','dark']:
    context=browser.new_context(viewport={'width':width,'height':height},color_scheme=theme)
-   seed={'segue_passage_source':'gemini','segue_aikey':'test','segue_at':'test','segue_rt':'test','segue_exp':'9999999999999','segue_library_layout':json.dumps(library),'segue_ai4':json.dumps(cache)}
+   seed={'segue_passage_mode40':'1','segue_passage_source':'gemini','segue_aikey':'test','segue_at':'test','segue_rt':'test','segue_exp':'9999999999999','segue_library_layout':json.dumps(library),'segue_ai4':json.dumps(cache)}
    context.add_init_script('for(const [k,v] of Object.entries('+json.dumps(seed)+')){if(localStorage.getItem(k)==null)localStorage.setItem(k,v)}')
    errors=[];writes=[]
    def route(r):

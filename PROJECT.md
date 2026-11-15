@@ -15,7 +15,7 @@ Last updated: 2026-11-15.
 | `cinema-book-test/` | Test copy of Cinema Book, for trying changes | https://vijaykannan2020-del.github.io/Apps/cinema-book-test/ |
 | `sideline/` | Sideline: movies, Webtor, server connection and live TV | https://vijaykannan2020-del.github.io/Apps/sideline/ |
 | `plate-log/` | Plate Log, a separate food diary app | https://vijaykannan2020-del.github.io/Apps/plate-log/ |
-| `segue/` | Segue: plays the AI-chosen best part of each song from Spotify playlists. Full handoff in `segue/README.md` | https://vijaykannan2020-del.github.io/Apps/segue/ |
+| `segue/` | Segue: plays saved passages selected from timed lyrics in Spotify albums, artists and playlists. Full handoff in `segue/README.md` | https://vijaykannan2020-del.github.io/Apps/segue/ |
 
 Hosting is GitHub Pages from the `main` branch. A push to `main` is live in
 one to two minutes. There is no build step and no package manager.
@@ -118,8 +118,8 @@ the top right and cover part of the page.
 - Test copy (`cinema-book-test/`): Version 26 (same as the real app).
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
-- Segue (`segue/`): Version 39. Spotify sign-in, matching-file passage analysis with
-  local review/approval and optional Gemini estimates, and a phone layout matching Cinema Book are in place. Player
+- Segue (`segue/`): Version 40. Spotify sign-in, automatic timed-lyric passage selection with
+  saved recording reuse and optional file review/Gemini estimates, and a phone layout matching Cinema Book are in place. Player
   now uses one shared transport on every screen, observed playback phases,
   shuffle/repeat/seek and saved queues. Pending work is not shown as Playing. Simulated checks pass; live phone confirmation pending.
   Details, limits and open items: `segue/README.md`.
@@ -135,6 +135,8 @@ the top right and cover part of the page.
   GitHub Pages and the free TMDB terms are for non-commercial use.
 
 ## Change log
+
+- 2026-11-15, ChatGPT: Segue Version 40 defaults to automatic timed lyrics, replacing the matching-file prompt for existing installations once. Uses identified, sequential LRCLIB requests; strict title/credited-artist/duration matching; structural section boundaries rather than fixed clips; saved ID/ISRC reuse; ahead preparation; negative caching and Retry-After cooldown. Full lyrics are transient, not stored/displayed; no Gemini calls in default mode. Missing sections pause visibly rather than guessing/skipping/full-song fallback. Prior caches/keys/queues retained; manual file/Gemini methods stay optional. 64 unit/controller cases, automatic mocked Chromium album/migration/prefetch/SDK/reload tests and existing catalog/file/player/14-layout checks pass. Live API/CORS/example timing checked; lyrics cannot measure hype or certify a vocal ending, and actual iPhone/Spotify audio remains unverified.
 
 - 2026-11-15, ChatGPT: Segue Version 39 adds matching audio files, local non-neural signal analysis in a cancellable Worker, variable suggested sections and editable review using the same Spotify player. Approval saves local-audio timings for recording/ISRC reuse; files never upload or persist. Local mode defaults on, makes no AI requests, preserves prior AI values and requires passages to be prepared before continuous listening. AI Reset retains approved local mappings. 55 controller cases, real WAV/Worker/cancel/mismatch/review/database browser checks, existing catalog/player flows and 14 responsive cases pass. Detector does not certify charanam/vocal completion; actual music and phone verification pending.
 

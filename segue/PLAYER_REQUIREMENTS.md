@@ -1,10 +1,11 @@
-# Segue Version 39 playback contract
+# Segue Version 40 playback contract
 
 The Version 34 controller is superseded by a new SDK-only controller. Read
 [README.md](README.md) for timing/cache details and real-platform limits.
 
 | Requirement | Rule | Evidence |
 |---|---|---|
+| Automatic timed lyrics | Recording-matched LRC section, saved/reused; default with no files/AI key; misses pause visibly | Parser/recording/rate/cancel unit cases and automatic album browser flow |
 | Matching file | Local decode/Worker DSP; review and approve; no file upload or AI fallback | Real WAV/mismatch/cancel/review/persistence browser check; synthetic musical-quality limits |
 | Browser only | Load one selected URI into SDK ready ID; no native selection/fallback | URI and device assertions; source contains no account-wide status fallback |
 | One playback truth | SDK state only; no global Spotify poll | SDK missing/frozen/wrong-song cases |
@@ -16,7 +17,7 @@ The Version 34 controller is superseded by a new SDK-only controller. Read
 | Paused navigation | Select silently; reject old polls | Next/Previous/seek with deferred paused poll |
 | Queue | Upcoming shuffle only; history Previous; repeat Off/All/One | Controller and browser cases |
 | Complete sources | All album pages and artist releases/tracks; no song-count or search cap | 145-track album/160-track artist unit checks; 128-track browser album |
-| Automatic batches | Small startup request, larger while playing, input budget and uncached filtering | Small/large metadata tests and serialized requests |
+| Optional AI batches | Small startup request, larger while playing, input budget and uncached filtering | Small/large metadata tests and serialized requests |
 | Cross-release reuse | Same Spotify ID or verified ISRC/duration; no title-only reuse | Alias/mismatch/backfill tests and zero-new-AI browser flow |
 | Testing reset | Explicit Settings action backs up and clears AI mappings, keeps queues/keys/manual marks, waits for Play; rejects stale answers | Reset/cold-SDK/unconfirmed-pause cases and real browser reset/persist/fresh-batch check |
 | Database | Migrate and persist timing/library records in IndexedDB; retain backup; do not silently load stale data on failure | 6 MiB save, reload, migration and unavailable-database browser cases |
@@ -34,9 +35,9 @@ The Version 34 controller is superseded by a new SDK-only controller. Read
 
 ## Required phone verification — not automated passes
 
-1. Open Version 39 in the same installation. Hear that the named song and actual
+1. Open Version 40 in the same installation. Hear that the named song and actual
    audio agree. Try pause, resume, Previous, Next, shuffle, repeat and scrubbing.
-2. For a new AI pick, hear that the selected charanam finishes before the
+2. For a new timed-lyric selection, hear that the selected section finishes before the
    next verse; whole-recording fallback is rejected. Try a saved song across two releases: its saved range should be reused.
    This release does not automatically replace valid older saved choices. Judge its end audibly. A line-start timestamp is not vocal-end proof.
 3. Listen through multiple transitions. Network/start latency may still cause

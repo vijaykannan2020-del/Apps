@@ -28,7 +28,7 @@ with sync_playwright() as p:
   else:unexpected.append(r.request.url);r.abort()
  context.route('**/*',route);page=context.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.goto(url)
- page.evaluate("""async()=>{await Persist.init();ST.me={id:'file-test'};ST.mix=[{id:'recording',uri:'spotify:track:recording',isrc:'INAAA2400001',name:'Test recording',artists:['Test artist'],dur:85000}];ST.pool=ST.mix;$('#boot').classList.add('hide');$('#app').classList.remove('hide');document.querySelectorAll('.view').forEach(e=>e.classList.add('hide'));$('#v-set').classList.remove('hide');LocalAudio.refresh();globalThis.aiCalls=0;AI.call=async()=>{aiCalls++;throw Error('AI must stay off')};} """)
+ page.evaluate("""async()=>{await Persist.init();LS.set('passage_source','local');ST.me={id:'file-test'};ST.mix=[{id:'recording',uri:'spotify:track:recording',isrc:'INAAA2400001',name:'Test recording',artists:['Test artist'],dur:85000}];ST.pool=ST.mix;$('#boot').classList.add('hide');$('#app').classList.remove('hide');document.querySelectorAll('.view').forEach(e=>e.classList.add('hide'));$('#v-set').classList.remove('hide');LocalAudio.refresh();globalThis.aiCalls=0;AI.call=async()=>{aiCalls++;throw Error('AI must stay off')};} """)
  page.locator('#audioFile').set_input_files({'name':'wrong-version.wav','mimeType':'audio/wav','buffer':recording(20)})
  page.click('#analyseFile');page.wait_for_function("document.querySelector('#audioStatus').textContent.includes('Recording mismatch')")
  assert page.evaluate('LocalAudio.result') is None

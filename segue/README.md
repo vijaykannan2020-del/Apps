@@ -1,14 +1,75 @@
-# Segue handoff — Version 39
+# Segue handoff — Version 40
 
 Read `../PROJECT.md` first. Updated 2026-11-15.
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
 ## Goal
 
-Select a complete Spotify album or artist catalog, review a favourite passage
-using its matching audio file, then play saved passages through Spotify's browser
-player. No song-count picker, mandatory eight-song batch or fixed clip length.
-Gemini remains an optional estimated-timing mode, disabled by default.
+Select a complete Spotify album or available artist catalog. Timed lyrics
+select a section automatically, save its timings and prepare upcoming songs while
+Spotify plays in the browser. No files, AI key, song-count picker, fixed excerpt
+length or mandatory eight-song batch. Local-file review and Gemini estimates
+remain explicit optional methods, not automatic fallbacks.
+
+## Automatic timed lyrics (Version 40)
+
+Version 40 changes existing installations to Timed lyrics once, without deleting
+old caches, queues or keys. A `passage_mode40` marker preserves later explicit
+method changes. Select an album/artist as usual and tap Play. The file chooser
+is hidden in the default mode. Startup preparation does not autoplay.
+
+LRCLIB search is browser-accessible and requires no secret. Requests identify
+Segue through `Lrclib-Client`, carry no Spotify authorization and serialize with
+350 ms spacing after a response. 429/503 Retry-After creates a global cooldown
+with positive jitter; queued requests respect it and prefetch retries afterward.
+Provider network calls time out in ten seconds. Exact song title (only a From
+album suffix may be removed), an overlapping credited artist and duration within
+two seconds are required. Live/remix/version labels are retained; mismatches,
+instrumental/unsynced records and unbounded final lines do not produce clips.
+Album metadata is kept for choosing between otherwise matching records. These
+checks reduce mismatches, but provider timestamps are not audio verification.
+
+The LRC parser supports multiple timestamps, Unicode, fractional seconds and
+simultaneous lines. Selection prefers complete blocks delimited by explicit
+empty timestamp markers or stanza paragraphs. When these are absent, aligned
+plain-lyric stanza breaks, repeated multi-line refrain starts or unusually long
+line gaps estimate structural boundaries. Candidates favor an interior varied
+verse rather than an opening or repetitive refrain. No fixed clip duration,
+line-count clip or arbitrary final-line duration is used. A final vocal without
+a following boundary cannot be assigned the recording end as a fallback.
+
+This is lyric structure, **not hype/beat measurement or proof a charanam or
+sustained vocal finished**. Explicit lyric gaps are preferable; a next-line start
+is only an estimated boundary. The matched 409-second Thayya Thayya example
+selected 158.090–245.430 seconds from real LRCLIB data; the actual musical ending
+was not auditioned. Another recording/version can have different timestamps.
+
+Derived schema-2 `source:timed-lyrics` timings and provider record IDs persist
+in the existing local IndexedDB store and reuse by Spotify ID or verified
+ISRC/duration. Full lyrics are processed transiently and not stored/displayed.
+Previous AI ranges are retained when replaced. Ordinary list Clear and AI Reset
+preserve lyric/local-reviewed mappings. `lyrics_lookups1` stores negative lookup
+results (one day for missing matching sections; one minute for request failures,
+or the server cooldown). Settings Retry missing lyrics clears those misses but
+cannot bypass provider rate limits. No Gemini requests are made in this mode.
+
+Prefetch processes songs sequentially until at least three upcoming songs cover
+about ten minutes, or twelve songs were examined. These are preparation limits,
+not album/artist song caps or excerpt rules. New playback/selection continues
+preparing ahead; shared per-song promises avoid duplicate work. Mode changes and
+Cancel reject late starts and stale callbacks. Cached choices need no re-query.
+If the next song has no matching timed section, the player verifies pause and
+shows the reason. It does not skip it, invent a cut or silently play the entire
+song. Missing lyric coverage, provider errors, Spotify loading and iOS suspension
+can still prevent uninterrupted playback. This release does not claim gapless
+playback, fades, a native app or new lock-screen/CarPlay support.
+
+Validation: 64 controller/selection/library checks; a new real Chromium mocked
+album flow covers one-time default migration, zero file/AI prompts, matching,
+prefetch, SDK transitions, missing lyrics, IndexedDB reload and cross-release
+reuse. Existing catalog/database, file-analysis, shared-player and 14 responsive
+size/theme checks pass. Live LRCLIB API/search/CORS and the example's section
+were checked; real Spotify audio and iPhone playback still need listening tests.
 
 ## Matching audio files (Version 39)
 
@@ -54,8 +115,9 @@ Spotify/Gemini. Real musical judgment and iPhone playback remain user checks.
 
 ## Explicit testing reset (Version 38)
 
-Settings → **Reset AI timings for testing** clears the active AI timing cache
-and saved AI-pick rows so the next Play asks Gemini again. Ordinary list Clear
+Settings → **Reset AI timings for testing** clears AI-estimated timings
+and their saved rows. Approved file passages and timed-lyric mappings remain.
+In Gemini mode, the next uncached Play asks Gemini again. Ordinary list Clear
 still only hides rows/clears mix lists and preserves AI mappings.
 
 Reset saves the previous nonempty cache in IndexedDB key `ai_backup`, verifies
@@ -131,7 +193,7 @@ are enriched lazily when metadata candidates could match. Duplicate recordings
 within an AI request are skipped. Lookup failure never fabricates a match.
 
 `Persist` uses IndexedDB `segue-library`, object store `data`, for `ai4`,
-`ai_backup`, `ai_revision`, `recordings1` and account-scoped `library_*` records. It migrates legacy
+`ai_backup`, `ai_revision`, `recordings1` and account-scoped `library_*` records and `lyrics_lookups1` lookup results. It migrates legacy
 localStorage values only when no newer database value exists, keeping the old
 copies as a backup. Token/AI-key settings remain in the existing small settings
 store. Database writes serialize; AI saves wait for persistence. Storage errors
@@ -232,7 +294,7 @@ Firebase, other app edits, downloaded audio or new backend. Spotify redirect
 remains exactly `https://vijaykannan2020-del.github.io/Apps/segue/`.
 Client ID and AI key stay on the user's device; never ask for keys or commit them.
 
-- `node segue/tests/playback.test.cjs`: 50 rebuilt-controller/AI/library cases,
+- `node segue/tests/playback.test.cjs`: 64 controller/selection/library cases,
   actual advancing SDK state, frozen/late/wrong-song failures, cancellation,
   variable ranges, adaptive batching, all catalog pages, ISRC reuse/mismatch,
   cache preservation, late-AI pause/wait, media actions and manifest identity.

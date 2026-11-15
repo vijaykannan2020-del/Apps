@@ -242,7 +242,7 @@ img[src=""],img:not([src]){visibility:hidden}
 
   <section id="connect" class="hide">
     <h1>Your playlists,<br>the best parts only.</h1>
-    <p class="muted">Pick a playlist, album or artist. Review favourite passages using matching audio files, then play your mix here.</p>
+    <p class="muted">Pick a playlist, album or artist. Timed lyrics choose sections automatically; saved timings are reused when you play your mix here.</p>
     <div class="card" style="margin-top:22px">
       <div class="lbl" style="margin-top:0">Spotify Client ID</div>
       <input id="cid" class="input" placeholder="Paste your app's Client ID" autocomplete="off" spellcheck="false">
@@ -344,8 +344,14 @@ img[src=""],img:not([src]){visibility:hidden}
       <div class="card">
         <h2>Choose a passage</h2>
         <label for="passageSource">Selection method</label>
-        <select class="input" id="passageSource"><option value="local">Matching audio file · no AI</option><option value="gemini">Gemini · estimated timings</option></select>
-        <div id="matchingForm" style="margin-top:16px">
+        <select class="input" id="passageSource"><option value="lyrics">Timed lyrics · automatic</option><option value="local">Matching audio file · manual review</option><option value="gemini">Gemini · estimated timings</option></select>
+        <div id="lyricsSettings" style="margin-top:16px">
+          <p class="small muted">Automatically match timed lyrics, choose a verse section and save its timings. No files or AI key needed. Upcoming passages prepare while music plays.</p>
+          <p class="note" id="lyricsStatus" role="status"></p>
+          <button class="btn ghost small" id="retryLyrics">Retry missing lyrics</button>
+          <p class="tiny muted" style="margin-top:12px">Timings from <a href="https://lrclib.net" target="_blank" rel="noopener">LRCLIB</a>. Section choices are estimates from lyric breaks and repetition, not beat analysis. Line timestamps cannot guarantee a finished vocal. If a matching section is unavailable, playback waits with an explanation.</p>
+        </div>
+        <div id="matchingForm" class="hide" style="margin-top:16px">
           <p class="small muted">Choose the same recording as the Spotify song. Files are analysed on this device and never uploaded. Spotify remains the player.</p>
           <p class="note hide" id="audioEmpty">Create or open an album or artist mix first.</p>
           <label for="audioTrack">Spotify song</label><select class="input" id="audioTrack" style="margin:8px 0 12px"></select>
@@ -365,10 +371,10 @@ img[src=""],img:not([src]){visibility:hidden}
         <h2>Optional AI DJ</h2>
         <input id="aiKey" class="input" placeholder="Gemini key (AIza…) or Claude key (sk-ant…)" autocomplete="off" spellcheck="false">
         <button class="btn" id="aiSave" style="width:100%;margin-top:10px">Save key</button>
-        <div class="note" id="aiNote">Gemini chooses the best beat-driven charanam and its complete timings. Saved selections are reused. The key stays only on this device.</div>
+        <div class="note" id="aiNote">Gemini estimates a beat-driven charanam and its timings without hearing the recording. Saved selections are reused. The key stays only on this device.</div>
         <div class="note" id="aiSaved"></div>
         <button class="btn ghost" id="resetAi" style="width:100%;margin-top:12px">Reset AI timings for testing</button>
-        <p class="tiny muted" style="margin-top:8px">Next Play asks AI again. Albums, queues, keys and manual start corrections stay saved.</p>
+        <p class="tiny muted" style="margin-top:8px">Clears AI estimates. Timed-lyric and audio-reviewed passages, albums, queues, keys and manual corrections stay saved.</p>
         <p class="small muted" id="aiResetStatus" role="status" style="margin-top:8px"></p>
       </div>
       <div class="card">
@@ -424,7 +430,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 39;
+const APP_VERSION = 40;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -436,7 +442,7 @@ const SCOPES = 'streaming user-read-email user-read-private user-read-playback-s
 // Spotify credentials remain in the existing small settings store.
 const Persist={
   db:null,ready:false,values:new Map(),pending:Promise.resolve(true),failed:false,
-  owns(k){return k==='ai4'||k==='ai_backup'||k==='ai_revision'||k==='recordings1'||k.startsWith('library_');},
+  owns(k){return k==='ai4'||k==='ai_backup'||k==='ai_revision'||k==='recordings1'||k==='lyrics_lookups1'||k.startsWith('library_');},
   async init(){
     let migrated=false;try{migrated=localStorage.getItem('segue_database1')==='1';}catch{}
     if(typeof indexedDB==='undefined'){if(migrated)throw new Error('Your saved library database is unavailable. Reopen this app in the same browser.');return;}
@@ -537,7 +543,7 @@ const Library = {
   track(t){
     if (!t || typeof t.id !== 'string' || typeof t.uri !== 'string' || t.uri!=='spotify:track:'+t.id || !Number.isFinite(t.dur) || t.dur <= 0) return null;
     const out = {};
-    for (const k of ['isrc','phrase','id','uri','name','dur','artists','artistId','img','imgS','aiStart','aiEnd','aiWhy','hook','hookSrc','start','end']) {
+    for (const k of ['albumName','isrc','phrase','id','uri','name','dur','artists','artistId','img','imgS','aiStart','aiEnd','aiWhy','hook','hookSrc','start','end']) {
       if (t[k] !== undefined) out[k] = t[k];
     }
     out.name = String(t.name || 'Song'); out.artists = Array.isArray(t.artists) ? t.artists.map(String) : [];
@@ -684,13 +690,13 @@ const Library = {
     const t = active?.tracks[active.idx || 0];
     $('#continueMix').innerHTML = active ? `<div class="continue-card"><div class="eyebrow">Pick up where you left off</div><div><b>${esc(active.name)}</b><p>${esc(t?.name || '')} · song ${(active.idx || 0)+1} of ${active.tracks.length}</p></div><button class="btn pri" data-continue="${esc(active.id)}">Continue listening →</button></div>` : '';
     const hidden = new Set(this.state.hiddenPicks || []);
-    const allSongs = Object.entries(cache).filter(([id,c]) => c?.song?.id && (AI.usesGemini()||c.source==='local-audio') && !hidden.has(id));
+    const allSongs = Object.entries(cache).filter(([id,c]) => c?.song?.id && AI.accepts(c) && !hidden.has(id));
     const query = ($('#savedSongSearch').value || '').trim().toLowerCase();
     const songs = allSongs.filter(([,c]) => !query || `${c.song.name} ${(c.song.artists || []).join(' ')}`.toLowerCase().includes(query));
     $('#recoverPicks').classList.toggle('hide', !Object.entries(cache).some(([id,c]) => c && !c.song && !hidden.has(id)));
     $('#pickCount').textContent = `${Object.keys(cache).length} timings kept`;
     $('#clearSavedSongs').classList.toggle('hide', !allSongs.length);
-    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${c.schema===2?fmt(c.start)+'–'+fmt(c.end)+(c.source==='local-audio'?' · Reviewed audio passage':' · AI pick saved'):'Timing will be rechecked'}</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : hidden.size && !Object.keys(cache).some(id => !hidden.has(id)) ? 'List cleared. Your Saved passage timings are still saved and will be reused when you build another mix.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Save a reviewed passage in Settings to see it here.'}</div>`;
+    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${c.schema===2?fmt(c.start)+'–'+fmt(c.end)+(c.source==='local-audio'?' · Reviewed audio passage':c.source==='timed-lyrics'?' · Timed-lyric estimate':' · AI pick saved'):'Timing will be rechecked'}</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : hidden.size && !Object.keys(cache).some(id => !hidden.has(id)) ? 'List cleared. Your Saved passage timings are still saved and will be reused when you build another mix.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Songs appear here as their timed-lyric sections are prepared.'}</div>`;
     this.mini();
   },
   mini(){ DJ.render();
@@ -779,7 +785,7 @@ $('#q').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer
 $('#tabs').addEventListener('click', e => { const b=e.target.closest('.tab'); if(!b) return; document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on', x===b)); ST.tab=b.dataset.t; refreshSources(); });
 /* ---------------- Track fetching ---------------- */
 const normTrack = (t, album) => (t && typeof t.id==='string' && t.id && t.uri==='spotify:track:'+t.id && Number.isFinite(t.duration_ms) && t.duration_ms > 0 && t.type !== 'episode' && !t.is_local && t.is_playable !== false && !t.restrictions?.reason) ? {
-  id:t.id, uri:t.uri, name:t.name, dur:t.duration_ms, isrc:/^[A-Z]{2}[A-Z0-9]{3}\d{7}$/.test(String(t.external_ids?.isrc||'').toUpperCase())?String(t.external_ids.isrc).toUpperCase():null, artists:(t.artists||[]).map(a=>a.name), artistId:t.artists?.[0]?.id,
+  id:t.id, uri:t.uri, name:t.name, albumName:(t.album||album)?.name||'', dur:t.duration_ms, isrc:/^[A-Z]{2}[A-Z0-9]{3}\d{7}$/.test(String(t.external_ids?.isrc||'').toUpperCase())?String(t.external_ids.isrc).toUpperCase():null, artists:(t.artists||[]).map(a=>a.name), artistId:t.artists?.[0]?.id,
   img:(t.album||album)?.images?.[0]?.url || '', imgS:(t.album||album)?.images?.slice(-1)[0]?.url || '' } : null;
 
 async function tracksFromSource(src,onProgress){
@@ -815,7 +821,7 @@ function uniqueRecordings(tracks){
   return out;
 }
 
-/* Timing comes only from a validated AI answer, never a duration preset. */
+/* Validated saved passage ranges; no fixed-duration fallback. */
 const SRC={ai:'AI pick',you:'Your correction',pending:'AI preparing'};
 function buildOrder(tracks){return tracks.slice();}
 function planSegments(tracks){
@@ -830,7 +836,9 @@ function planSegments(tracks){
 const HK={get(){try{return JSON.parse(LS.get('hooks')||'{}');}catch{return {};}},set(id,ms){const c=this.get();c[id]=Math.round(ms);LS.set('hooks',JSON.stringify(c));},clear(id){const c=this.get();delete c[id];LS.set('hooks',JSON.stringify(c));}};
 /* ---------------- AI DJ (Gemini or Claude) ---------------- */
 const AI = {
-  usesGemini(){return LS.get('passage_source')==='gemini';},
+  source(){return LS.get('passage_source')||'lyrics';},
+  usesGemini(){return this.source()==='gemini';},
+  accepts(c){return this.usesGemini()||c?.source==='local-audio'||(this.source()==='lyrics'&&c?.source==='timed-lyrics');},
   key(){ return LS.get('aikey') || ''; },
   cache(){
     const raw=LS.get('ai4')||'{}';if(this._raw===raw&&this._cache)return this._cache;
@@ -843,7 +851,7 @@ const AI = {
     this._indexCache=cache;this._recordings=index;return index;
   },
   pick(t,cache=this.cache()){
-    const valid=c=>c&&(this.usesGemini()||c.source==='local-audio')&&c.schema===2&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.start>=0&&c.end>c.start&&c.end<=t.dur;
+    const valid=c=>c&&this.accepts(c)&&c.schema===2&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.start>=0&&c.end>c.start&&c.end<=t.dur;
     if(LocalAudio.draft?.id===t.id&&valid(LocalAudio.draft))return LocalAudio.draft;
     const own=cache[t.id];if(valid(own))return own;
     return t.isrc?this.index(cache).get(t.isrc)?.find(c=>valid(c)&&Number.isFinite(c.song.dur)&&Math.abs(c.song.dur-t.dur)<=1000)||null:null;
@@ -884,7 +892,7 @@ const AI = {
       }
       LS.set('ai_revision',String(this.revision+1));
       this.q=Promise.resolve();aheadSerial++;aheadBusy=false;
-      if(!LS.set('ai4',JSON.stringify(Object.fromEntries(Object.entries(picks).filter(([,c])=>c?.source==='local-audio')))))throw new Error('Could not clear the saved timings.');
+      if(!LS.set('ai4',JSON.stringify(Object.fromEntries(Object.entries(picks).filter(([,c])=>(c?.source==='local-audio'||c?.source==='timed-lyrics'))))))throw new Error('Could not clear the saved timings.');
       this._raw=null;this._cache=null;this._indexCache=null;this.lastErr=null;
       for(const t of new Set([...ST.mix,...(ST.pool||[])])){delete t._aiP;delete t._aiTries;t.aiPending=false;t._lock=false;}
       for(const mix of Library.state.mixes){mix.positionReady=false;mix.pendingSeek=true;mix.position=0;mix.finished=false;}
@@ -1024,9 +1032,10 @@ function replanAhead(lockUpTo){
   planSegments(mix); mix.forEach(t => t._lock = false);
   renderDeck(); aiStatus(); Library.capture();
 }
-function aiStatus(){const n=ST.mix.filter(t=>AI.pick(t)).length;$('#aiStat').innerHTML=n===ST.mix.length?'':`<p class="tiny muted" style="margin-top:12px">${AI.usesGemini()?'Preparing passages':'Matching files'} · ${n}/${ST.mix.length} ready</p>`;}
+function aiStatus(){const n=ST.mix.filter(t=>AI.pick(t)).length;$('#aiStat').innerHTML=n===ST.mix.length?'':`<p class="tiny muted" style="margin-top:12px">${AI.usesGemini()?'Preparing passages':AI.source()==='lyrics'?'Preparing timed lyrics':'Matching files'} · ${n}/${ST.mix.length} ready</p>`;}
 let aheadBusy = false,aheadSerial=0;
 async function aiAhead(){
+  if(AI.source()==='lyrics')return lyricsAhead();
   if (!AI.usesGemini() || !AI.key() || !ST.mix.length || aheadBusy) return; aheadBusy = true;
   const mix=ST.mix,revision=AI.revision,serial=++aheadSerial;
   try {
@@ -1040,7 +1049,135 @@ async function aiAhead(){
     }
   } finally { if(serial===aheadSerial){aheadBusy=false;if(revision===AI.revision&&ST.mix!==mix&&ST.mix.length)setTimeout(()=>aiAhead(),0);} }
 }
-function rowPlan(t){const p=AI.pick(t);return p?`${fmt(t.start)}–${fmt(t.end)}`:!AI.usesGemini()?'Choose matching file in Settings':t._aiTries>=2?'AI pick unavailable · retry':'AI preparing…';}
+function rowPlan(t){const p=AI.pick(t);return p?`${fmt(t.start)}–${fmt(t.end)}`:AI.source()==='lyrics'?(Lyrics.failure(t)?.message||'Preparing timed lyrics…'):!AI.usesGemini()?'Choose matching file in Settings':t._aiTries>=2?'AI pick unavailable · retry':'AI preparing…';}
+
+/* Timed lyric sections: structural estimates, not audio/beat or vocal-end detection. */
+const Lyrics={
+  q:Promise.resolve(),pending:new Map(),lastRequest:0,cooldownUntil:0,
+  text(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'');},
+  title(s){return this.text(String(s||'').replace(/\s*[\(\[]\s*from\b[^\)\]]*[\)\]]/gi,'').replace(/\s*[-–]\s*from\b.*$/i,''));},
+  artist(s){return String(s||'').split(/[,;&/]|\b(?:feat\.?|featuring|and)\b/i).map(x=>this.text(x)).filter(Boolean);},
+  matches(record,t){
+    if(!record||record.instrumental||typeof record.syncedLyrics!=='string'||!record.syncedLyrics.trim()||!Number.isFinite(record.duration)||Math.abs(record.duration*1000-t.dur)>2000||this.title(record.trackName)!==this.title(t.name))return false;
+    const names=t.artists.flatMap(a=>this.artist(a));return this.artist(record.artistName).some(a=>names.includes(a));
+  },
+  parse(lrc,dur){
+    const offset=Number(/\[offset:([+-]?\d+)\]/i.exec(lrc)?.[1]||0),rows=[];let paragraph=false;
+    for(const raw of lrc.split(/\r?\n/)){
+      if(!raw.trim()){paragraph=true;continue;}
+      const stamps=[...raw.matchAll(/\[(\d{1,3}):([0-5]\d(?:\.\d{1,3})?)\]/g)];
+      if(!stamps.length)continue;
+      const text=raw.replace(/\[[^\]]*\]/g,'').replace(/<\d+:\d+(?:\.\d+)?>/g,'').trim();
+      for(const m of stamps){const at=(Number(m[1])*60+Number(m[2]))*1000+offset;if(at>=0&&at<=dur)rows.push({at,text,key:this.text(text),paragraph});}
+      paragraph=false;
+    }
+    rows.sort((a,b)=>a.at-b.at);const out=[];
+    for(const r of rows){const last=out.at(-1);if(last?.at===r.at){if(r.key&&!last.key)Object.assign(last,r);else if(r.key&&last.key&&!last.key.includes(r.key)){last.text+=' / '+r.text;last.key=this.text(last.text);}last.paragraph||=r.paragraph;}else out.push({...r});}
+    return out;
+  },
+  section(record,t){
+    const rows=this.parse(record.syncedLyrics,t.dur),lines=rows.filter(r=>r.key);
+    if(lines.length<4)return null;
+    const counts=new Map();for(const r of lines)counts.set(r.key,(counts.get(r.key)||0)+1);
+    const explicit=[];let start=null,group=[];
+    for(const r of rows){
+      if(!r.key){if(start!==null&&group.length>=2)explicit.push({start,end:r.at,lines:group,boundary:'lyric-break'});start=null;group=[];}
+      else{if(r.paragraph&&start!==null){if(group.length>=2)explicit.push({start,end:r.at,lines:group,boundary:'lyric-paragraph'});start=null;group=[];}if(start===null)start=r.at;group.push(r);}
+    }
+    // Do not invent the final vocal's end from track duration or a fixed line length.
+    let candidates=explicit;
+    if(!candidates.length){
+      const breaks=new Set([0]);
+      // Align provider stanza paragraphs with timed lines where text agrees exactly.
+      let cursor=0;
+      for(const paragraph of String(record.plainLyrics||'').split(/\n\s*\n/)){
+        const keys=paragraph.split(/\r?\n/).map(x=>this.text(x)).filter(Boolean);if(keys.length<2)continue;
+        for(let i=cursor;i+keys.length<=lines.length;i++)if(keys.every((key,j)=>key===lines[i+j].key)){breaks.add(i);breaks.add(i+keys.length);cursor=i+keys.length;break;}
+      }
+      // Repeated multi-line refrain starts delimit a verse plus its refrain return.
+      const anchors=new Set();
+      for(let i=0;i<lines.length-2;i++)for(let j=i+3;j<lines.length-2;j++){
+        if(i&&lines[i-1].key===lines[j-1].key)continue;
+        if(lines[i].key===lines[j].key&&lines[i+1].key===lines[j+1].key&&lines[i+2].key===lines[j+2].key&&new Set(lines.slice(i,i+3).map(x=>x.key)).size>=2){anchors.add(i);anchors.add(j);}
+      }
+      const starts=[...anchors].sort((a,b)=>a-b);for(const i of starts)breaks.add(i);
+      if(breaks.size<=1){
+        const gaps=lines.slice(1).map((r,i)=>r.at-lines[i].at),median=a=>a.slice().sort((a,b)=>a-b)[Math.floor(a.length/2)]||0,m=median(gaps),mad=median(gaps.map(x=>Math.abs(x-m)));
+        for(let i=1;i<lines.length;i++)if(lines[i].at-lines[i-1].at>Math.max(m*2.2,m+3*mad))breaks.add(i);
+      }
+      const points=[...breaks].filter(i=>i<lines.length).sort((a,b)=>a-b);candidates=[];
+      for(let i=0;i<points.length-1;i++){const a=points[i],b=points[i+1];if(b-a>=2)candidates.push({start:lines[a].at,end:lines[b].at,lines:lines.slice(a,b),boundary:'next-lyric-line'});}
+    }
+    candidates=candidates.filter(c=>c.start>=0&&c.end>c.start&&c.end<=t.dur&&c.lines.length>=2&&!(c.start===0&&c.end===t.dur));
+    for(const c of candidates){const diversity=new Set(c.lines.map(x=>x.key)).size/c.lines.length,novel=c.lines.filter(x=>counts.get(x.key)===1).length/c.lines.length;
+      // Prefer an interior varied verse over an opening or repetitive refrain.
+      c.score=diversity+novel+(c.start>lines[0].at?.6:0)+Math.min(c.lines.length/lines.length,.5);
+    }
+    candidates.sort((a,b)=>b.score-a.score||a.start-b.start);const best=candidates[0];
+    return best?{schema:2,source:'timed-lyrics',start:best.start,end:best.end,boundary:best.boundary,section:'Timed-lyric section',why:'Estimated from lyric structure',provider:'LRCLIB',providerId:record.id,method:'lyrics-structure-v1',song:Library.track(t)}:null;
+  },
+  failures(){try{return JSON.parse(LS.get('lyrics_lookups1')||'{}');}catch{return {};}},
+  key(t){return t.isrc?`${t.isrc}:${Math.round(t.dur/1000)}`:t.id;},
+  failure(t){return this.failures()[this.key(t)];},
+  async miss(t,message,until=Date.now()+86400000){const f=this.failures();f[this.key(t)]={message,until};const rows=Object.entries(f).sort((a,b)=>b[1].until-a[1].until).slice(0,2000);LS.set('lyrics_lookups1',JSON.stringify(Object.fromEntries(rows)));await Persist.flush();},
+  async request(title){
+    const wait=Math.max(0,this.lastRequest+350-Date.now());if(wait)await sleep(wait);
+    if(Date.now()<this.cooldownUntil)throw Object.assign(new Error('Timed lyrics are rate limited. Preparation will retry later.'),{retryAt:this.cooldownUntil});
+    this.lastRequest=Date.now();const q=new URLSearchParams({track_name:title});
+    const response=await tfetch('https://lrclib.net/api/search?'+q,{headers:{'Lrclib-Client':`Segue/${APP_VERSION} (${CANON})`},credentials:'omit'},10000);
+    this.lastRequest=Date.now();
+    if(response.status===429||response.status===503){const raw=response.headers.get('Retry-After'),seconds=Number(raw),delay=raw&&Number.isFinite(seconds)?seconds*1000:Math.max(0,Date.parse(raw||'')-Date.now())||60000;this.cooldownUntil=Date.now()+Math.max(1000,delay)+Math.random()*Math.max(1000,delay)*.1;throw Object.assign(new Error('Timed lyrics are temporarily unavailable. Preparation will retry later.'),{retryAt:this.cooldownUntil});}
+    if(!response.ok)throw new Error('Timed lyrics could not be loaded. Retry later.');const result=await response.json();if(!Array.isArray(result))throw new Error('The lyrics service returned an invalid result.');return result;
+  },
+  one(t){
+    if(AI.source()!=='lyrics'||AI.pick(t))return Promise.resolve();const revision=AI.revision,key=`${revision}:${t.id}`;
+    if(this.pending.has(key))return this.pending.get(key);
+    const p=this.q=this.q.then(async()=>{
+      if(revision!==AI.revision||AI.source()!=='lyrics')return;
+      await AI.prepareIdentities([t],revision);if(revision!==AI.revision||AI.pick(t))return;
+      const previous=this.failure(t);if(previous?.until>Date.now())return;
+      try{
+        const clean=t.name.replace(/\s*[\(\[]\s*from\b[^\)\]]*[\)\]]/gi,'').replace(/\s*[-–]\s*from\b.*$/i,'').trim();
+        let records=await this.request(t.name);if(revision!==AI.revision||AI.source()!=='lyrics')return;
+        if(!records.some(r=>this.matches(r,t)&&this.section(r,t))&&clean!==t.name)records=records.concat(await this.request(clean));
+        if(revision!==AI.revision||AI.source()!=='lyrics')return;
+        const candidates=records.filter(r=>this.matches(r,t)).map(r=>({pick:this.section(r,t),album:this.text(r.albumName)===this.text(t.albumName)&&!!t.albumName})).filter(x=>x.pick).sort((a,b)=>Number(b.album)-Number(a.album)||Number(a.pick.boundary==='next-lyric-line')-Number(b.pick.boundary==='next-lyric-line'));
+        if(!candidates.length){await this.miss(t,'No matching timed-lyric section is available for this recording.');return;}
+        const pick=candidates[0].pick,cache=AI.cache(),old=cache[t.id];if(old)pick.previous={start:old.start,end:old.end};cache[t.id]=pick;
+        if(!await AI.save(cache))throw new Error('Could not save the timed-lyric section on this device.');
+        const f=this.failures();delete f[this.key(t)];LS.set('lyrics_lookups1',JSON.stringify(f));
+        if(revision===AI.revision&&(!DJ.streamOwned||ST.mix[DJ.idx]!==t)){t._lock=false;planSegments([t]);}
+      }catch(e){if(revision===AI.revision&&AI.source()==='lyrics')await this.miss(t,e.message,e.retryAt||Date.now()+60000);}
+    }).finally(()=>{if(this.pending.get(key)===p)this.pending.delete(key);});
+    // A storage/provider failure must not poison the serialized preparation queue.
+    this.q=p.catch(()=>{});this.pending.set(key,p);return p;
+  },
+  retry(){LS.set('lyrics_lookups1','{}');this.status();aiAhead();},
+  status(){const ready=ST.mix.filter(t=>AI.pick(t)).length,missing=ST.mix.filter(t=>!AI.pick(t)&&this.failure(t)?.until>Date.now()).length;$('#lyricsStatus').textContent=ST.mix.length?`${ready}/${ST.mix.length} passages ready${missing?` · ${missing} without a matching timed section`:''}. Preparation runs ahead while you listen.`:'Choose an album, artist or playlist to begin.';}
+};
+
+let lyricAheadBusy=false,lyricAheadSerial=0,lyricRetryTimer;
+async function lyricsAhead(){
+  if(AI.source()!=='lyrics'||!ST.mix.length||lyricAheadBusy)return;
+  lyricAheadBusy=true;const serial=++lyricAheadSerial,mix=ST.mix,revision=AI.revision;
+  try{
+    const from=DJ.streamOwned?DJ.idx+1:DJ.idx;let preparedDuration=0,count=0;
+    for(const t of mix.slice(from)){
+      if(ST.mix!==mix||revision!==AI.revision||AI.source()!=='lyrics')break;
+      if(!AI.pick(t))await Lyrics.one(t);
+      if(ST.mix!==mix||revision!==AI.revision||AI.source()!=='lyrics')break;
+      const pick=AI.pick(t);preparedDuration+=pick?pick.end-pick.start:0;count++;
+      replanAhead(DJ.streamOwned||DJ.confirmed?DJ.idx:-1);Lyrics.status();
+      if((count>=3&&preparedDuration>=600000)||count>=12||Lyrics.cooldownUntil>Date.now())break;
+    }
+  }catch(e){if(revision===AI.revision)$('#lyricsStatus').textContent=e.message;}
+  finally{
+    if(serial===lyricAheadSerial){lyricAheadBusy=false;
+      if(revision===AI.revision&&ST.mix!==mix&&ST.mix.length)setTimeout(()=>aiAhead(),0);
+      if(AI.source()==='lyrics'&&Lyrics.cooldownUntil>Date.now()){clearTimeout(lyricRetryTimer);lyricRetryTimer=setTimeout(()=>aiAhead(),Lyrics.cooldownUntil-Date.now()+100);}
+    }
+  }
+}
 
 /* Traditional signal processing only. No model, network, fixed clip duration or vocal-end claim. */
 function analyzeAudioSignal(samples,rate,progress=()=>{}){
@@ -1085,7 +1222,7 @@ function analyzeAudioSignal(samples,rate,progress=()=>{}){
 const LocalAudio={
   serial:0,worker:null,reject:null,result:null,draft:null,selected:null,
   refresh(){
-    const local=!AI.usesGemini();$('#passageSource').value=local?'local':'gemini';$('#matchingForm').classList.toggle('hide',!local);$('#geminiSettings').classList.toggle('hide',local);
+    const source=AI.source(),local=source==='local';$('#passageSource').value=source;$('#matchingForm').classList.toggle('hide',!local);$('#geminiSettings').classList.toggle('hide',source!=='gemini');$('#lyricsSettings').classList.toggle('hide',source!=='lyrics');Lyrics.status();
     const select=$('#audioTrack'),value=select.value;
     select.innerHTML=ST.mix.map(t=>`<option value="${esc(t.id)}">${esc(t.name)} · ${esc(t.artists.join(', '))}</option>`).join('');
     select.value=ST.mix.some(t=>t.id===value)?value:ST.mix[DJ.idx]?.id||'';
@@ -1093,7 +1230,7 @@ const LocalAudio={
   },
   async mode(value){
     const state=await DJ.sdkState();if((DJ.busy||DJ.streamOwned||DJ.desiredPlaying||state?.paused===false)&&!await DJ.pause())throw new Error('Pause audio before changing the selection source.');
-    this.cancel();this.draft=null;LS.set('passage_source',value);LS.set('ai_revision',String(AI.revision+1));AI.q=Promise.resolve();aheadSerial++;aheadBusy=false;DJ.epoch++;DJ.loadedMix=DJ.loadedId=DJ.checkpointId=null;DJ.pendingSeek=true;DJ.pos=0;DJ.setPhase('ready');ST.mix.forEach(t=>{t._lock=false;delete t._aiP;delete t._aiTries;t.aiPending=false;});planSegments(ST.mix);if(ST.mix.length)renderDeck();AI.savedStatus();this.refresh();Library.render();
+    this.cancel();this.draft=null;LS.set('passage_source',value);LS.set('ai_revision',String(AI.revision+1));AI.q=Promise.resolve();aheadSerial++;aheadBusy=false;lyricAheadSerial++;lyricAheadBusy=false;clearTimeout(lyricRetryTimer);DJ.epoch++;DJ.loadedMix=DJ.loadedId=DJ.checkpointId=null;DJ.pendingSeek=true;DJ.pos=0;DJ.setPhase('ready');ST.mix.forEach(t=>{t._lock=false;delete t._aiP;delete t._aiTries;t.aiPending=false;});planSegments(ST.mix);if(ST.mix.length)renderDeck();AI.savedStatus();this.refresh();Library.render();Library.capture();aiAhead();
   },
   cancel(){this.serial++;this.worker?.terminate();this.worker=null;this.reject?.(new Error('Analysis cancelled.'));this.reject=null;$('#analyseFile').disabled=!ST.mix.length;$('#cancelAnalysis').disabled=true;},
   async metadata(file){
@@ -1266,7 +1403,12 @@ const DJ = {
     throw new Error('Audio has not started. Tap Play to retry.');
   },
   async prepare(t,n){
-    if(!AI.pick(t)&&!AI.usesGemini()){
+    if(!AI.pick(t)&&AI.source()==='lyrics'){
+      this.setPhase('waiting-lyrics','Finding a timed-lyric section…');
+      if(!await this.waitPreparation(Lyrics.one(t),n))return false;
+      if(!AI.pick(t))throw new Error(Lyrics.failure(t)?.message||'No matching timed-lyric section is available. Retry lyrics in Settings or choose another song.');
+    }
+    if(!AI.pick(t)&&AI.source()==='local'){
       await AI.prepareIdentities([t]);if(!this.current(n))return false;
       if(!AI.pick(t))throw new Error('Choose this song’s matching audio file in Settings, then review and save its passage.');
     }
@@ -1368,7 +1510,7 @@ const DJ = {
       if(this.desiredPlaying&&s.position>=t.dur-1000){this.confirmed=false;await this.next(true);return;}
       this.confirmed=this.streamOwned=this.desiredPlaying=false;this.lastSample=null;this.setPhase('paused');Library.progress();return;
     }
-    if(!AI.pick(t)){await this.pause();this.setPhase('error','This song needs a fresh AI pick. Tap Play.');return;}
+    if(!AI.pick(t)){await this.pause();this.setPhase('error','This song needs a passage. Tap Play to prepare it.');return;}
     if(s.position<t.start-2000){await this.pause();this.setPhase('error','The song position changed. Tap Play to return to its best part.');return;}
     const moved=this.lastSample&&s.position-this.lastSample.pos>=80;
     if(moved){this.lastMotionAt=now;this.confirmed=this.streamOwned=this.desiredPlaying=true;this.setPhase('playing');}
@@ -1469,7 +1611,7 @@ function renderTransport(){
   if(!exists){$('#deck').classList.remove('disc-running');if(typeof ResizeObserver!=='function')scheduleChrome();return;}
   const fresh=DJ.confirmed&&now-DJ.lastFrameAt<3500&&now-DJ.lastMotionAt<3500;
   const phase=DJ.playing&&!fresh?'reconnecting':DJ.phase;
-  const labels={ready:'Ready',paused:'Paused',playing:'Playing',starting:'Starting browser audio…','waiting-ai':'Waiting for AI…',buffering:'Buffering…',checking:'Checking playback…',reconnecting:'Reconnecting…',disconnected:'Browser player unavailable',external:'Playback changed',error:'Playback needs attention',ended:'Mix finished',pausing:'Confirming pause…','pause-unconfirmed':'Pause not confirmed',seeking:'Seeking…'};
+  const labels={ready:'Ready',paused:'Paused',playing:'Playing',starting:'Starting browser audio…','waiting-ai':'Waiting for AI…','waiting-lyrics':'Preparing timed lyrics…',buffering:'Buffering…',checking:'Checking playback…',reconnecting:'Reconnecting…',disconnected:'Browser player unavailable',external:'Playback changed',error:'Playback needs attention',ended:'Mix finished',pausing:'Confirming pause…','pause-unconfirmed':'Pause not confirmed',seeking:'Seeking…'};
   $('#deck').classList.toggle('disc-running',phase==='playing');
   const running=phase==='playing',pending=DJ.busy||['checking','buffering','reconnecting'].includes(phase)||(DJ.desiredPlaying&&phase==='disconnected');
   const action=running?'Pause':phase==='pausing'?'Pausing':phase==='pause-unconfirmed'?'Retry pause':pending?'Cancel':phase==='error'||phase==='disconnected'?'Retry':phase==='ended'?'Replay':'Play';
@@ -1530,6 +1672,7 @@ function showView(v){
   Library.mini();
 }
 const localAction=fn=>async()=>{try{await fn();}catch(e){$('#audioStatus').textContent=e.message;}};
+$('#retryLyrics').onclick=()=>Lyrics.retry();
 $('#passageSource').onchange=localAction(()=>LocalAudio.mode($('#passageSource').value));
 $('#analyseFile').onclick=localAction(()=>LocalAudio.analyse());
 $('#cancelAnalysis').onclick=()=>{LocalAudio.cancel();$('#audioStatus').textContent='Analysis cancelled.';};
@@ -1616,12 +1759,15 @@ $('#verTop').textContent = $('#verLbl').textContent = 'Version ' + APP_VERSION;
   $('#app').classList.remove('hide');
   $('#acct').textContent = ST.me.display_name || 'Connected to Spotify'; $('#nav').classList.remove('hide');
   $('#lo').onclick = logout;
+  if(LS.get('passage_mode40')!=='1'){LS.set('passage_source','lyrics');LS.set('passage_mode40','1');}
   Library.load();
+  LocalAudio.refresh();
   refreshSources();
   $('#aiKey').value = LS.get('aikey') || '';
   AI.savedStatus();
   $('#aiSave').onclick = () => { const v = $('#aiKey').value.trim(); LS.set('aikey', v || null); AI.models = null; AI.lastErr = null; toast(v ? 'AI key saved on this device' : 'AI key removed'); };
   DJ.init();
+  aiAhead();
 })();
 </script>
 </body>
