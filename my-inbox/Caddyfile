@@ -1,0 +1,18 @@
+{$DOMAIN} {
+	encode zstd gzip
+
+	handle /_matrix/* {
+		reverse_proxy synapse:8008
+	}
+	handle /push/* {
+		reverse_proxy pushgw:8080
+	}
+	handle /_synapse/client/* {
+		reverse_proxy synapse:8008
+	}
+	handle {
+		root * /srv/web
+		header Cache-Control "no-cache"
+		file_server
+	}
+}

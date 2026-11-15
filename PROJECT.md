@@ -17,6 +17,7 @@ Last updated: 2026-11-15.
 | `plate-log/` | Plate Log, a separate food diary app | https://vijaykannan2020-del.github.io/Apps/plate-log/ |
 | `speaknative/` | SpeakNative: American English speaking coach (AI role-play with feedback, Polish rewrites, drills with pronunciation check). Same Firebase sign-in | https://vijaykannan2020-del.github.io/Apps/speaknative/ |
 | `segue/` | Segue: plays saved passages selected from timed lyrics in Spotify albums, artists and playlists. Full handoff in `segue/README.md` | https://vijaykannan2020-del.github.io/Apps/segue/ |
+| `my-inbox/` | My Inbox: own Beeper-style unified inbox for WhatsApp, Instagram and Messenger. NOT a GitHub Pages app: it runs on Vijay's own VPS (Docker: Synapse + mautrix bridges + push gateway + Caddy). Setup in `my-inbox/README.md`; holds no secrets (created on the server by `setup.sh`) | Vijay's own domain (not Pages) |
 
 Hosting is GitHub Pages from the `main` branch. A push to `main` is live in
 one to two minutes. There is no build step and no package manager.
@@ -147,6 +148,8 @@ the top right and cover part of the page.
   GitHub Pages and the free TMDB terms are for non-commercial use.
 
 ## Change log
+
+- 2026-11-15, Claude: Added `my-inbox/`, a self-hosted unified inbox (private Matrix server with mautrix WhatsApp/Instagram/Messenger bridges, one-page PWA client, Web Push notifications via a small push gateway, security hardening in setup.sh). Server project, not served by Pages. Tested against a mock Matrix server only; not yet run on a real VPS or with real accounts.
 
 - 2026-11-15, ChatGPT: Segue Version 41 fixes near-whole-song lyric selections: inspect stanzas/refrains inside explicit outer blocks, coalesce continuous repeated hooks, prefer one verse/refrain return, and reject over-half-recording or 65%-of-vocal-line candidates rather than truncate to a timer. Old lyric-v1 mappings refine once to v2 with previous ranges retained; other caches/queues/keys/manual marks preserved. Fixes manual-start-after-end fallback to full track duration and rejects oversized manual lyric expansions. 73 controller/selection cases plus seeded-v1 Chromium refinement/SDK/reload tests and existing player/catalog/file/layout checks pass. Still structural estimates, not audible hype or guaranteed vocal-completion detection.
 
