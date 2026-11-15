@@ -277,7 +277,7 @@ h1,h2,h3{letter-spacing:-.02em}
 @media(prefers-reduced-motion:reduce){.nav button{transition:none}}
 
 /* Version 23: rewatch history */
-.hist{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--tint-pink);font-size:14px}.hrow b{margin-left:6px}.hrow .link{font-size:12px;color:var(--soft);flex:none}.hrow>span{flex:1;min-width:0}.hdate{display:block;margin-top:8px;padding:8px 10px;font-size:15px;background:var(--paper)}
+.hist{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--tint-pink);font-size:14px}.hrow b{margin-left:6px}.hrow .link{font-size:12px;color:var(--soft);flex:none}.hrow{align-items:flex-start}.hgrid{flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}.hgrid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--soft);min-width:0}.hgrid .inp{padding:8px 10px;font-size:15px;background:var(--paper);width:100%;min-width:0}
 </style>
 </head>
 <body>
@@ -392,7 +392,7 @@ h1,h2,h3{letter-spacing:-.02em}
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 24</p>
+    <p class="note" style="text-align:center">Version 26</p>
   </section>
 </div>
 
@@ -448,7 +448,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=24;
+const APP_VERSION=26;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -602,28 +602,33 @@ function renderStats(){
   const w=entries().filter(e=>e.status==='watched');
   if(!w.length){$('#statsOut').innerHTML='<div class="empty"><strong>No numbers yet</strong>They appear once you log a film as watched.</div>';return}
   const rated=w.filter(e=>+e.rating>0), avg=rated.length?rated.reduce((a,b)=>a+ +b.rating,0)/rated.length:0;
-  const mins=w.reduce((a,b)=>a+(+b.minutes||0),0), yr=String(new Date().getFullYear());
-  const count=f=>{const m={};w.forEach(e=>{const k=f(e);if(k)m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,7)};
+  const vw=[];w.forEach(e=>{vw.push({e,on:e.watchedOn||'',where:e.where,lang:e.watchedLang,re:false});(e.views||[]).forEach(x=>vw.push({e,on:x.on||'',where:x.where,lang:x.lang,re:true}))});
+  const reN=vw.filter(v=>v.re).length, mins=vw.reduce((a,v)=>a+(+v.e.minutes||0),0), yr=String(new Date().getFullYear());
+  const hrs=mins>=60?Math.round(mins/60).toLocaleString():(mins?mins+'m':'–');
+  const count=(f,list)=>{const m={};(list||w).forEach(e=>{const k=f(e);if(k)m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,7)};
   const bars=r=>{const mx=Math.max(1,...r.map(x=>x[1]));return r.length?r.map(([k,n])=>`<div class="bar"><span>${esc(k)}</span><div><i style="width:${n/mx*100}%"></i></div><em>${n}</em></div>`).join(''):'<p class="note">Nothing logged for this yet.</p>'};
   const now=new Date(), months=[];
-  for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');months.push([d.toLocaleDateString(undefined,{month:'narrow'}),w.reduce((a,e)=>a+((e.watchedOn||'').startsWith(k)?1:0)+(e.views||[]).filter(x=>(x.on||'').startsWith(k)).length,0)])}
+  for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');months.push([d.toLocaleDateString(undefined,{month:'narrow'}),vw.filter(v=>v.on.startsWith(k)).length])}
   const mm=Math.max(1,...months.map(m=>m[1]));
-  const bm={};w.forEach(e=>{const k=(e.watchedOn||'').slice(0,statMode==='year'?4:7)||'none';(bm[k]=bm[k]||[]).push(e)});
+  const bm={};vw.forEach(v=>{if(v.re&&!v.on)return;const k=v.on.slice(0,statMode==='year'?4:7)||'none';(bm[k]=bm[k]||[]).push(v)});
   const bk=Object.entries(bm).sort((a,b)=>a[0]==='none'?1:b[0]==='none'?-1:b[0].localeCompare(a[0]));
   const lab=k=>k==='none'?'No date':statMode==='year'?k:new Date(k+'-01T00:00:00').toLocaleDateString(undefined,{month:'long',year:'numeric'});
   $('#statsOut').innerHTML=`<div class="tiles">
     <div class="tile"><b>${w.length}</b><span>watched</span></div>
     <div class="tile"><b>${avg?avg.toFixed(1):'–'}</b><span>average rating</span></div>
     <div class="tile"><b>${w.filter(e=>!isSeries(e)).length}</b><span>movies</span></div>
-    <div class="tile"><b>${w.filter(isSeries).length}</b><span>web series</span></div>${w.some(e=>(e.views||[]).length)?`<div class="tile"><b>${w.reduce((a,e)=>a+(e.views||[]).length,0)}</b><span>rewatches</span></div>`:''}</div>
+    <div class="tile"><b>${w.filter(isSeries).length}</b><span>web series</span></div>
+    <div class="tile"><b>${reN}</b><span>rewatches</span></div>
+    <div class="tile"><b>${hrs}</b><span>${mins>=60?'hours watched':'time watched'}</span></div></div>
+   <p class="note" style="margin:8px 2px 0">Time watched counts every watch, rewatches included.</p>
    <div class="panel"><h3>Watched by ${statMode==='year'?'year':'month'}</h3>
      <div class="choice" id="bMode" style="margin-bottom:8px"><button type="button" data-m="month" class="${statMode==='month'?'on':''}">Monthly</button><button type="button" data-m="year" class="${statMode==='year'?'on':''}">Yearly</button></div>
-     ${bk.map(([k,a],i)=>{const mv=a.filter(e=>!isSeries(e)).length,sr=a.length-mv;
-       return `<details class="bk"${i===0?' open':''}><summary><span>${esc(lab(k))}</span><em>${mv} movie${mv===1?'':'s'}</em><em>${sr} series</em></summary><ul>${a.sort(byRecent).map(e=>`<li>${esc(e.title)}<span>${isSeries(e)?'Series':'Movie'}${+e.rating?', '+fmtR(+e.rating)+' of 5':''}</span></li>`).join('')}</ul></details>`}).join('')}
+     ${bk.map(([k,a],i)=>{const mv=a.filter(v=>!isSeries(v.e)).length,sr=a.length-mv,rn=a.filter(v=>v.re).length;
+       return `<details class="bk"${i===0?' open':''}><summary><span>${esc(lab(k))}</span><em>${mv} movie${mv===1?'':'s'}</em><em>${sr} series</em>${rn?`<em>${rn} rewatch${rn===1?'':'es'}</em>`:''}</summary><ul>${a.sort((x,y)=>y.on.localeCompare(x.on)).map(v=>`<li>${esc(v.e.title)}<span>${isSeries(v.e)?'Series':'Movie'}${v.re?', rewatch':''}${!v.re&&+v.e.rating?', '+fmtR(+v.e.rating)+' of 5':''}</span></li>`).join('')}</ul></details>`}).join('')}
    </div>
    <div class="panel"><h3>Films per month</h3><div class="months">${months.map(m=>`<div><i style="height:${m[1]/mm*100}%"></i><span>${m[0]}</span></div>`).join('')}</div></div>
-   <div class="panel"><h3>Where I watch</h3>${bars(count(e=>e.where))}</div>
-   <div class="panel"><h3>Language I watch in</h3>${bars(count(e=>e.watchedLang))}</div>
+   <div class="panel"><h3>Where I watch</h3>${bars(count(v=>v.where,vw))}</div>
+   <div class="panel"><h3>Language I watch in</h3>${bars(count(v=>v.lang,vw))}</div>
    <div class="panel"><h3>Genres</h3>${bars(count(e=>(e.genre||'').split(',')[0].trim()))}</div>`;
   $$('#bMode button').forEach(b=>b.onclick=()=>{statMode=b.dataset.m;renderStats()});
 }
@@ -741,7 +746,7 @@ document.addEventListener('click',e=>{
 });
 function openSheet(d,toForm){
   cur=d;const e=book[d.key]||{};
-  form={seasons:new Set(e.seasonsWatched||[]),status:e.status||'watched',rating:+e.rating||0,where:e.where||'',watchedOn:e.watchedOn||today(),watchedLang:e.watchedLang||(d.original_language==='Tamil'?'Tamil':''),notes:e.notes||'',views:(e.views||[]).slice(),canRe:e.status==='watched'&&!!e.watchedOn,re:false};
+  form={seasons:new Set(e.seasonsWatched||[]),status:e.status||'watched',rating:+e.rating||0,where:e.where||'',watchedOn:e.watchedOn||today(),watchedLang:e.watchedLang||(d.original_language==='Tamil'?'Tamil':''),notes:e.notes||'',views:(e.views||[]).slice(),canRe:e.status==='watched',re:false};
   const p=(d.providers||{})[region]||{};
   const grp=(label,list)=>list&&list.length?`<div class="grp">${label}</div><div class="provs">${list.map(x=>`<div class="prov">${x.logo_path?`<img src="${IMG}w92${esc(x.logo_path)}" alt="">`:''}${esc(x.provider_name)}</div>`).join('')}</div>`:'';
   const watch=grp('Free',p.free)+grp('Free with ads',p.ads)+grp('Subscription',p.flatrate)+grp('Rent',p.rent)+grp('Buy',p.buy);
@@ -809,7 +814,14 @@ function wireViews(pst,pw,pl){
     el.innerHTML=(form.re?'<p class="notice" style="margin:0 0 4px">Logging a new watch. Your earlier watch is kept under Earlier watches.</p>':'')
      +(form.canRe&&!form.re?'<button class="btn quiet" id="fRe" type="button" style="width:100%;margin:2px 0 6px">I watched it again</button>':'')
      +'<button class="link" id="fBefore" type="button" style="display:block;margin:2px 0 8px">+ I had also watched it before</button>'
-     +(v.length?`<label class="fl">Earlier watches</label><div class="hist">${v.map(x=>{const i=form.views.indexOf(x);return `<div class="hrow"><span>${x.on||!x.before?esc([fmtDate(x.on),x.where,x.lang].filter(Boolean).join(', ')||'No details'):'Watched before, date not known'}${+x.rating?' <b>'+fmtR(+x.rating)+'</b>':''}${x.before?`<input class="inp hdate" type="date" data-dt="${i}" max="${today()}" value="${esc(x.on||'')}" aria-label="Date of this earlier watch, optional">`:''}</span><button type="button" class="link" data-rm="${i}" aria-label="Remove this watch">Remove</button></div>`}).join('')}</div>`:'')};
+     +(v.length?`<label class="fl">Earlier watches</label><div class="hist">${v.map(x=>{const i=form.views.indexOf(x);
+       const opt=(list,val,none)=>`<option value="">${none}</option>`+[...new Set([...list,...(val&&!list.includes(val)?[val]:[])])].map(o=>`<option${o===val?' selected':''}>${esc(o)}</option>`).join('');
+       return `<div class="hrow"><div class="hgrid">
+         <label>When<input class="inp" type="date" data-f="on" data-i="${i}" max="${today()}" value="${esc(x.on||'')}"></label>
+         <label>Where<select class="inp" data-f="where" data-i="${i}">${opt(WHERE.slice(0,-1),x.where||'','Not sure')}</select></label>
+         <label>Language<select class="inp" data-f="lang" data-i="${i}">${opt(LANGS,x.lang||'','Not sure')}</select></label>
+         <label>Rating<select class="inp" data-f="rating" data-i="${i}"><option value="0">None</option>${[.5,1,1.5,2,2.5,3,3.5,4,4.5,5].map(r=>`<option value="${r}"${+x.rating===r?' selected':''}>${fmtR(r)}</option>`).join('')}</select></label>
+       </div><button type="button" class="link" data-rm="${i}" aria-label="Remove this watch">Remove</button></div>`}).join('')}</div>`:'')};
   paint();
   el.onclick=e=>{
     if(e.target.id==='fRe'){form.views.push({on:form.watchedOn,where:form.where,lang:form.watchedLang,rating:form.rating});form.re=true;form.canRe=false;form.watchedOn=today();form.where='';$('#fWhereO').value='';$('#fDate').value=form.watchedOn;pw();pl();paint();return}
@@ -817,7 +829,7 @@ function wireViews(pst,pw,pl){
     const b=e.target.closest('[data-rm]');if(!b)return;
     if(!b.dataset.c){b.dataset.c='1';b.textContent='Tap again';return}
     form.views.splice(+b.dataset.rm,1);paint()};
-  el.onchange=e=>{const t=e.target.closest('[data-dt]');if(!t)return;form.views[+t.dataset.dt].on=t.value;paint()};
+  el.onchange=e=>{const t=e.target.closest('[data-f]');if(!t)return;const x=form.views[+t.dataset.i];x[t.dataset.f]=t.dataset.f==='rating'?+t.value:t.value};
 }
 
 function wireSeasons(d){
@@ -834,6 +846,8 @@ function wireSeasons(d){
 }
 async function save(){
   if(!cur||saving)return;const d=cur,w=form.status==='watched';
+  if(w&&form.re&&!form.where){toast('Pick where you watched it this time');$('#fWhere').scrollIntoView({behavior:'smooth',block:'center'});return}
+  if(w&&form.re&&!form.watchedOn){toast('Pick the date you watched it');return}
   const doc={title:d.title,year:d.year||'',kind:d.kind||'',type:d.type||'',tmdbId:d.tmdbId||0,poster:d.poster||'',genre:d.genre||'',original_language:d.original_language||'',minutes:+d.minutes||0,
     status:form.status,rating:w?form.rating:0,where:w?form.where:'',watchedOn:w?form.watchedOn:'',watchedLang:w?form.watchedLang:'',notes:form.notes||'',views:w?form.views:(book[d.key]&&book[d.key].views)||[],
     addedAt:(book[d.key]&&book[d.key].addedAt)||Date.now(),updatedAt:Date.now()};
