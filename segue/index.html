@@ -401,7 +401,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 36;
+const APP_VERSION = 37;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -805,9 +805,6 @@ function planSegments(tracks){
   }
 }
 const HK={get(){try{return JSON.parse(LS.get('hooks')||'{}');}catch{return {};}},set(id,ms){const c=this.get();c[id]=Math.round(ms);LS.set('hooks',JSON.stringify(c));},clear(id){const c=this.get();delete c[id];LS.set('hooks',JSON.stringify(c));}};
-// Previously stored markers remain usable for late-AI continuity; no new lyric lookup.
-const Phrase={next(t,pos){return t.phrase?.gaps?.find(x=>x>=pos)??null;}};
-
 /* ---------------- AI DJ (Gemini or Claude) ---------------- */
 const AI = {
   key(){ return LS.get('aikey') || ''; },
@@ -864,8 +861,8 @@ const AI = {
   },
   prompt(batch){
     const songs=batch.map(t=>({id:t.id,title:t.name,artists:t.artists,duration:t.dur/1000,...(Number.isFinite(HK.get()[t.id])?{manualStart:HK.get()[t.id]/1000}:{})}));
-    return `For each song, choose the best charanam with a strong rhythmic beat and energetic vocals. Compare the charanams rather than defaulting to the opening or refrain. Include the complete selected charanam and its natural return into the chorus. For a song without charanams, choose its best equivalent complete verse or beat-driven instrumental section.
-Give start and end times for the exact recording. Begin before its first sung word and finish after the complete phrase and final sustained syllable. No fixed duration or default timestamp. Respect a supplied manualStart. You do not hear the audio; do not claim verified timing. If you cannot identify the section/timing, return null times rather than inventing them.
+    return `For each song, choose the best charanam with a strong rhythmic beat and energetic vocals. Compare the charanams rather than defaulting to the opening or refrain. Select ONE charanam, not the complete song. Play that charanam in full: do not stop while its lyrics, vocal line, last word, sustained note or final sung syllable is still continuing. End only AFTER that charanam has finished singing. If it flows straight into a chorus return, include the complete resolving phrase and then stop before the following verse. For a song without charanams, choose its best equivalent complete verse or beat-driven instrumental section.
+Give start and end times for the exact recording. Begin before its first sung word and finish after the complete phrase and final sustained syllable. Do not extend the selection to the rest of the song as a fallback. There is no fixed duration, countdown or default timestamp; the chosen charanam determines the length. Respect a supplied manualStart. You do not hear the audio; do not claim verified timing. If you cannot identify the section/timing, return null times rather than inventing them.
 Return only JSON: [{"id":"...","start":seconds,"end":seconds,"section":"short section name"}]. Valid ranges: 0 <= start < end <= duration.
 `+JSON.stringify(songs);
   },
@@ -951,7 +948,7 @@ Return only JSON: [{"id":"...","start":seconds,"end":seconds,"section":"short se
           const start=Number.isFinite(o.start)?Math.round(o.start*1000):null;
           let end=Number.isFinite(o.end)?Math.round(o.end*1000):null;
           if(end>t.dur&&end<=t.dur+1000)end=t.dur; // harmless rounding at the actual recording end
-          if(start==null||end==null||start<0||end<=start||end>t.dur){this.empty++;continue;}
+          if(start==null||end==null||start<0||end<=start||end>t.dur||(start===0&&end===t.dur)){this.empty++;continue;}
           const previous=cache[t.id];
           cache[t.id]={schema:2,start,end,song:Library.track(t),boundary:end===t.dur?'song_end':'estimated',section:String(o.section||'').slice(0,100),why:String(o.section||o.why||'').slice(0,100),...(previous&&previous.schema!==2?{previous:{start:previous.start,end:previous.end}}:{})};
           done++;
@@ -1052,7 +1049,7 @@ const DJ = {
   idx:0,phase:'ready',detail:'',busy:false,action:null,desiredPlaying:false,confirmed:false,streamOwned:false,
   epoch:0,flow:Promise.resolve(),cancelWait:null,pos:0,posAt:0,lastFrameAt:0,lastMotionAt:0,lastSample:null,
   loadedMix:null,loadedId:null,checkpointId:null,pendingSeek:false,finished:false,retryIdx:null,
-  shuffle:false,repeat:'off',baseOrder:[],history:[],seekPreview:null,exitAt:null,_ticking:false,
+  shuffle:false,repeat:'off',baseOrder:[],history:[],seekPreview:null,_ticking:false,
   get playing(){return this.phase==='playing';},
   setPhase(phase,detail=''){this.phase=phase;this.detail=detail;this.render();},
   render(){renderTransport();},
@@ -1062,6 +1059,18 @@ const DJ = {
   freeze(){this.posAt=performance.now();},
   async sdkState(){try{return await within(this.player?.getCurrentState(),1500)||null;}catch{return null;}},
   async playbackState(){const s=await this.sdkState();return s?{item:s.track_window?.current_track,position:s.position,paused:s.paused,deviceId:this.sdkDev}:null;},
+  async pauseState(n){
+    try{
+      await this.player.pause();
+      for(let k=0;k<8;k++){
+        if(!this.current(n))return false;
+        const state=await this.playbackState();
+        if(state?.paused||(!state&&!this.loadedId&&!this.streamOwned))return state||{};
+        await sleep(200);
+      }
+      throw new Error('Pause could not be confirmed. Try again.');
+    }catch(e){e.pauseFailed=true;throw e;}
+  },
   async waitPreparation(p,n){await Promise.race([p,new Promise(r=>this.cancelWait=r)]);if(this.current(n))this.cancelWait=null;return this.current(n);},
   activate(){try{return this.sdkDev&&this.player?Promise.resolve(this.player.activateElement?.()).then(()=>null,e=>e):Promise.resolve(new Error(this.sdkError||'Browser audio is connecting. Try Play again shortly.'));}catch(e){return Promise.resolve(e);}},
   enqueue(kind,i,work){
@@ -1069,7 +1078,7 @@ const DJ = {
     const task=this.flow.catch(()=>{}).then(async()=>{
       if(!this.current(n))return false;
       try{return await work(n);}
-      catch(e){if(this.current(n)){await this.player?.pause().catch(()=>{});this.confirmed=this.streamOwned=this.desiredPlaying=false;this.retryIdx=i;this.setPhase(kind==='pause'?'pause-unconfirmed':'error',e.message||'Playback failed. Try again.');Library.capture();}return false;}
+      catch(e){if(this.current(n)){await this.player?.pause().catch(()=>{});this.confirmed=this.streamOwned=this.desiredPlaying=false;this.retryIdx=i;this.setPhase(kind==='pause'||e.pauseFailed?'pause-unconfirmed':'error',e.message||'Playback failed. Try again.');Library.capture();}return false;}
       finally{if(this.current(n)){this.busy=false;this.action=null;this.render();this.loop();}}
     });this.flow=task.catch(()=>{});this.render();return task;
   },
@@ -1107,8 +1116,8 @@ const DJ = {
       const error=await activation;if(error)throw error;if(!this.current(n))return false;
       if(!this.sdkDev||!this.player)throw new Error('Reconnect browser audio in Settings.');
       const mix=ST.mix,t=mix[i],previous=mix[this.idx]?.id;
-      if(!AI.pick(t)&&this.streamOwned){await this.player.pause();this.streamOwned=this.confirmed=false;}
-      this.idx=i;this.retryIdx=null;this.exitAt=null;
+      if(!AI.pick(t)&&this.streamOwned){if(!await this.pauseState(n))return false;this.streamOwned=this.confirmed=false;}
+      this.idx=i;this.retryIdx=null;
       if(!await this.prepare(t,n))return false;
       const target=Number.isFinite(position)?clamp(position,t.start,Math.max(t.start,t.end-200)):t.start;
       this.pos=target;this.posAt=performance.now();this.checkpointId=t.id;this.pendingSeek=true;this.confirmed=false;
@@ -1144,16 +1153,14 @@ const DJ = {
     return this.enqueue('pause',this.idx,async n=>{
       this.setPhase('pausing','Pausing…');
       if(this.player&&this.sdkDev){
-        await this.player.pause();
-        let stopped=false;
-        for(let k=0;k<8;k++){if(!this.current(n))return false;const s=await this.playbackState();if(s?.paused||(!s&&!this.loadedId&&!this.streamOwned)){stopped=true;if(s&&this.matches(s.item,ST.mix[this.idx]))this.pos=s.position;break;}await sleep(200);}
-        if(!stopped)throw new Error('Pause could not be confirmed. Try again.');
+        const state=await this.pauseState(n);if(!state)return false;
+        if(this.matches(state.item,ST.mix[this.idx]))this.pos=state.position;
       }
       if(!this.current(n))return false;
       this.confirmed=this.streamOwned=false;this.posAt=performance.now();this.setPhase('paused');Library.capture();return true;
     });
   },
-  toggle(){return this.playing||this.busy||this.desiredPlaying?this.pause():this.resume();},
+  toggle(){return this.phase==='pause-unconfirmed'||this.playing||this.busy||this.desiredPlaying?this.pause():this.resume();},
   select(i){if(!ST.mix[i]||this.busy||this.streamOwned)return false;this.epoch++;this.idx=i;this.loadedMix=null;this.confirmed=false;this.checkpointId=AI.pick(ST.mix[i])?ST.mix[i].id:null;this.pos=ST.mix[i].start||0;this.posAt=performance.now();this.pendingSeek=true;this.finished=false;this.retryIdx=null;this.setPhase('paused');showNow(i,true);Library.capture();aiAhead();return true;},
   nextIndex(automatic=false){if(automatic&&this.repeat==='one')return this.idx;return this.idx+1<ST.mix.length?this.idx+1:this.repeat==='all'?0:null;},
   async next(automatic=false){
@@ -1196,15 +1203,9 @@ const DJ = {
     if(now-this.lastMotionAt>3500){this.confirmed=false;this.setPhase('buffering','Buffering…');}
     if(now-this.lastMotionAt>10000){await this.pause();this.setPhase('error','Audio stopped progressing. Tap Play to retry.');return;}
     Library.progress();this.render();
-    if(this.confirmed&&s.position>=t.end){
-      const i=this.nextIndex(true),next=ST.mix[i];
-      if(next&&!AI.pick(next)){
-        // Never cut a vocal just because an AI request is late. Continue to a
-        // recorded instrumental/blank marker, or the actual end of this song.
-        if(this.exitAt==null)this.exitAt=Phrase.next(t,s.position+500)??t.dur;
-        aiAhead();
-      }else if(this.exitAt==null||s.position>=this.exitAt)await this.next(true);
-    }
+    // Play the selected passage only. Prefetch normally makes Next ready;
+    // if it is late, wait there rather than playing the rest of this song.
+    if(this.confirmed&&s.position>=t.end)await this.next(true);
   },
   async poll(){if(this._ticking||this.busy||this.loadedMix!==ST.mix||!this.sdkDev)return;this._ticking=true;const n=this.epoch;try{await this.observe(await this.playbackState(),n);}finally{this._ticking=false;this.render();}},
   watchdog(){if(this.playing&&performance.now()-this.lastFrameAt>3500){this.confirmed=false;this.setPhase('buffering','Reconnecting…');}},

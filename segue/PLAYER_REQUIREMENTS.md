@@ -1,4 +1,4 @@
-# Segue Version 36 playback contract
+# Segue Version 37 playback contract
 
 The Version 34 controller is superseded by a new SDK-only controller. Read
 [README.md](README.md) for timing/cache details and real-platform limits.
@@ -22,7 +22,7 @@ The Version 34 controller is superseded by a new SDK-only controller. Read
 | No fixed excerpt length | Complete passage; short, multi-minute and song-end ranges allowed | 14-second, 142-second and song-end examples |
 | Old cache | Retain old entries, revalidate capped picks once, retain previous values | Cache migration and reuse cases |
 | Exact returned range | Ask best beat-driven charanam; no lyric lookup or post-answer extension | Returned 158–245s range stays unchanged despite a later saved marker |
-| Late AI | Prepare adaptive batches ahead; continue current to an evidenced break or actual song end if late | Late next pick before/after boundary cases |
+| Late AI | Prefetch ahead; confirmed pause at the selected complete charanam end if next pick is late; no full-song extension | Late-next wait and pause-failure/Retry pause cases |
 | No false mixing promise | No volume ramps/overlap; iOS volume not JS-settable | SDK documentation; no ramp code |
 | Notification buttons | Register track Previous/Next; remove 10-second skip handlers | Handler inspection and browser invocation |
 | App identity | Stable explicit Segue ID/scope/start URL | Manifest assertions; Plate Log unchanged |
@@ -34,10 +34,12 @@ The Version 34 controller is superseded by a new SDK-only controller. Read
 
 1. Open Version 35 in the same installation. Hear that the named song and actual
    audio agree. Try pause, resume, Previous, Next, shuffle, repeat and scrubbing.
-2. Try a saved song across two releases: its saved range should be reused.
+2. For a new AI pick, hear that the selected charanam finishes before the
+   next verse; whole-recording fallback is rejected. Try a saved song across two releases: its saved range should be reused.
    This release does not automatically replace valid older saved choices. Judge its end audibly. A line-start timestamp is not vocal-end proof.
 3. Listen through multiple transitions. Network/start latency may still cause
-   gaps. Artificially late AI should not cause a mid-word pause at the old end.
+   gaps. Artificially late AI should wait at the selected charanam end rather than play the full remainder.
+   Actual lyric completion still needs audible judgment; the AI does not hear audio.
 4. Test notification Previous/Next and pause/resume, then tap its title. Confirm
    which app opens. Explicit identity is added; Plate Log routing is NOT proven
    fixed and the web Media Session API cannot specify the destination app URL.

@@ -118,7 +118,7 @@ the top right and cover part of the page.
 - Test copy (`cinema-book-test/`): Version 22 (neutral black-and-white look, ticket stubs for the diary, floating glass tab bar). Adds over 13: Wikidata
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
-- Segue (`segue/`): Version 36. Spotify sign-in, AI best-part picks with a
+- Segue (`segue/`): Version 37. Spotify sign-in, AI best-part picks with a
   Gemini key, and a phone layout matching Cinema Book are in place. Player
   now uses one shared transport on every screen, observed playback phases,
   shuffle/repeat/seek and saved queues. Pending work is not shown as Playing. Simulated checks pass; live phone confirmation pending.
@@ -135,6 +135,8 @@ the top right and cover part of the page.
   GitHub Pages and the free TMDB terms are for non-commercial use.
 
 ## Change log
+
+- 2026-11-15, ChatGPT: Segue Version 37 explicitly requests ONE complete charanam and its final sung syllable, stopping before the following verse; rejects new whole-recording AI fallback ranges. Removes late-AI extension through the rest of the song: pause is verified at the selected passage end before waiting for the next answer. Shared pause verification and Retry pause avoid accidental resume after a failed stop. Existing cached timings are preserved without automatic AI re-spending; instruction applies to new selections. 46 controller/AI/library checks cover completion wording, exact ranges, whole-song rejection, late-next wait and ignored-pause recovery. Actual vocal endpoints remain AI estimates requiring listening verification.
 
 - 2026-11-15, ChatGPT: Segue Version 36 follows Vijay's clarified simple flow: full album/available artist catalog, Gemini best-charanam-with-beat question, save returned timing and play. Removes count picker, 120-track sampling and capped artist search; preserves album order and pages all artist releases/tracks. Startup/playback AI batch sizes adapt to input budget and skip saved recordings; removes new lyric lookup and post-answer extensions. Reuses timings by Spotify ID or verified ISRC/duration across release IDs, with lazy metadata enrichment and no title-only copying. Adds IndexedDB timing/identity/library storage with legacy migration/backups, serialized writes and explicit post-migration open failure. Existing valid choices remain reused without automatic AI re-spending. Centers Play in both deck/compact player. 44 controller/AI/library checks, full-catalog/cache/database browser checks and 14 size/theme layout cases pass; real Gemini accuracy, Spotify catalog availability and phone background/CarPlay limits remain.
 

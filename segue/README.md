@@ -1,4 +1,4 @@
-# Segue handoff — Version 36
+# Segue handoff — Version 37
 
 Read `../PROJECT.md` first. Updated 2026-11-15.
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
@@ -10,6 +10,23 @@ beat-driven charanam, save its returned range and play it in the browser.
 No song-count picker or mandatory eight-song rule. Existing valid timings
 are reused, including across release IDs when the recording is verified.
 The Play button is centered in both the CD deck and the compact player.
+
+## Complete selected charanam (Version 37)
+
+The AI instruction now explicitly says ONE complete charanam, not the complete
+song: do not end while its lyrics, last word, sustained note or final sung
+syllable is continuing. Finish its natural resolving chorus phrase, if needed,
+and stop before the following verse. Do not use the remaining song as a timing
+fallback. A new AI response covering the entire recording (0 to song end) is
+rejected. A final charanam starting later and ending at song end remains valid.
+
+The player no longer extends to a later marker or actual song end if the next
+AI pick is late. It verifies local pause at the selected passage end, then
+waits for the next pick. Prefetch is intended to avoid that wait, but network
+or model failures can still cause it. Failed pause is visibly unconfirmed;
+Retry pause cannot accidentally resume. Saved timings are preserved without
+automatic AI re-spending, so the new instruction applies to new selections.
+AI still cannot hear the recording or certify the exact vocal ending.
 
 ## Complete selection and automatic batching (Version 36)
 
@@ -92,12 +109,11 @@ this issues no audio commands. No second audio player or silent audio exists.
 The old fixed 30–75-second rule, 75-second cap and 45-second missing-end fallback
 remain removed. Invalid/nonfinite/out-of-recording ranges are rejected. The
 player uses the returned start/end; there is no extra extension to force a
-preset length. Optional previously saved section markers are retained solely
-for continuity if AI preparation is late; no new lyric service is contacted.
+preset length. Previously stored section-marker data is retained without new lookups, but it
+does not extend the selected range.
 
-Prefetch runs ahead while audio plays. If the next answer is late at a planned
-end, current playback continues to a previously stored section marker or the
-actual song end. No random range or unrelated Spotify song is substituted.
+Prefetch runs ahead while audio plays. If the next answer is late at the selected passage
+end, playback pauses there and waits for that answer. No random range or unrelated Spotify song is substituted.
 Network/Spotify load latency and iOS suspension can still cause gaps or waits;
 continuous intent is not a gapless guarantee.
 
@@ -155,10 +171,10 @@ Firebase, other app edits, downloaded audio or new backend. Spotify redirect
 remains exactly `https://vijaykannan2020-del.github.io/Apps/segue/`.
 Client ID and AI key stay on the user's device; never ask for keys or commit them.
 
-- `node segue/tests/playback.test.cjs`: 44 rebuilt-controller/AI/library cases,
+- `node segue/tests/playback.test.cjs`: 46 rebuilt-controller/AI/library cases,
   actual advancing SDK state, frozen/late/wrong-song failures, cancellation,
   variable ranges, adaptive batching, all catalog pages, ISRC reuse/mismatch,
-  cache preservation, late-AI continuity, media actions and manifest identity.
+  cache preservation, late-AI pause/wait, media actions and manifest identity.
 - `python segue/tests/browser_flow.py`: mocked SDK/Spotify/AI flows at four
   sizes in both themes, single transport, persistence/clears, actual media
   handler calls, wrong-track stop, pause/resume and reconnect failures.
