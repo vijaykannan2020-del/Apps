@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox setup can now run unattended as a DigitalOcean initialization script (env vars INBOX_DOMAIN/INBOX_USER/INBOX_PASS/DUCKDNS_TOKEN), points the DuckDNS address at the server itself, waits for the package lock on fresh servers, and installs a weekly Sunday 4am self-update cron.
+
 - 2026-11-15, Claude: Added `my-inbox/`, a self-hosted unified inbox (private Matrix server with mautrix WhatsApp/Instagram/Messenger bridges, one-page PWA client, Web Push notifications via a small push gateway, security hardening in setup.sh). Server project, not served by Pages. Tested against a mock Matrix server only; not yet run on a real VPS or with real accounts.
 
 - 2026-11-15, ChatGPT: Segue Version 41 fixes near-whole-song lyric selections: inspect stanzas/refrains inside explicit outer blocks, coalesce continuous repeated hooks, prefer one verse/refrain return, and reject over-half-recording or 65%-of-vocal-line candidates rather than truncate to a timer. Old lyric-v1 mappings refine once to v2 with previous ranges retained; other caches/queues/keys/manual marks preserved. Fixes manual-start-after-end fallback to full track duration and rejects oversized manual lyric expansions. 73 controller/selection cases plus seeded-v1 Chromium refinement/SDK/reload tests and existing player/catalog/file/layout checks pass. Still structural estimates, not audible hype or guaranteed vocal-completion detection.

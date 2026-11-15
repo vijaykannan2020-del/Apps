@@ -10,16 +10,36 @@ die() { printf '\n\033[1;31mError: %s\033[0m\n' "$*" >&2; exit 1; }
 [ "$(id -u)" -eq 0 ] || die "Run as root: sudo ./setup.sh"
 [ -f data/synapse/homeserver.yaml ] && die "Already set up. To start: docker compose up -d"
 
-# ---------- questions ----------
-read -rp "Your domain pointing at this server (e.g. inbox.example.com): " DOMAIN
+# ---------- questions (or env vars for automatic setup) ----------
+# Automatic mode: set INBOX_DOMAIN, INBOX_USER, INBOX_PASS (and optionally DUCKDNS_TOKEN) before running.
+DOMAIN=${INBOX_DOMAIN:-}
+ADMIN=${INBOX_USER:-}
+PASS=${INBOX_PASS:-}
+if [ -z "$DOMAIN" ]; then read -rp "Your domain pointing at this server (e.g. inbox.example.com): " DOMAIN; fi
 [ -n "$DOMAIN" ] || die "Domain is required"
-read -rp "Username you'll log in with [vijay]: " ADMIN
+if [ -z "$ADMIN" ]; then read -rp "Username you'll log in with [vijay]: " ADMIN; fi
 ADMIN=${ADMIN:-vijay}
 ADMIN=$(echo "$ADMIN" | tr 'A-Z' 'a-z')
-read -rsp "Password for $ADMIN: " PASS; echo
+if [ -z "$PASS" ]; then read -rsp "Password for $ADMIN: " PASS; echo; fi
 [ ${#PASS} -ge 8 ] || die "Use at least 8 characters"
 
+# ---------- DuckDNS: point the free address at this server and keep it updated ----------
+if [ -n "${DUCKDNS_TOKEN:-}" ] && [[ "$DOMAIN" == *.duckdns.org ]]; then
+  say "Pointing $DOMAIN at this server"
+  SUB=${DOMAIN%.duckdns.org}
+  URL="https://www.duckdns.org/update?domains=$SUB&token=$DUCKDNS_TOKEN&ip="
+  curl -fsS "$URL" && echo
+  echo "*/5 * * * * root curl -fsS '$URL' >/dev/null 2>&1" > /etc/cron.d/duckdns
+  chmod 600 /etc/cron.d/duckdns
+  sleep 20
+fi
+
 # ---------- docker ----------
+# On a brand-new server, automatic updates may hold the package lock for a few minutes
+for _ in $(seq 1 120); do
+  fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock >/dev/null 2>&1 || break
+  sleep 5
+done
 if ! command -v docker >/dev/null 2>&1; then
   say "Installing Docker"
   curl -fsSL https://get.docker.com | sh
@@ -29,8 +49,8 @@ docker compose version >/dev/null 2>&1 || die "docker compose plugin missing"
 # ---------- security basics ----------
 say "Securing the server (firewall, auto-updates, swap)"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y -qq ufw fail2ban unattended-upgrades >/dev/null
+apt-get -o DPkg::Lock::Timeout=600 update -qq
+apt-get -o DPkg::Lock::Timeout=600 install -y -qq ufw fail2ban unattended-upgrades >/dev/null
 ufw allow OpenSSH >/dev/null; ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; ufw allow 443/udp >/dev/null
 ufw --force enable >/dev/null
 systemctl enable --now fail2ban >/dev/null 2>&1 || true
@@ -197,6 +217,12 @@ docker compose exec -T synapse curl -fsS http://localhost:8008/health >/dev/null
 say "Creating your account"
 docker compose exec -T synapse register_new_matrix_user \
   -c /data/homeserver.yaml -u "$ADMIN" -p "$PASS" -a http://localhost:8008
+
+# ---------- weekly self-update ----------
+cat > /etc/cron.d/my-inbox-update <<EOF
+# Every Sunday 4am: update Synapse, bridges, Caddy and the push service
+0 4 * * 0 root cd $PWD && docker compose pull -q && docker compose up -d --build --remove-orphans && docker image prune -f >/dev/null 2>&1
+EOF
 
 say "Done!"
 echo "Open https://$DOMAIN on your phone and log in as '$ADMIN'."

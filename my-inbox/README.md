@@ -13,7 +13,21 @@ Beeper uses this same setup. The difference is that everything here runs on **yo
 2. **A domain or subdomain** with an `A` record pointing at the VPS IP, e.g. `inbox.yourname.com`.
    A free option is a DuckDNS subdomain (`yourname.duckdns.org`).
 
-## Install (about 10 minutes)
+## Easiest install: no commands (works from an iPhone)
+When creating the server on DigitalOcean, open **Advanced options → Add initialization scripts** and paste the script below with your own details filled in. The server installs and configures itself on first boot (about 10–15 minutes). Progress log: `/var/log/my-inbox-setup.log`.
+
+```bash
+#!/bin/bash
+export INBOX_DOMAIN='yourname.duckdns.org'
+export DUCKDNS_TOKEN='paste-your-duckdns-token'
+export INBOX_USER='vijay'
+export INBOX_PASS='choose-a-strong-password'
+mkdir -p /opt && cd /opt
+curl -fsSL https://github.com/vijaykannan2020-del/Apps/archive/refs/heads/main.tar.gz | tar xz --strip-components=1 Apps-main/my-inbox
+cd my-inbox && ./setup.sh > /var/log/my-inbox-setup.log 2>&1
+```
+
+## Manual install (about 10 minutes)
 ```bash
 # on your computer: copy the folder to the server
 scp -r my-inbox root@YOUR_SERVER_IP:/opt/
@@ -45,7 +59,7 @@ The script asks three questions: your domain, a username and a password. After t
 ```bash
 cd /opt/my-inbox
 docker compose logs -f whatsapp instagram messenger   # see what the bridges are doing
-docker compose pull && docker compose up -d           # update everything (do this monthly)
+docker compose pull && docker compose up -d           # update now (it also updates itself every Sunday 4am)
 tar czf backup.tgz data .env                          # backup
 ```
 
