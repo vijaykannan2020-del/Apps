@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Segue — AI DJ for Spotify</title>
+<title>Segue — passages for Spotify</title>
 <meta name="theme-color" content="#F5F5F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -242,7 +242,7 @@ img[src=""],img:not([src]){visibility:hidden}
 
   <section id="connect" class="hide">
     <h1>Your playlists,<br>the best parts only.</h1>
-    <p class="muted">Pick a playlist, album or artist. AI chooses a complete favourite passage from each song. Play your mix here.</p>
+    <p class="muted">Pick a playlist, album or artist. Review favourite passages using matching audio files, then play your mix here.</p>
     <div class="card" style="margin-top:22px">
       <div class="lbl" style="margin-top:0">Spotify Client ID</div>
       <input id="cid" class="input" placeholder="Paste your app's Client ID" autocomplete="off" spellcheck="false">
@@ -259,23 +259,23 @@ img[src=""],img:not([src]){visibility:hidden}
   <div id="app" class="hide">
     <!-- HOME / LOCAL LIBRARY -->
     <section class="view" id="v-home">
-      <div class="hero"><div class="eyebrow">Your music. The parts you love.</div><h2 id="homeHeadline">A little less intro.<br>A lot more song.</h2><p>Make a mix from your Spotify music. AI finds the best parts, and your mixes stay here for next time.</p><button class="btn pri" id="homeCreate">Create a mix</button></div>
+      <div class="hero"><div class="eyebrow">Your music. The parts you love.</div><h2 id="homeHeadline">A little less intro.<br>A lot more song.</h2><p>Make a mix from your Spotify music. Save the passages you love and reuse them next time.</p><button class="btn pri" id="homeCreate">Create a mix</button></div>
       <div id="continueMix"></div>
       <div class="note hide" id="clearConfirm" role="region" aria-label="Confirm clearing list">
         <p id="clearConfirmText"></p><div class="row" style="flex-wrap:wrap;margin-top:12px"><button class="btn pri small" id="confirmClear">Clear list</button><button class="btn ghost small" id="cancelClear">Keep list</button></div>
       </div>
-      <div class="section-head"><h2>Your mixes</h2><div class="row" style="flex-wrap:wrap"><span class="tiny muted" id="mixCount">0 saved</span><button class="btn ghost small hide" id="clearMixes" aria-label="Clear saved mixes and keep AI best-part timings">Clear</button></div></div>
+      <div class="section-head"><h2>Your mixes</h2><div class="row" style="flex-wrap:wrap"><span class="tiny muted" id="mixCount">0 saved</span><button class="btn ghost small hide" id="clearMixes" aria-label="Clear saved mixes and keep Saved passage timings">Clear</button></div></div>
       <div class="library-grid" id="savedMixes"></div>
-      <div class="section-head"><h2>Saved AI picks</h2><div class="row" style="flex-wrap:wrap"><span class="tiny muted" id="pickCount"></span><button class="btn ghost small hide" id="clearSavedSongs" aria-label="Clear displayed songs and keep AI best-part timings">Clear</button></div></div>
+      <div class="section-head"><h2>Saved passages</h2><div class="row" style="flex-wrap:wrap"><span class="tiny muted" id="pickCount"></span><button class="btn ghost small hide" id="clearSavedSongs" aria-label="Clear displayed songs and keep Saved passage timings">Clear</button></div></div>
       <p class="page-sub">Best-part timings saved per song. Clear removes the list only; timings stay saved for every mix.</p>
-      <input class="input" id="savedSongSearch" type="search" placeholder="Find a saved song" aria-label="Search saved AI song picks">
+      <input class="input" id="savedSongSearch" type="search" placeholder="Find a saved song" aria-label="Search saved passages">
       <button class="btn ghost small hide" id="recoverPicks">Show older saved songs</button>
       <div id="savedSongs"></div>
       <p class="local-note">Your library stays in this installed app on this device. Spotify streams the music; audio files are not downloaded.</p>
     </section>
     <!-- MIX -->
     <section class="view hide" id="v-mix">
-      <h1 class="page-title">Make it yours.</h1><p class="page-sub">Pick an album or artist. Play all available songs with your saved AI timings.</p>
+      <h1 class="page-title">Make it yours.</h1><p class="page-sub">Pick an album or artist. Play all available songs with your saved passage timings.</p>
       <div class="card">
         <h2>Pick music</h2>
         <div class="tabs" id="tabs">
@@ -299,7 +299,7 @@ img[src=""],img:not([src]){visibility:hidden}
 
     <!-- PLAY -->
     <section class="view hide" id="v-play">
-      <div class="player-head"><div class="eyebrow">Your AI mix</div><h2 id="mixTitle">Ready when you are.</h2><p id="mixSaveState">New mixes save here automatically.</p></div>
+      <div class="player-head"><div class="eyebrow">Your mix</div><h2 id="mixTitle">Ready when you are.</h2><p id="mixSaveState">New mixes save here automatically.</p></div>
       <div class="card" id="deck">
         <div class="empty" id="deckEmpty"><div><div style="font-size:40px;opacity:.25;margin-bottom:8px">◐</div>Your saved mix will appear here.<br>Create one from your Spotify music.</div></div>
         <div id="deckOn" class="hide">
@@ -342,7 +342,27 @@ img[src=""],img:not([src]){visibility:hidden}
     <section class="view hide" id="v-set">
       <h1 class="page-title">Your setup.</h1><p class="page-sub">Connect once. Come back to your music.</p>
       <div class="card">
-        <h2>AI DJ</h2>
+        <h2>Choose a passage</h2>
+        <label for="passageSource">Selection method</label>
+        <select class="input" id="passageSource"><option value="local">Matching audio file · no AI</option><option value="gemini">Gemini · estimated timings</option></select>
+        <div id="matchingForm" style="margin-top:16px">
+          <p class="small muted">Choose the same recording as the Spotify song. Files are analysed on this device and never uploaded. Spotify remains the player.</p>
+          <p class="note hide" id="audioEmpty">Create or open an album or artist mix first.</p>
+          <label for="audioTrack">Spotify song</label><select class="input" id="audioTrack" style="margin:8px 0 12px"></select>
+          <label for="audioFile">Matching file</label><input class="input" type="file" id="audioFile" accept="audio/*,.mp3,.m4a,.wav,.flac" style="margin:8px 0 12px">
+          <div class="row" style="flex-wrap:wrap"><button class="btn" id="analyseFile">Analyse file</button><button class="btn ghost" id="cancelAnalysis" disabled>Cancel analysis</button></div>
+          <p class="note" id="audioStatus" role="status">Energy, beat changes and repetition suggest sections. They cannot identify the last sung syllable. Preview and adjust before saving. Prepare each song before listening to avoid waiting for a missing passage.</p>
+          <div class="row" id="audioSuggestions" style="flex-wrap:wrap"></div>
+          <div id="audioReview" class="hide" style="margin-top:16px">
+            <label for="audioStart">Start (m:ss)</label><input class="input" id="audioStart" inputmode="decimal" placeholder="2:38">
+            <label for="audioEnd">End, after the complete sung phrase (m:ss)</label><input class="input" id="audioEnd" inputmode="decimal" placeholder="4:05">
+            <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn ghost" id="previewPassage">Preview passage</button><button class="btn" id="savePassage">Approve and save</button></div>
+            <p class="tiny muted">Confirm the recording and listen through the ending. Saved timings are reused for this recording across mixes. Files are not stored; timings stay in this browser’s database.</p>
+          </div>
+        </div>
+      </div>
+      <div class="card hide" id="geminiSettings">
+        <h2>Optional AI DJ</h2>
         <input id="aiKey" class="input" placeholder="Gemini key (AIza…) or Claude key (sk-ant…)" autocomplete="off" spellcheck="false">
         <button class="btn" id="aiSave" style="width:100%;margin-top:10px">Save key</button>
         <div class="note" id="aiNote">Gemini chooses the best beat-driven charanam and its complete timings. Saved selections are reused. The key stays only on this device.</div>
@@ -356,7 +376,7 @@ img[src=""],img:not([src]){visibility:hidden}
         <p class="muted small">Spotify music plays here in Segue. No separate Spotify app or output selection.</p>
         <button class="btn small ghost reconnect-player" style="margin-top:12px">Reconnect player</button>
         <div class="note" id="deviceNote">Connecting the browser player…</div>
-        <p class="local-note" style="margin-top:12px">Spotify Premium is required. Lock-screen controls depend on your browser. iOS can suspend AI passage changes when locked; a native CarPlay interface is not available.</p>
+        <p class="local-note" style="margin-top:12px">Spotify Premium is required. Lock-screen controls depend on your browser. iOS can suspend passage changes when locked; a native CarPlay interface is not available.</p>
       </div>
       <div class="card">
         <h2>Account</h2>
@@ -404,7 +424,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 38;
+const APP_VERSION = 39;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -575,7 +595,7 @@ const Library = {
   },
   askClear(kind){
     this.pendingClear = kind;
-    $('#clearConfirmText').textContent = kind === 'mixes' ? 'Clear your saved mix list? AI best-part timings and current playback will be kept.' : 'Clear the displayed song list? AI best-part timings stay saved for future mixes.';
+    $('#clearConfirmText').textContent = kind === 'mixes' ? 'Clear your saved mix list? Saved passage timings and current playback will be kept.' : 'Clear the displayed song list? Saved passage timings stay saved for future mixes.';
     $('#clearConfirm').classList.remove('hide');
     $('#clearConfirm').scrollIntoView({block:'center',behavior:'smooth'});
     $('#cancelClear').focus({preventScroll:true});
@@ -585,15 +605,15 @@ const Library = {
     const next = {...this.state,mixes:[],activeId:null};
     if (!LS.set(key,JSON.stringify(next))) { toast('Could not clear the saved list. Check device storage.',6000); return false; }
     this.state = next; this.ref = null; // Polling, AI updates and pause must not recreate the cleared list.
-    $('#mixSaveState').textContent = 'Removed from saved mixes · AI timings kept';
-    this.render(); toast('Saved mix list cleared. AI best-part timings kept.'); return true;
+    $('#mixSaveState').textContent = 'Removed from saved mixes · Passage timings kept';
+    this.render(); toast('Saved mix list cleared. Saved passage timings kept.'); return true;
   },
   clearSongs(){
     const key = this.key(); if (!key) return false;
     const ids = [...Object.keys(AI.cache()),...ST.mix.map(t => t.id)];
     const next = {...this.state,hiddenPicks:[...new Set([...(this.state.hiddenPicks || []),...ids])]};
     if (!LS.set(key,JSON.stringify(next))) { toast('Could not clear the song list. Check device storage.',6000); return false; }
-    this.state = next; this.render(); toast('Song list cleared. AI best-part timings kept.'); return true;
+    this.state = next; this.render(); toast('Song list cleared. Saved passage timings kept.'); return true;
   },
   progress(){ if (Date.now() - this.lastWrite >= 5000) this.capture(); },
   restore(mix){
@@ -660,17 +680,17 @@ const Library = {
     $('#homeHeadline').innerHTML = mixes.length ? 'Your music, ready.' : 'A little less intro.<br>A lot more song.';
     $('#mixCount').textContent = `${mixes.length} saved`;
     $('#clearMixes').classList.toggle('hide', !mixes.length);
-    $('#savedMixes').innerHTML = mixes.length ? mixes.map(m => `<button class="mix-tile" data-mix="${esc(m.id)}" aria-label="Open ${esc(m.name)}">${this.art(m.tracks)}<b>${esc(m.name)}</b><span>${m.tracks.length} songs · ${m.tracks.filter(t => AI.pick(t,cache)).length} AI picks ready</span></button>`).join('') : '<div class="empty-library" style="grid-column:1/-1">Your next favourite mix starts here.<br>Create one and it will be saved automatically.</div>';
+    $('#savedMixes').innerHTML = mixes.length ? mixes.map(m => `<button class="mix-tile" data-mix="${esc(m.id)}" aria-label="Open ${esc(m.name)}">${this.art(m.tracks)}<b>${esc(m.name)}</b><span>${m.tracks.length} songs · ${m.tracks.filter(t => AI.pick(t,cache)).length} passages ready</span></button>`).join('') : '<div class="empty-library" style="grid-column:1/-1">Your next favourite mix starts here.<br>Create one and it will be saved automatically.</div>';
     const t = active?.tracks[active.idx || 0];
     $('#continueMix').innerHTML = active ? `<div class="continue-card"><div class="eyebrow">Pick up where you left off</div><div><b>${esc(active.name)}</b><p>${esc(t?.name || '')} · song ${(active.idx || 0)+1} of ${active.tracks.length}</p></div><button class="btn pri" data-continue="${esc(active.id)}">Continue listening →</button></div>` : '';
     const hidden = new Set(this.state.hiddenPicks || []);
-    const allSongs = Object.entries(cache).filter(([id,c]) => c?.song?.id && !hidden.has(id));
+    const allSongs = Object.entries(cache).filter(([id,c]) => c?.song?.id && (AI.usesGemini()||c.source==='local-audio') && !hidden.has(id));
     const query = ($('#savedSongSearch').value || '').trim().toLowerCase();
     const songs = allSongs.filter(([,c]) => !query || `${c.song.name} ${(c.song.artists || []).join(' ')}`.toLowerCase().includes(query));
     $('#recoverPicks').classList.toggle('hide', !Object.entries(cache).some(([id,c]) => c && !c.song && !hidden.has(id)));
     $('#pickCount').textContent = `${Object.keys(cache).length} timings kept`;
     $('#clearSavedSongs').classList.toggle('hide', !allSongs.length);
-    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${c.schema===2?fmt(c.start)+'–'+fmt(c.end)+' · AI pick saved':'Timing will be rechecked'}</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : hidden.size && !Object.keys(cache).some(id => !hidden.has(id)) ? 'List cleared. Your AI best-part timings are still saved and will be reused when you build another mix.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Songs appear here after AI chooses their best parts.'}</div>`;
+    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${c.schema===2?fmt(c.start)+'–'+fmt(c.end)+(c.source==='local-audio'?' · Reviewed audio passage':' · AI pick saved'):'Timing will be rechecked'}</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : hidden.size && !Object.keys(cache).some(id => !hidden.has(id)) ? 'List cleared. Your Saved passage timings are still saved and will be reused when you build another mix.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Save a reviewed passage in Settings to see it here.'}</div>`;
     this.mini();
   },
   mini(){ DJ.render();
@@ -800,7 +820,7 @@ const SRC={ai:'AI pick',you:'Your correction',pending:'AI preparing'};
 function buildOrder(tracks){return tracks.slice();}
 function planSegments(tracks){
   for(const t of tracks){
-    if(t._lock)continue;const pick=AI.pick(t),mine=HK.get()[t.id];
+    if(t._lock)continue;const pick=AI.pick(t),mine=LocalAudio.draft?.id===t.id?undefined:HK.get()[t.id];
     if(!pick){t.start=t.end=t.hook=0;t.hookSrc='pending';delete t.aiStart;delete t.aiEnd;continue;}
     t.aiStart=pick.start;t.aiEnd=pick.end;t.aiWhy=pick.why;
     t.start=Number.isFinite(mine)?clamp(mine,0,t.dur-1):pick.start;
@@ -810,6 +830,7 @@ function planSegments(tracks){
 const HK={get(){try{return JSON.parse(LS.get('hooks')||'{}');}catch{return {};}},set(id,ms){const c=this.get();c[id]=Math.round(ms);LS.set('hooks',JSON.stringify(c));},clear(id){const c=this.get();delete c[id];LS.set('hooks',JSON.stringify(c));}};
 /* ---------------- AI DJ (Gemini or Claude) ---------------- */
 const AI = {
+  usesGemini(){return LS.get('passage_source')==='gemini';},
   key(){ return LS.get('aikey') || ''; },
   cache(){
     const raw=LS.get('ai4')||'{}';if(this._raw===raw&&this._cache)return this._cache;
@@ -822,7 +843,8 @@ const AI = {
     this._indexCache=cache;this._recordings=index;return index;
   },
   pick(t,cache=this.cache()){
-    const valid=c=>c&&c.schema===2&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.start>=0&&c.end>c.start&&c.end<=t.dur;
+    const valid=c=>c&&(this.usesGemini()||c.source==='local-audio')&&c.schema===2&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.start>=0&&c.end>c.start&&c.end<=t.dur;
+    if(LocalAudio.draft?.id===t.id&&valid(LocalAudio.draft))return LocalAudio.draft;
     const own=cache[t.id];if(valid(own))return own;
     return t.isrc?this.index(cache).get(t.isrc)?.find(c=>valid(c)&&Number.isFinite(c.song.dur)&&Math.abs(c.song.dur-t.dur)<=1000)||null:null;
   },
@@ -862,7 +884,7 @@ const AI = {
       }
       LS.set('ai_revision',String(this.revision+1));
       this.q=Promise.resolve();aheadSerial++;aheadBusy=false;
-      if(!LS.set('ai4','{}'))throw new Error('Could not clear the saved timings.');
+      if(!LS.set('ai4',JSON.stringify(Object.fromEntries(Object.entries(picks).filter(([,c])=>c?.source==='local-audio')))))throw new Error('Could not clear the saved timings.');
       this._raw=null;this._cache=null;this._indexCache=null;this.lastErr=null;
       for(const t of new Set([...ST.mix,...(ST.pool||[])])){delete t._aiP;delete t._aiTries;t.aiPending=false;t._lock=false;}
       for(const mix of Library.state.mixes){mix.positionReady=false;mix.pendingSeek=true;mix.position=0;mix.finished=false;}
@@ -895,7 +917,7 @@ Return only JSON: [{"id":"...","start":seconds,"end":seconds,"section":"short se
 `+JSON.stringify(songs);
   },
   async call(text,revision=this.revision){
-    if(revision!==this.revision)return '[]';
+    if(!this.usesGemini()||revision!==this.revision)return '[]';
     const key = this.key();
     if (key.startsWith('sk-ant')) {
       const r = await tfetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{ 'x-api-key':key, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true' },
@@ -948,7 +970,7 @@ Return only JSON: [{"id":"...","start":seconds,"end":seconds,"section":"short se
   get batchSize(){return DJ.streamOwned?20:6;},
   q:Promise.resolve(),
   one(t){
-    if(this.resetting)return Promise.resolve();
+    if(this.resetting||!this.usesGemini())return Promise.resolve();
     const cache=this.cache();if(!this.key()||this.pick(t,cache)||(t._aiTries||0)>=2)return Promise.resolve();if(t._aiP)return t._aiP;
     const revision=this.revision,mix=ST.mix,i=mix.indexOf(t),candidates=[t,...mix.slice(i>=0?i+1:0)].filter((x,j,a)=>a.indexOf(x)===j&&!this.pick(x,cache)&&!x._aiP&&(x._aiTries||0)<2);
     const batch=[];let tokens=300;const budget=DJ.streamOwned?4000:1500;
@@ -963,7 +985,7 @@ Return only JSON: [{"id":"...","start":seconds,"end":seconds,"section":"short se
     batch.forEach(x=>x._aiP=p);return p;
   },
   async run(tracks, onProg, onBatch, limit=this.batchSize, revision=this.revision){
-    if (!this.key()) return 0;
+    if (!this.usesGemini()||!this.key()) return 0;
     this.lastErr = null; this.empty = 0;
     const cache = this.cache(); const todo = tracks.filter(t => !this.pick(t,cache));
     todo.forEach(t => t.aiPending = true);
@@ -1002,10 +1024,10 @@ function replanAhead(lockUpTo){
   planSegments(mix); mix.forEach(t => t._lock = false);
   renderDeck(); aiStatus(); Library.capture();
 }
-function aiStatus(){const n=ST.mix.filter(t=>AI.pick(t)).length;$('#aiStat').innerHTML=n===ST.mix.length?'':`<p class="tiny muted" style="margin-top:12px">Preparing passages · ${n}/${ST.mix.length} ready</p>`;}
+function aiStatus(){const n=ST.mix.filter(t=>AI.pick(t)).length;$('#aiStat').innerHTML=n===ST.mix.length?'':`<p class="tiny muted" style="margin-top:12px">${AI.usesGemini()?'Preparing passages':'Matching files'} · ${n}/${ST.mix.length} ready</p>`;}
 let aheadBusy = false,aheadSerial=0;
 async function aiAhead(){
-  if (!AI.key() || !ST.mix.length || aheadBusy) return; aheadBusy = true;
+  if (!AI.usesGemini() || !AI.key() || !ST.mix.length || aheadBusy) return; aheadBusy = true;
   const mix=ST.mix,revision=AI.revision,serial=++aheadSerial;
   try {
     const from = DJ.playing ? DJ.idx + 1 : DJ.idx;
@@ -1018,13 +1040,125 @@ async function aiAhead(){
     }
   } finally { if(serial===aheadSerial){aheadBusy=false;if(revision===AI.revision&&ST.mix!==mix&&ST.mix.length)setTimeout(()=>aiAhead(),0);} }
 }
-function rowPlan(t){const p=AI.pick(t);return p?`${fmt(t.start)}–${fmt(t.end)}`:t._aiTries>=2?'AI pick unavailable · retry':'AI preparing…';}
+function rowPlan(t){const p=AI.pick(t);return p?`${fmt(t.start)}–${fmt(t.end)}`:!AI.usesGemini()?'Choose matching file in Settings':t._aiTries>=2?'AI pick unavailable · retry':'AI preparing…';}
+
+/* Traditional signal processing only. No model, network, fixed clip duration or vocal-end claim. */
+function analyzeAudioSignal(samples,rate,progress=()=>{}){
+  const duration=samples.length/rate;if(!(rate>0)||duration<12)throw new Error('Use a complete recording of at least 12 seconds.');
+  const size=1024,hop=512,step=.5,count=Math.ceil(duration/step),re=new Float64Array(size),im=new Float64Array(size),window=new Float64Array(size);
+  const bins=Array.from({length:count},()=>({energy:0,bass:0,flux:0,chroma:new Float64Array(12),n:0}));
+  const pitch=new Int16Array(size/2);pitch.fill(-1);
+  for(let k=0;k<size;k++)window[k]=.5-.5*Math.cos(2*Math.PI*k/(size-1));
+  for(let k=1;k<size/2;k++){const hz=k*rate/size;if(hz>=80&&hz<=4000)pitch[k]=((Math.round(69+12*Math.log2(hz/440))%12)+12)%12;}
+  function fft(){
+    for(let i=1,j=0;i<size;i++){let bit=size>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;if(i<j){const v=re[i];re[i]=re[j];re[j]=v;}}
+    for(let len=2;len<=size;len<<=1){const angle=-2*Math.PI/len,wr=Math.cos(angle),wi=Math.sin(angle);for(let base=0;base<size;base+=len){let r=1,q=0;for(let j=0;j<len/2;j++){const a=base+j,b=a+len/2,tr=r*re[b]-q*im[b],ti=r*im[b]+q*re[b];re[b]=re[a]-tr;im[b]=im[a]-ti;re[a]+=tr;im[a]+=ti;const next=r*wr-q*wi;q=r*wi+q*wr;r=next;}}}
+  }
+  const previous=new Float64Array(size/2);let maximum=0;
+  for(let at=0;at+size<=samples.length;at+=hop){
+    let energy=0;for(let k=0;k<size;k++){const x=Number.isFinite(samples[at+k])?samples[at+k]:0;re[k]=x*window[k];im[k]=0;energy+=x*x;}
+    fft();const row=bins[Math.min(count-1,Math.floor((at+size/2)/rate/step))];let total=0,bass=0,flux=0;
+    for(let k=1;k<size/2;k++){const magnitude=Math.hypot(re[k],im[k]),hz=k*rate/size;total+=magnitude;if(hz>=40&&hz<=200)bass+=magnitude;flux+=Math.max(0,magnitude-previous[k]);previous[k]=magnitude;if(pitch[k]>=0)row.chroma[pitch[k]]+=magnitude;}
+    const rms=Math.sqrt(energy/size);maximum=Math.max(maximum,rms);row.energy+=rms;row.bass+=bass;row.flux+=flux;row.n++;
+    if(at%(hop*256)===0)progress(Math.round(at/samples.length*80));
+  }
+  if(maximum<1e-5)throw new Error('The file contains no usable audio signal.');
+  for(const row of bins){if(row.n){row.energy/=row.n;row.bass/=row.n;row.flux/=row.n;}const norm=Math.hypot(...row.chroma)||1;for(let k=0;k<12;k++)row.chroma[k]/=norm;}
+  const median=a=>{const b=a.slice().sort((x,y)=>x-y);return b[Math.floor(b.length/2)]||0;};
+  const cosine=(a,b)=>{let dot=0,aa=0,bb=0;for(let k=0;k<12;k++){dot+=a[k]*b[k];aa+=a[k]*a[k];bb+=b[k]*b[k];}return aa&&bb?dot/Math.sqrt(aa*bb):0;};
+  function mean(a,b){const v={energy:0,flux:0,bass:0,chroma:new Float64Array(12)};const n=Math.max(1,b-a);for(let i=a;i<b;i++){v.energy+=bins[i].energy/n;v.flux+=bins[i].flux/n;v.bass+=bins[i].bass/n;for(let k=0;k<12;k++)v.chroma[k]+=bins[i].chroma[k]/n;}return v;}
+  const novelty=new Float64Array(count),span=8;
+  for(let i=span;i<count-span;i++){const a=mean(i-span,i),b=mean(i,i+span);novelty[i]=.55*(1-cosine(a.chroma,b.chroma))+.30*Math.abs(Math.log((a.energy+.001)/(b.energy+.001)))+.15*Math.abs(Math.log((a.flux+.01)/(b.flux+.01)));}
+  const mid=median(Array.from(novelty)),mad=median(Array.from(novelty,x=>Math.abs(x-mid))),threshold=Math.max(.08,mid+1.2*mad);
+  const peaks=[];for(let i=span;i<count-span;i++)if(novelty[i]>=threshold&&novelty[i]>=novelty[i-1]&&novelty[i]>novelty[i+1])peaks.push({at:i*step,strength:novelty[i]});
+  // Sustained quiet gaps are candidate breaks; ordinary small dips/breaths are not.
+  let quiet=-1;for(let i=0;i<count;i++){if(bins[i].energy<maximum*.08){if(quiet<0)quiet=i;}else{if(quiet>=0&&(i-quiet)*step>=2)peaks.push({at:(quiet+i)*step/2,strength:2});quiet=-1;}}
+  peaks.sort((a,b)=>b.strength-a.strength);const boundaries=[0,duration];for(const p of peaks)if(boundaries.every(x=>Math.abs(x-p.at)>=8))boundaries.push(p.at);boundaries.sort((a,b)=>a-b);
+  const sections=[];for(let i=0;i<boundaries.length-1;i++){const start=boundaries[i],end=boundaries[i+1];if(end-start<8||(start===0&&end===duration))continue;const m=mean(Math.floor(start/step),Math.min(count,Math.ceil(end/step)));sections.push({start,end,...m});}
+  const eMax=Math.max(...sections.map(x=>x.energy),.001),fMax=Math.max(...sections.map(x=>x.flux),.001),bMax=Math.max(...sections.map(x=>x.bass),.001);
+  for(const section of sections){let repeat=0;for(const other of sections)if(other!==section)repeat=Math.max(repeat,cosine(section.chroma,other.chroma));section.score=.50*section.energy/eMax+.25*section.flux/fMax+.15*section.bass/bMax+.10*repeat;}
+  sections.sort((a,b)=>b.score-a.score);progress(100);
+  return {duration,candidates:sections.slice(0,3).map(x=>({start:Math.round(x.start*10)/10,end:Math.min(duration,Math.round(x.end*10)/10),score:Math.round(x.score*100)/100})),waveform:bins.map(x=>Math.round(x.energy/maximum*1000)/1000)};
+}
+
+/* Matching file → local DSP → review in the existing Spotify player → saved range. */
+const LocalAudio={
+  serial:0,worker:null,reject:null,result:null,draft:null,selected:null,
+  refresh(){
+    const local=!AI.usesGemini();$('#passageSource').value=local?'local':'gemini';$('#matchingForm').classList.toggle('hide',!local);$('#geminiSettings').classList.toggle('hide',local);
+    const select=$('#audioTrack'),value=select.value;
+    select.innerHTML=ST.mix.map(t=>`<option value="${esc(t.id)}">${esc(t.name)} · ${esc(t.artists.join(', '))}</option>`).join('');
+    select.value=ST.mix.some(t=>t.id===value)?value:ST.mix[DJ.idx]?.id||'';
+    $('#analyseFile').disabled=!ST.mix.length;$('#audioEmpty').classList.toggle('hide',!!ST.mix.length);
+  },
+  async mode(value){
+    const state=await DJ.sdkState();if((DJ.busy||DJ.streamOwned||DJ.desiredPlaying||state?.paused===false)&&!await DJ.pause())throw new Error('Pause audio before changing the selection source.');
+    this.cancel();this.draft=null;LS.set('passage_source',value);LS.set('ai_revision',String(AI.revision+1));AI.q=Promise.resolve();aheadSerial++;aheadBusy=false;DJ.epoch++;DJ.loadedMix=DJ.loadedId=DJ.checkpointId=null;DJ.pendingSeek=true;DJ.pos=0;DJ.setPhase('ready');ST.mix.forEach(t=>{t._lock=false;delete t._aiP;delete t._aiTries;t.aiPending=false;});planSegments(ST.mix);if(ST.mix.length)renderDeck();AI.savedStatus();this.refresh();Library.render();
+  },
+  cancel(){this.serial++;this.worker?.terminate();this.worker=null;this.reject?.(new Error('Analysis cancelled.'));this.reject=null;$('#analyseFile').disabled=!ST.mix.length;$('#cancelAnalysis').disabled=true;},
+  async metadata(file){
+    const url=URL.createObjectURL(file),audio=document.createElement('audio');audio.preload='metadata';
+    try{return await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Could not read this file. Use an unprotected MP3, M4A or WAV.')),10000);audio.onloadedmetadata=()=>{clearTimeout(timer);resolve(audio.duration);};audio.onerror=()=>{clearTimeout(timer);reject(new Error('This browser cannot read the selected audio file.'));};audio.src=url;});}
+    finally{audio.removeAttribute('src');audio.load();URL.revokeObjectURL(url);}
+  },
+  async analyse(){
+    this.cancel();this.result=null;$('#audioReview').classList.add('hide');$('#audioSuggestions').innerHTML='';const serial=this.serial,t=ST.mix.find(t=>t.id===$('#audioTrack').value),file=$('#audioFile').files?.[0];
+    if(!t||!file)throw new Error('Choose a Spotify song and its matching audio file.');
+    if(file.size>32*1024*1024)throw new Error('Choose a file under 32 MB.');
+    $('#analyseFile').disabled=true;$('#cancelAnalysis').disabled=false;$('#audioStatus').textContent='Reading the matching file…';
+    try{
+      const duration=await this.metadata(file);if(serial!==this.serial)return;
+      if(!Number.isFinite(duration)||duration<12||duration>720)throw new Error('Use a complete recording between 12 seconds and 12 minutes.');
+      if(Math.abs(duration*1000-t.dur)>1000)throw new Error(`Recording mismatch: file ${fmt(duration*1000)}, Spotify ${fmt(t.dur)}. Use the same version.`);
+      const state=await DJ.sdkState();if((DJ.busy||DJ.streamOwned||DJ.desiredPlaying||state?.paused===false)&&!await DJ.pause())throw new Error('Pause playback before analysing.');
+      this.draft=null;
+      const Offline=window.OfflineAudioContext||window.webkitOfflineAudioContext;if(!Offline)throw new Error('Audio analysis is unavailable in this browser.');
+      let decoded=await new Offline(1,1,11025).decodeAudioData(await file.arrayBuffer());if(serial!==this.serial)return;
+      if(Math.abs(decoded.duration*1000-t.dur)>1000)throw new Error('Decoded recording duration does not match Spotify.');
+      const rate=decoded.sampleRate,mono=new Float32Array(decoded.length);
+      for(let channel=0;channel<decoded.numberOfChannels;channel++){const data=decoded.getChannelData(channel);for(let i=0;i<mono.length;i++)mono[i]+=data[i]/decoded.numberOfChannels;}decoded=null;
+      $('#audioStatus').textContent='Analysing on this device…';
+      const code=`onmessage=e=>{try{const result=(${analyzeAudioSignal.toString()})(e.data.samples,e.data.rate,p=>postMessage({progress:p}));postMessage({result});}catch(err){postMessage({error:err.message});}}`;
+      const url=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));
+      let analysis,worker;
+      try{analysis=await new Promise((resolve,reject)=>{this.reject=reject;this.worker=worker=new Worker(url);this.worker.onmessage=e=>{if(serial!==this.serial)return;if(e.data.error)reject(new Error(e.data.error));else if(e.data.result)resolve(e.data.result);else $('#audioStatus').textContent=`Analysing on this device… ${e.data.progress}%`;};this.worker.onerror=()=>reject(new Error('Audio analysis failed. Try a smaller file.'));this.worker.postMessage({samples:mono,rate},[mono.buffer]);});}
+      finally{worker?.terminate();if(this.worker===worker){this.worker=null;this.reject=null;}URL.revokeObjectURL(url);}
+      if(serial!==this.serial)return;
+      this.result={track:Library.track(t),fileName:file.name,...analysis};this.selected=t.id;
+      $('#audioSuggestions').innerHTML=analysis.candidates.map((c,i)=>`<button class="btn ghost small" data-candidate="${i}">Suggestion ${i+1} · ${fmt(c.start*1000)}–${fmt(c.end*1000)}</button>`).join('');
+      $('#audioReview').classList.remove('hide');if(analysis.candidates.length)this.choose(analysis.candidates[0]);else{$('#audioStart').value='';$('#audioEnd').value='';}
+      $('#audioStatus').textContent=`${file.name}: duration matches. ${analysis.candidates.length?'Preview and adjust a suggested section.':'No clear section found; mark your preferred passage manually.'} Confirm this is the same recording before saving.`;
+    }finally{if(serial===this.serial){$('#analyseFile').disabled=false;$('#cancelAnalysis').disabled=true;}}
+  },
+  choose(c){$('#audioStart').value=this.time(c.start);$('#audioEnd').value=this.time(c.end);},
+  time(seconds){seconds=Math.round(seconds*10)/10;const m=Math.floor(seconds/60),s=+(seconds%60).toFixed(1);return `${m}:${String(s).padStart(2,'0')}`;},
+  seconds(text){const m=/^(?:(\d+):)?(\d+(?:\.\d+)?)$/.exec(text.trim());if(!m||(m[1]&&+m[2]>=60))return NaN;return +(m[1]||0)*60+ +m[2];},
+  range(){
+    if(!this.result||this.result.track.id!==$('#audioTrack').value)throw new Error('Analyse the selected matching file first.');const t=this.result.track,start=this.seconds($('#audioStart').value)*1000,end=this.seconds($('#audioEnd').value)*1000;
+    if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start||end>t.dur||(start===0&&end===t.dur))throw new Error('Choose one complete passage within the recording, not the entire song.');
+    return {schema:2,start,end,source:'local-audio',section:'Reviewed audio passage',song:t,boundary:'review-required',fileName:this.result.fileName,method:'signal-v1'};
+  },
+  async preview(){
+    const range=this.range(),i=ST.mix.findIndex(t=>t.id===range.song.id);if(i<0)throw new Error('Open the original selection before previewing this song.');
+    if((DJ.busy||DJ.streamOwned||DJ.desiredPlaying)&&!await DJ.pause())return;this.draft={...range,id:range.song.id};ST.mix[i]._lock=false;planSegments([ST.mix[i]]);await DJ.go(i,{position:range.start});
+  },
+  async save(){
+    const range=this.range();if((DJ.busy||DJ.streamOwned||DJ.desiredPlaying)&&!await DJ.pause())throw new Error('Pause must be confirmed before saving.');
+    await AI.identify(range.song,true);range.boundary='user-reviewed';range.reviewedAt=Date.now();
+    const cache=AI.cache(),previous=cache[range.song.id];if(previous)range.previous={start:previous.start,end:previous.end};cache[range.song.id]=range;const saved=await AI.save(cache);
+    if(!saved||Persist.failed)throw new Error('Saving failed. Keep the app open and check storage.');
+    HK.clear(range.song.id);this.draft=null;
+    for(const t of ST.mix)if(t.id===range.song.id){if(range.song.isrc)t.isrc=range.song.isrc;t._lock=false;planSegments([t]);}
+    if(ST.mix[DJ.idx]?.id===range.song.id){DJ.epoch++;DJ.loadedMix=null;DJ.checkpointId=range.song.id;DJ.pendingSeek=true;DJ.pos=range.start;DJ.posAt=performance.now();DJ.setPhase('ready','Passage saved · tap Play');}
+    Library.capture();Library.render();$('#audioStatus').textContent='Reviewed passage saved on this device. Future playback reuses it without AI or another analysis.';
+  }
+};
 
 /* ---------------- Build mix ---------------- */
 async function buildMix(){
   const btn = $('#buildBtn'), msg = $('#buildMsg'); btn.disabled = true;
   try {
-    if (!AI.key()) throw new Error('Save an AI key in Settings first.');
+    if (AI.usesGemini()&&!AI.key()) throw new Error('Save an AI key in Settings first.');
     if (DJ.busy) throw new Error('Wait for the current playback action to finish.');
     let all=[];
     for(const [i,src]of ST.crate.entries()){
@@ -1132,6 +1266,10 @@ const DJ = {
     throw new Error('Audio has not started. Tap Play to retry.');
   },
   async prepare(t,n){
+    if(!AI.pick(t)&&!AI.usesGemini()){
+      await AI.prepareIdentities([t]);if(!this.current(n))return false;
+      if(!AI.pick(t))throw new Error('Choose this song’s matching audio file in Settings, then review and save its passage.');
+    }
     if(!AI.pick(t)){
       this.setPhase('waiting-ai','Choosing the best part…');
       if(!AI.key())throw new Error('Add your AI key in Settings.');
@@ -1144,6 +1282,7 @@ const DJ = {
   go(i,{automatic=false,position,historyBack=false}={}){
     if(AI.resetting)return Promise.resolve(false);
     if(!ST.mix[i])return Promise.resolve(false);
+    if(LocalAudio.draft&&LocalAudio.draft.id!==ST.mix[i].id){LocalAudio.draft=null;planSegments(ST.mix);}
     if(this.busy&&this.action?.kind==='play'&&this.action.idx===i)return this.flow;
     const activation=automatic?Promise.resolve(null):this.activate();
     this.desiredPlaying=true;
@@ -1240,7 +1379,7 @@ const DJ = {
     Library.progress();this.render();
     // Play the selected passage only. Prefetch normally makes Next ready;
     // if it is late, wait there rather than playing the rest of this song.
-    if(this.confirmed&&s.position>=t.end)await this.next(true);
+    if(this.confirmed&&s.position>=t.end){if(LocalAudio.draft?.id===t.id){await this.pause();$('#audioStatus').textContent='Preview finished. Adjust the ending or approve and save.';}else await this.next(true);}
   },
   async poll(){if(this._ticking||this.busy||this.loadedMix!==ST.mix||!this.sdkDev)return;this._ticking=true;const n=this.epoch;try{await this.observe(await this.playbackState(),n);}finally{this._ticking=false;this.render();}},
   watchdog(){if(this.playing&&performance.now()-this.lastFrameAt>3500){this.confirmed=false;this.setPhase('buffering','Reconnecting…');}},
@@ -1386,10 +1525,18 @@ function showView(v){
   ['home','mix','play','set'].forEach(k => $('#v-'+k).classList.toggle('hide', k !== v));
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   $('#scroller').scrollTop = 0;
-  if (v === 'set') { DJ.devices(); AI.savedStatus(); }
+  if (v === 'set') { DJ.devices(); AI.savedStatus(); LocalAudio.refresh(); }
   if (v === 'home') Library.render();
   Library.mini();
 }
+const localAction=fn=>async()=>{try{await fn();}catch(e){$('#audioStatus').textContent=e.message;}};
+$('#passageSource').onchange=localAction(()=>LocalAudio.mode($('#passageSource').value));
+$('#analyseFile').onclick=localAction(()=>LocalAudio.analyse());
+$('#cancelAnalysis').onclick=()=>{LocalAudio.cancel();$('#audioStatus').textContent='Analysis cancelled.';};
+$('#previewPassage').onclick=localAction(()=>LocalAudio.preview());
+$('#savePassage').onclick=localAction(()=>LocalAudio.save());
+for(const id of ['audioTrack','audioFile'])$('#'+id).onchange=()=>{LocalAudio.cancel();LocalAudio.result=null;$('#audioReview').classList.add('hide');$('#audioSuggestions').innerHTML='';};
+$('#audioSuggestions').onclick=e=>{const b=e.target.closest('[data-candidate]');if(b&&LocalAudio.result)LocalAudio.choose(LocalAudio.result.candidates[+b.dataset.candidate]);};
 $('#nav').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showView(b.dataset.v); });
 $('#renameMix').onclick = () => {
   const mix=Library.state.mixes.find(m=>m.id===Library.state.activeId);if(!mix)return;

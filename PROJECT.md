@@ -118,8 +118,8 @@ the top right and cover part of the page.
 - Test copy (`cinema-book-test/`): Version 24 (rewatches, including watches from before the app); earlier: Version 22 (neutral black-and-white look, ticket stubs for the diary, floating glass tab bar). Adds over 13: Wikidata
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
-- Segue (`segue/`): Version 38. Spotify sign-in, AI best-part picks with a
-  Gemini key, and a phone layout matching Cinema Book are in place. Player
+- Segue (`segue/`): Version 39. Spotify sign-in, matching-file passage analysis with
+  local review/approval and optional Gemini estimates, and a phone layout matching Cinema Book are in place. Player
   now uses one shared transport on every screen, observed playback phases,
   shuffle/repeat/seek and saved queues. Pending work is not shown as Playing. Simulated checks pass; live phone confirmation pending.
   Details, limits and open items: `segue/README.md`.
@@ -135,6 +135,8 @@ the top right and cover part of the page.
   GitHub Pages and the free TMDB terms are for non-commercial use.
 
 ## Change log
+
+- 2026-11-15, ChatGPT: Segue Version 39 adds matching audio files, local non-neural signal analysis in a cancellable Worker, variable suggested sections and editable review using the same Spotify player. Approval saves local-audio timings for recording/ISRC reuse; files never upload or persist. Local mode defaults on, makes no AI requests, preserves prior AI values and requires passages to be prepared before continuous listening. AI Reset retains approved local mappings. 55 controller cases, real WAV/Worker/cancel/mismatch/review/database browser checks, existing catalog/player flows and 14 responsive cases pass. Detector does not certify charanam/vocal completion; actual music and phone verification pending.
 
 - 2026-11-15, ChatGPT: Segue Version 38 adds Settings “Reset AI timings for testing” as a separate action from list Clear. It backs up the previous nonempty AI cache, clears mappings/visible AI rows, resets queue timing readiness and waits for Play before fresh requests. Retains albums/order, sources, keys, recording identity metadata and manual start corrections. Persisted generation and callback guards reject pre-reset answers/queues so they cannot refill the cache or clobber fresh work. Confirms stop for active streams; works before first browser playback. No automatic/reset-on-deployment deletion on a user's phone. 50 controller/AI/library cases plus real mocked-browser reset/backup/durable fresh-request and phone playback checks passed.
 

@@ -1,15 +1,56 @@
-# Segue handoff — Version 38
+# Segue handoff — Version 39
 
 Read `../PROJECT.md` first. Updated 2026-11-15.
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
 ## Goal
 
-Select a complete Spotify album or artist catalog, ask Gemini for the best
-beat-driven charanam, save its returned range and play it in the browser.
-No song-count picker or mandatory eight-song rule. Existing valid timings
-are reused, including across release IDs when the recording is verified.
-The Play button is centered in both the CD deck and the compact player.
+Select a complete Spotify album or artist catalog, review a favourite passage
+using its matching audio file, then play saved passages through Spotify's browser
+player. No song-count picker, mandatory eight-song batch or fixed clip length.
+Gemini remains an optional estimated-timing mode, disabled by default.
+
+## Matching audio files (Version 39)
+
+Create/open a mix, then Settings → Matching audio file. Choose a Spotify song
+and an unprotected matching MP3/M4A/WAV (browser codec support varies). Each
+recording is paired manually: duration must match within one second, but that
+alone cannot prove the recording/version matches. Files over 32 MiB, recordings
+outside 12 seconds–12 minutes, unsupported codecs and silent signals fail visibly.
+
+The browser decodes to 11025 Hz mono and runs original non-neural signal processing
+in a cancellable Worker: windowed FFT, RMS energy, bass, positive spectral flux,
+chroma similarity, structural novelty and sustained quiet gaps. Candidate sections
+come from detected changes, ranked for energy/beat activity/repetition; there is
+no fixed excerpt duration. Analysis windows and noise filters are not clip presets.
+No clear boundary means manual range entry rather than fabricated timings.
+
+Files/PCM are neither uploaded nor stored. This is not Spotify audio extraction.
+Review suggestions using the existing Spotify transport, adjust start/end, then
+Approve and save. Preview stops at its endpoint instead of advancing the mix and
+is not cached. Only approval creates schema-2 `source:local-audio` timings with
+`boundary:user-reviewed`; the user must verify the complete sung phrase ending.
+The detector cannot recognize charanams, lyrics, vocal completion or subjective
+best moments. Synthetic-tone tests do not establish musical selection quality.
+
+Saved ranges use the existing local IndexedDB timing store, Spotify ID and
+verified ISRC/duration reuse across release IDs. Approval clears an older manual
+start for that song so the reviewed range is respected. No extra audio player,
+background audio trick, model dependency or server is introduced. Prepare every
+song's passage before listening: an unprepared song pauses with a matching-file
+instruction rather than spending AI tokens or choosing a random excerpt. Spotify
+loading latency/iOS suspension can still cause gaps.
+
+Local-file mode ignores old AI-only estimates for playback but preserves them.
+Switch to Gemini explicitly to use them/the saved AI key again. Mode changes
+verify pause and invalidate pending AI generations. AI testing Reset preserves
+approved local-file passages; ordinary list Clear still preserves all mappings.
+
+Checks: 55 controller/library/selection cases; `local_audio_browser.py` exercises
+real WAV decode, Worker suggestions, cancellation, mismatch rejection, editable
+review/preview, zero AI/uploads, ISRC reuse and IndexedDB reload. Existing complete
+catalog, shared-player and 14 responsive size/theme cases also pass with mocked
+Spotify/Gemini. Real musical judgment and iPhone playback remain user checks.
 
 ## Explicit testing reset (Version 38)
 

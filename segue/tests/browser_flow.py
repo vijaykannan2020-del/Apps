@@ -11,7 +11,7 @@ with sync_playwright() as p:
  for width,height in [(320,740),(390,844),(768,1024),(1024,768)]:
   for theme in ['light','dark']:
    context=browser.new_context(viewport={'width':width,'height':height},color_scheme=theme)
-   context.add_init_script("localStorage.setItem('segue_rt','audit');localStorage.setItem('segue_at','audit');localStorage.setItem('segue_exp',String(Date.now()+3600000));localStorage.setItem('segue_aikey','test');")
+   context.add_init_script("localStorage.setItem('segue_rt','audit');localStorage.setItem('segue_at','audit');localStorage.setItem('segue_exp',String(Date.now()+3600000));localStorage.setItem('segue_aikey','test');localStorage.setItem('segue_passage_source','gemini');")
    context.add_init_script("window.mediaHandlers={};if(navigator.mediaSession){const original=navigator.mediaSession.setActionHandler.bind(navigator.mediaSession);navigator.mediaSession.setActionHandler=(name,fn)=>{mediaHandlers[name]=fn;return original(name,fn)}}")
    errors=[]; counts={'ai':0,'play':0,'seek':0}; state={'uri':None,'pos':0,'paused':True,'offline':False,'frozen':False,'transport_offline':False,'volume':70,'at':time.monotonic()}
    def advance():

@@ -11,7 +11,7 @@ def track(i,copy=False):
 with sync_playwright() as p:
  browser=p.chromium.launch(executable_path=os.environ.get('SEGUE_CHROMIUM') or shutil.which('chromium'),headless=True,args=['--no-sandbox'])
  context=browser.new_context(viewport={'width':1280,'height':900})
- context.add_init_script("for(const [k,v]of Object.entries({rt:'test',at:'test',exp:'9999999999999',aikey:'test'}))localStorage.setItem('segue_'+k,v);if(!localStorage.getItem('segue_ai4'))localStorage.setItem('segue_ai4',JSON.stringify({legacySaved:{schema:2,start:10000,end:85000}}))")
+ context.add_init_script("for(const [k,v]of Object.entries({rt:'test',at:'test',exp:'9999999999999',aikey:'test',passage_source:'gemini'}))localStorage.setItem('segue_'+k,v);if(!localStorage.getItem('segue_ai4'))localStorage.setItem('segue_ai4',JSON.stringify({legacySaved:{schema:2,start:10000,end:85000}}))")
  state={'id':None,'pos':0,'paused':True,'at':time.monotonic()};calls=[];errors=[]
  def advance():
   now=time.monotonic()

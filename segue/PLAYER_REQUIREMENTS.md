@@ -1,10 +1,11 @@
-# Segue Version 38 playback contract
+# Segue Version 39 playback contract
 
 The Version 34 controller is superseded by a new SDK-only controller. Read
 [README.md](README.md) for timing/cache details and real-platform limits.
 
 | Requirement | Rule | Evidence |
 |---|---|---|
+| Matching file | Local decode/Worker DSP; review and approve; no file upload or AI fallback | Real WAV/mismatch/cancel/review/persistence browser check; synthetic musical-quality limits |
 | Browser only | Load one selected URI into SDK ready ID; no native selection/fallback | URI and device assertions; source contains no account-wide status fallback |
 | One playback truth | SDK state only; no global Spotify poll | SDK missing/frozen/wrong-song cases |
 | Truthful Playing | Matching song, unpaused, advancing position | Frozen start rejection and CD animation checks |
@@ -19,7 +20,7 @@ The Version 34 controller is superseded by a new SDK-only controller. Read
 | Cross-release reuse | Same Spotify ID or verified ISRC/duration; no title-only reuse | Alias/mismatch/backfill tests and zero-new-AI browser flow |
 | Testing reset | Explicit Settings action backs up and clears AI mappings, keeps queues/keys/manual marks, waits for Play; rejects stale answers | Reset/cold-SDK/unconfirmed-pause cases and real browser reset/persist/fresh-batch check |
 | Database | Migrate and persist timing/library records in IndexedDB; retain backup; do not silently load stale data on failure | 6 MiB save, reload, migration and unavailable-database browser cases |
-| AI only | Reject incomplete/invalid timings; never generate a fixed fallback | Missing end, reversed range and out-of-duration cases |
+| Valid timings | Reject incomplete/invalid timings; never generate a fixed fallback | Missing end, reversed range and out-of-duration cases |
 | No fixed excerpt length | Complete passage; short, multi-minute and song-end ranges allowed | 14-second, 142-second and song-end examples |
 | Old cache | Retain old entries, revalidate capped picks once, retain previous values | Cache migration and reuse cases |
 | Exact returned range | Ask best beat-driven charanam; no lyric lookup or post-answer extension | Returned 158–245s range stays unchanged despite a later saved marker |
@@ -33,7 +34,7 @@ The Version 34 controller is superseded by a new SDK-only controller. Read
 
 ## Required phone verification — not automated passes
 
-1. Open Version 35 in the same installation. Hear that the named song and actual
+1. Open Version 39 in the same installation. Hear that the named song and actual
    audio agree. Try pause, resume, Previous, Next, shuffle, repeat and scrubbing.
 2. For a new AI pick, hear that the selected charanam finishes before the
    next verse; whole-recording fallback is rejected. Try a saved song across two releases: its saved range should be reused.
