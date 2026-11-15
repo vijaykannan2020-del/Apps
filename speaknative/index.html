@@ -257,7 +257,7 @@ h1,h2,h3{letter-spacing:-.02em}
         <label>Coach voice
           <select class="inp" id="aiVoiceSel"></select>
         </label>
-        <label class="chk" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="castIn" style="width:20px;height:20px"> Use a matching man's or woman's voice for each Talk character</label>
+        <label class="chk" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="castIn" style="width:20px;height:20px"> Give each Talk character a different voice (off = one voice for everything)</label>
         <label>Voice key (Google Gemini)
           <input class="inp" id="vkIn" type="password" placeholder="Paste a Gemini key (starts with AIza)" autocomplete="off">
         </label>
@@ -308,7 +308,7 @@ window.FIREBASE_CONFIG={apiKey:"AIzaSyAxCgkTuz8RS93U9mwb6bqjBgvARM69DYY",authDom
 window.APP_NS="apps/speaknative/";
 </script>
 <script>
-const APP_VERSION=2;
+const APP_VERSION=3;
 const NS=window.APP_NS;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -318,9 +318,10 @@ $('verLbl').textContent='Version '+APP_VERSION;
 
 /* ---------- state: local first, synced to Firestore ---------- */
 const LKEY='sn_state';
-const DEF={days:[],msgs:0,scores:[],saved:[],mistakes:[],voice:'',rate:0.95,hands:false,speak:true,engine:'ai',aiVoice:'Kore',cast:true};
+const DEF={days:[],msgs:0,scores:[],saved:[],mistakes:[],voice:'',rate:0.95,hands:false,speak:true,engine:'ai',aiVoice:'Kore',cast:false};
 let S=Object.assign({},DEF,(()=>{try{return JSON.parse(localStorage.getItem(LKEY)||'{}')}catch(e){return{}}})());
 let progDoc=null,syncT=null;
+if(!S.v3){S.cast=false;S.v3=true;try{localStorage.setItem(LKEY,JSON.stringify(S))}catch(e){}}
 function persist(){
   try{localStorage.setItem(LKEY,JSON.stringify(S))}catch(e){}
   clearTimeout(syncT);syncT=setTimeout(()=>{progDoc?.set(JSON.parse(JSON.stringify(S))).catch(()=>{})},1200);
@@ -333,7 +334,7 @@ function merge(r){
   if((r.scores||[]).length>S.scores.length)S.scores=r.scores;
   const seen=new Set(S.saved.map(x=>x.text));(r.saved||[]).forEach(x=>{if(!seen.has(x.text))S.saved.push(x)});
   const ms=new Map(S.mistakes.map(x=>[x.said.toLowerCase(),x]));(r.mistakes||[]).forEach(x=>{const k=x.said.toLowerCase();if(!ms.has(k))S.mistakes.push(x);else ms.get(k).n=Math.max(ms.get(k).n,x.n)});
-  ['voice','rate','hands','speak','engine','aiVoice','cast'].forEach(k=>{if(r[k]!==undefined&&S[k]===DEF[k])S[k]=r[k]});
+  ['voice','rate','hands','speak','engine','aiVoice'].forEach(k=>{if(r[k]!==undefined&&S[k]===DEF[k])S[k]=r[k]});
 }
 const dayKey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function markPractice(){const k=dayKey(new Date());if(!S.days.includes(k)){S.days.push(k);persist();}renderStreak();}
@@ -394,7 +395,7 @@ function phoneSay(text,slow,onEnd){
 const AI_VOICES=[['Kore','Kore · woman, clear and confident'],['Aoede','Aoede · woman, relaxed and breezy'],['Leda','Leda · woman, young and bright'],['Sulafat','Sulafat · woman, warm'],['Achernar','Achernar · woman, soft'],
   ['Puck','Puck · man, upbeat and friendly'],['Charon','Charon · man, calm and informative'],['Fenrir','Fenrir · man, energetic'],['Achird','Achird · man, friendly'],['Iapetus','Iapetus · man, clear'],['Sadaltager','Sadaltager · man, knowledgeable']];
 const CAST={Jake:'Puck',Sarah:'Kore',Mike:'Charon',Rachel:'Aoede',Tom:'Iapetus',Linda:'Sulafat',Server:'Leda',Ashley:'Leda',Interviewer:'Sadaltager',Alex:'Achird'};
-let voiceKey='',ttsModels=null,ttsWarned=false,speakSeq=0;
+let voiceKey='',ttsModels=null,ttsShape=null,ttsDownUntil=0,speakSeq=0;
 const ttsCache=new Map();
 const player=new Audio();player.preload='auto';player.setAttribute('playsinline','');
 try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}
@@ -442,15 +443,15 @@ async function ttsFetch(text,voice,slow){
   const style=slow?'Speak slowly and very clearly, like a patient coach, in a natural General American accent.':'Natural, relaxed, conversational General American English, like a friendly native speaker from Texas talking in person.';
   let last;
   for(const m of await ttsModelList(key)){
-    for(const shape of ['new','old']){
-      const parts=shape==='new'?[{text,speech_metadata:{style}}]:[{text:`Say in a ${style.toLowerCase()} way: ${text}`}];
+    for(const shape of (ttsShape?[ttsShape]:['new','old'])){
+      const parts=shape==='new'?[{text,speech_metadata:{style}}]:[{text}];
       const vc=shape==='new'?{voiceConfig:{voice}}:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}};
       let r;try{r=await tfetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({contents:[{role:'user',parts}],generationConfig:{responseModalities:['AUDIO'],speechConfig:vc}})},40000);}catch(e){last=new Error('Voice did not answer');break;}
       const j=await r.json().catch(()=>({}));
       if(r.ok){const part=(j.candidates?.[0]?.content?.parts||[]).find(p=>p.inlineData||p.inline_data);const d=part&&(part.inlineData||part.inline_data);
         if(!d?.data){last=new Error('No audio returned');break;}
-        ttsModels=[m,...ttsModels.filter(x=>x!==m)];
+        ttsModels=[m,...ttsModels.filter(x=>x!==m)];ttsShape=shape;
         const url=URL.createObjectURL(new Blob([toWav(b64bytes(d.data),d.mimeType||d.mime_type)],{type:'audio/wav'}));
         if(ttsCache.size>80){const [k0,u0]=ttsCache.entries().next().value;URL.revokeObjectURL(u0);ttsCache.delete(k0);}
         ttsCache.set(ck,url);return url;}
@@ -465,20 +466,21 @@ function stopVoice(){speakSeq++;try{player.pause();}catch(e){}try{speechSynthesi
 async function say(text,slow,onEnd,who){
   const my=++speakSeq;try{player.pause();speechSynthesis.cancel();}catch(e){}
   const done=()=>{if(my===speakSeq)onEnd&&onEnd();};
-  if(S.engine!=='ai'||!vKey()){phoneSay(text,slow,done);return;}
+  if(S.engine!=='ai'||!vKey()||Date.now()<ttsDownUntil){phoneSay(text,slow,done);return;}
   const voice=(who&&S.cast&&CAST[who])||S.aiVoice;
   $('liveBar').textContent='🔊 Loading voice…';
-  try{
-    const url=await ttsFetch(text,voice,slow);
-    if(my!==speakSeq)return;
-    $('liveBar').textContent='';
-    player.onended=done;player.onerror=done;player.src=url;player.playbackRate=slow?1:Math.max(.8,Math.min(1.2,S.rate/0.95));
-    await player.play();
-  }catch(e){
-    if(my!==speakSeq)return;$('liveBar').textContent='';
-    if(!ttsWarned){ttsWarned=true;toast('Natural voice unavailable ('+(e.message||'error').slice(0,60)+'). Using phone voice.',4500);}
-    phoneSay(text,slow,done);
+  let url=null,err=null;
+  for(let a=0;a<2&&!url;a++){try{url=await ttsFetch(text,voice,slow);}catch(e){err=e;if(/API key|401|403/.test(e.message||''))break;if(a===0)await sleep(1200);}}
+  if(my!==speakSeq)return;
+  $('liveBar').textContent='';
+  if(url){
+    try{player.onended=done;player.onerror=done;player.src=url;player.playbackRate=slow?1:Math.max(.8,Math.min(1.2,S.rate/0.95));await player.play();return;}
+    catch(e){err=e;}
   }
+  ttsDownUntil=Date.now()+15*60*1000;
+  const why=/quota|limit|429|exhaust/i.test(err?.message||'')?'the free daily voice limit is used up':'the AI voice could not load';
+  toast(`Switched to the phone voice for now: ${why}.`,5000);
+  phoneSay(text,slow,done);
 }
 /* ---------- microphone (Safari speech recognition) ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;

@@ -125,7 +125,7 @@ the top right and cover part of the page.
   shuffle/repeat/seek and saved queues. Pending work is not shown as Playing. Simulated checks pass; live phone confirmation pending.
   Details, limits and open items: `segue/README.md`.
 
-- SpeakNative (`speaknative/`): Version 2. No test copy; changes go straight
+- SpeakNative (`speaknative/`): Version 3. No test copy; changes go straight
   to `speaknative/index.html` with `APP_VERSION` raised. Firestore paths under
   `apps/speaknative/`: `users/{uid}` (one progress document: days, scores,
   phrasebook, mistakes, voice settings) and `config/ai` (optional own key).
@@ -165,6 +165,8 @@ the top right and cover part of the page.
 - 2026-11-14, ChatGPT: Segue Version 33 places the wide Playing queue left and deck right, and adds a silent one-second cassette opening animation with no input/startup blocking and a reduced-motion skip. Spotify starts now carry current + up to 99 upcoming URIs; observed native Next in that submitted mix/output follows the selected song and seeks its saved AI passage without another Play. Paused selection stays silent; missing AI pauses while preparing; unrelated outputs/songs still detach. Browser SDK media actions refresh on state events, guard output ownership, include stop/skip-seek, and update metadata/position without clearing transient paused sessions. All 80 controller checks, 14 layout/theme cases and browser playback flows pass. Native queue snapshots/shuffle/history and iOS suspension/CarPlay limits are documented; real phone/CarPlay confirmation is pending. No Spotify playlist created; AI mappings retained.
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-15, Claude: SpeakNative Version 3: one voice for everything by default (per-character voices now opt-in, existing setting reset), working TTS request shape remembered, fallback request no longer carries style words that could be spoken, one retry then a 15-minute switch to the phone voice with a notice instead of alternating voices.
 
 - 2026-11-15, Claude: SpeakNative Version 2: natural AI voice (Gemini TTS) replaces the robotic phone voice by default, with a male or female voice per Talk character, voice picker, Gemini voice key setting, audio cache, and automatic fallback to the phone voice.
 
