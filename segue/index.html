@@ -15,12 +15,12 @@
 /* Same shell and neutral look as Cinema Book: fixed page, inner scrolling, bottom tab bar, light and dark */
 :root{
   --bg:#F5F5F7; --s1:#FFFFFF; --s2:#F0F0F3; --s3:#E8E8ED; --line:#D2D2D7;
-  --tx:#1D1D1F; --mu:#6E6E73; --dim:#8E8E93; --ac:#0F7A66; --warn:#8A6100; --bad:#D70015; --on:#FFFFFF;
+  --tx:#1D1D1F; --mu:#6E6E73; --dim:#8E8E93; --ac:#1D1D1F; --warn:#8A6100; --bad:#D70015; --on:#FFFFFF;
   --r:20px; --ease:cubic-bezier(.2,.8,.2,1); color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#000000; --s1:#1C1C1E; --s2:#2C2C2E; --s3:#3A3A3C; --line:#2C2C2E;
-  --tx:#FFFFFF; --mu:#98989F; --dim:#6E6E73; --ac:#63D2B4; --warn:#E6C36A; --bad:#FF6961; --on:#000000; color-scheme:dark;
+  --tx:#FFFFFF; --mu:#98989F; --dim:#6E6E73; --ac:#FFFFFF; --warn:#E6C36A; --bad:#FF6961; --on:#000000; color-scheme:dark;
 }}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
@@ -78,16 +78,16 @@ code{background:var(--s2);border:1px solid var(--line);padding:2px 6px;border-ra
 img[src=""],img:not([src]){visibility:hidden}
 .np-t{font-size:22px;font-weight:800;letter-spacing:-.4px;line-height:1.15;overflow-wrap:anywhere}
 .np-a{color:var(--mu);margin-top:4px;font-size:14px}
-.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
-.tag{font-size:12px;padding:4px 9px;border-radius:8px;background:var(--s2);color:var(--mu)}
-.tag.ok{color:var(--ac);font-weight:650}
-.wave{position:relative;height:44px;margin-top:16px;border-radius:12px;background:var(--s2);overflow:hidden}
-.wave .win{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--ac) 20%,transparent);border-left:2px solid var(--ac);border-right:2px solid var(--ac)}
-.wave .ph2{position:absolute;top:0;bottom:0;width:3px;background:var(--tx);transition:left .25s linear}
-.wave .hook{display:none}
+
+
+
+
+
+
+
 .times{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-top:6px;font-variant-numeric:tabular-nums}
-.xfade{height:3px;background:var(--s3);border-radius:2px;margin-top:10px;overflow:hidden}
-.xfade i{display:block;height:100%;width:0;background:var(--ac);transition:width .2s linear}
+
+
 .ctl{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:18px}
 .round{width:54px;height:54px;border-radius:50%;background:var(--s3);display:grid;place-items:center;transition:transform .15s var(--ease)}
 .round:active{transform:scale(.93)}
@@ -124,8 +124,8 @@ img[src=""],img:not([src]){visibility:hidden}
 .nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* Version 28: a listening library, simple creation, and a persistent player. */
-:root{--r:24px;--ac:#08775D;--hero:#E3F0E8}
-@media(prefers-color-scheme:dark){:root{--bg:#0B0E0D;--s1:#151B18;--s2:#202923;--s3:#2C382F;--line:#303D34;--ac:#9AE5BA;--hero:#1B3526}}
+:root{--r:24px;--hero:#E8E8ED}
+
 .top{align-items:center;justify-content:flex-start;padding:8px 0 22px;gap:12px}.top h1{font-size:30px;letter-spacing:-1.5px}.top .brand-mark{width:32px;height:32px;border-radius:11px;display:grid;place-items:center;background:var(--ac);color:var(--on);font-size:24px;font-weight:800}
 .eyebrow{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;font-weight:750;color:var(--ac)}
 .hero{padding:26px;background:var(--hero);border:1px solid var(--line);border-radius:28px;overflow:hidden}.hero h2{font-size:clamp(30px,7vw,46px);line-height:1.05;color:var(--tx);text-transform:none;letter-spacing:-1.6px;margin:12px 0}.hero p{max-width:440px;line-height:1.6;color:var(--mu);font-size:14px}.hero .btn{margin-top:20px}
@@ -135,7 +135,7 @@ img[src=""],img:not([src]){visibility:hidden}
 .continue-card{border-radius:24px;border:1px solid var(--line);background:var(--s1);padding:18px;display:flex;flex-direction:column;gap:12px}.continue-card b{font-size:21px;letter-spacing:-.5px}.continue-card p{font-size:13px;color:var(--mu);margin-top:6px}.continue-card .btn{align-self:flex-start}
 .empty-library{padding:26px;border:1px dashed var(--line);border-radius:22px;color:var(--mu);font-size:14px;line-height:1.6}.saved-song{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.saved-song img{width:46px;height:46px;border-radius:12px;object-fit:cover}.saved-song div{min-width:0;flex:1}.saved-song b{font-size:14px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.saved-song span{font-size:12px;color:var(--mu);display:block}.saved-song button{flex:none}
 .player-head{padding:4px 0}.player-head h2{color:var(--tx);font-size:25px;letter-spacing:-.7px;text-transform:none;margin:6px 0}.player-head p{font-size:13px;color:var(--mu)}.device-strip{padding:12px 15px;border:1px solid var(--line);background:var(--s1);border-radius:16px;display:flex;gap:10px;align-items:center;font-size:13px;text-align:left;width:100%}.device-strip:before{content:'';width:7px;height:7px;background:var(--ac);border-radius:50%;flex:none}.device-strip span{flex:1;overflow-wrap:anywhere}.device-strip small{color:var(--mu)}
-.now{grid-template-columns:1fr;text-align:center;max-width:470px;margin:auto}.cover{width:min(76%,300px);justify-self:center;border-radius:24px;box-shadow:0 16px 40px #0002}.np-t{font-size:28px;margin-top:8px}.np-a{font-size:15px}.tags{justify-content:center}.tag{font-size:11px}.np-t,.np-a{overflow-wrap:anywhere}.status{line-height:1.5}.wave{height:32px}.xfade{display:none}.ctl{gap:28px}.round.big{width:76px;height:76px;background:var(--ac);color:var(--on)}
+.now{grid-template-columns:1fr;text-align:center;max-width:470px;margin:auto}.cover{width:min(76%,300px);justify-self:center;border-radius:24px;box-shadow:0 16px 40px #0002}.np-t{font-size:28px;margin-top:8px}.np-a{font-size:15px}.np-t,.np-a{overflow-wrap:anywhere}.status{line-height:1.5}.ctl{gap:28px}.round.big{width:76px;height:76px;background:var(--ac);color:var(--on)}
 .nav{padding-top:8px;border-radius:24px 24px 0 0}.nav button{font-size:10px;max-width:160px}.card h2{font-size:12px}.page-title{font-size:30px;letter-spacing:-1px;line-height:1.1;margin:4px 0 0}.page-sub{font-size:14px;color:var(--mu);line-height:1.5}.local-note{font-size:12px;color:var(--mu);line-height:1.5}.mini-player{position:fixed;bottom:calc(91px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:780px;padding:12px 16px;border-radius:19px;background:var(--tx);color:var(--on);box-shadow:0 8px 28px #0003;z-index:21;display:flex;align-items:center;gap:12px}.mini-player div{flex:1;min-width:0}.mini-player b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mini-player small{font-size:11px;opacity:.7}.mini-player button{font-size:13px;font-weight:700;padding:9px}.app.has-mini{padding-bottom:110px}
 @media(min-width:700px){.library-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.hero{padding:34px}.now{max-width:530px}.cover{width:240px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
@@ -143,7 +143,7 @@ img[src=""],img:not([src]){visibility:hidden}
 
 /* Version 31: one transport, outside the scrolling views. */
 .mini-player{position:relative;left:auto;bottom:auto;transform:none;flex:none;width:100%;max-width:none;margin:0;border-radius:20px 20px 0 0;box-shadow:0 -4px 24px #0001;background:var(--s1);color:var(--tx);border:1px solid var(--line);padding:10px max(14px,calc((100% - 780px)/2));display:flex;flex-direction:column;gap:5px;z-index:20}
-.transport-head{display:flex;width:100%;gap:12px;align-items:center}.transport-head #miniOpen{flex:1;min-width:0;cursor:pointer}.mini-player b{font-size:13px}.mini-player small{font-size:11px;color:var(--mu);opacity:1}.mini-player button{padding:6px;font-size:12px}.output-button{max-width:38%;color:var(--ac);overflow-wrap:anywhere;text-align:right}.transport-seek{display:flex;align-items:center;gap:8px;width:100%;font-size:10px;color:var(--mu);font-variant-numeric:tabular-nums}.transport-seek input{flex:1;min-width:0;accent-color:var(--ac);height:16px}.transport-controls{display:flex;align-items:center;justify-content:center;gap:9px;width:100%}.mini-player .round{width:44px;height:44px;flex:none}.mini-player .round.big{width:76px;height:44px;border-radius:22px;display:flex;gap:4px;color:var(--on);padding:4px 7px}.mini-player .round svg{width:17px;height:17px}.mini-player .round.big svg{width:15px}.transport-option{width:44px;flex:none;min-height:44px;color:var(--mu);display:flex;align-items:center;justify-content:center;gap:2px;flex-direction:column}.transport-option svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none}.transport-option.on{color:var(--ac)}#repeatLabel{font-size:8px}.transport-detail{width:100%;font-size:11px;color:var(--mu);text-align:center;line-height:1.3;min-height:14px;overflow-wrap:anywhere}.mini-player button:disabled{opacity:.4;cursor:default}.transport-wait{animation:sp 1s linear infinite}.app.has-mini{padding-bottom:28px}.hero.returning{align-items:flex-start;flex-direction:column}.hero.returning .btn{align-self:flex-start}.continue-card b,.player-head h2{overflow-wrap:anywhere}.toast{bottom:calc(245px + env(safe-area-inset-bottom,0px))}.now{max-width:470px}.np-t{text-align:left;padding-right:54px}.np-a{text-align:left;padding-right:40px}.player-head #mixSaveState{line-height:1.5}.nav{border-top-left-radius:0;border-top-right-radius:0}.mini-player+.nav{border-top:0}
+.transport-head{display:flex;width:100%;gap:12px;align-items:center}.transport-head #miniOpen{flex:1;min-width:0;cursor:pointer}.mini-player b{font-size:13px}.mini-player small{font-size:11px;color:var(--mu);opacity:1}.mini-player button{padding:6px;font-size:12px}.transport-seek{display:flex;align-items:center;gap:8px;width:100%;font-size:10px;color:var(--mu);font-variant-numeric:tabular-nums}.transport-seek input{flex:1;min-width:0;accent-color:var(--ac);height:16px}.transport-controls{display:flex;align-items:center;justify-content:center;gap:9px;width:100%}.mini-player .round{width:44px;height:44px;flex:none}.mini-player .round.big{width:76px;height:44px;border-radius:22px;display:flex;gap:4px;color:var(--on);padding:4px 7px}.mini-player .round svg{width:17px;height:17px}.mini-player .round.big svg{width:15px}.transport-option{width:44px;flex:none;min-height:44px;color:var(--mu);display:flex;align-items:center;justify-content:center;gap:2px;flex-direction:column}.transport-option svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none}.transport-option.on{color:var(--ac)}#repeatLabel{font-size:8px}.transport-detail{width:100%;font-size:11px;color:var(--mu);text-align:center;line-height:1.3;min-height:14px;overflow-wrap:anywhere}.mini-player button:disabled{opacity:.4;cursor:default}.transport-wait{animation:sp 1s linear infinite}.app.has-mini{padding-bottom:28px}.hero.returning{align-items:flex-start;flex-direction:column}.hero.returning .btn{align-self:flex-start}.continue-card b,.player-head h2{overflow-wrap:anywhere}.toast{bottom:calc(245px + env(safe-area-inset-bottom,0px))}.now{max-width:470px}.np-t{text-align:left;padding-right:54px}.np-a{text-align:left;padding-right:40px}.player-head #mixSaveState{line-height:1.5}.nav{border-top-left-radius:0;border-top-right-radius:0}.mini-player+.nav{border-top:0}
 @media(max-height:650px){.transport-detail{max-height:28px;overflow:auto}.mini-player{gap:2px;padding-top:7px;padding-bottom:7px}.transport-controls{gap:8px}}
 
 /* Version 32: native-size content on foldables, Cinema Book-style glass docks. */
@@ -155,7 +155,7 @@ img[src=""],img:not([src]){visibility:hidden}
 .hero{padding:22px;border-radius:24px}.hero h2{font-size:32px;letter-spacing:-1px}.hero.returning{padding:22px;gap:16px}.hero.returning h2{font-size:26px}.hero.returning .btn{min-height:44px}
 .continue-card{padding:20px;border-radius:24px;gap:12px}.continue-card b{font-size:20px;line-height:1.3;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}.continue-card p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.continue-card .btn{min-height:44px}
 .library-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}.mix-tile b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:14px;line-height:1.35;min-height:38px}.mix-tile{padding:10px;border-radius:20px}.mix-tile span{font-size:11px}.section-head{margin-top:8px}
-#continueMix:empty{display:none}#savedSongs{min-width:0}.saved-song{min-width:0}.page-title{font-size:28px}.card{border-radius:22px}.cover{width:min(58vw,220px);border-radius:20px}.np-t{font-size:24px;line-height:1.2}.np-a{font-size:14px}.tags{margin-top:12px}.player-head h2{font-size:24px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+#continueMix:empty{display:none}#savedSongs{min-width:0}.saved-song{min-width:0}.page-title{font-size:28px}.card{border-radius:22px}.cover{width:min(58vw,220px);border-radius:20px}.np-t{font-size:24px;line-height:1.2}.np-a{font-size:14px}.player-head h2{font-size:24px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 /* Same floating capsule dimensions and material as Cinema Book. */
 .nav{position:fixed;left:50%;transform:translateX(-50%);bottom:max(12px,env(safe-area-inset-bottom,0px));width:min(calc(100% - 28px),520px);padding:6px;gap:2px;border:1px solid var(--dock-edge);border-radius:999px;background:var(--s1);box-shadow:var(--dock-shadow),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.12);z-index:25}
 .mini-player+.nav{border-top:1px solid var(--dock-edge)}
@@ -163,7 +163,7 @@ img[src=""],img:not([src]){visibility:hidden}
 .nav button.on{opacity:1;background:var(--dock-on);color:var(--tx);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 0 0 1px rgba(255,255,255,.06)}.nav svg{width:22px;height:22px;stroke-width:1.7}
 .nav button:focus-visible,.mini-player button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 .mini-player{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(12px,env(safe-area-inset-bottom,0px)) + var(--nav-h) + 10px);width:min(calc(100% - 24px),840px);max-width:840px;padding:10px 12px;margin:0;border:1px solid var(--dock-edge);border-radius:24px;background:var(--s1);box-shadow:0 10px 32px #0002,inset 0 1px 0 #ffffff24;gap:5px;z-index:24}
-.transport-detail{font-size:10px;line-height:1.35;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}.transport-head #miniOpen b{font-size:13px}.output-button{font-size:11px}.transport-controls{gap:9px}.mini-player .round.big{background:var(--ac)}
+.transport-detail{font-size:10px;line-height:1.35;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}.transport-head #miniOpen b{font-size:13px}.transport-controls{gap:9px}.mini-player .round.big{background:var(--ac)}
 .toast{bottom:calc(var(--footer-reserve) + 8px)}
 @supports ((backdrop-filter:blur(20px)) or (-webkit-backdrop-filter:blur(20px))){
  .nav{background:var(--dock);backdrop-filter:blur(26px) saturate(190%) brightness(1.08);-webkit-backdrop-filter:blur(26px) saturate(190%) brightness(1.08)}
@@ -176,9 +176,9 @@ img[src=""],img:not([src]){visibility:hidden}
  #v-home.has-continue>.hero{grid-column:1/6;align-self:stretch}#v-home.has-continue>#continueMix{grid-column:6/-1;display:flex}#continueMix>.continue-card{width:100%}#continueMix .continue-card b{-webkit-line-clamp:1}
  #v-home:not(.has-continue)>.hero{max-width:640px}.continue-card b{padding-right:40px}.hero h2{font-size:34px}.hero.returning h2{font-size:26px}
  #v-mix{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,1fr);align-items:start}#v-mix>.page-title,#v-mix>.page-sub{grid-column:1/-1}#v-mix>.card{min-width:0}.results{max-height:min(52dvh,480px)}
- #v-play{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);align-items:start;column-gap:20px}#v-play>.player-head,#v-play>.device-strip{grid-column:1/-1}#deck{grid-column:1;grid-row:3}#orderCard{grid-column:2;grid-row:3}.cover{width:min(100%,240px)}.np-t,.np-a{padding-right:0}.np-t{font-size:22px}.now{max-width:none;grid-template-columns:clamp(112px,12vw,144px) minmax(0,1fr);gap:14px;text-align:left}.now>.cover{width:100%;border-radius:18px}.tags{justify-content:flex-start}.queue{max-height:min(65dvh,640px);overflow-y:auto;overscroll-behavior:contain}.q{grid-template-columns:20px 40px minmax(0,1fr);gap:9px}.q .why{display:none}
+ #v-play{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);align-items:start;column-gap:20px}#v-play>.player-head,#v-play>.device-strip{grid-column:1/-1}#deck{grid-column:1;grid-row:3}#orderCard{grid-column:2;grid-row:3}.cover{width:min(100%,240px)}.np-t,.np-a{padding-right:0}.np-t{font-size:22px}.now{max-width:none;grid-template-columns:clamp(112px,12vw,144px) minmax(0,1fr);gap:14px;text-align:left}.now>.cover{width:100%;border-radius:18px}.queue{max-height:min(65dvh,640px);overflow-y:auto;overscroll-behavior:contain}.q{grid-template-columns:20px 40px minmax(0,1fr);gap:9px}.q .why{display:none}
  #v-set{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));align-items:start}#v-set>.page-title,#v-set>.page-sub{grid-column:1/-1}#v-set>.card{min-width:0}
- .mini-player{display:grid;grid-template-columns:minmax(0,1fr) 288px;column-gap:16px;row-gap:3px;padding:10px 16px}.transport-head{grid-column:1;grid-row:1}.transport-seek{grid-column:1;grid-row:2}.transport-controls{grid-column:2;grid-row:1/3;gap:9px}.transport-detail{grid-column:1/-1;grid-row:3}.output-button{max-width:32%}
+ .mini-player{display:grid;grid-template-columns:minmax(0,1fr) 288px;column-gap:16px;row-gap:3px;padding:10px 16px}.transport-head{grid-column:1;grid-row:1}.transport-seek{grid-column:1;grid-row:2}.transport-controls{grid-column:2;grid-row:1/3;gap:9px}.transport-detail{grid-column:1/-1;grid-row:3}
 }
 @media(min-width:1100px){.app,.app.has-mini{padding-inline:36px}.view{gap:18px}#v-home{gap:20px}.library-grid{grid-template-columns:repeat(auto-fill,minmax(156px,1fr))}}
 @media(max-width:360px){.mini-player{padding-inline:12px}.transport-controls{gap:4px}.continue-card,.hero.returning{padding:18px}.continue-card b{font-size:19px}}
@@ -197,18 +197,22 @@ img[src=""],img:not([src]){visibility:hidden}
 
 /* Version 34: the same controls dock inside a proper CD deck on Playing. */
 #transportDock{display:contents}.player-head #mixTitle{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:clamp(18px,2vw,24px)}.device-strip{display:none}#deck{min-width:0}#deckTransport{margin-top:18px}
-.now{display:flex;flex-direction:column;text-align:center;gap:18px;max-width:none}.now>div:last-child{min-width:0;width:100%}.np-t{font-size:clamp(20px,2.4vw,28px);white-space:normal;overflow-wrap:anywhere;line-height:1.2;margin-top:8px}.np-a{font-size:14px;margin-top:6px}.np-t,.np-a{text-align:center}.tags{justify-content:center;margin-top:12px}
+.now{display:flex;flex-direction:column;text-align:center;gap:18px;max-width:none}.now>div:last-child{min-width:0;width:100%}.np-t{font-size:clamp(20px,2.4vw,28px);white-space:normal;overflow-wrap:anywhere;line-height:1.2;margin-top:8px}.np-a{font-size:14px;margin-top:6px}.np-t,.np-a{text-align:center}
 .disc-stage{width:min(75%,280px);aspect-ratio:1;margin:4px auto 0;border-radius:50%;padding:9px;background:var(--s2);box-shadow:inset 0 2px 10px #0003,0 14px 26px #0002}
-.compact-disc{position:relative;width:100%;height:100%;border-radius:50%;background:repeating-radial-gradient(circle,transparent 0 3px,#ffffff12 4px 5px),conic-gradient(from 20deg,#677978,#d9e1d8,#8faaa7,#f0e6d6,#74878a,#d2dfdd,#677978);box-shadow:inset 0 0 0 1px #ffffff50;animation:disc-turn 14s linear infinite;animation-play-state:paused;overflow:hidden}
+.compact-disc{position:relative;width:100%;height:100%;border-radius:50%;background:repeating-radial-gradient(circle,transparent 0 3px,#ffffff12 4px 5px),conic-gradient(from 20deg,#72757a,#eceef0,#969a9f,#f6f4ef,#7d8288,#dde0e4,#72757a);box-shadow:inset 0 0 0 1px #ffffff50;animation:disc-turn 14s linear infinite;animation-play-state:paused;overflow:hidden}
 .compact-disc .cover{position:absolute;inset:22%;width:56%;height:56%;border-radius:50%;object-fit:cover;opacity:.95}.disc-hub{position:absolute;inset:43%;border-radius:50%;border:5px solid #e1e7e1;background:var(--s1);box-shadow:0 0 0 6px #ffffff35,0 2px 4px #0005}.disc-running .compact-disc{animation-play-state:running}
 @keyframes disc-turn{to{transform:rotate(360deg)}}
-#deck .wave,#deck .times,#deck .xfade{display:none}
 .mini-player.is-inline{position:static;transform:none;width:100%;max-width:none;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;display:flex;flex-direction:column;gap:14px}
 .is-inline .transport-head{display:none}.is-inline .transport-controls{order:1;justify-content:center;gap:clamp(6px,1.5vw,16px)}.is-inline .transport-seek{order:2;width:100%}.is-inline .transport-detail{order:3;text-align:center;min-height:32px;font-size:12px}.is-inline .round{width:48px;height:48px}.is-inline .round.big{width:76px;height:76px;border-radius:50%;padding:0;flex-direction:column;gap:1px}.is-inline .round.big svg{width:26px;height:26px}.is-inline #playerAction{font-size:12px}.is-inline .transport-option{width:44px;min-width:44px}
 #orderCard .queue{max-height:350px;overflow-y:auto;overscroll-behavior:contain;margin-top:14px}#orderCard .q{grid-template-columns:20px 40px minmax(0,1fr);gap:9px}#orderCard .q .why{display:none}#orderCard .note{font-size:12px}#deck .lbl{font-size:12px;line-height:1.5}#deck .tags:empty{display:none}
 @media(min-width:720px){#v-play{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:20px}#deck{grid-column:2;grid-row:2;position:sticky;top:12px;padding:24px}#orderCard{grid-column:1;grid-row:2}#orderCard .queue{max-height:min(62dvh,560px)}.disc-stage{width:min(70%,280px)}.now{display:flex}.now>.disc-stage{width:min(70%,280px)}}
 @media(max-width:719px){.disc-stage{width:min(70%,240px)}#orderCard .queue{max-height:300px}#deck{padding:20px}#v-play>.player-head{margin-bottom:0}.now{gap:16px}.is-inline .transport-controls{gap:6px}.is-inline .round{width:44px;height:44px}.is-inline .round.big{width:68px;height:68px}}
 @media(prefers-reduced-motion:reduce){.compact-disc{animation:none}}
+
+/* Version 35: Cinema Book's neutral surfaces, no green player tint. */
+:root{--bg:#F5F5F7;--s1:#FFFFFF;--s2:#F0F0F3;--s3:#E8E8ED;--line:#D2D2D7;--tx:#1D1D1F;--mu:#6E6E73;--dim:#8E8E93;--ac:#1D1D1F;--hero:#E8E8ED;--player-glass:rgba(255,255,255,.78)}
+@media(prefers-color-scheme:dark){:root{--bg:#000000;--s1:#1C1C1E;--s2:#2C2C2E;--s3:#3A3A3C;--line:#2C2C2E;--tx:#FFFFFF;--mu:#98989F;--dim:#8E8E93;--ac:#FFFFFF;--hero:#1C1C1E;--player-glass:rgba(28,28,30,.78)}}
+.mini-player .transport-head #miniOpen{max-width:100%;width:100%}.transport-head{gap:0}.passage-adjust{margin-top:12px;font-size:12px;color:var(--mu)}.passage-adjust summary{cursor:pointer;padding:8px 0}.passage-adjust #hookCtl{margin-top:8px}#aiStat:empty{display:none}.is-inline .transport-detail{min-height:18px}.disc-stage{width:min(70%,250px)}.now>.disc-stage{width:min(70%,250px)}
 
 </style>
 </head>
@@ -227,7 +231,7 @@ img[src=""],img:not([src]){visibility:hidden}
 
   <section id="connect" class="hide">
     <h1>Your playlists,<br>the best parts only.</h1>
-    <p class="muted">Pick a playlist, album or artist. The AI finds the famous part of every song and Segue plays just those, one after another.</p>
+    <p class="muted">Pick a playlist, album or artist. AI chooses a complete favourite passage from each song. Play your mix here.</p>
     <div class="card" style="margin-top:22px">
       <div class="lbl" style="margin-top:0">Spotify Client ID</div>
       <input id="cid" class="input" placeholder="Paste your app's Client ID" autocomplete="off" spellcheck="false">
@@ -291,7 +295,6 @@ img[src=""],img:not([src]){visibility:hidden}
     <!-- PLAY -->
     <section class="view hide" id="v-play">
       <div class="player-head"><div class="eyebrow">Your AI mix</div><h2 id="mixTitle">Ready when you are.</h2><p id="mixSaveState">New mixes save here automatically.</p></div>
-      <button class="device-strip" id="playDevice"><span id="deviceSummary">Browser player</span><small>Audio settings</small></button>
       <div class="card" id="deck">
         <div class="empty" id="deckEmpty"><div><div style="font-size:40px;opacity:.25;margin-bottom:8px">◐</div>Your saved mix will appear here.<br>Create one from your Spotify music.</div></div>
         <div id="deckOn" class="hide">
@@ -303,24 +306,20 @@ img[src=""],img:not([src]){visibility:hidden}
               <div class="np-a" id="npA"></div>
             </div>
           </div>
-          <div class="tags" id="npTags"></div>
           <div id="deckTransport"></div>
-          <div class="wave" id="wave"><div class="win" id="win"></div><div class="hook" id="hook">hook</div><div class="ph2" id="ph"></div></div>
-          <div class="times"><span id="tCur">0:00</span><span id="tSeg"></span><span id="tDur">0:00</span></div>
-          <div class="xfade"><i id="xf"></i></div>
           <div class="note hide" id="deviceHelp">
             <b>Browser player needs attention</b>
             <p id="browserHelp">Reconnect the player, then tap Play. Spotify Premium is required.</p>
             <button class="btn small ghost reconnect-player" style="margin-top:10px">Reconnect player</button>
           </div>
-          <div class="lbl">Best part wrong? Fix it once while the song plays</div>
+          <details class="passage-adjust"><summary>Adjust passage</summary>
           <div class="row" id="hookCtl" style="flex-wrap:wrap;gap:6px">
             <button class="btn ghost small" style="flex:1" id="hkSet">Starts here</button>
             <button class="btn ghost small" id="hkBack">−2s</button>
             <button class="btn ghost small" id="hkFwd">+2s</button>
             <button class="btn ghost small" id="hkReset">Reset</button>
           </div>
-          <svg class="curve" id="curve" viewBox="0 0 600 84" preserveAspectRatio="none"></svg>
+          </details>
         </div>
       </div>
       <div class="card hide" id="orderCard">
@@ -331,7 +330,6 @@ img[src=""],img:not([src]){visibility:hidden}
         <div class="note hide" id="renamePanel"><label for="mixName">Mix name</label><input class="input" id="mixName" maxlength="100" style="margin-top:8px"><div class="row" style="margin-top:10px"><button class="btn small pri" id="saveMixName">Save name</button><button class="btn small ghost" id="cancelMixName">Cancel</button></div></div>
         <div id="aiStat"></div>
         <div class="queue" id="queue"></div>
-        <div id="featNote"></div>
       </div>
     </section>
 
@@ -363,7 +361,7 @@ img[src=""],img:not([src]){visibility:hidden}
 
 <div id="transportDock">
 <section class="mini-player hide" id="miniPlayer" aria-label="Shared music player">
-  <div class="transport-head"><div id="miniOpen" role="button" tabindex="0" aria-label="Open current mix"><b id="miniTitle">Your mix</b><small id="miniState">Ready</small></div><button id="globalDevice" class="output-button" title="Browser audio settings"><span id="transportOutput">Browser audio</span></button></div>
+  <div class="transport-head"><div id="miniOpen" role="button" tabindex="0" aria-label="Open current mix"><b id="miniTitle">Your mix</b><small id="miniState">Ready</small></div></div>
   <div class="transport-seek"><span id="playerElapsed">0:00</span><input id="playerSeek" type="range" min="0" max="100" step="500" value="0" aria-label="Seek within the selected best part"><span id="playerDuration">0:00</span></div>
   <div class="transport-controls">
     <button id="shuffleBtn" class="transport-option" aria-label="Shuffle upcoming songs" aria-pressed="false" title="Shuffle upcoming songs"><svg viewBox="0 0 24 24"><path d="M3 6h3c5 0 6 12 11 12h4M17 14l4 4-4 4M3 18h3c2 0 3-2 5-6M14 8c1-2 2-2 4-2h3M17 2l4 4-4 4"/></svg></button>
@@ -398,7 +396,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 34;
+const APP_VERSION = 35;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -474,16 +472,16 @@ async function api(path, { method='GET', body, retry=2, timeout=15000 } = {}){
 async function apiFirst(paths, opts){ let err; for (const p of paths) { try { return await api(p, opts); } catch(e){ err=e; if (![403,404,400].includes(e.status)) throw e; } } throw err; }
 
 /* ---------------- State ---------------- */
-const ST = { me:null, tab:'playlist', crate:[], vibe:'smooth', len:'ai', max:30, trans:'cut', part:'peak', myPlaylists:null, mix:[], featOk:false };
+const ST = {me:null,tab:'playlist',crate:[],max:30,myPlaylists:null,mix:[]};
 
 /* Local library: song timings, saved mixes, and source selections are separate. */
 const Library = {
   state:{schema:1,sources:[],max:30,activeId:null,mixes:[],hiddenPicks:[]}, ref:null, lastWrite:0,
   key(){ return ST.me?.id ? 'library_' + ST.me.id : null; },
   track(t){
-    if (!t || typeof t.id !== 'string' || typeof t.uri !== 'string' || !t.uri.startsWith('spotify:track:') || !Number.isFinite(t.dur) || t.dur <= 0) return null;
+    if (!t || typeof t.id !== 'string' || typeof t.uri !== 'string' || t.uri!=='spotify:track:'+t.id || !Number.isFinite(t.dur) || t.dur <= 0) return null;
     const out = {};
-    for (const k of ['id','uri','name','dur','artists','artistId','img','imgS','tempo','energy','dance','valence','cam','keyName','genres','mood','aiStart','aiEnd','aiWhy','hook','hookSrc','start','end','fadeOut','fadeIn','inten']) {
+    for (const k of ['phrase','id','uri','name','dur','artists','artistId','img','imgS','aiStart','aiEnd','aiWhy','hook','hookSrc','start','end']) {
       if (t[k] !== undefined) out[k] = t[k];
     }
     out.name = String(t.name || 'Song'); out.artists = Array.isArray(t.artists) ? t.artists.map(String) : [];
@@ -568,8 +566,8 @@ const Library = {
     DJ.idx = mix.finished ? 0 : clamp(Number.isInteger(mix.idx) ? mix.idx : 0,0,ST.mix.length-1);
     const t = ST.mix[DJ.idx], c = AI.cache();
     ST.mix.forEach(x => { const pick=AI.pick(x,c); if (pick) { x.aiStart=pick.start; x.aiEnd=pick.end; x.aiWhy=pick.why; x.mood=pick.mood; } });
-    ST.mix.forEach((x,i) => x._lock = i <= DJ.idx && ['ai','you'].includes(x.hookSrc) && Number.isFinite(x.start) && Number.isFinite(x.end) && x.end > x.start);
-    planSegments(ST.mix,ST.vibe,ST.len); ST.mix.forEach(x => x._lock = false);
+    ST.mix.forEach((x,i) => x._lock = i <= DJ.idx && AI.pick(x,c) && ['ai','you'].includes(x.hookSrc) && Number.isFinite(x.start) && Number.isFinite(x.end) && x.end > x.start);
+    planSegments(ST.mix); ST.mix.forEach(x => x._lock = false);
     DJ.pos = Number.isFinite(mix.position) ? clamp(mix.position,t.start,t.end) : t.start;
     DJ.posAt = performance.now();DJ.pendingSeek=!!mix.pendingSeek;DJ.loadedMix=mix.pendingSeek||mix.positionReady===false?null:ST.mix;DJ.loadedId=t.id;
     DJ.phase = mix.finished?'ended':'ready';DJ.detail='Saved mix · press Play when ready';DJ.desiredPlaying=false;DJ.streamOwned=false;DJ.lastSample=null;DJ.lastFrameAt=DJ.lastMotionAt=0;DJ._renderTrack=null;DJ.checkpointId=mix.positionReady===false?null:t.id;
@@ -580,7 +578,6 @@ const Library = {
     renderDeck(); aiStatus(); setPlayIcon();
     $('#mixTitle').textContent = mix.name;
     $('#mixSaveState').textContent = 'Restored · press Play to continue';
-    $('#tCur').textContent = fmt(DJ.pos);
     setStat('Your place is saved · press Play when ready');
   },
   async open(id, play=false){
@@ -596,7 +593,7 @@ const Library = {
     if(DJ.busy||DJ.streamOwned){if(!await DJ.pause())return;}else this.capture();
     t.aiStart=c.start; t.aiEnd=c.end; t.aiWhy=c.why; t.mood=c.mood;
     DJ.epoch++;ST.mix=[t]; ST.pool=[t]; DJ.shuffle=false;DJ.repeat='off';DJ.baseOrder=[t.id];DJ.history=[];DJ.checkpointId=null;DJ.idx=0; DJ.pos=DJ.posAt=0; DJ.loadedMix=null; DJ.retryIdx=null; DJ.finished=false;
-    planSegments(ST.mix,ST.vibe,ST.len); this.capture(true,t.name,[]); renderDeck(); showView('play'); await DJ.go(0);
+    planSegments(ST.mix); this.capture(true,t.name,[]); renderDeck(); showView('play'); await DJ.go(0);
   },
   async recoverPicks(){
     const button = $('#recoverPicks'); button.disabled = true;
@@ -637,7 +634,7 @@ const Library = {
     $('#recoverPicks').classList.toggle('hide', !Object.entries(cache).some(([id,c]) => c && !c.song && !hidden.has(id)));
     $('#pickCount').textContent = `${Object.keys(cache).length} timings kept`;
     $('#clearSavedSongs').classList.toggle('hide', !allSongs.length);
-    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${fmt(c.start)}–${fmt(c.end)} · AI pick saved</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : hidden.size && !Object.keys(cache).some(id => !hidden.has(id)) ? 'List cleared. Your AI best-part timings are still saved and will be reused when you build another mix.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Songs appear here after AI chooses their best parts.'}</div>`;
+    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${c.schema===2?fmt(c.start)+'–'+fmt(c.end)+' · AI pick saved':'Timing will be rechecked'}</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : hidden.size && !Object.keys(cache).some(id => !hidden.has(id)) ? 'List cleared. Your AI best-part timings are still saved and will be reused when you build another mix.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Songs appear here after AI chooses their best parts.'}</div>`;
     this.mini();
   },
   mini(){ DJ.render();
@@ -729,11 +726,10 @@ document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e
   seg.querySelectorAll('.opt').forEach(x => x.classList.toggle('on', x===b));
   ST[seg.dataset.k] = seg.dataset.k === 'max' ? +b.dataset.v : b.dataset.v;
   Library.saveDraft();
-  if ((seg.dataset.k === 'trans' || seg.dataset.k === 'len' || seg.dataset.k === 'part') && ST.mix.length) { planSegments(ST.mix, ST.vibe, ST.len); renderDeck(); }
 }));
 
 /* ---------------- Track fetching ---------------- */
-const normTrack = (t, album) => (t && t.id && t.uri && Number.isFinite(t.duration_ms) && t.duration_ms > 0 && t.type !== 'episode' && !t.is_local && t.is_playable !== false && !t.restrictions?.reason) ? {
+const normTrack = (t, album) => (t && typeof t.id==='string' && t.id && t.uri==='spotify:track:'+t.id && Number.isFinite(t.duration_ms) && t.duration_ms > 0 && t.type !== 'episode' && !t.is_local && t.is_playable !== false && !t.restrictions?.reason) ? {
   id:t.id, uri:t.uri, name:t.name, dur:t.duration_ms, artists:(t.artists||[]).map(a=>a.name), artistId:t.artists?.[0]?.id,
   img:(t.album||album)?.images?.[0]?.url || '', imgS:(t.album||album)?.images?.slice(-1)[0]?.url || '' } : null;
 
@@ -763,260 +759,52 @@ async function tracksFromSource(src, cap){
 }
 const titleKey = t => (t.name.toLowerCase().replace(/\s*[\(\[].*?[\)\]]/g,'').replace(/\s+-\s+.*$/,'').replace(/[^a-z0-9\u0080-￿]+/g,' ').trim()) + '|' + (t.artists[0]||'').toLowerCase();
 
-/* ---------------- Audio features (ReccoBeats, free, no key) ---------------- */
-async function fetchFeatures(tracks, onProg){
-  const map = new Map(); const ids = tracks.map(t=>t.id);
-  for (let i = 0; i < ids.length; i += 40) {
-    const chunk = ids.slice(i, i+40);
-    let j = null;
-    for (const qs of [ 'ids='+chunk.join(','), chunk.map(x=>'ids='+x).join('&') ]) {
-      try { const r = await tfetch('https://api.reccobeats.com/v1/audio-features?'+qs, { headers:{Accept:'application/json'} }, 10000); if (r.ok) { j = await r.json(); break; } } catch {}
-    }
-    for (const f of (j?.content || j?.audio_features || (Array.isArray(j)?j:[]))) {
-      if (!f) continue;
-      const sid = f.spotifyId || (f.href||'').match(/track\/([A-Za-z0-9]{22})/)?.[1] || (chunk.includes(f.id) ? f.id : null);
-      if (sid) map.set(sid, f);
-    }
-    onProg?.(Math.min(ids.length, i+40), ids.length);
-  }
-  return map;
-}
-
-/* ---------------- The DJ brain ---------------- */
-// Camelot wheel: harmonic-mixing positions
-const CAM_MAJ = {0:8,7:9,2:10,9:11,4:12,11:1,6:2,1:3,8:4,3:5,10:6,5:7};
-const CAM_MIN = {9:8,4:9,11:10,6:11,1:12,8:1,3:2,10:3,5:4,0:5,7:6,2:7};
-const KEYN = ['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
-function camelot(f){ if (!f || f.key==null || f.key<0) return null; const maj = f.mode===1 || f.mode==null; return { n:(maj?CAM_MAJ:CAM_MIN)[f.key], l:maj?'B':'A' }; }
-const camStr = c => c ? c.n + c.l : '—';
-function keyDist(a,b){
-  if (!a || !b) return 0.35;
-  const d = Math.min((a.n-b.n+12)%12, (b.n-a.n+12)%12);
-  if (a.l === b.l) return [0, .12, .45, .8, 1, 1, 1][d];
-  return d===0 ? .15 : d===1 ? .55 : 1;
-}
-function bpmRatio(a,b){ if (!a || !b) return null; let best = b/a; for (const r of [b/a, 2*b/a, b/(2*a)]) if (Math.abs(r-1) < Math.abs(best-1)) best = r; return best; }
-function bpmDist(a,b){ const r = bpmRatio(a,b); return r==null ? .35 : clamp(Math.abs(r-1)/0.1, 0, 1); }
-function curve(vibe, t){
-  switch (vibe) {
-    case 'party': return t < .78 ? .15 + .85*(t/.78) : 1 - .35*((t-.78)/.22);
-    case 'peak':  return .78 + .14*Math.sin(t*Math.PI*4);
-    case 'chill': return .6 - .55*t;
-    default:      return .5 + .28*Math.sin(t*Math.PI*2.4 - .9);
+/* Timing comes only from a validated AI answer, never a duration preset. */
+const SRC={ai:'AI pick',you:'Your correction',pending:'AI preparing'};
+function buildOrder(tracks){return tracks.slice();}
+function planSegments(tracks){
+  for(const t of tracks){
+    if(t._lock)continue;const pick=AI.pick(t),mine=HK.get()[t.id];
+    if(!pick){t.start=t.end=t.hook=0;t.hookSrc='pending';delete t.aiStart;delete t.aiEnd;continue;}
+    t.aiStart=pick.start;t.aiEnd=pick.end;t.aiWhy=pick.why;
+    t.start=Number.isFinite(mine)?clamp(mine,0,t.dur-1):pick.start;
+    t.end=pick.end>t.start?pick.end:t.dur;t.hook=t.start;t.hookSrc=Number.isFinite(mine)?'you':'ai';
   }
 }
-/* Music type: a style fingerprint from the sound, plus Spotify artist genres when available */
-function styleVec(t){ const f = t.f || {}; return [t.dance ?? .5, t.energy ?? .5, f.acousticness ?? .3, Math.min(1, (f.speechiness ?? .05) * 2.5), t.valence ?? .5, f.instrumentalness ?? 0]; }
-function styleDist(a, b){
-  let d = 0; if (a.f && b.f) { const x = styleVec(a), y = styleVec(b), w = [1, .8, 1.2, 1.3, .6, 1]; for (let i=0;i<x.length;i++) d += w[i]*(x[i]-y[i])**2; d = Math.min(1, Math.sqrt(d) / 1.1); } else d = .3;
-  if (a.genres?.length && b.genres?.length) { const A = new Set(a.genres.flatMap(g=>g.split(/[\s-]+/))), B = new Set(b.genres.flatMap(g=>g.split(/[\s-]+/))); const inter = [...A].filter(x=>B.has(x)).length; const jac = inter / (new Set([...A, ...B]).size || 1); d = .6*d + .4*(1 - jac); }
-  return d;
-}
-function styleName(t){
-  if (t.genres?.length) return t.genres[0].replace(/\b\w/g, c => c.toUpperCase());
-  const f = t.f; if (!f) return null;
-  if ((f.speechiness ?? 0) > .22) return 'Rap / Hip-hop';
-  if ((f.instrumentalness ?? 0) > .5) return 'Instrumental';
-  if ((f.acousticness ?? 0) > .6 && t.energy < .5) return 'Acoustic / Ballad';
-  if (t.dance > .7 && t.energy > .7) return 'Dance';
-  if (t.energy > .78) return 'High-energy';
-  if (t.valence < .3 && t.energy < .5) return 'Mellow';
-  if (t.dance > .65) return 'Groove';
-  return 'Pop';
-}
-async function fetchGenres(tracks, onProg){
-  let cache = {}; try { cache = JSON.parse(LS.get('genres') || '{}'); } catch {}
-  const ids = [...new Set(tracks.map(t=>t.artistId).filter(Boolean))].filter(id => cache[id] === undefined).slice(0, 40);
-  let done = 0; const q = ids.slice();
-  const worker = async () => { while (q.length) { const id = q.shift(); try { const a = await api(`/artists/${id}`, { retry:0 }); cache[id] = (a.genres || []).slice(0, 4); } catch(e){ if (e.status === 429) { q.length = 0; break; } cache[id] = []; } onProg?.(++done, ids.length); } };
-  await Promise.all([worker(), worker(), worker()]);
-  LS.set('genres', JSON.stringify(cache));
-  tracks.forEach(t => t.genres = cache[t.artistId] || []);
-}
-function buildOrder(tracks, vibe){
-  const N = tracks.length; if (N < 2) return tracks.slice();
-  // Normalise energy to this crate's own range, so "Build-up" works on any playlist
-  // Intensity mixes energy with tempo, so Build-up also speeds up as it goes
-  const tps = tracks.map(t=>t.tempo).filter(Boolean).sort((a,b)=>a-b);
-  const tLo = tps[Math.floor(tps.length*.1)] || 90, tHi = tps[Math.ceil(tps.length*.9)-1] || 140;
-  tracks.forEach(t => { const tn = t.tempo ? clamp((t.tempo - tLo) / Math.max(10, tHi - tLo), 0, 1) : .5; t.inten = .72*t.energy + .28*tn; });
-  const es = tracks.map(t=>t.inten).sort((a,b)=>a-b);
-  const lo = es[Math.floor(N*.1)], hi = es[Math.ceil(N*.9)-1];
-  const target = i => lo + curve(vibe, N>1 ? i/(N-1) : 0) * Math.max(.05, hi-lo);
-  const edge = (a,b) => .35*keyDist(a.cam,b.cam) + .95*bpmDist(a.tempo,b.tempo) + .45*styleDist(a,b) + (a.mood && b.mood ? .45*moodDist(a.mood,b.mood) : 0) + (a.artistId===b.artistId ? .5 : 0);
-  const fit = (t,i) => 1.5*Math.abs(t.inten - target(i)) / Math.max(.1, hi-lo);
-  const total = ord => { let c = 0; for (let i=0;i<ord.length;i++){ c += fit(ord[i],i); if (i) c += edge(ord[i-1],ord[i]); if (i>1 && ord[i].artistId===ord[i-2].artistId) c += .2; } return c; };
-  // Seed: match songs to the arc by energy rank (k-th calmest song -> k-th calmest slot)
-  const slots = [...Array(N).keys()].sort((x,y)=>target(x)-target(y));
-  const byE = tracks.slice().sort((x,y)=>x.inten-y.inten + (Math.random()-.5)*.03);
-  const ord = new Array(N); slots.forEach((p,k)=>ord[p]=byE[k]);
-  // Refine: random swaps + segment reversals, keep whatever lowers total cost
-  let cur = total(ord); const t0 = performance.now();
-  while (performance.now() - t0 < 300) {
-    const i = Math.floor(Math.random()*N), j = Math.floor(Math.random()*N); if (i===j) continue;
-    let cand;
-    if (Math.random() < .6) { if (Math.abs(i-j) > 6) continue; cand = ord.slice(); [cand[i],cand[j]] = [cand[j],cand[i]]; }
-    else { const [a,b] = i<j ? [i,j] : [j,i]; if (b-a > 8) continue; cand = ord.slice(0,a).concat(ord.slice(a,b+1).reverse(), ord.slice(b+1)); }
-    const c = total(cand); if (c < cur - 1e-6) { ord.splice(0, N, ...cand); cur = c; }
-  }
-  ord.target = target;
-  return ord;
-}
-const SRC = { you:'set by you', ai:'AI pick', lyrics:'chorus', estimate:'simple rule (no AI answer)' };
-const LEN = { 30:30000, 45:45000, 60:60000, 90:90000 };
-function planSegments(ord, vibe, len){
-  const baseFade = { smooth:4500, party:3000, peak:2200, chill:6500 }[vibe];
-  ord.forEach((t, i) => {
-    if (t._lock) return;
-    const bar = 240000 / (t.tempo || 120), phrase = bar * 8;
-    const snap = ms => Math.round(ms / phrase) * phrase;
-    // Where the hook/chorus usually lands: earlier for dance tracks, later for slow builds
-    let ratio = .3; if (t.dance > .72) ratio = .26; if (t.energy < .4) ratio = .36; if (t.dur > 330000) ratio -= .05;
-    const mine = HK.get()[t.id], beat = 60000 / (t.tempo || 120);
-    if (mine != null) { t.hook = mine; t.hookSrc = 'you'; }
-    else if (t.aiStart != null && !(ST.part === 'first' && Array.isArray(t.lyricHook))) { t.hook = clamp(t.aiStart, 0, Math.max(0, t.dur - 2000)); t.hookSrc = 'ai'; }
-    else if (Array.isArray(t.lyricHook) && t.lyricHook.length) {
-      const cs = t.lyricHook, need = len === 'full' ? 0 : (LEN[len] || 45000);
-      // Peak = the last full chorus that still leaves room to play it (the second or third time round is usually the biggest)
-      const roomy = cs.filter(x => x <= t.dur - need - 5000);
-      const c = ST.part === 'first' ? cs[0] : (roomy.length >= 2 ? roomy[roomy.length - 1] : roomy[0] ?? cs[0]);
-      t.hook = Math.max(0, c - beat); t.hookSrc = 'lyrics';           // land on the downbeat just before the vocal
-    }
-    else {
-      // No lyrics: pop songs usually hit their 2nd chorus around the middle; first chorus around 30%
-      const r2 = ST.part === 'first' ? ratio : clamp(ratio + .24, .45, .62);
-      t.hook = clamp(snap(t.dur * r2), 20000, t.dur - (LEN[len] || 45000) - 5000); t.hookSrc = 'estimate';
-    }
-    const next = ord[i+1];
-    const comp = next ? (keyDist(t.cam,next.cam) + bpmDist(t.tempo,next.tempo))/2 : 0;
-    // Smooth, compatible pairs get a longer blend; clashing pairs a quicker one
-    t.fadeOut = Math.round(baseFade * (1.25 - .6*comp));
-    t.fadeIn = Math.round(t.fadeOut * .55);
-    if (len === 'full') {
-      t.start = 0; t.end = t.dur - 1500;
-    } else {
-      const want = LEN[len] || 45000;
-      if (ST.trans === 'cut') {
-        // DJ cut: come in right on the hook's downbeat, leave exactly at the end of a phrase
-        t.start = Math.max(0, t.hook - 120);
-        t.end = Math.min(t.dur - 1500, t.hook + Math.max(4, Math.round(want / bar)) * bar);
-        t.fadeOut = 300; t.fadeIn = 0;
-      } else {
-        // Start one phrase (8 bars) before the hook so the chorus lands after the fade-in
-        t.start = i === 0 && vibe !== 'peak' ? Math.max(0, t.hook - 2*phrase) : Math.max(0, t.hook - phrase);
-        t.end = Math.min(t.dur - 1500, t.hook + Math.max(4, Math.round(want / bar)) * bar + t.fadeOut);
-      }
-      if (t.hookSrc === 'ai' && t.aiEnd) { t.start = t.hook; t.end = Math.min(t.dur - 2000, t.aiEnd, t.start + 75000); }
-      else if (t.end - t.start < want * .8) t.start = Math.max(0, t.end - want);
-    }
-  });
-  ord.forEach((t,i) => { const p = ord[i-1]; t.why = p ? (ST.trans === 'cut' && len !== 'full' ? '<em>DJ cut</em><br>' : '') + whyText(p,t) : null; });
-}
-function whyText(a,b){
-  const k = keyDist(a.cam,b.cam), r = bpmRatio(a.tempo,b.tempo);
-  const keyPart = (a.cam && b.cam) ? `${camStr(a.cam)}→${camStr(b.cam)}${k<=.15?' <em>✓</em>':''}` : '';
-  const bpmPart = (a.tempo && b.tempo) ? `${Math.round(a.tempo)}→${Math.round(b.tempo)} bpm${r && Math.abs(r-1)<.04?' <em>✓</em>':''}` : '';
-  const de = b.energy - a.energy; const ePart = Math.abs(de) < .06 ? 'energy =' : de > 0 ? 'energy ↑' : 'energy ↓';
-  const sd = (a.f && b.f) || (a.genres?.length && b.genres?.length) ? styleDist(a,b) : null;
-  const sPart = sd == null ? '' : sd < .28 ? 'same style <em>✓</em>' : sd < .5 ? 'close style' : `→ ${esc(styleName(b) || 'new style')}`;
-  const mPart = a.mood && b.mood ? (a.mood === b.mood ? `${b.mood} mood <em>✓</em>` : `${a.mood} → ${b.mood}`) : '';
-  return [keyPart, bpmPart, ePart, sPart, mPart].filter(Boolean).join('<br>');
-}
-
-
-/* ---------------- Hook finder: lyrics chorus + your own marks ---------------- */
-const HK = {
-  get(){ try { return JSON.parse(LS.get('hooks') || '{}'); } catch { return {}; } },
-  set(id, ms){ const h = this.get(); h[id] = Math.round(ms); LS.set('hooks', JSON.stringify(h)); },
-  clear(id){ const h = this.get(); delete h[id]; LS.set('hooks', JSON.stringify(h)); },
+const HK={get(){try{return JSON.parse(LS.get('hooks')||'{}');}catch{return {};}},set(id,ms){const c=this.get();c[id]=Math.round(ms);LS.set('hooks',JSON.stringify(c));},clear(id){const c=this.get();delete c[id];LS.set('hooks',JSON.stringify(c));}};
+/* Timed blank/instrumental markers help locate section breaks. Line starts
+   alone are not treated as proof that a singer has finished. No audio access. */
+const Phrase={
+  clean(s){return String(s||'').replace(/\s*[([].*?[)\]]/g,'').trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ');},
+  parse(text,dur){const lines=[],gaps=[];for(const raw of String(text||'').split('\n')){const lyric=raw.replace(/\[[^\]]*\]/g,'').trim();for(const m of raw.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)){const at=(+m[1]*60+ +m[2])*1000;if(at>=0&&at<=dur){lines.push(at);if(!lyric||/^(instrumental|music|interlude|\(instrumental\))$/i.test(lyric))gaps.push(at);}}}return {lines:[...new Set(lines)].sort((a,b)=>a-b),gaps:[...new Set(gaps)].sort((a,b)=>a-b)};},
+  async load(t){
+    if(t.phrase)return t.phrase;
+    let saved={};try{saved=JSON.parse(LS.get('boundaries1')||'{}');}catch{}
+    if(saved[t.id]?.dur===t.dur){t.phrase=saved[t.id];return t.phrase;}
+    let p={lines:[],gaps:[],dur:t.dur};
+    try{
+      const name=t.name.replace(/\s*[([].*?[)\]]/g,'').trim();
+      const qs=new URLSearchParams({track_name:name,artist_name:t.artists[0]||'',duration:String(Math.round(t.dur/1000))});
+      const r=await tfetch('https://lrclib.net/api/get?'+qs,{},4000);
+      if(r.ok){const j=await r.json();if(this.clean(j.trackName)===this.clean(name)&&this.clean(j.artistName).includes(this.clean(t.artists[0]))&&Math.abs(j.duration*1000-t.dur)<=2000){p={...p,...this.parse(j.syncedLyrics,t.dur)};}}
+    }catch{}
+    t.phrase=p;saved[t.id]=p;LS.set('boundaries1',JSON.stringify(saved));return p;
+  },
+  next(t,pos){return t.phrase?.gaps?.find(x=>x>=pos)??null;},
+  finish(t,end){return t.phrase?.gaps?.find(x=>x>=end&&x<=end+15000)??end;}
 };
-function parseLRC(txt){
-  const out = [];
-  for (const raw of String(txt||'').split('\n')) {
-    const stamps = [...raw.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)]; if (!stamps.length) continue;
-    const text = raw.replace(/\[[^\]]*\]/g,'').trim(); if (!text) continue;
-    for (const m of stamps) out.push({ t: (+m[1]*60 + +m[2]) * 1000, text });
-  }
-  return out.sort((a,b)=>a.t-b.t);
-}
-const normLine = s => s.toLowerCase().replace(/\(.*?\)/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
-// The chorus = the block of consecutive lines that repeats most often in the song
-function chorusFromLRC(lines, durMs){
-  if (lines.length < 6) return null;
-  const keys = lines.map(l => normLine(l.text));
-  const count = {}; keys.forEach(k => { if (k.length > 2) count[k] = (count[k]||0) + 1; });
-  const runs = []; let cur = null;
-  keys.forEach((k, i) => {
-    if (cur && i && lines[i].t - lines[i-1].t > 12000) { runs.push(cur); cur = null; } // a long gap starts a new section
-    if ((count[k]||0) >= 2) { if (!cur) cur = { i, len:0, keys:[] }; cur.len++; cur.keys.push(k); }
-    else if (cur) { runs.push(cur); cur = null; }
-  });
-  if (cur) runs.push(cur);
-  if (!runs.length) return null;
-  const groups = {};
-  for (const r of runs) { const g = r.keys[0]; (groups[g] ||= []).push(r); }
-  let best = null;
-  for (const [g, rs] of Object.entries(groups)) {
-    const len = Math.max(...rs.map(r=>r.len)), occ = rs.length;
-    if (occ < 2 && len < 4) continue;
-    const score = occ * Math.min(len, 8) + (count[g]||0);
-    if (!best || score > best.score) best = { score, rs };
-  }
-  if (!best) return null;
-  // Every time the chorus comes round (merging repeats that are back-to-back)
-  const starts = []; for (const x of best.rs.map(r => lines[r.i].t).sort((a,b)=>a-b)) if (!starts.length || x - starts[starts.length-1] > 15000) starts.push(x);
-  const ok = starts.filter(x => x >= 8000 && x < durMs - 25000);
-  return ok.length ? ok : null;
-}
-async function lyricHook(t, needLines){
-  let cache = {}; try { cache = JSON.parse(LS.get('lrc3') || '{}'); } catch {}
-  if (cache[t.id] !== undefined && !needLines) return cache[t.id];
-  let hook = null;
-  try {
-    const clean = t.name.replace(/\s*[\(\[].*?[\)\]]/g,'').replace(/\s+-\s+.*$/,'').trim();
-    const ctl = new AbortController(); const tm = setTimeout(()=>ctl.abort(), 7000);
-    const near = x => !x.instrumental && Math.abs((x.duration||0)*1000 - t.dur) < 8000;
-    const byDur = (a,b) => Math.abs(a.duration*1000 - t.dur) - Math.abs(b.duration*1000 - t.dur);
-    let synced = null, plain = null;
-    const take = arr => { const ok = (arr||[]).filter(near).sort(byDur); synced ||= ok.find(x => x.syncedLyrics); plain ||= ok.find(x => x.plainLyrics); };
-    const urls = [`track_name=${encodeURIComponent(clean)}&artist_name=${encodeURIComponent(t.artists[0]||'')}`, `q=${encodeURIComponent(clean + ' ' + (t.artists[0]||''))}`, `track_name=${encodeURIComponent(clean)}`];
-    for (const u of urls) {
-      if (synced) break;
-      const r = await fetch('https://lrclib.net/api/search?' + u, { signal: ctl.signal });
-      if (r.ok) take(await r.json()); else if (r.status !== 404) { clearTimeout(tm); return null; }
-    }
-    clearTimeout(tm);
-    if (synced) { t.lrcLines = parseLRC(synced.syncedLyrics); hook = chorusFromLRC(t.lrcLines, t.dur); }
-    else if (plain) t.plainLines = plain.plainLyrics.split('\n').map(x => x.trim()).filter(Boolean);
-  } catch { return null; }
-  cache[t.id] = hook;
-  const ks = Object.keys(cache); if (ks.length > 3000) ks.slice(0, 500).forEach(k => delete cache[k]);
-  LS.set('lrc3', JSON.stringify(cache));
-  return hook;
-}
-async function findHooks(tracks, onProg){
-  let done = 0; const q = tracks.slice();
-  const ai = AI.cache(), on = !!AI.key();
-  const worker = async () => { while (q.length) { const t = q.shift(); t.lyricHook = await lyricHook(t, on && !ai[t.id]); onProg?.(++done, tracks.length); } };
-  await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
-}
-
 
 /* ---------------- AI DJ (Gemini or Claude) ---------------- */
-const MOODS = ['party','energetic','happy','romantic','chill','sad','nostalgic','intense','devotional'];
-const MOOD_NEAR = { party:['energetic','happy'], energetic:['party','intense','happy'], happy:['party','romantic','energetic','chill'], romantic:['happy','chill','nostalgic','sad'],
-  chill:['romantic','happy','nostalgic'], sad:['romantic','nostalgic','chill'], nostalgic:['romantic','sad','chill'], intense:['energetic','party'], devotional:['chill','nostalgic'] };
-function moodDist(a, b){ if (!a || !b) return .3; if (a === b) return 0; return (MOOD_NEAR[a]||[]).includes(b) ? .4 : 1; }
 const AI = {
   key(){ return LS.get('aikey') || ''; },
   cache(){ try { const c = JSON.parse(LS.get('ai4') || '{}'); return c && typeof c === 'object' && !Array.isArray(c) ? c : {}; } catch { return {}; } },
   pick(t,cache=this.cache()){
     const c = cache[t.id];
-    return c && Number.isFinite(c.start) && Number.isFinite(c.end) && c.start >= 0 && c.end > c.start && c.end <= t.dur ? c : null;
+    return c && c.schema===2 && Number.isFinite(c.start) && Number.isFinite(c.end) && c.start >= 0 && c.end > c.start && c.end <= t.dur ? c : null;
   },
   savedStatus(){
     const n = Object.keys(this.cache()).length;
-    $('#aiSaved').textContent = `${n} saved song ${n === 1 ? 'pick' : 'picks'}. Reused across all playlists on this device, including after closing Segue. Clearing website data removes them.`;
+    $('#aiSaved').textContent = `${n} song mappings kept. Older timings are rechecked once; new picks are reused across playlists. Clearing website data removes them.`;
   },
   save(c){
     const previous = this.cache(); c = {...previous,...c};
@@ -1028,19 +816,17 @@ const AI = {
     this.savedStatus(); Library.render();
   },
   prompt(batch){
-    const songs = batch.map(t => `id: ${t.id} | title: ${t.name} | artists: ${t.artists.join(', ')} | length: ${Math.round(t.dur/1000)} s${t.tempo ? ` | bpm: ${Math.round(t.tempo)}` : ''}`).join('\n');
-    return `You are an expert DJ for Tamil, Hindi, Telugu, English and global pop. You know which part of each song is the famous one: the hook everyone sings along to, the part used in reels and shorts, the mass theme or the drop.
-Think carefully about each song below, then give the best part to play in a DJ mix:
-- "start": the second where that famous part begins (the first beat of the hook, not mid-line).
-- "end": the second where it should hand over to the next song. The part should be 30 to 75 seconds long and must end at least 2 seconds before the song ends.
-For a song shorter than 30 seconds, choose a shorter passage that fits its actual length.
-- "mood": one of ${MOODS.join(', ')}.
-- "why": at most 8 words.
-Do not default to the opening pallavi or the first chorus. Think through the whole song (prelude, pallavi, interludes, charanams, pallavi reprise, climax) and choose the passage listeners love most. That is often a charanam, the lift from a charanam back into the pallavi, a famous interlude theme, or the final high-energy reprise. Choose the first pallavi only when it truly is the most famous moment, and let the picks fall at different places across the songs.
-Always give numbers for start and end, using what you know of the song and its length.
-Reply with only a JSON array: [{"id":"...","start":number,"end":number,"mood":"...","why":"..."}].
-
-${songs}`;
+    const songs=batch.map(t=>({id:t.id,title:t.name,artists:t.artists,duration:t.dur/1000,
+      manualStart:Number.isFinite(HK.get()[t.id])?HK.get()[t.id]/1000:null,
+      previous:this.cache()[t.id]?{start:this.cache()[t.id].start/1000,end:this.cache()[t.id].end/1000}:null,
+      lineStarts:t.phrase?.lines?.map(x=>x/1000)||[],sectionBreaks:t.phrase?.gaps?.map(x=>x/1000)||[]}));
+    return `Choose the best-loved COMPLETE musical passage for each exact recording below. You do not hear the audio. Use your musical knowledge plus supplied timestamp evidence; do not invent certainty.
+There is NO target duration, minimum segment duration, one-minute rule or maximum segment duration. A complete refrain, charanam, interlude, instrumental theme or final reprise may be short or several minutes. Select the best passage, not a fixed-length excerpt.
+If manualStart is supplied, choose a complete ending after that user-selected start. Otherwise start before its first sung word. End AFTER the entire sung phrase/section and its last sustained syllable, preferably at an instrumental break or the song end. Never end merely because 30, 45, 60 or 75 seconds elapsed. Do not truncate a complete section to fit a clock. Do not always choose the opening pallavi.
+lineStarts are lyric LINE STARTS, not vocal end times; never assume every line start is a silence. sectionBreaks are timed blank/instrumental markers from a duration/title/artist-matched lyric source; prefer an appropriate one AFTER the selected passage. Without evidence, choose a conservative complete-section estimate and mark boundary as estimated. Song end is permitted.
+Older previous timings are only candidates; many were artificially length-capped. Preserve their chosen famous start if appropriate, but re-evaluate the full section ending.
+Return only JSON: [{"id":"...","start":seconds,"end":seconds,"boundary":"section_marker|estimated|song_end","why":"short reason"}]. Require finite 0 <= start < end <= duration. No substitute length for missing end.
+`+JSON.stringify(songs);
   },
   async call(text){
     const key = this.key();
@@ -1098,7 +884,7 @@ ${songs}`;
     if (!this.key() || this.pick(t,cache) || (t._aiTries || 0) >= 2) return Promise.resolve();
     if (t._aiP) return t._aiP;
     const mix = ST.mix, i = Math.max(0, mix.indexOf(t));
-    const batch = mix.slice(i, i + 12).filter(x => !this.pick(x,cache) && !x._aiP && (x._aiTries || 0) < 2 && x.hookSrc !== 'you').slice(0, this.batchSize);
+    const batch = mix.slice(i, i + 12).filter(x => !this.pick(x,cache) && !x._aiP && (x._aiTries || 0) < 2).slice(0, this.batchSize);
     if (!batch.includes(t)) { batch.unshift(t); batch.length = Math.min(batch.length, this.batchSize); }
     const p = this.q = this.q.then(async () => { batch.forEach(x => x._aiTries = (x._aiTries || 0) + 1); await this.run(batch); }).catch(() => {}).then(() => { batch.forEach(x => { x._aiP = null; x.aiPending = false; }); });
     batch.forEach(x => x._aiP = p);
@@ -1115,15 +901,18 @@ ${songs}`;
       const batch = todo.slice(i, i + this.batchSize);
       onProg?.(i, todo.length);
       try {
+        await Promise.all(batch.map(t=>Phrase.load(t)));
         const txt = await this.call(this.prompt(batch));
         const arr = JSON.parse(txt.replace(/^[^\[]*/, '').replace(/[^\]]*$/, ''));
         for (const o of arr) {
           const t = batch.find(x => x.id === o.id); if (!t) continue;
-          let start = Number.isFinite(o.start) ? o.start * 1000 : null, end = Number.isFinite(o.end) ? o.end * 1000 : null;
-          if (start != null && (start < 0 || start > (t.dur < 30000 ? Math.max(0,t.dur-3000) : t.dur-20000))) start = null;
-          if (start != null) { if (end == null || end - start < 20000) end = start + 45000; end = Math.min(end, start + 75000, t.dur - 2000); }
-          const res = { start, end, song:Library.track(t), mood: MOODS.includes(o.mood) ? o.mood : null, why: String(o.why || '').slice(0, 60) };
-          if (start != null) cache[t.id] = res; else { t.mood = res.mood; this.empty = (this.empty||0) + 1; }
+          const start=Number.isFinite(o.start)?Math.round(o.start*1000):null;
+          let end=Number.isFinite(o.end)?Math.round(o.end*1000):null;
+          if(end>t.dur&&end<=t.dur+1000)end=t.dur; // harmless rounding at the actual recording end
+          if(start==null||end==null||start<0||end<=start||end>t.dur){this.empty++;continue;}
+          end=Math.min(t.dur,Phrase.finish(t,end));
+          const previous=cache[t.id];
+          cache[t.id]={schema:2,start,end,song:Library.track(t),boundary:end===t.dur?'song_end':t.phrase?.gaps?.includes(end)?'section_marker':'estimated',why:String(o.why||'').slice(0,100),...(previous&&previous.schema!==2?{previous:{start:previous.start,end:previous.end}}:{})};
           done++;
         }
         this.save(cache);
@@ -1138,22 +927,17 @@ ${songs}`;
 /* ---------------- AI works one song ahead of the music ---------------- */
 function replanAhead(lockUpTo){
   const mix = ST.mix; mix.forEach((t,i) => t._lock = i <= lockUpTo);
-  planSegments(mix, ST.vibe, ST.len); mix.forEach(t => t._lock = false);
+  planSegments(mix); mix.forEach(t => t._lock = false);
   renderDeck(); aiStatus(); Library.capture();
 }
-function aiStatus(){
-  const mix = ST.mix, el = $('#aiStat'); if (!mix.length) return;
-  if (!AI.key()) { el.innerHTML = '<div class="note" style="margin:10px 0"><b style="color:var(--warn)">AI DJ is off.</b> Save an AI key in Settings to build and play an AI mix.</div>'; return; }
-  const n = mix.filter(t => t.hookSrc === 'ai').length;
-  el.innerHTML = `<div class="note" style="margin:10px 0">${AI.lastErr ? `<b style="color:var(--bad)">AI error: ${esc(AI.lastErr)}</b><br>` : ''}AI DJ has chosen the best part for <b>${n}</b> of ${mix.length} songs. It decides the next few songs just before they play.</div>`;
-}
+function aiStatus(){const n=ST.mix.filter(t=>AI.pick(t)).length;$('#aiStat').innerHTML=n===ST.mix.length?'':`<p class="tiny muted" style="margin-top:12px">Preparing passages · ${n}/${ST.mix.length} ready</p>`;}
 let aheadBusy = false;
 async function aiAhead(){
   if (!AI.key() || !ST.mix.length || aheadBusy) return; aheadBusy = true;
   try {
     const mix = ST.mix, from = DJ.playing ? DJ.idx + 1 : DJ.idx;
     for (const t of mix.slice(from, from + AI.batchSize)) {
-      if (AI.pick(t) || t.hookSrc === 'you') continue;
+      if (AI.pick(t)) continue;
       t.aiPending = true; renderDeck();
       await AI.one(t); t.aiPending = false;
       if (ST.mix !== mix) break;
@@ -1161,12 +945,7 @@ async function aiAhead(){
     }
   } finally { aheadBusy = false; }
 }
-function rowPlan(t){
-  if (ST.len === 'full') return 'full song';
-  if (t.aiPending && t.hookSrc !== 'you') return 'AI is choosing the best part…';
-  if (t.hookSrc === 'estimate') return (t._aiTries || 0) >= 2 ? 'AI pick unavailable · Press Play to retry' : 'Waiting for AI pick';
-  return `plays ${fmt(t.start)} → ${fmt(t.end)} · ${SRC[t.hookSrc] || ''}${t.aiWhy && t.hookSrc === 'ai' ? ' · ' + esc(t.aiWhy) : ''}`;
-}
+function rowPlan(t){const p=AI.pick(t);return p?`${fmt(t.start)}–${fmt(t.end)}`:t._aiTries>=2?'AI pick unavailable · retry':'AI preparing…';}
 
 /* ---------------- Build mix ---------------- */
 async function buildMix(){
@@ -1182,22 +961,12 @@ async function buildMix(){
     if (uniq.length < 2) throw new Error('Not enough playable songs in these sources.');
     for (let i = uniq.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [uniq[i],uniq[j]] = [uniq[j],uniq[i]]; }
     const picked = uniq.slice(0, ST.max);
-    msg.innerHTML = `<span class="spin"></span> Listening for key, tempo and energy…`;
-    const fm = await fetchFeatures(picked, (d,n)=> msg.innerHTML = `<span class="spin"></span> Analysing songs ${d}/${n}…`);
-    ST.featOk = fm.size >= picked.length * .5;
-    for (const t of picked) {
-      const f = fm.get(t.id);
-      t.f = f || null; t.tempo = f?.tempo || null; t.energy = f?.energy ?? .5; t.dance = f?.danceability ?? .5; t.valence = f?.valence ?? .5; t.cam = camelot(f); t.keyName = f && f.key>=0 ? KEYN[f.key] + (f.mode===0?'m':'') : null;
-    }
-    msg.innerHTML = `<span class="spin"></span> Reading music styles…`;
-    await within(fetchGenres(picked, (d,n)=> msg.innerHTML = `<span class="spin"></span> Reading artist genres ${d}/${n}…`), 12000);
     // Songs the AI has already seen get their saved picks straight away
     const aic = AI.cache(); picked.forEach(t => { const c = AI.pick(t,aic); if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     msg.innerHTML = `<span class="spin"></span> Planning the set…`; await sleep(30);
     ST.pool = picked;
     const selected=await remix();
-    const summary = () => { const na = ST.mix.filter(t => t.hookSrc === 'ai').length;
-      return `${ST.mix.length} songs · ~${Math.round(ST.mix.reduce((s,t)=>s+(t.end-t.start),0)/60000)} min${AI.key() ? ` · AI picked ${na} of ${ST.mix.length}` : ''}${ST.featOk?'':' · basic mode'}`; };
+    const summary=()=>`${ST.mix.length} songs · passages prepare ahead`;
     msg.textContent = summary();
     showView(selected?'play':'home');
     // AI refines in the background: you can press Play right away
@@ -1205,11 +974,11 @@ async function buildMix(){
   btn.disabled = !ST.crate.length;
 }
 async function remix(){
-  const ordered=buildOrder(ST.pool,ST.vibe);planSegments(ordered,ST.vibe,ST.len);
+  const ordered=buildOrder(ST.pool);planSegments(ordered);
   if(DJ.streamOwned||DJ.desiredPlaying||DJ.busy){Library.addPrepared(ordered);toast('New mix saved. Your current playback continues.');return false;}
   Library.capture();DJ.epoch++;ST.mix=ordered;DJ.idx=0;DJ.loadedMix=DJ.loadedId=null;DJ.pos=DJ.posAt=0;DJ.finished=false;DJ.retryIdx=null;DJ.checkpointId=null;
   DJ.pendingSeek=true;DJ.shuffle=false;DJ.repeat='off';DJ.baseOrder=ordered.map(t=>t.id);DJ.history=[];DJ.setPhase('ready','Mix saved · press Play');
-  renderDeck();drawCurve();aiStatus();Library.capture(true);aiAhead();return true;
+  renderDeck();aiStatus();Library.capture(true);aiAhead();return true;
 }
 $('#buildBtn').onclick = buildMix;
 $('#reshuffle').onclick = () => DJ.shuffleUpcoming(true,true);
@@ -1220,7 +989,7 @@ function renderDeck(){
   $('#queue').innerHTML = ST.mix.map((t,i)=>`<div class="q ${i===DJ.idx?'cur':''} ${i<DJ.idx?'done':''}" data-i="${i}">
     <div class="n">${i+1}</div><img loading="lazy" src="${esc(t.imgS||t.img)}" alt="">
     <div class="t"><b>${esc(t.name)}</b><span>${esc(t.artists.join(', '))}</span><span style="color:var(--ac)">${rowPlan(t)}</span></div>
-    <div class="why">${t.why || '<em>opener</em>'}</div></div>`).join('');
+</div>`).join('');
   showNow(DJ.idx, true);
 }
 $('#queue').addEventListener('click', e => { const q = e.target.closest('.q'); if (q) DJ.go(+q.dataset.i); });
@@ -1230,354 +999,186 @@ function showNow(i, instant){
   if (img.dataset.src !== t.img) { img.src=t.img;img.dataset.src=t.img;img.classList.remove('swap'); }
   $('#npIdx').textContent = `TRACK ${i+1} OF ${ST.mix.length}`;
   $('#npT').textContent = t.name; $('#npA').textContent = t.artists.join(', ');
-  const tags = [];
-  if (t.tempo) tags.push(`${Math.round(t.tempo)} BPM`);
-  if (t.cam) tags.push(`${t.keyName} · ${camStr(t.cam)}`);
-  if (t.f) tags.push(`Energy ${Math.round(t.energy*100)}`);
-  const sn = styleName(t); if (sn) tags.push(sn);
-  if (t.mood) tags.push(t.mood[0].toUpperCase() + t.mood.slice(1) + ' mood');
-  if (ST.len!=='full') tags.push('Hook: ' + (SRC[t.hookSrc] || 'auto'));
-  tags.push(ST.len==='full' ? 'Full song' : `Plays ${fmt(t.start)}–${fmt(t.end)}`);
-  $('#npTags').innerHTML = tags.map((x,k)=>`<span class="tag ${k===tags.length-1?'ok':''}">${esc(x)}</span>`).join('');
-  $('#win').style.left = (t.start/t.dur*100)+'%'; $('#win').style.width = ((t.end-t.start)/t.dur*100)+'%';
-  $('#hook').style.left = (t.hook/t.dur*100)+'%'; $('#hook').classList.toggle('hide', ST.len==='full');
-  $('#tDur').textContent = fmt(t.dur); $('#tSeg').textContent = ST.len==='full' ? '' : `segment ${fmt(t.end-t.start)}`;
   document.querySelectorAll('.q').forEach((q,k)=>{ q.classList.toggle('cur',k===i); q.classList.toggle('done',k<i); });
-  
-  drawCurve();
-}
-function drawCurve(){
-  const m = ST.mix; if (!m?.length) return;
-  const W = 600, H = 84, N = m.length, x = i => N>1 ? 8 + i*(W-16)/(N-1) : W/2, y = e => H - 8 - e*(H-16);
-  let path = ''; for (let i=0;i<N;i++) path += (i?'L':'M') + x(i).toFixed(1) + ' ' + y(m.target ? m.target(i) : .5).toFixed(1);
-  $('#curve').innerHTML = `<path d="${path}" fill="none" style="stroke:var(--line)" stroke-width="2" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>` +
-    m.map((t,i)=>`<circle cx="${x(i)}" cy="${y(t.inten ?? t.energy)}" r="${i===DJ.idx?5:3}" style="fill:var(${i===DJ.idx?'--ac':i<DJ.idx?'--line':'--mu'})"/>`).join('');
+
+
 }
 
 /* ---------------- Playback engine ---------------- */
+/* One browser stream. SDK state is the only playback truth; Web API only loads a song. */
 const DJ = {
-  player:null,sdkDev:null,dev:null,remote:false,sdkConnecting:false,sdkError:'',idx:0,master:.85,lat:450,
-  phase:'ready',detail:'Choose a mix, then press Play.',desiredPlaying:false,busy:false,action:null,
-  pos:0,posAt:0,startedAt:0,loadedMix:null,loadedId:null,confirmed:false,streamOwned:false,
-  epoch:0,flow:Promise.resolve(),cancelWait:null,retryIdx:null,finished:false,externalPaused:false,
-  positionRepairs:0,lastFrameAt:0,lastMotionAt:0,lastPollAt:-Infinity,lastSample:null,nativeQueue:[],nativeQueueMix:null,nativeQueueDev:null,
-  shuffle:false,repeat:'off',baseOrder:[],history:[],tick:null,_ticking:false,seekPreview:null,
+  player:null,sdkDev:null,dev:null,remote:false,sdkConnecting:false,sdkError:'',master:.85,
+  idx:0,phase:'ready',detail:'',busy:false,action:null,desiredPlaying:false,confirmed:false,streamOwned:false,
+  epoch:0,flow:Promise.resolve(),cancelWait:null,pos:0,posAt:0,lastFrameAt:0,lastMotionAt:0,lastSample:null,
+  loadedMix:null,loadedId:null,checkpointId:null,pendingSeek:false,finished:false,retryIdx:null,
+  shuffle:false,repeat:'off',baseOrder:[],history:[],seekPreview:null,exitAt:null,_ticking:false,
   get playing(){return this.phase==='playing';},
-  set playing(v){this.phase=v?'playing':'paused';},
-  setPhase(phase,detail=''){
-    this.phase=phase;this.detail=detail;this.render();
-  },
-  position(){
-    const t=ST.mix[this.idx];if(!t)return 0;
-    const elapsed=this.playing&&this.confirmed&&performance.now()-this.lastMotionAt<3500 ? Math.max(0,performance.now()-this.posAt):0;
-    return clamp(this.pos+elapsed,0,t.dur);
-  },
-  freeze(){this.pos=this.position();this.posAt=performance.now();},
+  setPhase(phase,detail=''){this.phase=phase;this.detail=detail;this.render();},
   render(){renderTransport();},
-  current(epoch){return epoch===this.epoch;},
-  activate(){
-    if(!this.sdkDev||this.dev!==this.sdkDev)return Promise.resolve(new Error(this.sdkError||'The browser player is connecting. Wait a moment, then tap Play.'));
-    if(!this.player?.activateElement)return Promise.resolve();
-    try{return Promise.resolve(this.player.activateElement()).then(()=>null,e=>e);}catch(e){return Promise.resolve(e);}
-  },
-  enqueue(kind,idx,work){
-    const epoch=++this.epoch;this.cancelWait?.();this.cancelWait=null;
-    const op={epoch,kind,idx,dev:this.dev,touched:false};this.action=op;this.busy=true;
-    if(kind==='play'&&!this.playing){this.phase='starting';this.detail='Preparing playback…';}
-    this.desiredPlaying=kind==='pause'?false:kind==='seek'?this.desiredPlaying:true;
-    this.render();
+  current(n){return this.epoch===n;},
+  matches(item,t){return !!item&&!!t&&(item.id===t.id||item.linked_from?.id===t.id||item.uri===t.uri);},
+  position(){return this.pos;}, // Never extrapolate a song different from the SDK's reported song.
+  freeze(){this.posAt=performance.now();},
+  async sdkState(){try{return await within(this.player?.getCurrentState(),1500)||null;}catch{return null;}},
+  async playbackState(){const s=await this.sdkState();return s?{item:s.track_window?.current_track,position:s.position,paused:s.paused,deviceId:this.sdkDev}:null;},
+  async waitPreparation(p,n){await Promise.race([p,new Promise(r=>this.cancelWait=r)]);if(this.current(n))this.cancelWait=null;return this.current(n);},
+  activate(){try{return this.sdkDev&&this.player?Promise.resolve(this.player.activateElement?.()).then(()=>null,e=>e):Promise.resolve(new Error(this.sdkError||'Browser audio is connecting. Try Play again shortly.'));}catch(e){return Promise.resolve(e);}},
+  enqueue(kind,i,work){
+    const n=++this.epoch;this.cancelWait?.();this.cancelWait=null;this.busy=true;this.action={kind,idx:i};
     const task=this.flow.catch(()=>{}).then(async()=>{
-      if(!this.current(epoch))return false;
-      try{const result=await work(epoch,op);if(result===false&&this.current(epoch)&&(['starting','seeking'].includes(this.phase)||kind==='repair')){this.desiredPlaying=false;this.confirmed=false;this.setPhase('disconnected','Browser playback was not confirmed. Reconnect the player in Settings and retry.');}return result;}
-      catch(e){
-        if(!this.current(epoch))return false;
-        if(op.touched){await this.stopDevice(op.dev).catch(()=>{});this.streamOwned=false;}
-        if(kind==='pause'||e.pauseFailed){if(kind!=='pause')this.retryIdx=idx;this.desiredPlaying=false;this.confirmed=false;this.setPhase('pause-unconfirmed',e.message);return false;}
-        this.retryIdx=idx;this.desiredPlaying=false;this.confirmed=false;
-        this.setPhase('error',e.message||'Spotify could not complete this action.');Library.capture();return false;
-      }finally{
-        if(this.current(epoch)){this.busy=false;this.action=null;this.render();this.loop();}
-      }
-    });
-    this.flow=task.catch(()=>{});return task;
+      if(!this.current(n))return false;
+      try{return await work(n);}
+      catch(e){if(this.current(n)){await this.player?.pause().catch(()=>{});this.confirmed=this.streamOwned=this.desiredPlaying=false;this.retryIdx=i;this.setPhase(kind==='pause'?'pause-unconfirmed':'error',e.message||'Playback failed. Try again.');Library.capture();}return false;}
+      finally{if(this.current(n)){this.busy=false;this.action=null;this.render();this.loop();}}
+    });this.flow=task.catch(()=>{});this.render();return task;
   },
-  async waitPreparation(promise,epoch){
-    await Promise.race([promise,new Promise(resolve=>{this.cancelWait=resolve;})]);
-    if(this.current(epoch))this.cancelWait=null;
-    return this.current(epoch);
-  },
-  matches(item,t){return !!item&&(item.id===t.id||item.linked_from?.id===t.id||item.uri===t.uri);},
-  async sdkState(timeout=900){try{return await within(this.player.getCurrentState(),timeout);}catch{return null;}},
-  async playbackState(timeout=2200){
-    if(!this.remote&&this.player){
-      const s=await this.sdkState(Math.min(800,timeout));
-      const t=ST.mix[this.idx];
-      if(s&&(!t||this.matches(s.track_window?.current_track,t))&&Number.isFinite(s.position)&&(!t||s.position>=t.start-2000))
-        return {item:s.track_window?.current_track,position:s.position,paused:s.paused,deviceId:this.sdkDev||this.dev,volume:null};
-    }
-    const s=await api('/me/player',{retry:0,timeout:Math.max(300,timeout)});
-    return s?{item:s.item,position:s.progress_ms,paused:s.is_playing!==true,deviceId:s.device?.id,volume:s.device?.volume_percent}:null;
-  },
-  async verifyStart(t,target,epoch,dev,playedFor=0,followControls=false){
-    const began=performance.now(),deadline=began+10000;let wrong=0,baseline=null,repaired=false,error=null;
-    for(let attempt=0;attempt<18&&performance.now()<deadline;attempt++){
-      if(!this.current(epoch)||dev!==this.dev)return null;
-      let s;try{s=await this.playbackState(Math.min(1800,deadline-performance.now()));}catch(e){error=e;if([401,403,429].includes(e.status))break;}
-      if(!this.current(epoch)||dev!==this.dev)return null;
-      if(followControls&&s&&(s.paused||s.deviceId!==dev||!this.matches(s.item,t))){const e=new Error('Spotify controls changed playback.');e.observedPlayback=s;throw e;}
+  async verifyStart(t,target,n){
+    let prior=null,repaired=false;
+    for(let k=0;k<20;k++){
+      if(!this.current(n)||!this.sdkDev)return null;
+      const s=await this.playbackState();if(!this.current(n))return null;
       const now=performance.now();
-      if(s&&s.deviceId===dev&&this.matches(s.item,t)&&Number.isFinite(s.position)&&!s.paused){
-        const inRange=s.position>=Math.max(0,target-1200)&&s.position<=target+Math.max(6000,playedFor+now-began+1800);
-        if(inRange){
-          wrong=0;
-          // A flag or a frozen timestamp is not proof of a running stream.
-          if(baseline&&now-baseline.at>=200&&s.position-baseline.pos>=100){this.outputMuted=s.volume===0;return s.position;}
-          if(!baseline||s.position<baseline.pos-1000)baseline={pos:s.position,at:now};
-        }else{
-          baseline=null;
-          if(++wrong>=2&&!repaired){
-            if(this.positionRepairs>=1)break;
-            this.positionRepairs++;repaired=true;this.detail='Aligning Spotify to the saved best part…';this.render();
-            await api(`/me/player/seek?position_ms=${Math.round(target)}&device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0,timeout:3500});
-          }
-        }
-      }else{wrong=0;baseline=null;}
-      await sleep(350);
+      if(s&&this.matches(s.item,t)&&Number.isFinite(s.position)&&!s.paused){
+        if(s.position<target-1500||s.position>target+12000){if(!repaired){await this.player.seek(target);repaired=true;prior=null;}}
+        else if(prior&&now-prior.at>=150&&s.position-prior.pos>=80)return s.position;
+        else prior={pos:s.position,at:now};
+      }else prior=null;
+      await sleep(300);
     }
-    throw new Error(error?.message||'Spotify has not confirmed a moving stream at this position. Check the browser player, then press Retry.');
+    throw new Error('Audio has not started. Tap Play to retry.');
   },
-  async stopDevice(dev){if(dev)await api(`/me/player/pause?device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0,timeout:4000});},
-  async confirmPaused(t,dev){
-    for(let i=0;i<6;i++){
-      const s=await this.playbackState(1500);
-      if(s&&s.deviceId===dev&&this.matches(s.item,t)&&s.paused){this.pos=s.position;this.posAt=performance.now();return 'paused';}
-      if(s&&(s.deviceId!==dev||!this.matches(s.item,t)))return 'external'; // Our stream is no longer the active context.
-      await sleep(200);
+  async prepare(t,n){
+    if(!AI.pick(t)){
+      this.setPhase('waiting-ai','Choosing the best part…');
+      if(!AI.key())throw new Error('Add your AI key in Settings.');
+      if(!t._aiP)t._aiTries=0;
+      if(!await this.waitPreparation(AI.one(t),n))return false;
+      if(!AI.pick(t))throw new Error(AI.lastErr||'This song needs an AI pick. Try again.');
     }
-    return false;
+    planSegments([t]);return this.current(n);
   },
-  async startAt(i,target,epoch,op){
-    const mix=ST.mix,t=mix[i];if(!t)return false;
-    if((!this.sdkDev||this.dev!==this.sdkDev)&&!await this.waitPreparation(this.devices({required:true}),epoch))return false;if(!this.current(epoch))return false;
-    const previous=op.previous??this.loadedId;this.freeze();this.idx=i;this.pos=target;this.posAt=performance.now();this.checkpointId=t.id;this.pendingSeek=true;this.confirmed=false;this.positionRepairs=0;
-    this.setPhase('starting','Checking the selected Spotify output…');
-    const started=performance.now();let dev=this.dev;
-    // Give Spotify an actual upcoming queue so its own Next control has songs.
-    // This is a snapshot: changes to Segue's order take effect at the next start.
-    const upcoming=mix.slice(i,i+100);
-    const play=async()=>{op.dev=dev;op.touched=true;this.nativeQueueMix=null;await api(`/me/player/play?device_id=${encodeURIComponent(dev)}`,{method:'PUT',retry:0,timeout:7000,body:{uris:upcoming.map(x=>x.uri),position_ms:Math.round(target)}});};
-    try{await play();}catch(e){
-      if(!this.current(epoch)){if(op.touched)await this.stopDevice(op.dev).catch(()=>{});return false;}
-      if(e.status!==404)throw e;
-      await this.devices({required:true,exclude:dev});dev=this.dev;if(!this.current(epoch))return false;await play();
-    }
-    if(!this.current(epoch)||mix!==ST.mix){await this.stopDevice(dev).catch(()=>{});return false;}
-    const actual=await this.verifyStart(t,target,epoch,dev,performance.now()-started);
-    if(actual==null||!this.current(epoch)||mix!==ST.mix){await this.stopDevice(dev).catch(()=>{});return false;}
-    if(!op.back&&previous&&previous!==t.id&&this.history.at(-1)!==previous)this.history.push(previous);
-    this.nativeQueue=upcoming.map(x=>x.id);this.nativeQueueMix=mix;this.nativeQueueDev=dev;
-    this.pendingSeek=false;this.loadedMix=mix;this.loadedId=this.checkpointId=t.id;this.retryIdx=null;this.finished=false;this.externalPaused=false;
-    this.pos=actual;this.posAt=this.startedAt=this.lastFrameAt=this.lastMotionAt=performance.now();
-    this.lastSample={pos:actual,at:this.posAt};this.confirmed=this.streamOwned=true;this.desiredPlaying=true;
-    this.setPhase('playing',this.outputMuted?'Selected Spotify output has volume at zero.':'');showNow(i,true);Library.capture();aiAhead();this.mediaSession();return true;
-  },
-  go(i,options={}){
+  go(i,{automatic=false,position,historyBack=false}={}){
+    if(!ST.mix[i])return Promise.resolve(false);
     if(this.busy&&this.action?.kind==='play'&&this.action.idx===i)return this.flow;
-    if(i<0||i>=ST.mix.length)return Promise.resolve(false);
-    const activation=options.automatic?Promise.resolve():this.activate();
-    return this.enqueue('play',i,async(epoch,op)=>{
-      op.back=!!options.historyBack;op.previous=this.loadedId;const t=ST.mix[i];if(!await this.waitPreparation(activation,epoch))return false;const activationError=await activation;if(activationError)throw activationError;
-      if((!this.sdkDev||this.dev!==this.sdkDev)&&!await this.waitPreparation(this.devices({required:true}),epoch))return false;if(!this.current(epoch))return false;
-      if(t.hookSrc!=='you'&&!AI.pick(t)){
-        if(this.streamOwned){const previous=ST.mix[this.idx];try{await this.stopDevice(this.dev);if(!await this.confirmPaused(previous,this.dev))throw new Error('Spotify did not confirm pause before preparing the next song.');}catch(e){e.pauseFailed=true;throw e;}this.streamOwned=false;this.confirmed=false;}
-        this.idx=i;this.pos=this.posAt=0;this.loadedMix=this.loadedId=this.checkpointId=null;this.pendingSeek=true;this.setPhase('waiting-ai','Choosing the best part. Other picks prepare in batches of eight.');
-        if(!AI.key())throw new Error('Save an AI key in Settings first.');
-        if(!t._aiP&& !options.automatic)t._aiTries=0;
-        if(!await this.waitPreparation(AI.one(t),epoch))return false;
-        if(!AI.pick(t))throw new Error(AI.lastErr||'AI has not chosen this song yet. Press Retry.');
+    const activation=automatic?Promise.resolve(null):this.activate();
+    this.desiredPlaying=true;
+    return this.enqueue('play',i,async n=>{
+      const error=await activation;if(error)throw error;if(!this.current(n))return false;
+      if(!this.sdkDev||!this.player)throw new Error('Reconnect browser audio in Settings.');
+      const mix=ST.mix,t=mix[i],previous=mix[this.idx]?.id;
+      if(!AI.pick(t)&&this.streamOwned){await this.player.pause();this.streamOwned=this.confirmed=false;}
+      this.idx=i;this.retryIdx=null;this.exitAt=null;
+      if(!await this.prepare(t,n))return false;
+      const target=Number.isFinite(position)?clamp(position,t.start,Math.max(t.start,t.end-200)):t.start;
+      this.pos=target;this.posAt=performance.now();this.checkpointId=t.id;this.pendingSeek=true;this.confirmed=false;
+      this.setPhase('starting','Starting…');
+      const state=await this.playbackState();if(!this.current(n))return false;
+      if(this.loadedId===t.id&&this.matches(state?.item,t)){
+        if(Math.abs(state.position-target)>1200)await this.player.seek(target);
+        await this.player.resume();
+      }else{
+        // Only this URI: no native queue/radio adoption and no external device fallback.
+        try{await api(`/me/player/play?device_id=${encodeURIComponent(this.sdkDev)}`,{method:'PUT',retry:0,timeout:7000,body:{uris:[t.uri],position_ms:Math.round(target)}});}
+        catch(e){if(e.status===404){await this.player.pause().catch(()=>{});this.sdkUnavailable('This song could not load. Reconnect browser audio, then retry.');return false;}throw e;}
       }
-      if(!this.current(epoch))return false;
-      const c=AI.pick(t);if(c){t.aiStart=c.start;t.aiEnd=c.end;t.aiWhy=c.why;t.mood=c.mood;}
-      planSegments([t],ST.vibe,ST.len);
-      const target=Number.isFinite(options.position)?clamp(options.position,t.start,Math.max(t.start,t.end-500)):t.start;
-      return this.startAt(i,target,epoch,op);
+      if(!this.current(n)){await this.player.pause().catch(()=>{});return false;}
+      const actual=await this.verifyStart(t,target,n);
+      if(actual==null||!this.current(n)||ST.mix!==mix){await this.player.pause().catch(()=>{});return false;}
+      if(!historyBack&&previous&&previous!==t.id&&this.history.at(-1)!==previous)this.history.push(previous);
+      this.pos=actual;this.posAt=this.lastFrameAt=this.lastMotionAt=performance.now();this.lastSample={pos:actual,at:this.posAt};
+      this.loadedMix=mix;this.loadedId=this.checkpointId=t.id;this.pendingSeek=false;this.finished=false;
+      this.confirmed=this.streamOwned=this.desiredPlaying=true;this.setPhase('playing');showNow(i,true);Library.capture();aiAhead();return true;
     });
   },
   resume(){
     if(this.busy&&this.desiredPlaying)return this.flow;
-    if(!ST.mix.length)return Promise.resolve(false);
-    if(this.playing&&!this.busy)return Promise.resolve(true);
-    if(this.finished){this.idx=0;this.finished=false;this.posAt=0;this.loadedMix=this.loadedId=this.checkpointId=null;this.pos=ST.mix[0].start;}
-    const i=this.retryIdx??this.idx,t=ST.mix[i];
-    const canResume=((this.loadedMix===ST.mix&&this.loadedId===t?.id)||this.checkpointId===t?.id)&&!this.finished;
-    if(canResume&&this.retryIdx==null&&this.pos>=t.end-500)return this.go(this.nextIndex(true)??0);
-    return this.go(i,{position:canResume?this.position():undefined});
+    if(this.playing)return Promise.resolve(true);
+    if(this.finished){this.finished=false;this.idx=0;this.loadedMix=null;this.checkpointId=null;}
+    const i=this.retryIdx??this.idx,t=ST.mix[i];if(!t)return Promise.resolve(false);
+    const saved=this.checkpointId===t.id&&this.pos<t.end-200;
+    return this.go(i,{position:saved?this.pos:undefined});
   },
   pause(){
-    if(this.busy&&this.action?.kind==='pause')return this.flow;
-    if(!this.busy&&this.phase==='paused'&&!this.streamOwned)return Promise.resolve(true);
-    const hadStream=this.streamOwned,dev=this.dev,t=ST.mix[this.idx];this.freeze();this.desiredPlaying=false;
-    this.setPhase('pausing','Waiting for Spotify to confirm pause…');
-    return this.enqueue('pause',this.idx,async(epoch)=>{
-      if(hadStream){await this.stopDevice(dev);if(!this.current(epoch))return false;const outcome=await this.confirmPaused(t,dev);if(outcome==='external'){this.streamOwned=this.confirmed=false;this.loadedMix=null;this.setPhase('external','Spotify playback changed. This mix is no longer the active context.');Library.capture();return true;}if(!outcome){this.setPhase('pause-unconfirmed','Spotify did not confirm pause. Tap Retry pause or check Spotify.');return false;}}
-      if(!this.current(epoch))return false;
-      this.confirmed=false;this.streamOwned=false;this.externalPaused=false;this.setPhase('paused','');Library.capture();return true;
+    this.desiredPlaying=false;
+    return this.enqueue('pause',this.idx,async n=>{
+      this.setPhase('pausing','Pausing…');
+      if(this.player&&this.sdkDev){
+        await this.player.pause();
+        let stopped=false;
+        for(let k=0;k<8;k++){if(!this.current(n))return false;const s=await this.playbackState();if(s?.paused||(!s&&!this.loadedId&&!this.streamOwned)){stopped=true;if(s&&this.matches(s.item,ST.mix[this.idx]))this.pos=s.position;break;}await sleep(200);}
+        if(!stopped)throw new Error('Pause could not be confirmed. Try again.');
+      }
+      if(!this.current(n))return false;
+      this.confirmed=this.streamOwned=false;this.posAt=performance.now();this.setPhase('paused');Library.capture();return true;
     });
   },
-  toggle(){
-    if(this.phase==='pause-unconfirmed')return this.pause();
-    return this.playing||this.busy||this.desiredPlaying||['checking','buffering','reconnecting'].includes(this.phase)?this.pause():this.resume();
-  },
-  select(i){
-    if(i<0||i>=ST.mix.length||this.busy||this.streamOwned)return false;
-    // Invalidate a poll already waiting on the old paused track. Otherwise its
-    // response can adopt that track again after a silent Next/Previous.
-    this.epoch++;
-    this.freeze();this.idx=i;this.loadedMix=null;this.loadedId=null;this.confirmed=false;this.streamOwned=false;
-    this.retryIdx=null;this.finished=false;this.pendingSeek=true;this.checkpointId=ST.mix[i].id;this.pos=ST.mix[i].start;this.posAt=performance.now();
-    this.setPhase('paused','Selected · press Play when ready');showNow(i,true);Library.capture();return true;
-  },
-  nextIndex(automatic=false){
-    if(automatic&&this.repeat==='one')return this.idx;
-    if(this.idx+1<ST.mix.length)return this.idx+1;
-    return this.repeat==='all'?0:null;
-  },
+  toggle(){return this.playing||this.busy||this.desiredPlaying?this.pause():this.resume();},
+  select(i){if(!ST.mix[i]||this.busy||this.streamOwned)return false;this.epoch++;this.idx=i;this.loadedMix=null;this.confirmed=false;this.checkpointId=AI.pick(ST.mix[i])?ST.mix[i].id:null;this.pos=ST.mix[i].start||0;this.posAt=performance.now();this.pendingSeek=true;this.finished=false;this.retryIdx=null;this.setPhase('paused');showNow(i,true);Library.capture();aiAhead();return true;},
+  nextIndex(automatic=false){if(automatic&&this.repeat==='one')return this.idx;return this.idx+1<ST.mix.length?this.idx+1:this.repeat==='all'?0:null;},
   async next(automatic=false){
-    if(this.busy||this.phase==='pause-unconfirmed')return false;
-    const next=this.nextIndex(automatic);
-    if(next==null){if(automatic){if(!await this.pause()||this.phase==='external')return false;this.finished=true;this.desiredPlaying=false;this.setPhase('ended','Mix finished · press Play to replay');Library.capture();}return false;}
-    if(automatic||this.playing||this.desiredPlaying)return this.go(next,{automatic});
-    return this.select(next);
+    if(this.busy||this.phase==='pause-unconfirmed')return false;const i=this.nextIndex(automatic);
+    if(i==null){if(automatic&&await this.pause()){this.finished=true;this.setPhase('ended');Library.capture();}return false;}
+    return automatic||this.playing||this.desiredPlaying?this.go(i,{automatic}):this.select(i);
   },
-  transition(){return this.next(true);},
-  previous(){
-    if(this.busy||this.phase==='pause-unconfirmed')return Promise.resolve(false);
-    const t=ST.mix[this.idx];if(!t)return Promise.resolve(false);
-    let i=this.idx;
-    if(this.position()-t.start<=3000){const id=this.history.pop();i=id?ST.mix.findIndex(x=>x.id===id):Math.max(0,this.idx-1);if(i<0)i=0;}
-    return this.playing||this.desiredPlaying?this.go(i,{position:ST.mix[i].start,historyBack:true}):this.select(i);
-  },
-  shuffleUpcoming(enabled=!this.shuffle,fresh=false){
-    if(this.busy||!ST.mix.length)return false;
-    if(!this.baseOrder.length)this.baseOrder=ST.mix.map(t=>t.id);
-    const tail=ST.mix.slice(this.idx+1);
-    if(enabled||fresh){for(let i=tail.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[tail[i],tail[j]]=[tail[j],tail[i]];}}
-    else tail.sort((a,b)=>this.baseOrder.indexOf(a.id)-this.baseOrder.indexOf(b.id));
-    ST.mix.splice(this.idx+1,tail.length,...tail);this.shuffle=enabled;
-    replanAhead(this.idx);Library.capture();this.render();aiAhead();return true;
-  },
-  cycleRepeat(){if(this.busy)return false;this.repeat={off:'all',all:'one',one:'off'}[this.repeat]||'off';Library.capture();this.render();},
+  previous(){if(this.busy)return false;const t=ST.mix[this.idx];if(!t)return false;let i=this.idx;if(this.pos-(t.start||0)<=3000){const id=this.history.pop();i=id?ST.mix.findIndex(x=>x.id===id):Math.max(0,i-1);if(i<0)i=0;}return this.playing||this.desiredPlaying?this.go(i,{historyBack:true}):this.select(i);},
   seekTo(value){
-    const t=ST.mix[this.idx];if(!t||this.busy||this.phase==='pause-unconfirmed'||!Number.isFinite(+value)||!(t.hookSrc==='you'||AI.pick(t)))return Promise.resolve(false);
-    const target=clamp(+value,t.start,Math.max(t.start,t.end-500));this.seekPreview=null;
-    if(!this.playing&&!this.streamOwned){this.epoch++;this.pos=target;this.posAt=performance.now();this.pendingSeek=true;this.loadedMix=null;this.checkpointId=t.id;this.finished=false;Library.capture();this.render();return Promise.resolve(true);}
-    return this.enqueue('seek',this.idx,async(epoch,op)=>{
-      const s=await this.playbackState();if(!this.current(epoch))return false;
-      if(!s||s.deviceId!==this.dev||!this.matches(s.item,t))throw new Error('Spotify is playing another context. Return to this mix before seeking.');
-      this.setPhase('seeking','Checking the new position…');this.positionRepairs=1;op.dev=this.dev;op.touched=true;
-      await api(`/me/player/seek?position_ms=${Math.round(target)}&device_id=${encodeURIComponent(this.dev)}`,{method:'PUT',retry:0,timeout:3500});
-      const actual=await this.verifyStart(t,target,epoch,this.dev);if(actual==null)return false;
-      this.pos=actual;this.posAt=this.lastFrameAt=this.lastMotionAt=performance.now();this.lastSample={pos:actual,at:this.posAt};this.confirmed=true;
-      this.setPhase('playing','');Library.capture();return true;
+    const t=ST.mix[this.idx];if(!t||!AI.pick(t)||this.busy||!Number.isFinite(+value))return Promise.resolve(false);
+    const target=clamp(+value,t.start,Math.max(t.start,t.end-200));this.seekPreview=null;
+    if(!this.streamOwned&&!this.playing){this.epoch++;this.pos=target;this.posAt=performance.now();this.checkpointId=t.id;this.pendingSeek=true;this.loadedMix=null;Library.capture();this.render();return Promise.resolve(true);}
+    return this.enqueue('seek',this.idx,async n=>{
+      this.setPhase('seeking','Seeking…');await this.player.seek(target);
+      const actual=await this.verifyStart(t,target,n);if(actual==null)return false;
+      this.pos=actual;this.lastFrameAt=this.lastMotionAt=this.posAt=performance.now();this.lastSample={pos:actual,at:this.posAt};this.confirmed=this.streamOwned=true;this.setPhase('playing');Library.capture();return true;
     });
   },
-  async observe(s,epoch){
-    const t=ST.mix[this.idx];if(!t||!this.current(epoch))return;
-    const now=performance.now();
-    if(!s){this.confirmed=false;this.setPhase('disconnected','The browser stream is not active. Tap Play, or reconnect the browser player in Settings.');return;}
-    if(s.deviceId===this.dev&&!this.matches(s.item,t)&&this.nativeQueueMix===ST.mix&&this.nativeQueueDev===this.dev){
-      const i=ST.mix.findIndex(x=>this.nativeQueue.includes(x.id)&&this.matches(s.item,x));
-      if(i>=0)return this.followNative(s,i);
-    }
-    if(s.deviceId!==this.dev||!this.matches(s.item,t)){
-      this.freeze();this.confirmed=false;this.streamOwned=false;this.desiredPlaying=false;
-      this.loadedMix=null;this.setPhase('external',s.deviceId!==this.dev?'Spotify playback moved away from this browser. Segue stopped following it. Tap Play here to return.':'Spotify is playing a different song. Press Play to return to this mix.');return;
+  shuffleUpcoming(enabled=!this.shuffle,fresh=false){if(this.busy)return false;if(!this.baseOrder.length)this.baseOrder=ST.mix.map(t=>t.id);const tail=ST.mix.slice(this.idx+1);if(enabled||fresh){for(let i=tail.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[tail[i],tail[j]]=[tail[j],tail[i]];}}else tail.sort((a,b)=>this.baseOrder.indexOf(a.id)-this.baseOrder.indexOf(b.id));ST.mix.splice(this.idx+1,tail.length,...tail);this.shuffle=enabled;renderDeck();Library.capture();aiAhead();return true;},
+  cycleRepeat(){if(!this.busy){this.repeat={off:'all',all:'one',one:'off'}[this.repeat];this.render();Library.capture();}},
+  async observe(s,n){
+    if(!this.current(n)||this.busy)return;const t=ST.mix[this.idx];if(!t)return;
+    if(!s){this.confirmed=false;this.setPhase('disconnected','Browser audio disconnected. Reconnect in Settings.');return;}
+    if(!this.matches(s.item,t)){
+      await this.player.pause().catch(()=>{});if(!this.current(n))return;
+      this.confirmed=this.streamOwned=this.desiredPlaying=false;this.loadedMix=null;this.setPhase('external','A different song was stopped. Tap Play for this mix.');return;
     }
     if(!Number.isFinite(s.position))return;
-    this.lastFrameAt=now;this.outputMuted=s.volume===0;
-    if(s.paused){this.pos=s.position;this.posAt=now;this.confirmed=false;this.desiredPlaying=false;this.streamOwned=false;this.externalPaused=true;this.lastSample=null;this.checkSince=0;this.setPhase('paused','Paused in Spotify');Library.progress();return;}
-    if(!(t.hookSrc==='you'||AI.pick(t))){this.setPhase('external','This song is playing in Spotify. Its AI mix pick is not ready.');return;}
-    if(s.position<t.start-2000){
-      if(this.positionRepairs>=1){await this.pause();this.setPhase('error','Spotify left the selected passage again. Press Retry.');return;}
-      return this.enqueue('repair',this.idx,async(nextEpoch,op)=>{
-        this.setPhase('buffering','Spotify reset the position. Checking the saved best part…');op.dev=this.dev;op.touched=true;
-        const actual=await this.verifyStart(t,t.start,nextEpoch,this.dev);if(actual==null)return false;
-        this.pos=actual;this.posAt=this.lastMotionAt=this.lastFrameAt=performance.now();this.confirmed=this.streamOwned=true;this.lastSample={pos:actual,at:this.posAt};this.setPhase('playing','');return true;
-      });
+    const now=performance.now();this.lastFrameAt=now;this.pos=s.position;this.posAt=now;
+    if(s.paused){
+      if(this.desiredPlaying&&s.position>=t.dur-1000){this.confirmed=false;await this.next(true);return;}
+      this.confirmed=this.streamOwned=this.desiredPlaying=false;this.lastSample=null;this.setPhase('paused');Library.progress();return;
     }
-    this.streamOwned=true;
-    const moved=this.lastSample&&Math.abs(s.position-this.lastSample.pos)>=100;
-    if(moved){this.checkSince=0;this.lastMotionAt=now;this.confirmed=true;this.streamOwned=true;this.desiredPlaying=true;this.externalPaused=false;this.setPhase('playing',this.outputMuted?'Selected Spotify output has volume at zero.':'');}
-    else if(!this.lastSample){this.checkSince=now;this.setPhase('checking','Waiting for Spotify playback progress…');}
-    if(!this.confirmed&&this.checkSince&&now-this.checkSince>10000){await this.pause();this.setPhase('error','Spotify reports a frozen position. Press Retry after checking the output.');return;}
-    this.lastSample={pos:s.position,at:now};this.pos=s.position;this.posAt=now;
-    if(this.confirmed&&now-this.lastMotionAt>3500)this.setPhase('buffering','Spotify reports no playback progress.');
-    if(this.confirmed&&now-this.lastMotionAt>10000){await this.pause();this.setPhase('error','Spotify playback stalled. Check the output, then Retry.');return;}
-    this.render();Library.progress();
-    if(this.playing&&this.confirmed&&s.position>=t.end-this.lat)await this.next(true);
+    if(!AI.pick(t)){await this.pause();this.setPhase('error','This song needs a fresh AI pick. Tap Play.');return;}
+    if(s.position<t.start-2000){await this.pause();this.setPhase('error','The song position changed. Tap Play to return to its best part.');return;}
+    const moved=this.lastSample&&s.position-this.lastSample.pos>=80;
+    if(moved){this.lastMotionAt=now;this.confirmed=this.streamOwned=this.desiredPlaying=true;this.setPhase('playing');}
+    else if(!this.lastSample){this.lastMotionAt=now;this.confirmed=false;this.setPhase('checking','Starting…');}
+    this.lastSample={pos:s.position,at:now};
+    if(now-this.lastMotionAt>3500){this.confirmed=false;this.setPhase('buffering','Buffering…');}
+    if(now-this.lastMotionAt>10000){await this.pause();this.setPhase('error','Audio stopped progressing. Tap Play to retry.');return;}
+    Library.progress();this.render();
+    if(this.confirmed&&s.position>=t.end){
+      const i=this.nextIndex(true),next=ST.mix[i];
+      if(next&&!AI.pick(next)){
+        // Never cut a vocal just because an AI request is late. Continue to a
+        // recorded instrumental/blank marker, or the actual end of this song.
+        if(this.exitAt==null)this.exitAt=Phrase.next(t,s.position+500)??t.dur;
+        aiAhead();
+      }else if(this.exitAt==null||s.position>=this.exitAt)await this.next(true);
+    }
   },
-  async poll(force=false){
-    if(this._ticking||this.busy||this.loadedMix!==ST.mix||!ST.mix.length)return;
-    const now=performance.now(),t=ST.mix[this.idx];
-    const gap=this.remote?(this.playing&&t.end-this.position()<10000?700:1600):400;
-    if(!force&&now-this.lastPollAt<gap){this.watchdog();return;}
-    this._ticking=true;this.lastPollAt=now;const epoch=this.epoch;
-    try{const s=await this.playbackState(2000);if(this.current(epoch)&&!this.busy)await this.observe(s,epoch);}
-    catch(e){if(this.current(epoch)){this.watchdog();if(!this.confirmed)this.setPhase('disconnected',e.message);}}
-    finally{this._ticking=false;this.render();}
-  },
-  watchdog(){
-    if(this.playing&&performance.now()-this.lastFrameAt>3500)this.setPhase('reconnecting','Playback status is stale. Reconnecting to Spotify…');
-    this.render();
-  },
+  async poll(){if(this._ticking||this.busy||this.loadedMix!==ST.mix||!this.sdkDev)return;this._ticking=true;const n=this.epoch;try{await this.observe(await this.playbackState(),n);}finally{this._ticking=false;this.render();}},
+  watchdog(){if(this.playing&&performance.now()-this.lastFrameAt>3500){this.confirmed=false;this.setPhase('buffering','Reconnecting…');}},
   loop(){clearInterval(this.tick);this.tickFn=()=>this.poll();this.tick=setInterval(this.tickFn,400);},
-  followNative(s,i){
-    // A track selected by Spotify's own controls must update every Segue view.
-    // Do not replace Spotify's context just to move to its selected passage.
-    const t=ST.mix[i],previous=ST.mix[this.idx]?.id;
-    this.freeze();this.idx=i;this.loadedId=this.checkpointId=t.id;this.loadedMix=ST.mix;
-    this.pos=Number.isFinite(s.position)?s.position:0;this.posAt=performance.now();
-    this.confirmed=this.streamOwned=false;this.lastSample=null;this.positionRepairs=0;this.pendingSeek=false;this.finished=false;
-    if(previous&&previous!==t.id&&this.history.at(-1)!==previous)this.history.push(previous);
-    showNow(i,true);aiAhead();
-    if(s.paused){this.desiredPlaying=false;this.externalPaused=true;this.setPhase('paused','Selected in Spotify · paused');Library.capture();return Promise.resolve(true);}
-    if(!(t.hookSrc==='you'||AI.pick(t))){this.streamOwned=true;return this.go(i,{automatic:true});}
-    return this.enqueue('seek',i,async(epoch,op)=>{
-      this.desiredPlaying=true;this.setPhase('seeking','Following Spotify’s selected song…');
-      op.dev=this.dev;op.touched=true;
-      const target=this.pos<t.start||this.pos>=t.end?t.start:this.pos;
-      if(this.pos<t.start||this.pos>=t.end)await api(`/me/player/seek?position_ms=${Math.round(target)}&device_id=${encodeURIComponent(this.dev)}`,{method:'PUT',retry:0,timeout:3500});
-      let actual;
-      try{actual=await this.verifyStart(t,target,epoch,this.dev,0,true);}
-      catch(e){
-        const changed=e.observedPlayback;if(!changed)throw e;
-        this.confirmed=this.streamOwned=false;this.lastSample=null;
-        if(changed.deviceId===this.dev&&this.matches(changed.item,t)&&changed.paused){
-          this.pos=changed.position;this.posAt=performance.now();this.desiredPlaying=false;this.externalPaused=true;this.setPhase('paused','Paused in Spotify');Library.capture();
-        }else if(changed.deviceId===this.dev&&ST.mix.some(x=>this.nativeQueue.includes(x.id)&&this.matches(changed.item,x))){
-          this.setPhase('checking','Following Spotify controls…');
-        }else{this.desiredPlaying=false;this.loadedMix=null;this.setPhase('external','Spotify playback changed. Press Play to return to this mix.');}
-        return true;
-      }
-      if(actual==null)return false;
-      this.pos=actual;this.posAt=this.lastFrameAt=this.lastMotionAt=performance.now();this.lastSample={pos:actual,at:this.posAt};
-      this.confirmed=this.streamOwned=this.desiredPlaying=true;this.externalPaused=false;this.setPhase('playing','');Library.capture();return true;
-    });
-  },
-  mediaSession(force=false){
-    if(this.remote||!this.sdkDev||this.dev!==this.sdkDev||typeof navigator==='undefined'||!navigator.mediaSession)return;
-    const t=ST.mix[this.idx];if(!t)return;
+  mediaSession(){
+    if(typeof navigator==='undefined'||!navigator.mediaSession)return;const ms=navigator.mediaSession,t=ST.mix[this.idx];
+    const active=t&&this.loadedMix===ST.mix&&this.loadedId===t.id;
     try{
-      const key=t.id+'|'+this.dev;
-      if((force||this.mediaKey!==key)&&typeof MediaMetadata!=='undefined')navigator.mediaSession.metadata=new MediaMetadata({title:t.name,artist:t.artists.join(', '),album:'Segue AI mix',artwork:t.img?[{src:t.img}]:[]});
-      // SDK state events can replace browser handlers; refresh on those events.
-      // Check ownership at invocation too: old callbacks must not control a phone.
-      const actions={play:()=>this.resume(),pause:()=>this.pause(),stop:()=>this.pause(),nexttrack:()=>this.next(),previoustrack:()=>this.previous(),seekto:d=>this.seekTo(d.seekTime*1000),seekbackward:d=>this.seekTo(this.position()-(d.seekOffset||10)*1000),seekforward:d=>this.seekTo(this.position()+(d.seekOffset||10)*1000)};
-      if(force||this.mediaKey!==key)for(const [name,fn]of Object.entries(actions))try{navigator.mediaSession.setActionHandler(name,d=>{if(!this.remote&&this.dev===this.sdkDev)return fn(d||{});});}catch{}
-      this.mediaKey=key;
+      if(active&&typeof MediaMetadata!=='undefined'&&this.mediaKey!==t.id){ms.metadata=new MediaMetadata({title:t.name,artist:t.artists.join(', '),album:'Segue',artwork:t.img?[{src:t.img}]:[{src:CANON+'icon-512.png',sizes:'512x512',type:'image/png'}]});this.mediaKey=t.id;}
+      if(!active){ms.metadata=null;this.mediaKey=null;}
+      const actions={play:()=>this.resume(),pause:()=>this.pause(),stop:()=>this.pause(),nexttrack:()=>this.next(),previoustrack:()=>this.previous(),seekto:d=>this.seekTo(d.seekTime*1000),seekbackward:null,seekforward:null};
+      for(const [name,fn]of Object.entries(actions))try{ms.setActionHandler(name,fn?d=>{if(this.sdkDev)return fn(d||{});}:null);}catch{}
       const fresh=this.confirmed&&performance.now()-this.lastFrameAt<3500&&performance.now()-this.lastMotionAt<3500;
-      navigator.mediaSession.playbackState=this.playing&&fresh?'playing':this.loadedMix===ST.mix?'paused':'none';
-      if(navigator.mediaSession.setPositionState&&t.dur>0)navigator.mediaSession.setPositionState({duration:t.dur/1000,playbackRate:1,position:clamp(this.position()/1000,0,t.dur/1000)});
+      ms.playbackState=active?(this.playing&&fresh?'playing':'paused'):'none';
+      if(ms.setPositionState){if(active)ms.setPositionState({duration:t.dur/1000,position:clamp(this.pos/1000,0,t.dur/1000),playbackRate:1});else ms.setPositionState();}
     }catch{}
   },
   init(){
@@ -1587,11 +1188,11 @@ const DJ = {
     this.sdkTimer=setTimeout(()=>{if(!this.sdkDev)this.sdkUnavailable('The browser player could not connect. Check your connection, then reconnect.');},15000);
     const connect=()=>{
       if(!this.player){
-        this.player=new Spotify.Player({name:'Segue browser player',enableMediaSession:true,getOAuthToken:cb=>token().then(cb).catch(e=>this.sdkUnavailable('Spotify sign-in needs attention: '+e.message)),volume:this.master});
+        this.player=new Spotify.Player({name:'Segue',enableMediaSession:true,getOAuthToken:cb=>token().then(cb).catch(e=>this.sdkUnavailable('Spotify sign-in needs attention: '+e.message)),volume:this.master});
         this.player.addListener('ready',({device_id})=>{
           clearTimeout(this.sdkTimer);this.sdkConnecting=false;this.sdkError='';
           const changed=this.dev!==device_id;this.sdkDev=this.dev=device_id;this.remote=false;
-          if(changed){this.confirmed=this.streamOwned=false;this.loadedMix=null;this.desiredPlaying=false;this.setPhase('ready','Browser player ready · tap Play');}
+          if(changed){this.confirmed=this.streamOwned=false;this.loadedMix=null;this.desiredPlaying=false;this.setPhase('ready','');}
           this.devices();this.mediaSession(true);
         });
         this.player.addListener('not_ready',()=>this.sdkUnavailable('The browser player disconnected. Reconnect, then tap Play.'));
@@ -1627,33 +1228,12 @@ const DJ = {
     this.dev=this.sdkDev||null;this.remote=false;
     this.devList=this.dev?[{id:this.dev,name:'Browser audio',type:'Computer'}]:[];
     const note=this.dev?'Ready · music plays in Segue. Tap Play.':this.sdkError||(this.sdkConnecting?'Connecting the browser player…':'Reconnect the browser player, then tap Play.');
-    $('#deviceSummary').textContent=this.dev?'Browser audio ready':'Browser player connecting';
     $('#deviceNote').textContent=note;$('#browserHelp').textContent=note;
     $('#deviceHelp').classList.toggle('hide',!!this.dev);this.render();
     if(!this.dev&&required)throw new Error(note);
     return this.devList;
   },
-  async vol(v){
-    v = clamp(v, 0, 1);
-    if (!this.remote && this.player) return this.player.setVolume(Math.max(v, 0.0001));
-    const d = this.devList?.find(x=>x.id===this.dev);
-    if (!d || d.supports_volume === false || d.volume_percent == null || /smartphone|tablet/i.test(d.type||'')) return; // phones: leave volume alone
-    try { await api(`/me/player/volume?volume_percent=${Math.round(v*100)}&device_id=${this.dev}`, { method:'PUT', retry:0 }); } catch {}
-  },
-  async ramp(from, to, ms){
-    const steps = this.remote ? Math.max(3, Math.round(ms/450)) : Math.max(8, Math.round(ms/60));
-    for (let s = 1; s <= steps; s++) {
-      if (this.abortRamp) return;
-      const k = s/steps, e = to > from ? Math.sin(k*Math.PI/2) : Math.cos((1-k)*Math.PI/2); // equal-power-ish curve
-      await this.vol(from + (to-from)*e);
-      $('#xf').style.width = (to<from ? k*50 : 50 + k*50) + '%';
-      await sleep(ms/steps);
-    }
-  },
-
 };
-// A background worker keeps the song-change clock running when Safari slows the page's own timers (other tab or app in front)
-try { const w = new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),150)'], { type:'text/javascript' }))); w.onmessage = () => { DJ.tickFn?.(); }; } catch {}
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
   DJ.watchdog();DJ.poll(true); if(!DJ.busy)DJ.devices();
@@ -1670,25 +1250,23 @@ function renderTransport(){
   const t=ST.mix[DJ.idx],exists=!!t,now=performance.now();
   $('#miniPlayer').classList.toggle('hide',!exists||!ST.me);
   $('#scroller').classList.remove('has-mini');
-  if(!exists){if(typeof ResizeObserver!=='function')scheduleChrome();return;}
+  if(!exists){$('#deck').classList.remove('disc-running');if(typeof ResizeObserver!=='function')scheduleChrome();return;}
   const fresh=DJ.confirmed&&now-DJ.lastFrameAt<3500&&now-DJ.lastMotionAt<3500;
   const phase=DJ.playing&&!fresh?'reconnecting':DJ.phase;
-  const labels={ready:'Ready',paused:'Paused',playing:'Playing',starting:'Starting browser audio…','waiting-ai':'Waiting for AI…',buffering:'Buffering…',checking:'Checking playback…',reconnecting:'Reconnecting…',disconnected:'Browser player unavailable',external:'Playback changed in Spotify',error:'Playback needs attention',ended:'Mix finished',pausing:'Confirming pause…','pause-unconfirmed':'Pause not confirmed',seeking:'Seeking…'};
+  const labels={ready:'Ready',paused:'Paused',playing:'Playing',starting:'Starting browser audio…','waiting-ai':'Waiting for AI…',buffering:'Buffering…',checking:'Checking playback…',reconnecting:'Reconnecting…',disconnected:'Browser player unavailable',external:'Playback changed',error:'Playback needs attention',ended:'Mix finished',pausing:'Confirming pause…','pause-unconfirmed':'Pause not confirmed',seeking:'Seeking…'};
   $('#deck').classList.toggle('disc-running',phase==='playing');
   const running=phase==='playing',pending=DJ.busy||['checking','buffering','reconnecting'].includes(phase)||(DJ.desiredPlaying&&phase==='disconnected');
   const action=running?'Pause':phase==='pausing'?'Pausing':phase==='pause-unconfirmed'?'Retry pause':pending?'Cancel':phase==='error'||phase==='disconnected'?'Retry':phase==='ended'?'Replay':'Play';
   $('#miniTitle').textContent=t.name;$('#miniState').textContent=labels[phase]||'Ready';
   $('#playerAction').textContent=action;$('#playBtn').title=action;$('#playBtn').ariaLabel=action;$('#playBtn').disabled=phase==='pausing';
   $('#playIco').innerHTML=running?'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>':pending?'<path d="M6 6h12v12H6z"/>':'<path d="M7 4v16l13-8z"/>';
-  const detail=DJ.detail||(DJ.outputMuted?'Selected Spotify output has volume at zero.':'')||`${DJ.devList?.find(d=>d.id===DJ.dev)?.name||'Browser audio'} · song ${DJ.idx+1} of ${ST.mix.length}`;
+  const detail=DJ.detail||labels[phase]||'Ready';
   if($('#stat').textContent!==detail)$('#stat').textContent=detail;
   DJ.mediaSession();
-  $('#transportOutput').textContent=DJ.devList?.find(d=>d.id===DJ.dev)?.name||'Browser audio';
   const pos=DJ.seekPreview??DJ.position(),start=Number.isFinite(t.start)?t.start:0,end=Number.isFinite(t.end)?t.end:t.dur;
   $('#playerElapsed').textContent=fmt(Math.max(0,pos-start));$('#playerDuration').textContent=fmt(Math.max(0,end-start));
   $('#playerSeek').min=start;$('#playerSeek').max=Math.max(start,end-500);if(DJ.seekPreview==null)$('#playerSeek').value=clamp(pos,start,end-500);
   $('#playerSeek').disabled=DJ.busy||phase==='pause-unconfirmed'||!(t.hookSrc==='you'||AI.pick(t));
-  $('#tCur').textContent=fmt(pos);$('#ph').style.left=clamp(pos/t.dur*100,0,100)+'%';
   $('#hkSet').disabled=!running;$('#hkBack').disabled=$('#hkFwd').disabled=DJ.busy||!(t.hookSrc==='you'||AI.pick(t));$('#hkReset').disabled=DJ.busy;
   $('#renameMix').disabled=DJ.busy||!Library.state.activeId;$('#reshuffle').disabled=DJ.busy||ST.mix.length<2;
   $('#prevBtn').disabled=DJ.busy||phase==='pause-unconfirmed';$('#nextBtn').disabled=DJ.busy||phase==='pause-unconfirmed'||DJ.nextIndex(false)==null;
@@ -1704,7 +1282,6 @@ function setPlayIcon(){DJ.render();}
 $('#playBtn').onclick=()=>DJ.toggle();
 $('#nextBtn').onclick=()=>DJ.next(false);$('#prevBtn').onclick=()=>DJ.previous();
 $('#shuffleBtn').onclick=()=>DJ.shuffleUpcoming();$('#repeatBtn').onclick=()=>DJ.cycleRepeat();
-$('#globalDevice').onclick=()=>showView('set');
 $('#playerSeek').onpointercancel=$('#playerSeek').onblur=()=>{DJ.seekPreview=null;DJ.render();};
 $('#playerSeek').oninput=e=>{DJ.seekPreview=+e.target.value;DJ.render();};
 $('#playerSeek').onchange=e=>{const value=+e.target.value;DJ.seekPreview=null;DJ.seekTo(value);};
@@ -1718,7 +1295,7 @@ function applyHook(ms, label){
   const t = ST.mix[DJ.idx]; if (!t) return;
   if (ms == null) HK.clear(t.id); else HK.set(t.id, clamp(ms, 0, t.dur - 20000));
   const locked=DJ.streamOwned||DJ.confirmed;if(locked)t._lock=true;
-  planSegments(ST.mix, ST.vibe, ST.len);t._lock=false;renderDeck();Library.capture();
+  planSegments(ST.mix);t._lock=false;renderDeck();Library.capture();
   toast(label+(locked?' · applies next play':''));
 }
 $('#hkSet').onclick = () => { const t = ST.mix[DJ.idx]; if (!t) return; const pos = DJ.position(); applyHook(pos, `Hook saved at ${fmt(pos)} for "${t.name}"`); };
@@ -1758,7 +1335,6 @@ $('#confirmClear').onclick = () => {
   Library.pendingClear = null; $('#clearConfirm').classList.add('hide');
 };
 $('#homeCreate').onclick = () => showView('mix');
-$('#playDevice').onclick = () => showView('set');
 $('#savedMixes').addEventListener('click', e => { const b=e.target.closest('[data-mix]'); if(b) Library.open(b.dataset.mix); });
 $('#continueMix').addEventListener('click', e => { const b=e.target.closest('[data-continue]'); if(b) Library.open(b.dataset.continue,true); });
 $('#savedSongs').addEventListener('click', e => { const b=e.target.closest('[data-song]'); if(b) Library.playSong(b.dataset.song); });

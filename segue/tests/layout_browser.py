@@ -16,7 +16,7 @@ def art(n):
 tracks=[{'id':str(i).zfill(22),'uri':'spotify:track:'+str(i).zfill(22),'name':'Netru Ponavi' if i==3 else f'Favourite song {i+1}','artists':[artists[i%len(artists)]],'dur':72000,'img':art(i),'imgS':art(i),'energy':.5,'dance':.5,'aiStart':15000,'aiEnd':65000,'start':15000,'end':65000,'hook':15000,'hookSrc':'ai','fadeOut':300} for i in range(120)]
 sources=[{'type':'artist','id':str(i).zfill(22),'name':name} for i,name in enumerate(artists)]
 mixes=[{'id':f'mix{i}','name':long_name if i==0 else ['Evening favourites','Weekend drive','Old favourites'][i%3],'tracks':tracks[:120 if i==0 else 15],'idx':3 if i==0 else 0,'position':17000,'positionReady':True,'pendingSeek':False,'sources':sources,'baseOrder':[t['id'] for t in tracks],'shuffle':False,'repeat':'off','history':[],'createdAt':1,'updatedAt':2} for i in range(6)]
-cache={t['id']:{'start':15000,'end':65000,'mood':'intense','song':t} for t in tracks}
+cache={t['id']:{'schema':2,'start':15000,'end':65000,'mood':'intense','song':t} for t in tracks}
 library={'schema':1,'sources':sources,'max':120,'activeId':'mix0','mixes':mixes,'hiddenPicks':[]}
 with sync_playwright() as p:
  browser=p.chromium.launch(executable_path=os.environ.get('SEGUE_CHROMIUM') or shutil.which('chromium') or shutil.which('google-chrome'),headless=True,args=['--no-sandbox'])
@@ -44,6 +44,8 @@ with sync_playwright() as p:
     else:page.locator('#playBtn').scroll_into_view_if_needed()
     if view!='play':page.wait_for_function("document.querySelector('#miniPlayer').getBoundingClientRect().bottom <= document.querySelector('#nav').getBoundingClientRect().top - 4")
     box=page.evaluate("""()=>{const r=s=>document.querySelector(s).getBoundingClientRect().toJSON();return {player:r('#miniPlayer'),nav:r('#nav'),main:r('#app'),padding:parseFloat(getComputedStyle(document.querySelector('#scroller')).paddingBottom),radius:parseFloat(getComputedStyle(document.querySelector('#nav')).borderRadius),blur:getComputedStyle(document.querySelector('#nav')).backdropFilter,overflow:document.documentElement.scrollWidth>innerWidth,buttons:['shuffleBtn','prevBtn','playBtn','nextBtn','repeatBtn'].map(id=>r('#'+id))}}""")
+    assert page.evaluate('getComputedStyle(document.body).backgroundColor')==('rgb(0, 0, 0)' if theme=='dark' else 'rgb(245, 245, 247)')
+    assert page.locator('#npTags').count()==0
     assert not box['overflow'],(width,height,theme,view,'horizontal overflow')
     assert box['main']['width']<=1121,(width,view,'stretched content')
     assert 10<=box['nav']['left'] and box['nav']['right']<=width-10 and box['nav']['width']<=521
@@ -59,7 +61,7 @@ with sync_playwright() as p:
     if width>=720 and view=='home':
      assert page.locator('.hero').bounding_box()['x']<page.locator('#continueMix').bounding_box()['x']
     if width>=720 and view=='play':assert page.locator('#orderCard').bounding_box()['x']<page.locator('#deck').bounding_box()['x']
-    if width in [390,844,1280] and view in ['home','play']:page.screenshot(path=str(previews/f'v34-{width}x{height}-{view}-{theme}.png'))
+    if width in [390,844,1280] and view in ['home','play']:page.screenshot(path=str(previews/f'v35-{width}x{height}-{view}-{theme}.png'))
    # At the very end of Home content, floating chrome cannot cover its last note.
    page.locator('#nav [data-v=home]').click();page.evaluate("document.querySelector('#scroller').scrollTop=document.querySelector('#scroller').scrollHeight")
    page.wait_for_function("document.querySelector('#v-home>.local-note').getBoundingClientRect().bottom < document.querySelector('#miniPlayer').getBoundingClientRect().top")

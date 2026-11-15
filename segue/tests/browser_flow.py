@@ -35,6 +35,7 @@ with sync_playwright() as p:
     if '/me/player/seek?' in u:
      counts['seek']+=1;state['pos']=int(parse_qs(urlparse(u).query)['position_ms'][0]);state['at']=time.monotonic();return r.fulfill(status=204)
     if '/me/player/pause?' in u:advance();state['paused']=True;return r.fulfill(status=204)
+    if '/me/player/resume?' in u:advance();state['paused']=False;return r.fulfill(status=204)
     if u.endswith('/me/player'):
      advance();
      if state['transport_offline']:return r.fulfill(status=503,json={'error':{'message':'Playback unavailable'}})
@@ -42,7 +43,7 @@ with sync_playwright() as p:
     if 'reccobeats' in u:return r.fulfill(json={'content':[]})
     if '/v1beta/models?' in u:return r.fulfill(json={'models':[{'name':'models/gemini-3-flash','supportedGenerationMethods':['generateContent']}]})
     if ':generateContent?' in u:
-     counts['ai']+=1; text=r.request.post_data_json['contents'][0]['parts'][0]['text']; ids=re.findall(r'id: (\w+)',text)
+     counts['ai']+=1; text=r.request.post_data_json['contents'][0]['parts'][0]['text']; ids=re.findall(r'"id":"([^"]+)"',text)
      return r.fulfill(json={'candidates':[{'content':{'parts':[{'text':json.dumps([{'id':i,'start':60,'end':105,'mood':'happy','why':'famous passage'} for i in ids])}]}}]})
     return r.fulfill(body='',content_type='application/javascript')
    context.route('**/*',route)
@@ -66,7 +67,7 @@ with sync_playwright() as p:
    page.locator('#nav [data-v=home]').click();assert page.locator('#savedMixes .mix-tile').count()==1;assert page.locator('#savedSongs .saved-song').count()==3
    page.locator('#savedSongSearch').fill('Going Home');assert page.locator('#savedSongs .saved-song').count()==1
    page.locator('#savedSongSearch').fill('');assert page.locator('#savedSongs .saved-song').count()==3
-   if width==390:page.screenshot(path=str(preview_dir/f'v34-home-{theme}.png'),full_page=True)
+   if width==390:page.screenshot(path=str(preview_dir/f'v35-home-{theme}.png'),full_page=True)
    page.locator('#continueMix button').click();page.wait_for_function('DJ.playing===true');page.evaluate("document.querySelector('#miniPlayer').transportIdentity='one-player'");assert counts['play']==1;assert counts['seek']==1;assert 60000<=state['pos']<64000
    current=page.evaluate('({id:ST.mix[DJ.idx].id,start:ST.mix[DJ.idx].start,end:ST.mix[DJ.idx].end})');plays_before=counts['play']
    for view in ['home','mix','set','play']:
@@ -77,7 +78,7 @@ with sync_playwright() as p:
    page.locator('#repeatBtn').click();assert page.evaluate('DJ.repeat')=='off'
    if width==390:
     for view in ['home','play']:
-     page.locator(f'#nav [data-v={view}]').click();page.screenshot(path=str(preview_dir/f'v34-{view}-playing-{theme}.png'),full_page=True)
+     page.locator(f'#nav [data-v={view}]').click();page.screenshot(path=str(preview_dir/f'v35-{view}-playing-{theme}.png'),full_page=True)
    page.locator('#renameMix').click();page.locator('#mixName').fill('Night Drive Edit');page.locator('#mixName').press('Space');page.locator('#saveMixName').click();assert page.locator('#mixTitle').inner_text()=='Night Drive Edit'
    page.locator('#playBtn').click();page.wait_for_function("DJ.phase==='paused'&&!DJ.busy")
    previous_plays=counts['play'];page.locator('#nextBtn').click();page.wait_for_function('DJ.idx===1');assert counts['play']==previous_plays;assert page.evaluate('DJ.phase')=='paused'
@@ -105,27 +106,29 @@ with sync_playwright() as p:
     external_plays=counts['play'];advance();state['paused']=True
     page.wait_for_function("DJ.phase==='paused'",timeout=8000);assert page.locator('#playerAction').inner_text()=='Play'
     state['paused']=False;state['at']=time.monotonic();page.wait_for_function("DJ.phase==='playing'",timeout=8000);assert counts['play']==external_plays
-    # Model Next from native Spotify's notification/lock-screen controls.
-    native_next=page.evaluate('ST.mix[1].uri');state.update(uri=native_next,pos=0,paused=False,at=time.monotonic())
-    page.wait_for_function("DJ.idx===1&&DJ.phase==='playing'&&!DJ.busy",timeout=8000)
-    assert counts['play']==external_plays and state['pos']>=60000
+    # A different song in this SDK is stopped, never adopted from an old queue.
+    state.update(uri=page.evaluate('ST.mix[1].uri'),pos=0,paused=False,at=time.monotonic())
+    page.wait_for_function("DJ.phase==='external'&&!DJ.busy",timeout=8000)
+    assert state['paused'] and page.evaluate('DJ.idx')==0
+    page.locator('#playBtn').click();page.wait_for_function("DJ.phase==='playing'&&!DJ.busy")
+    # Outside controls request actual tracks, not ten-second skips.
+    assert page.evaluate('mediaHandlers.seekforward===null&&mediaHandlers.seekbackward===null')
+    page.evaluate('mediaHandlers.nexttrack()');page.wait_for_function("DJ.idx===1&&DJ.phase==='playing'&&!DJ.busy")
     for view in ['home','mix','play','set']:
      page.locator(f'#nav [data-v={view}]').click();assert page.locator('#miniTitle').inner_text()==page.evaluate('ST.mix[1].name')
-    native_next=page.evaluate('ST.mix[2].uri');native_seeks=counts['seek'];state.update(uri=native_next,pos=0,paused=True,at=time.monotonic())
-    page.wait_for_function("DJ.idx===2&&DJ.phase==='paused'&&!DJ.busy",timeout=8000)
-    assert counts['play']==external_plays and counts['seek']==native_seeks
-    state.update(paused=False,at=time.monotonic());page.wait_for_function("DJ.phase==='playing'&&!DJ.busy",timeout=8000)
-    assert counts['play']==external_plays and state['pos']>=60000
-    print('PASS native external Next: cached passage without replay, shared title on every screen, paused Next silent, external resume aligns passage')
+    page.evaluate('mediaHandlers.pause()');page.wait_for_function("DJ.phase==='paused'&&!DJ.busy")
+    native_plays=counts['play'];page.evaluate('mediaHandlers.nexttrack()');page.wait_for_function("DJ.idx===2&&DJ.phase==='paused'")
+    assert counts['play']==native_plays
+    page.evaluate('mediaHandlers.play()');page.wait_for_function("DJ.phase==='playing'&&!DJ.busy")
+    external_plays=counts['play']
+    print('PASS wrong SDK track stopped, media Next selects actual track, paused media Next stays silent, no ten-second handlers')
     state['transport_offline']=True
     page.wait_for_function("DJ.phase!=='playing'",timeout=8000);assert page.locator('#miniState').inner_text()!='Playing';assert counts['play']==external_plays
     state['transport_offline']=False;page.wait_for_function("DJ.phase==='playing'",timeout=8000);assert counts['play']==external_plays
-    page.evaluate('window.SDK_NO_STATE=true');state['volume']=0;page.wait_for_function("document.querySelector('#stat').textContent.includes('volume at zero')",timeout=8000)
-    assert page.locator('#playerAction').inner_text()=='Pause'
     page.locator('#playBtn').click();page.wait_for_function("DJ.phase==='paused'&&!DJ.busy")
     page.evaluate('window.SDK_NO_STATE=false')
     media_plays=counts['play'];page.evaluate('mediaHandlers.seekto({seekTime:80})');assert counts['play']==media_plays
-    page.evaluate('mediaHandlers.play()');page.wait_for_function("DJ.phase==='playing'&&!DJ.busy");assert counts['play']==media_plays+1
+    page.evaluate('mediaHandlers.play()');page.wait_for_function("DJ.phase==='playing'&&!DJ.busy");assert counts['play']==media_plays
     assert page.locator('#disc').evaluate("e=>getComputedStyle(e).animationPlayState")=='running'
     page.evaluate('mediaHandlers.pause()');page.wait_for_function("DJ.phase==='paused'&&!DJ.busy")
     assert page.locator('#disc').evaluate("e=>getComputedStyle(e).animationPlayState")=='paused'
@@ -133,7 +136,7 @@ with sync_playwright() as p:
     reconnect_plays=counts['play'];page.locator('#nav [data-v=set]').click();page.locator('#v-set .reconnect-player').click();page.wait_for_function("DJ.sdkDev==='browser'&&DJ.phase==='ready'")
     assert counts['play']==reconnect_plays and page.evaluate('SDK_CONSTRUCTORS')==1
     print('PASS browser media actions, actual-progress CD animation, disconnect/reconnect without native fallback or autoplay')
-    print('PASS phone adversarial flow: frozen-start rejection on all screens, retry, external pause/resume, network-loss status, recovery without replay, muted-output notice')
+    print('PASS phone adversarial flow: frozen-start rejection on all screens, retry, external pause/resume, network-loss status, recovery without replay, SDK-only state')
    assert page.evaluate('SDK_OPTIONS.enableMediaSession===true')
    assert not errors,errors
    print(f'PASS {width}x{height} {theme}: create, save, four screens, cached AI song list, play/pause, reopen, same order/position, no autoplay, continue without AI, library during Spotify outage, clear lists keeps AI mappings, ignored starts corrected, shared control/state, shuffle/repeat, paused next/seek')

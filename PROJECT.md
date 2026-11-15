@@ -5,7 +5,7 @@ It says what is in this repository, how it is deployed, and the rules for
 changing it safely. Update the "Change log" at the bottom after every change.
 
 Owner: Vijay (GitHub: vijaykannan2020-del). Family use only, for now.
-Last updated: 2026-11-14.
+Last updated: 2026-11-15.
 
 ## What is here
 
@@ -118,7 +118,7 @@ the top right and cover part of the page.
 - Test copy (`cinema-book-test/`): Version 22 (neutral black-and-white look, ticket stubs for the diary, floating glass tab bar). Adds over 13: Wikidata
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
-- Segue (`segue/`): Version 34. Spotify sign-in, AI best-part picks with a
+- Segue (`segue/`): Version 35. Spotify sign-in, AI best-part picks with a
   Gemini key, and a phone layout matching Cinema Book are in place. Player
   now uses one shared transport on every screen, observed playback phases,
   shuffle/repeat/seek and saved queues. Pending work is not shown as Playing. Simulated checks pass; live phone confirmation pending.
@@ -135,6 +135,8 @@ the top right and cover part of the page.
   GitHub Pages and the free TMDB terms are for non-commercial use.
 
 ## Change log
+
+- 2026-11-15, ChatGPT: Segue Version 35 replaces the transport with one serialized SDK-only controller. Web API loads one URI; local SDK controls/state handle pause/resume/seek and reject a different song. Removes account-wide playback fallback, native queue adoption, volume/worker logic, ReccoBeats/genre/harmonic analysis, fixed 30–75s/45s fallbacks and technical player badges. AI selects variable complete passages; optional recording-matched LRCLIB timing markers inform endings. Eight-song prefetch continues current audio to a known marker/song end if next AI is late. Old AI values remain stored but capped picks revalidate once to schema 2; lists/corrections preserved. Notification Previous/Next registered, ten-second skip handlers removed; explicit stable Segue manifest identity added. Plate Log notification-launch report remains unverified; no web launch-URL setter exists. Cinema Book neutral palette retained with the right CD deck/left bounded queue. 36 rebuilt-controller/AI/library checks and full browser/layout simulations replace old controller-specific tests; real vocal completion, iPhone controls/routing, fades/CarPlay and gapless timing are not claimed.
 
 - 2026-11-14, ChatGPT: Segue Version 34 switches to browser-only Spotify Web Playback SDK at Vijay's request; removes native output selection/discovery, legacy output preference, Open Spotify instructions and external fallback. SDK Media Session explicitly enabled; guarded custom actions refreshed after SDK events. Connection errors cancel preparation; reconnect reuses the SDK without autoplay. Playing now has a large rotating CD with the single transport inside its right-hand deck and a bounded scrolling queue/cut times on the left; the same controls float elsewhere. Saved mixes open directly in this listening view without autoplay. Rotation requires actual fresh progress and honors reduced motion. Saved mixes/AI mappings retained. All 84 controller checks cover browser-only mutations, reconnect, media actions and stale-poll cancellation during paused navigation/seek; 14 layout/theme cases and the complete mocked SDK/browser flow pass; actual iPhone/lock-screen/CarPlay/protected audio remains unverified and iOS limits documented.
 
