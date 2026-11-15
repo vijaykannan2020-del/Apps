@@ -346,7 +346,7 @@ img[src=""],img:not([src]){visibility:hidden}
         <label for="passageSource">Selection method</label>
         <select class="input" id="passageSource"><option value="lyrics">Timed lyrics · automatic</option><option value="local">Matching audio file · manual review</option><option value="gemini">Gemini · estimated timings</option></select>
         <div id="lyricsSettings" style="margin-top:16px">
-          <p class="small muted">Automatically match timed lyrics, choose a verse section and save its timings. No files or AI key needed. Upcoming passages prepare while music plays.</p>
+          <p class="small muted">Automatically match timed lyrics and choose one verse, with its refrain return when possible. No files or AI key needed. Upcoming passages prepare while music plays.</p>
           <p class="note" id="lyricsStatus" role="status"></p>
           <button class="btn ghost small" id="retryLyrics">Retry missing lyrics</button>
           <p class="tiny muted" style="margin-top:12px">Timings from <a href="https://lrclib.net" target="_blank" rel="noopener">LRCLIB</a>. Section choices are estimates from lyric breaks and repetition, not beat analysis. Line timestamps cannot guarantee a finished vocal. If a matching section is unavailable, playback waits with an explanation.</p>
@@ -430,7 +430,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 40;
+const APP_VERSION = 41;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -696,7 +696,7 @@ const Library = {
     $('#recoverPicks').classList.toggle('hide', !Object.entries(cache).some(([id,c]) => c && !c.song && !hidden.has(id)));
     $('#pickCount').textContent = `${Object.keys(cache).length} timings kept`;
     $('#clearSavedSongs').classList.toggle('hide', !allSongs.length);
-    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${c.schema===2?fmt(c.start)+'–'+fmt(c.end)+(c.source==='local-audio'?' · Reviewed audio passage':c.source==='timed-lyrics'?' · Timed-lyric estimate':' · AI pick saved'):'Timing will be rechecked'}</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : hidden.size && !Object.keys(cache).some(id => !hidden.has(id)) ? 'List cleared. Your Saved passage timings are still saved and will be reused when you build another mix.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Songs appear here as their timed-lyric sections are prepared.'}</div>`;
+    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${c.schema===2?fmt(c.start)+'–'+fmt(c.end)+(c.source==='local-audio'?' · Reviewed audio passage':c.source==='timed-lyrics'?(c.method==='lyrics-structure-v2'?' · '+esc(c.section||'Single section estimate'):' · Passage will be refined'):' · AI pick saved'):'Timing will be rechecked'}</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : hidden.size && !Object.keys(cache).some(id => !hidden.has(id)) ? 'List cleared. Your Saved passage timings are still saved and will be reused when you build another mix.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Songs appear here as their timed-lyric sections are prepared.'}</div>`;
     this.mini();
   },
   mini(){ DJ.render();
@@ -829,8 +829,9 @@ function planSegments(tracks){
     if(t._lock)continue;const pick=AI.pick(t),mine=LocalAudio.draft?.id===t.id?undefined:HK.get()[t.id];
     if(!pick){t.start=t.end=t.hook=0;t.hookSrc='pending';delete t.aiStart;delete t.aiEnd;continue;}
     t.aiStart=pick.start;t.aiEnd=pick.end;t.aiWhy=pick.why;
-    t.start=Number.isFinite(mine)?clamp(mine,0,t.dur-1):pick.start;
-    t.end=pick.end>t.start?pick.end:t.dur;t.hook=t.start;t.hookSrc=Number.isFinite(mine)?'you':'ai';
+    const corrected=Number.isFinite(mine)&&mine>=0&&mine<pick.end&&(pick.source!=='timed-lyrics'||Lyrics.usable({...pick,start:mine},t));
+    t.start=corrected?mine:pick.start;
+    t.end=pick.end;t.hook=t.start;t.hookSrc=corrected?'you':'ai';
   }
 }
 const HK={get(){try{return JSON.parse(LS.get('hooks')||'{}');}catch{return {};}},set(id,ms){const c=this.get();c[id]=Math.round(ms);LS.set('hooks',JSON.stringify(c));},clear(id){const c=this.get();delete c[id];LS.set('hooks',JSON.stringify(c));}};
@@ -851,7 +852,7 @@ const AI = {
     this._indexCache=cache;this._recordings=index;return index;
   },
   pick(t,cache=this.cache()){
-    const valid=c=>c&&this.accepts(c)&&c.schema===2&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.start>=0&&c.end>c.start&&c.end<=t.dur;
+    const valid=c=>c&&this.accepts(c)&&c.schema===2&&(c.source!=='timed-lyrics'||Lyrics.usable(c,t))&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.start>=0&&c.end>c.start&&c.end<=t.dur;
     if(LocalAudio.draft?.id===t.id&&valid(LocalAudio.draft))return LocalAudio.draft;
     const own=cache[t.id];if(valid(own))return own;
     return t.isrc?this.index(cache).get(t.isrc)?.find(c=>valid(c)&&Number.isFinite(c.song.dur)&&Math.abs(c.song.dur-t.dur)<=1000)||null:null;
@@ -1075,49 +1076,88 @@ const Lyrics={
     for(const r of rows){const last=out.at(-1);if(last?.at===r.at){if(r.key&&!last.key)Object.assign(last,r);else if(r.key&&last.key&&!last.key.includes(r.key)){last.text+=' / '+r.text;last.key=this.text(last.text);}last.paragraph||=r.paragraph;}else out.push({...r});}
     return out;
   },
+  usable(c,t){
+    // Reject most-of-song or all-lyrics ranges, never trim to a timer instead.
+    return c?.method==='lyrics-structure-v2'&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.end>c.start&&c.end-c.start<=t.dur*.5&&Number.isFinite(c.vocalLines)&&Number.isFinite(c.totalVocalLines)&&c.vocalLines>=2&&c.vocalLines<c.totalVocalLines*.65;
+  },
   section(record,t){
-    const rows=this.parse(record.syncedLyrics,t.dur),lines=rows.filter(r=>r.key);
-    if(lines.length<4)return null;
+    const rows=this.parse(record.syncedLyrics,t.dur),lines=rows.filter(r=>r.key),n=lines.length;
+    if(n<4)return null;
     const counts=new Map();for(const r of lines)counts.set(r.key,(counts.get(r.key)||0)+1);
-    const explicit=[];let start=null,group=[];
-    for(const r of rows){
-      if(!r.key){if(start!==null&&group.length>=2)explicit.push({start,end:r.at,lines:group,boundary:'lyric-break'});start=null;group=[];}
-      else{if(r.paragraph&&start!==null){if(group.length>=2)explicit.push({start,end:r.at,lines:group,boundary:'lyric-paragraph'});start=null;group=[];}if(start===null)start=r.at;group.push(r);}
-    }
-    // Do not invent the final vocal's end from track duration or a fixed line length.
-    let candidates=explicit;
-    if(!candidates.length){
-      const breaks=new Set([0]);
-      // Align provider stanza paragraphs with timed lines where text agrees exactly.
-      let cursor=0;
-      for(const paragraph of String(record.plainLyrics||'').split(/\n\s*\n/)){
-        const keys=paragraph.split(/\r?\n/).map(x=>this.text(x)).filter(Boolean);if(keys.length<2)continue;
-        for(let i=cursor;i+keys.length<=lines.length;i++)if(keys.every((key,j)=>key===lines[i+j].key)){breaks.add(i);breaks.add(i+keys.length);cursor=i+keys.length;break;}
+    const median=a=>a.slice().sort((a,b)=>a-b)[Math.floor(a.length/2)]||0;
+    const gaps=lines.slice(1).map((r,i)=>r.at-lines[i].at),typical=median(gaps),mad=median(gaps.map(x=>Math.abs(x-typical)));
+    // Cuts index vocal lines; explicit empty markers retain their actual end time.
+    const cuts=new Map([[0,{at:lines[0].at,boundary:'section-start',strength:0}]]);
+    const cut=(index,at,boundary,strength)=>{if(index<0||index>n||!Number.isFinite(at))return;const old=cuts.get(index);if(!old||strength>old.strength||(strength===old.strength&&at<old.at))cuts.set(index,{at,boundary,strength});};
+    let index=0;
+    for(const row of rows){if(!row.key){if(index)cut(index,row.at,'lyric-break',4);}else{if(row.paragraph&&index)cut(index,row.at,'lyric-paragraph',3);index++;}}
+    // Always inspect stanzas inside explicit blocks: one final empty marker can
+    // otherwise make almost the entire lyric sheet look like a single section.
+    let cursor=0;
+    for(const paragraph of String(record.plainLyrics||'').split(/\n\s*\n/)){
+      const keys=paragraph.split(/\r?\n/).map(x=>this.text(x)).filter(Boolean);if(keys.length<2)continue;
+      for(let i=cursor;i+keys.length<=n;i++)if(keys.every((key,j)=>key===lines[i+j].key)){
+        cut(i,lines[i].at,'lyric-paragraph',3);if(i+keys.length<n)cut(i+keys.length,lines[i+keys.length].at,'lyric-paragraph',3);cursor=i+keys.length;break;
       }
-      // Repeated multi-line refrain starts delimit a verse plus its refrain return.
-      const anchors=new Set();
-      for(let i=0;i<lines.length-2;i++)for(let j=i+3;j<lines.length-2;j++){
-        if(i&&lines[i-1].key===lines[j-1].key)continue;
-        if(lines[i].key===lines[j].key&&lines[i+1].key===lines[j+1].key&&lines[i+2].key===lines[j+2].key&&new Set(lines.slice(i,i+3).map(x=>x.key)).size>=2){anchors.add(i);anchors.add(j);}
-      }
-      const starts=[...anchors].sort((a,b)=>a-b);for(const i of starts)breaks.add(i);
-      if(breaks.size<=1){
-        const gaps=lines.slice(1).map((r,i)=>r.at-lines[i].at),median=a=>a.slice().sort((a,b)=>a-b)[Math.floor(a.length/2)]||0,m=median(gaps),mad=median(gaps.map(x=>Math.abs(x-m)));
-        for(let i=1;i<lines.length;i++)if(lines[i].at-lines[i-1].at>Math.max(m*2.2,m+3*mad))breaks.add(i);
-      }
-      const points=[...breaks].filter(i=>i<lines.length).sort((a,b)=>a-b);candidates=[];
-      for(let i=0;i<points.length-1;i++){const a=points[i],b=points[i+1];if(b-a>=2)candidates.push({start:lines[a].at,end:lines[b].at,lines:lines.slice(a,b),boundary:'next-lyric-line'});}
     }
-    candidates=candidates.filter(c=>c.start>=0&&c.end>c.start&&c.end<=t.dur&&c.lines.length>=2&&!(c.start===0&&c.end===t.dur));
-    for(const c of candidates){const diversity=new Set(c.lines.map(x=>x.key)).size/c.lines.length,novel=c.lines.filter(x=>counts.get(x.key)===1).length/c.lines.length;
-      // Prefer an interior varied verse over an opening or repetitive refrain.
-      c.score=diversity+novel+(c.start>lines[0].at?.6:0)+Math.min(c.lines.length/lines.length,.5);
+    const outer=[...cuts.keys()].sort((a,b)=>a-b),parent=i=>outer.filter(k=>k<=i).at(-1);
+    const repeats=[];
+    // Maximal repeated phrases, excluding nested starts and a single repeated word.
+    for(let a=0;a<n-2;a++)for(let b=a+3;b<n-2;b++){
+      if(a&&lines[a-1].key===lines[b-1].key)continue;
+      let length=0;while(a+length<b&&b+length<n&&lines[a+length].key===lines[b+length].key){if(length&&((cuts.get(a+length)?.strength||0)>=3||(cuts.get(b+length)?.strength||0)>=3))break;length++;}
+      if(length<3||new Set(lines.slice(a,a+length).map(x=>x.key)).size<2)continue;
+      if(parent(a)===parent(b)&&outer.length>2&&b-a-length<3)continue; // A verse's own couplet repeat is not a chorus boundary.
+      repeats.push({a,b,length});
     }
-    candidates.sort((a,b)=>b.score-a.score||a.start-b.start);const best=candidates[0];
-    return best?{schema:2,source:'timed-lyrics',start:best.start,end:best.end,boundary:best.boundary,section:'Timed-lyric section',why:'Estimated from lyric structure',provider:'LRCLIB',providerId:record.id,method:'lyrics-structure-v1',song:Library.track(t)}:null;
+    // Repeated hooks can overlap or recur back-to-back. Treat the entire
+    // continuous refrain as one unit, so a matching fragment cannot end it early.
+    const runs=repeats.flatMap(r=>[{a:r.a,b:r.a+r.length},{a:r.b,b:r.b+r.length}]);
+    for(const run of runs)while(run.b<n&&(cuts.get(run.b)?.strength||0)<3&&counts.get(lines[run.b].key)>1)run.b++;
+    runs.sort((a,b)=>a.a-b.a||b.b-a.b);const refrainRuns=[];
+    for(const run of runs){const last=refrainRuns.at(-1),strongBreak=[...cuts].some(([i,c])=>i>=run.a&&i<=last?.b&&c.strength>=3);
+      if(last&&run.a<=last.b&&!strongBreak)last.b=Math.max(last.b,run.b);else refrainRuns.push({...run});
+    }
+    for(const run of refrainRuns){cut(run.a,lines[run.a].at,'refrain-boundary',2);if(run.b<n)cut(run.b,lines[run.b].at,'refrain-boundary',2);}
+    // A long instrumental/vocal gap may refine an otherwise oversized block.
+    const points=[...cuts.keys()].sort((a,b)=>a-b);
+    for(let k=0;k<points.length-1;k++){
+      const a=points[k],b=points[k+1],end=cuts.get(b).at;
+      if(b-a<n*.65&&end-lines[a].at<=t.dur*.5)continue;
+      for(let i=a+1;i<b;i++)if(lines[i].at-lines[i-1].at>Math.max(typical*2.2,typical+3*mad))cut(i,lines[i].at,'lyric-gap-estimate',1);
+    }
+    const boundaries=[...cuts.keys()].sort((a,b)=>a-b),blocks=[];
+    for(let k=0;k<boundaries.length-1;k++){
+      const a=boundaries[k],b=boundaries[k+1];if(b-a<2||a>=n)continue;
+      const end=cuts.get(b),vocal=lines.slice(a,b),novel=vocal.filter(x=>counts.get(x.key)===1).length/vocal.length;
+      const refrain=refrainRuns.some(x=>a>=x.a&&b<=x.b)||novel===0;
+      blocks.push({a,b,start:lines[a].at,end:end.at,boundary:end.boundary,strength:end.strength,novel,refrain});
+    }
+    const candidates=[];
+    for(const block of blocks){
+      candidates.push({...block,structure:block.refrain?'refrain':'verse'});
+      const next=blocks.find(x=>x.a===block.b);
+      // Include at most one natural refrain return, never another verse or a long interlude.
+      if(!block.refrain&&next?.refrain&&next.start-block.end<=typical+mad)candidates.push({...block,b:next.b,end:next.end,boundary:next.boundary,strength:Math.min(block.strength,next.strength),structure:'verse-refrain'});
+    }
+    // A well-bounded stanza can contain internal hook repetitions. Keep that
+    // complete verse/return candidate when there is no smaller stanza break;
+    // the coverage guard still rejects an entire lyric sheet masquerading as it.
+    const strong=[...cuts].filter(([,c])=>c.strength>=3).map(([i])=>i);if(!strong.includes(0))strong.unshift(0);strong.sort((a,b)=>a-b);
+    for(let k=0;k<strong.length-1;k++){const a=strong[k],b=strong[k+1];if(b-a<2||a>=n)continue;
+      const vocal=lines.slice(a,b),novel=vocal.filter(x=>counts.get(x.key)===1).length/vocal.length,end=cuts.get(b);
+      const inner=refrainRuns.filter(r=>r.a>=a&&r.b<=b).sort((x,y)=>x.a-y.a);
+      if(inner.some((r,i)=>i&&lines.slice(inner[i-1].b,r.a).filter(x=>counts.get(x.key)===1).length>=2))continue;
+      const returnToRefrain=novel>0&&refrainRuns.some(r=>r.a>=a&&r.a<b)&&counts.get(lines[b-1].key)>1;
+      candidates.push({a,b,start:lines[a].at,end:end.at,boundary:end.boundary,strength:end.strength,novel,structure:returnToRefrain?'verse-refrain':novel?'verse':'refrain'});
+    }
+    const eligible=candidates.filter(c=>this.usable({method:'lyrics-structure-v2',start:c.start,end:c.end,vocalLines:c.b-c.a,totalVocalLines:n},t)&&c.end<=t.dur);
+    for(const c of eligible)c.score=(c.structure==='verse-refrain'?5:c.structure==='verse'?3:1)+c.strength*.35+(c.a>0?.5:0)+c.novel;
+    eligible.sort((a,b)=>b.score-a.score||a.start-b.start);const best=eligible[0];
+    return best?{schema:2,source:'timed-lyrics',start:best.start,end:best.end,boundary:best.boundary,structure:best.structure,vocalLines:best.b-best.a,totalVocalLines:n,section:best.structure==='verse-refrain'?'Verse + refrain estimate':best.structure==='verse'?'Verse estimate':'Refrain estimate',why:'Single section estimated from lyric structure',provider:'LRCLIB',providerId:record.id,method:'lyrics-structure-v2',song:Library.track(t)}:null;
   },
   failures(){try{return JSON.parse(LS.get('lyrics_lookups1')||'{}');}catch{return {};}},
-  key(t){return t.isrc?`${t.isrc}:${Math.round(t.dur/1000)}`:t.id;},
+  key(t){return 'v2:'+(t.isrc?`${t.isrc}:${Math.round(t.dur/1000)}`:t.id);},
   failure(t){return this.failures()[this.key(t)];},
   async miss(t,message,until=Date.now()+86400000){const f=this.failures();f[this.key(t)]={message,until};const rows=Object.entries(f).sort((a,b)=>b[1].until-a[1].until).slice(0,2000);LS.set('lyrics_lookups1',JSON.stringify(Object.fromEntries(rows)));await Persist.flush();},
   async request(title){
@@ -1142,7 +1182,7 @@ const Lyrics={
         if(!records.some(r=>this.matches(r,t)&&this.section(r,t))&&clean!==t.name)records=records.concat(await this.request(clean));
         if(revision!==AI.revision||AI.source()!=='lyrics')return;
         const candidates=records.filter(r=>this.matches(r,t)).map(r=>({pick:this.section(r,t),album:this.text(r.albumName)===this.text(t.albumName)&&!!t.albumName})).filter(x=>x.pick).sort((a,b)=>Number(b.album)-Number(a.album)||Number(a.pick.boundary==='next-lyric-line')-Number(b.pick.boundary==='next-lyric-line'));
-        if(!candidates.length){await this.miss(t,'No matching timed-lyric section is available for this recording.');return;}
+        if(!candidates.length){await this.miss(t,records.some(r=>this.matches(r,t))?'Timed lyrics found, but no reliable single verse or refrain could be separated.':'No matching timed-lyric section is available for this recording.');return;}
         const pick=candidates[0].pick,cache=AI.cache(),old=cache[t.id];if(old)pick.previous={start:old.start,end:old.end};cache[t.id]=pick;
         if(!await AI.save(cache))throw new Error('Could not save the timed-lyric section on this device.');
         const f=this.failures();delete f[this.key(t)];LS.set('lyrics_lookups1',JSON.stringify(f));
@@ -1651,7 +1691,9 @@ document.addEventListener('keydown',e=>{
 /* ---------------- Hook controls ---------------- */
 function applyHook(ms, label){
   const t = ST.mix[DJ.idx]; if (!t) return;
-  if (ms == null) HK.clear(t.id); else HK.set(t.id, clamp(ms, 0, t.dur - 20000));
+  const pick=AI.pick(t);if(ms!=null&&(!pick||!Number.isFinite(ms)||ms>=pick.end))return toast('Choose a start before this passage ends.');
+  if(ms!=null&&pick.source==='timed-lyrics'&&!Lyrics.usable({...pick,start:Math.max(0,ms)},t))return toast('Keep the start within this selected section.');
+  if (ms == null) HK.clear(t.id); else HK.set(t.id,Math.max(0,ms));
   const locked=DJ.streamOwned||DJ.confirmed;if(locked)t._lock=true;
   planSegments(ST.mix);t._lock=false;renderDeck();Library.capture();
   toast(label+(locked?' · applies next play':''));

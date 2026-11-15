@@ -1,10 +1,13 @@
-# Segue Version 40 playback contract
+# Segue Version 41 playback contract
 
 The Version 34 controller is superseded by a new SDK-only controller. Read
 [README.md](README.md) for timing/cache details and real-platform limits.
 
 | Requirement | Rule | Evidence |
 |---|---|---|
+| Single lyric section | Combine inner stanza/refrain boundaries; reject most-song/all-lyrics blocks; no timed truncation | Giant-block, inner-stanza, overlapping-hook and coverage regression cases |
+| Refined cache | Old lyric v1 mappings recheck once; v2 reuse; preserve previous range and other sources | Seeded old-cache browser flow and ID/ISRC unit cases |
+| Manual start | Keep selected end; ignore/refuse stale or oversized lyric corrections | Beyond-end and early-mark regression cases |
 | Automatic timed lyrics | Recording-matched LRC section, saved/reused; default with no files/AI key; misses pause visibly | Parser/recording/rate/cancel unit cases and automatic album browser flow |
 | Matching file | Local decode/Worker DSP; review and approve; no file upload or AI fallback | Real WAV/mismatch/cancel/review/persistence browser check; synthetic musical-quality limits |
 | Browser only | Load one selected URI into SDK ready ID; no native selection/fallback | URI and device assertions; source contains no account-wide status fallback |
@@ -35,7 +38,7 @@ The Version 34 controller is superseded by a new SDK-only controller. Read
 
 ## Required phone verification — not automated passes
 
-1. Open Version 40 in the same installation. Hear that the named song and actual
+1. Open Version 41 in the same installation. Hear that the named song and actual
    audio agree. Try pause, resume, Previous, Next, shuffle, repeat and scrubbing.
 2. For a new timed-lyric selection, hear that the selected section finishes before the
    next verse; whole-recording fallback is rejected. Try a saved song across two releases: its saved range should be reused.

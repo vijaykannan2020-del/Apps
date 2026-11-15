@@ -15,6 +15,7 @@ with sync_playwright() as p:
  context=browser.new_context(viewport={'width':390,'height':844})
  # An existing Version 39 installation must move to automation without file prompts.
  context.add_init_script("if(!localStorage.getItem('test_seeded')){localStorage.setItem('test_seeded','1');for(const[k,v]of Object.entries({rt:'test',at:'test',exp:'9999999999999',passage_source:'local',ai4:JSON.stringify({legacy:{schema:2,start:20000,end:80000}})}))localStorage.setItem('segue_'+k,v)}")
+ context.add_init_script("if(!localStorage.getItem('test_v1_seed')){localStorage.setItem('test_v1_seed','1');const id='T'+'0'.repeat(21),cache=JSON.parse(localStorage.getItem('segue_ai4')||'{}');cache[id]={schema:2,source:'timed-lyrics',method:'lyrics-structure-v1',start:10000,end:295000,song:{id,uri:'spotify:track:'+id,name:'Test song 0',artists:['Test Artist'],dur:300000,isrc:'INAAA0000000'}};localStorage.setItem('segue_ai4',JSON.stringify(cache));localStorage.setItem('segue_hooks',JSON.stringify({[id]:299000}))}")
  state={'id':None,'pos':0,'paused':True,'at':time.monotonic()};lyric_calls=[];ai_calls=[];loads=[];errors=[];active=False;album='A'*22
  def advance():
   now=time.monotonic()
@@ -26,7 +27,7 @@ with sync_playwright() as p:
   if 'sdk.scdn.co' in u:return r.fulfill(body=sdk,content_type='application/javascript')
   if 'generativelanguage' in u or 'anthropic' in u:ai_calls.append(u);return r.abort()
   if 'lrclib.net' in u:
-   assert 'Segue/40' in r.request.headers.get('lrclib-client','')
+   assert 'Segue/41' in r.request.headers.get('lrclib-client','')
    assert not r.request.headers.get('authorization')
    name=qs['track_name'][0];i=int(name.split()[-1]);lyric_calls.append(i)
    # Song 3 has plain lyrics only. Wrong versions/artists must not be accepted.
@@ -55,6 +56,9 @@ with sync_playwright() as p:
  page.wait_for_function('ST.mix.length===4&&!lyricAheadBusy&&ST.mix.slice(0,3).every(t=>AI.pick(t))',timeout=30000)
  assert sorted(lyric_calls)==[0,1,2,3],lyric_calls
  assert page.evaluate('ST.mix[0].start')==98000 and page.evaluate('ST.mix[0].end')==192000
+ assert page.evaluate('AI.cache()[ST.mix[0].id].method')=='lyrics-structure-v2'
+ assert page.evaluate('AI.cache()[ST.mix[0].id].previous.end')==295000
+ assert page.evaluate('HK.get()[ST.mix[0].id]')==299000
  assert not ai_calls
  page.click('#nav [data-v=play]');page.click('#playBtn');page.wait_for_function('DJ.playing')
  assert loads[-1]['position_ms']==98000
@@ -78,4 +82,4 @@ with sync_playwright() as p:
  assert not errors,errors
  assert not ai_calls
  browser.close()
- print('PASS automatic mode migration, full album, identified lyric requests, strict recording match, prefetch, shared SDK transitions, missing lyrics pause, cached reload and cross-release reuse; no file selection/AI requests')
+ print('PASS automatic mode migration, full album, identified lyric requests, strict recording match, prefetch, shared SDK transitions, missing lyrics pause, cached reload and cross-release reuse, v1 refinement and stale-manual-start guard; no file selection/AI requests')

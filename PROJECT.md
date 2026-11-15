@@ -119,7 +119,7 @@ the top right and cover part of the page.
 - Test copy (`cinema-book-test/`): Version 26 (same as the real app).
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
-- Segue (`segue/`): Version 40. Spotify sign-in, automatic timed-lyric passage selection with
+- Segue (`segue/`): Version 41. Spotify sign-in, automatic timed-lyric passage selection with
   saved recording reuse and optional file review/Gemini estimates, and a phone layout matching Cinema Book are in place. Player
   now uses one shared transport on every screen, observed playback phases,
   shuffle/repeat/seek and saved queues. Pending work is not shown as Playing. Simulated checks pass; live phone confirmation pending.
@@ -147,6 +147,8 @@ the top right and cover part of the page.
   GitHub Pages and the free TMDB terms are for non-commercial use.
 
 ## Change log
+
+- 2026-11-15, ChatGPT: Segue Version 41 fixes near-whole-song lyric selections: inspect stanzas/refrains inside explicit outer blocks, coalesce continuous repeated hooks, prefer one verse/refrain return, and reject over-half-recording or 65%-of-vocal-line candidates rather than truncate to a timer. Old lyric-v1 mappings refine once to v2 with previous ranges retained; other caches/queues/keys/manual marks preserved. Fixes manual-start-after-end fallback to full track duration and rejects oversized manual lyric expansions. 73 controller/selection cases plus seeded-v1 Chromium refinement/SDK/reload tests and existing player/catalog/file/layout checks pass. Still structural estimates, not audible hype or guaranteed vocal-completion detection.
 
 - 2026-11-15, ChatGPT: Segue Version 40 defaults to automatic timed lyrics, replacing the matching-file prompt for existing installations once. Uses identified, sequential LRCLIB requests; strict title/credited-artist/duration matching; structural section boundaries rather than fixed clips; saved ID/ISRC reuse; ahead preparation; negative caching and Retry-After cooldown. Full lyrics are transient, not stored/displayed; no Gemini calls in default mode. Missing sections pause visibly rather than guessing/skipping/full-song fallback. Prior caches/keys/queues retained; manual file/Gemini methods stay optional. 64 unit/controller cases, automatic mocked Chromium album/migration/prefetch/SDK/reload tests and existing catalog/file/player/14-layout checks pass. Live API/CORS/example timing checked; lyrics cannot measure hype or certify a vocal ending, and actual iPhone/Spotify audio remains unverified.
 

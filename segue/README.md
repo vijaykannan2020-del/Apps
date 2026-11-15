@@ -1,4 +1,4 @@
-# Segue handoff — Version 40
+# Segue handoff — Version 41
 
 Read `../PROJECT.md` first. Updated 2026-11-15.
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
@@ -10,6 +10,55 @@ select a section automatically, save its timings and prepare upcoming songs whil
 Spotify plays in the browser. No files, AI key, song-count picker, fixed excerpt
 length or mandatory eight-song batch. Local-file review and Gemini estimates
 remain explicit optional methods, not automatic fallbacks.
+
+## One verse or refrain, not the lyric sheet (Version 41)
+
+Vijay reported that automatic selections often covered nearly all the lyrics.
+Version 40 accepted an explicit closing marker as a complete section, skipped
+searching for stanzas inside it, and rewarded larger blocks. A second bug let
+an old manual start beyond a new ending replace that ending with track duration.
+
+The selector now combines explicit markers, aligned stanza paragraphs and
+maximal repeated phrases even when outer blocks exist. It chooses one verse,
+one continuous refrain, or a verse with one adjacent refrain return. Adjacent
+or overlapping repeated hook fragments are coalesced; they cannot by themselves
+end a refrain early. A properly bounded verse/refrain remains eligible intact
+when it has no smaller stanza break. Candidate scoring favors structure and
+boundary evidence rather than line count/length. Long line gaps only refine
+otherwise oversized blocks, not every breath inside a valid verse.
+
+A proposed automatic lyric passage is rejected if it covers over half the
+recording or at least 65% of its timed vocal lines. These are conservative
+whole-song/whole-lyric-sheet rejection guards, not clip durations: the algorithm
+never truncates to 60 seconds or to a percentage boundary. It must still find
+a structural start/end, or show that no reliable single section is available.
+Long genuine sections of short songs may consequently be declined. If a verse
+cannot be separated, the full sheet is not a fallback. Line-based inference
+still cannot hear hype/beat strength, certify a charanam or a sustained vocal's
+finish; this is a tighter structural estimate, not audio analysis.
+
+New mappings use `method:lyrics-structure-v2`, recording `vocalLines`,
+`totalVocalLines` and `structure`. Version-40 lyric mappings remain stored but
+are no longer playable; they are looked up/refined once as needed, retaining
+the prior range in `previous`. Old negative lookups use a different namespace
+and do not block this retry. Newly refined mappings reuse by ID/ISRC without
+more lyric requests. AI estimates, approved file mappings, queues, keys and
+stored manual marks are not deleted. No Gemini tokens are spent by refinement.
+
+Manual marks beyond the selected end are ignored during planning, and new ones
+are refused. Timed-lyric marks that would expand a passage to most of the song
+are also ignored/refused. Planning always retains the selected end; it never
+substitutes song duration. Existing marks stay stored, and valid corrections
+continue working. Active playback still defers a correction until next play.
+
+Validation: 73 controller/selection/library cases plus the mocked Chromium album
+flow, now seeding a long v1 mapping and stale manual start, prove one-time v2
+refinement, preserved previous values/marks, SDK starts at the new passage and
+cached reload/cross-release reuse. Regression fixtures cover an entire lyric
+sheet with one closing marker, inner stanzas, coverage rejection and repeated
+refrain fragments. Existing player/catalog/file checks and responsive cases
+pass. The real 409-second Thayya Thayya lyric record still selects its bounded
+158.090–245.430 verse/refrain; no actual audio was auditioned. Verify reported songs against their exact recording data and actual audio.
 
 ## Automatic timed lyrics (Version 40)
 
@@ -294,7 +343,7 @@ Firebase, other app edits, downloaded audio or new backend. Spotify redirect
 remains exactly `https://vijaykannan2020-del.github.io/Apps/segue/`.
 Client ID and AI key stay on the user's device; never ask for keys or commit them.
 
-- `node segue/tests/playback.test.cjs`: 64 controller/selection/library cases,
+- `node segue/tests/playback.test.cjs`: 73 controller/selection/library cases,
   actual advancing SDK state, frozen/late/wrong-song failures, cancellation,
   variable ranges, adaptive batching, all catalog pages, ISRC reuse/mismatch,
   cache preservation, late-AI pause/wait, media actions and manifest identity.
