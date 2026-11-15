@@ -275,6 +275,9 @@ h1,h2,h3{letter-spacing:-.02em}
 @supports ((backdrop-filter:blur(20px)) or (-webkit-backdrop-filter:blur(20px))){.nav{background:var(--dock);backdrop-filter:blur(26px) saturate(190%) brightness(1.08);-webkit-backdrop-filter:blur(26px) saturate(190%) brightness(1.08)}}
 @media(prefers-reduced-transparency:reduce){.nav{background:var(--paper);backdrop-filter:none;-webkit-backdrop-filter:none}}
 @media(prefers-reduced-motion:reduce){.nav button{transition:none}}
+
+/* Version 23: rewatch history */
+.hist{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--tint-pink);font-size:14px}.hrow b{margin-left:6px}.hrow .link{font-size:12px;color:var(--soft);flex:none}.hrow>span{flex:1;min-width:0}.hdate{display:block;margin-top:8px;padding:8px 10px;font-size:15px;background:var(--paper)}
 </style>
 </head>
 <body>
@@ -389,7 +392,7 @@ h1,h2,h3{letter-spacing:-.02em}
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 22</p>
+    <p class="note" style="text-align:center">Version 24</p>
   </section>
 </div>
 
@@ -445,7 +448,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=22;
+const APP_VERSION=24;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -558,7 +561,7 @@ function stub(e,ser){
   const tone=wl?'sun':(e.where==='Theatre'||(e.where&&!WHERE.includes(e.where)))?'pink':'green';
   const line=wl?'Want to watch':[e.where,fmtDate(e.watchedOn),e.watchedLang].filter(Boolean).join(', ');
   return `<button class="stub ${tone}" type="button" data-key="${esc(e.key)}">${banner(e)}
-    <div class="stub-main"><h3>${esc(e.title)}</h3><p>${esc([e.year,e.kind].filter(Boolean).join(', '))}</p><p class="where">${esc(line)}</p>${e.totalSeasons?`<p class="where">${(e.seasonsWatched||[]).length>=e.totalSeasons?'All '+e.totalSeasons+' season'+(e.totalSeasons>1?'s':'')+' finished':(e.seasonsWatched||[]).length+' of '+e.totalSeasons+' seasons finished'}</p>`:''}${e.reviewText?'<p>Review written</p>':''}</div>
+    <div class="stub-main"><h3>${esc(e.title)}</h3><p>${esc([e.year,e.kind].filter(Boolean).join(', '))}</p><p class="where">${esc(line)}</p>${e.totalSeasons?`<p class="where">${(e.seasonsWatched||[]).length>=e.totalSeasons?'All '+e.totalSeasons+' season'+(e.totalSeasons>1?'s':'')+' finished':(e.seasonsWatched||[]).length+' of '+e.totalSeasons+' seasons finished'}</p>`:''}${(e.views||[]).length?`<p>Watched ${(e.views.length+1)} times</p>`:''}${e.reviewText?'<p>Review written</p>':''}</div>
     <div class="stub-tear">${wl?'<span>Not yet<br>watched</span>':e.rating?`<b>${fmtR(+e.rating)}</b><span>out of 5</span>`:'<span>No rating</span>'}<small>No. ${String(ser[e.key]||0).padStart(4,'0')}</small></div></button>`;
 }
 
@@ -603,7 +606,7 @@ function renderStats(){
   const count=f=>{const m={};w.forEach(e=>{const k=f(e);if(k)m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,7)};
   const bars=r=>{const mx=Math.max(1,...r.map(x=>x[1]));return r.length?r.map(([k,n])=>`<div class="bar"><span>${esc(k)}</span><div><i style="width:${n/mx*100}%"></i></div><em>${n}</em></div>`).join(''):'<p class="note">Nothing logged for this yet.</p>'};
   const now=new Date(), months=[];
-  for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');months.push([d.toLocaleDateString(undefined,{month:'narrow'}),w.filter(e=>(e.watchedOn||'').startsWith(k)).length])}
+  for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');months.push([d.toLocaleDateString(undefined,{month:'narrow'}),w.reduce((a,e)=>a+((e.watchedOn||'').startsWith(k)?1:0)+(e.views||[]).filter(x=>(x.on||'').startsWith(k)).length,0)])}
   const mm=Math.max(1,...months.map(m=>m[1]));
   const bm={};w.forEach(e=>{const k=(e.watchedOn||'').slice(0,statMode==='year'?4:7)||'none';(bm[k]=bm[k]||[]).push(e)});
   const bk=Object.entries(bm).sort((a,b)=>a[0]==='none'?1:b[0]==='none'?-1:b[0].localeCompare(a[0]));
@@ -612,7 +615,7 @@ function renderStats(){
     <div class="tile"><b>${w.length}</b><span>watched</span></div>
     <div class="tile"><b>${avg?avg.toFixed(1):'–'}</b><span>average rating</span></div>
     <div class="tile"><b>${w.filter(e=>!isSeries(e)).length}</b><span>movies</span></div>
-    <div class="tile"><b>${w.filter(isSeries).length}</b><span>web series</span></div></div>
+    <div class="tile"><b>${w.filter(isSeries).length}</b><span>web series</span></div>${w.some(e=>(e.views||[]).length)?`<div class="tile"><b>${w.reduce((a,e)=>a+(e.views||[]).length,0)}</b><span>rewatches</span></div>`:''}</div>
    <div class="panel"><h3>Watched by ${statMode==='year'?'year':'month'}</h3>
      <div class="choice" id="bMode" style="margin-bottom:8px"><button type="button" data-m="month" class="${statMode==='month'?'on':''}">Monthly</button><button type="button" data-m="year" class="${statMode==='year'?'on':''}">Yearly</button></div>
      ${bk.map(([k,a],i)=>{const mv=a.filter(e=>!isSeries(e)).length,sr=a.length-mv;
@@ -738,7 +741,7 @@ document.addEventListener('click',e=>{
 });
 function openSheet(d,toForm){
   cur=d;const e=book[d.key]||{};
-  form={seasons:new Set(e.seasonsWatched||[]),status:e.status||'watched',rating:+e.rating||0,where:e.where||'',watchedOn:e.watchedOn||today(),watchedLang:e.watchedLang||(d.original_language==='Tamil'?'Tamil':''),notes:e.notes||''};
+  form={seasons:new Set(e.seasonsWatched||[]),status:e.status||'watched',rating:+e.rating||0,where:e.where||'',watchedOn:e.watchedOn||today(),watchedLang:e.watchedLang||(d.original_language==='Tamil'?'Tamil':''),notes:e.notes||'',views:(e.views||[]).slice(),canRe:e.status==='watched'&&!!e.watchedOn,re:false};
   const p=(d.providers||{})[region]||{};
   const grp=(label,list)=>list&&list.length?`<div class="grp">${label}</div><div class="provs">${list.map(x=>`<div class="prov">${x.logo_path?`<img src="${IMG}w92${esc(x.logo_path)}" alt="">`:''}${esc(x.provider_name)}</div>`).join('')}</div>`:'';
   const watch=grp('Free',p.free)+grp('Free with ads',p.ads)+grp('Subscription',p.flatrate)+grp('Rent',p.rent)+grp('Buy',p.buy);
@@ -757,6 +760,7 @@ function openSheet(d,toForm){
      <div class="choice" id="fStatus"><button type="button" data-s="watched">I watched it</button><button type="button" data-s="watchlist">Want to watch</button></div>
      ${(d.seasonList||[]).length?`<label class="fl">Seasons I have finished</label><div class="chips" id="fSeasons"></div><p class="hint" id="fSeasonNote"></p>`:''}
      <div id="wFields">
+       <div id="fViews"></div>
        <label class="fl">My rating</label><div class="stars" id="fStars"></div>
        <p class="hint">Tap the left half of a star for a half.</p>
        <label class="fl">Where I watched</label><div class="chips" id="fWhere"></div>
@@ -797,6 +801,23 @@ function wireForm(){
   pl(); l.onclick=e=>{const b=e.target.closest('.chip');if(!b)return;form.watchedLang=form.watchedLang===b.dataset.l?'':b.dataset.l;pl()};
   $('#fNotes').value=form.notes;$('#fNotes').oninput=e=>form.notes=e.target.value;
   $('#fSave').onclick=save; if($('#fDel'))$('#fDel').onclick=del;
+  wireViews(pst,pw,pl);
+}
+function wireViews(pst,pw,pl){
+  const el=$('#fViews');if(!el)return;
+  const paint=()=>{const v=form.views.slice().sort((a,b)=>(b.on||'').localeCompare(a.on||''));
+    el.innerHTML=(form.re?'<p class="notice" style="margin:0 0 4px">Logging a new watch. Your earlier watch is kept under Earlier watches.</p>':'')
+     +(form.canRe&&!form.re?'<button class="btn quiet" id="fRe" type="button" style="width:100%;margin:2px 0 6px">I watched it again</button>':'')
+     +'<button class="link" id="fBefore" type="button" style="display:block;margin:2px 0 8px">+ I had also watched it before</button>'
+     +(v.length?`<label class="fl">Earlier watches</label><div class="hist">${v.map(x=>{const i=form.views.indexOf(x);return `<div class="hrow"><span>${x.on||!x.before?esc([fmtDate(x.on),x.where,x.lang].filter(Boolean).join(', ')||'No details'):'Watched before, date not known'}${+x.rating?' <b>'+fmtR(+x.rating)+'</b>':''}${x.before?`<input class="inp hdate" type="date" data-dt="${i}" max="${today()}" value="${esc(x.on||'')}" aria-label="Date of this earlier watch, optional">`:''}</span><button type="button" class="link" data-rm="${i}" aria-label="Remove this watch">Remove</button></div>`}).join('')}</div>`:'')};
+  paint();
+  el.onclick=e=>{
+    if(e.target.id==='fRe'){form.views.push({on:form.watchedOn,where:form.where,lang:form.watchedLang,rating:form.rating});form.re=true;form.canRe=false;form.watchedOn=today();form.where='';$('#fWhereO').value='';$('#fDate').value=form.watchedOn;pw();pl();paint();return}
+    if(e.target.id==='fBefore'){form.views.push({on:'',where:'',lang:'',rating:0,before:true});paint();return}
+    const b=e.target.closest('[data-rm]');if(!b)return;
+    if(!b.dataset.c){b.dataset.c='1';b.textContent='Tap again';return}
+    form.views.splice(+b.dataset.rm,1);paint()};
+  el.onchange=e=>{const t=e.target.closest('[data-dt]');if(!t)return;form.views[+t.dataset.dt].on=t.value;paint()};
 }
 
 function wireSeasons(d){
@@ -814,13 +835,13 @@ function wireSeasons(d){
 async function save(){
   if(!cur||saving)return;const d=cur,w=form.status==='watched';
   const doc={title:d.title,year:d.year||'',kind:d.kind||'',type:d.type||'',tmdbId:d.tmdbId||0,poster:d.poster||'',genre:d.genre||'',original_language:d.original_language||'',minutes:+d.minutes||0,
-    status:form.status,rating:w?form.rating:0,where:w?form.where:'',watchedOn:w?form.watchedOn:'',watchedLang:w?form.watchedLang:'',notes:form.notes||'',
+    status:form.status,rating:w?form.rating:0,where:w?form.where:'',watchedOn:w?form.watchedOn:'',watchedLang:w?form.watchedLang:'',notes:form.notes||'',views:w?form.views:(book[d.key]&&book[d.key].views)||[],
     addedAt:(book[d.key]&&book[d.key].addedAt)||Date.now(),updatedAt:Date.now()};
   if((d.seasonList||[]).length){doc.seasonsWatched=[...form.seasons].sort((a,b)=>a-b);doc.totalSeasons=d.seasonList.length;doc.minutes=form.seasons.size?d.seasonList.filter(x=>form.seasons.has(x.n)).reduce((a,x)=>a+x.eps,0)*Math.round((+d.minutes||0)/Math.max(1,d.episodes||1)):+d.minutes||0}
   else{const ex0=book[d.key]||{};if(ex0.totalSeasons){doc.seasonsWatched=ex0.seasonsWatched||[];doc.totalSeasons=ex0.totalSeasons}}
   const ex=book[d.key]||{};['reviewHead','reviewText','reviewCap','reviewTexts','reviewStyle','reviewX','reviewXThread','reviewAt'].forEach(k=>{if(ex[k])doc[k]=ex[k]});
   saving=true;$('#fSave').disabled=true;
-  try{await col.doc(d.key).set(doc);toast(w?'Saved to my book':'Added to want to watch');closeSheet();
+  try{await col.doc(d.key).set(doc);toast(w?(form.re?'Rewatch saved':'Saved to my book'):'Added to want to watch');closeSheet();
     if(!$('#results').classList.contains('hidden')){$('#sQ').value='';search()}}
   catch(e){toast('Not saved. Check your connection and try again.');$('#fSave').disabled=false}
   finally{saving=false}
