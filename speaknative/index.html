@@ -247,10 +247,29 @@ h1,h2,h3{letter-spacing:-.02em}
 
     <div class="h2" style="font-size:19px">Settings</div>
     <div class="panel set" style="margin-top:10px">
-      <label>Coach voice
-        <select class="inp" id="voiceSel"></select>
+      <label>Voice type
+        <select class="inp" id="engineSel">
+          <option value="ai">Natural AI voice</option>
+          <option value="phone">Phone voice</option>
+        </select>
       </label>
-      <p class="note">For a more natural voice on iPhone: Settings › Accessibility › Spoken Content › Voices › English, then download an <b>Enhanced</b> or <b>Premium</b> voice (Ava, Zoe or Evan). It appears here afterwards.</p>
+      <div id="aiVoiceBox" class="set">
+        <label>Coach voice
+          <select class="inp" id="aiVoiceSel"></select>
+        </label>
+        <label class="chk" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="castIn" style="width:20px;height:20px"> Use a matching man's or woman's voice for each Talk character</label>
+        <label>Voice key (Google Gemini)
+          <input class="inp" id="vkIn" type="password" placeholder="Paste a Gemini key (starts with AIza)" autocomplete="off">
+        </label>
+        <p class="note" id="vkState">Checking…</p>
+        <button class="btn" id="vkSave">Save voice key</button>
+      </div>
+      <div id="phoneVoiceBox" class="set">
+        <label>Phone voice
+          <select class="inp" id="voiceSel"></select>
+        </label>
+        <p class="note">For a better phone voice: iPhone Settings › Accessibility › Spoken Content › Voices › English, then download a <b>Premium</b> voice (Ava or Zoe).</p>
+      </div>
       <label>Speaking speed
         <input type="range" id="rateIn" min="0.6" max="1.2" step="0.05">
       </label>
@@ -289,7 +308,7 @@ window.FIREBASE_CONFIG={apiKey:"AIzaSyAxCgkTuz8RS93U9mwb6bqjBgvARM69DYY",authDom
 window.APP_NS="apps/speaknative/";
 </script>
 <script>
-const APP_VERSION=1;
+const APP_VERSION=2;
 const NS=window.APP_NS;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -299,7 +318,7 @@ $('verLbl').textContent='Version '+APP_VERSION;
 
 /* ---------- state: local first, synced to Firestore ---------- */
 const LKEY='sn_state';
-const DEF={days:[],msgs:0,scores:[],saved:[],mistakes:[],voice:'',rate:0.95,hands:false,speak:true};
+const DEF={days:[],msgs:0,scores:[],saved:[],mistakes:[],voice:'',rate:0.95,hands:false,speak:true,engine:'ai',aiVoice:'Kore',cast:true};
 let S=Object.assign({},DEF,(()=>{try{return JSON.parse(localStorage.getItem(LKEY)||'{}')}catch(e){return{}}})());
 let progDoc=null,syncT=null;
 function persist(){
@@ -314,7 +333,7 @@ function merge(r){
   if((r.scores||[]).length>S.scores.length)S.scores=r.scores;
   const seen=new Set(S.saved.map(x=>x.text));(r.saved||[]).forEach(x=>{if(!seen.has(x.text))S.saved.push(x)});
   const ms=new Map(S.mistakes.map(x=>[x.said.toLowerCase(),x]));(r.mistakes||[]).forEach(x=>{const k=x.said.toLowerCase();if(!ms.has(k))S.mistakes.push(x);else ms.get(k).n=Math.max(ms.get(k).n,x.n)});
-  ['voice','rate','hands','speak'].forEach(k=>{if(r[k]!==undefined&&S[k]===DEF[k])S[k]=r[k]});
+  ['voice','rate','hands','speak','engine','aiVoice','cast'].forEach(k=>{if(r[k]!==undefined&&S[k]===DEF[k])S[k]=r[k]});
 }
 const dayKey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function markPractice(){const k=dayKey(new Date());if(!S.days.includes(k)){S.days.push(k);persist();}renderStreak();}
@@ -325,7 +344,7 @@ function renderStreak(){const s=streak(),done=S.days.includes(dayKey(new Date())
 firebase.initializeApp(window.FIREBASE_CONFIG);
 const auth=firebase.auth(),fs=firebase.firestore();
 let AIKEY='',ownKey='',sharedKey='';
-function paintKey(){AIKEY=ownKey||sharedKey||'';const t=k=>k.startsWith('sk-ant')?'Claude':/^(AIza|AQ\.)/.test(k)?'Google Gemini':'unknown type';
+function paintKey(){AIKEY=ownKey||sharedKey||'';paintVoiceKey();const t=k=>k.startsWith('sk-ant')?'Claude':/^(AIza|AQ\.)/.test(k)?'Google Gemini':'unknown type';
   $('aiState').textContent=ownKey?`A ${t(ownKey)} key is saved for SpeakNative.`:sharedKey?`Using your Cinema Book ${t(sharedKey)} key. Paste a key here only if you want a separate one.`:'No AI key yet. Paste a Claude key (starts with sk-ant) or a free Gemini key from aistudio.google.com.';}
 $('authForm').onsubmit=async e=>{e.preventDefault();$('aErr').textContent='';$('aBtn').disabled=true;
   try{await auth.signInWithEmailAndPassword($('aEmail').value.trim(),$('aPw').value)}catch(err){$('aErr').textContent='Sign-in failed. Check the email and password.'}
@@ -337,6 +356,7 @@ auth.onAuthStateChanged(async u=>{
   progDoc=fs.doc(NS+'users/'+u.uid);
   try{const s=await progDoc.get();if(s.exists)merge(s.data());persist();}catch(e){}
   fs.doc(NS+'config/ai').get().then(s=>{ownKey=(s.exists&&s.data().key)||'';paintKey()}).catch(()=>paintKey());
+  fs.doc(NS+'config/voice').get().then(s=>{voiceKey=(s.exists&&s.data().key)||'';paintVoiceKey()}).catch(()=>paintVoiceKey());
   fs.doc('apps/cinemabook/config/ai').get().then(s=>{sharedKey=(s.exists&&s.data().key)||'';paintKey()}).catch(()=>paintKey());
   renderAll();
 });
@@ -359,7 +379,7 @@ loadVoices();setTimeout(loadVoices,800);
 $('voiceSel').onchange=()=>{S.voice=$('voiceSel').value;persist();say('Hi! This is how I sound.');};
 $('rateIn').value=S.rate;$('rateIn').oninput=()=>{S.rate=+$('rateIn').value;persist();};
 $('testVoice').onclick=()=>say("Hey, how's it going? Let's get some practice in today.");
-function say(text,slow,onEnd){
+function phoneSay(text,slow,onEnd){
   try{
     speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);
@@ -370,13 +390,103 @@ function say(text,slow,onEnd){
   }catch(e){onEnd&&onEnd();}
 }
 
+/* Natural AI voice: Gemini text-to-speech, played through one unlocked audio element */
+const AI_VOICES=[['Kore','Kore · woman, clear and confident'],['Aoede','Aoede · woman, relaxed and breezy'],['Leda','Leda · woman, young and bright'],['Sulafat','Sulafat · woman, warm'],['Achernar','Achernar · woman, soft'],
+  ['Puck','Puck · man, upbeat and friendly'],['Charon','Charon · man, calm and informative'],['Fenrir','Fenrir · man, energetic'],['Achird','Achird · man, friendly'],['Iapetus','Iapetus · man, clear'],['Sadaltager','Sadaltager · man, knowledgeable']];
+const CAST={Jake:'Puck',Sarah:'Kore',Mike:'Charon',Rachel:'Aoede',Tom:'Iapetus',Linda:'Sulafat',Server:'Leda',Ashley:'Leda',Interviewer:'Sadaltager',Alex:'Achird'};
+let voiceKey='',ttsModels=null,ttsWarned=false,speakSeq=0;
+const ttsCache=new Map();
+const player=new Audio();player.preload='auto';player.setAttribute('playsinline','');
+try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}
+const SILENT='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+let unlocked=false;
+function unlockAudio(){if(unlocked)return;unlocked=true;try{player.src=SILENT;const p=player.play();p&&p.then(()=>player.pause()).catch(()=>{unlocked=false});}catch(e){unlocked=false}}
+document.addEventListener('pointerdown',unlockAudio,{capture:true});
+document.addEventListener('touchend',unlockAudio,{capture:true});
+const vKey=()=>voiceKey||(/^(AIza|AQ\.)/.test(AIKEY)?AIKEY:'');
+function paintVoiceKey(){
+  const k=vKey();
+  $('vkState').textContent=voiceKey?'A voice key is saved.':k?'Using your Gemini AI key for the natural voice.':'Needed for the natural voice. Get a free key at aistudio.google.com › Get API key, then paste it here. Until then the phone voice is used.';
+}
+$('vkSave').onclick=async()=>{const k=$('vkIn').value.trim();if(!k)return;
+  try{await fs.doc(NS+'config/voice').set({key:k});voiceKey=k;ttsModels=null;$('vkIn').value='';paintVoiceKey();toast('Voice key saved');say("Hey! This is your new coach voice. Sounds a lot better, right?");}catch(e){toast('Not saved. Try again.')}};
+function paintEngine(){
+  $('engineSel').value=S.engine;$('aiVoiceBox').classList.toggle('hidden',S.engine!=='ai');$('phoneVoiceBox').classList.toggle('hidden',S.engine==='ai');
+  $('aiVoiceSel').innerHTML=AI_VOICES.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('');$('aiVoiceSel').value=S.aiVoice;$('castIn').checked=S.cast;
+}
+$('engineSel').onchange=()=>{S.engine=$('engineSel').value;persist();paintEngine();say("Hi! This is how I sound.");};
+$('aiVoiceSel').onchange=()=>{S.aiVoice=$('aiVoiceSel').value;persist();say("Hi! This is how I sound. Let's practice.");};
+$('castIn').onchange=()=>{S.cast=$('castIn').checked;persist();};
+paintEngine();
+
+async function ttsModelList(key){
+  if(ttsModels)return ttsModels;let names=[];
+  try{const r=await tfetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(key)}`,{},10000);
+    if(r.ok)names=((await r.json()).models||[]).map(m=>m.name.replace('models/','')).filter(n=>/tts/i.test(n)&&!/pro/i.test(n));}catch(e){}
+  const score=n=>(parseFloat((n.match(/gemini-([\d.]+)/)||[0,0])[1])*10)-(/lite/.test(n)?1:0)-(/preview/.test(n)?2:0);
+  names.sort((a,b)=>score(b)-score(a));
+  return ttsModels=[...new Set([...names,'gemini-3.8-flash-tts','gemini-3.8-flash-lite-tts','gemini-3.1-flash-tts-preview','gemini-2.5-flash-preview-tts'])];
+}
+function b64bytes(b){const s=atob(b),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u;}
+function toWav(u,mime){
+  if(u.length>4&&u[0]===82&&u[1]===73&&u[2]===70&&u[3]===70)return u; // already RIFF/WAV
+  const rate=+((mime||'').match(/rate=(\d+)/)||[0,24000])[1]||24000;
+  const out=new Uint8Array(44+u.length),dv=new DataView(out.buffer);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)out[o+i]=s.charCodeAt(i)};
+  w(0,'RIFF');dv.setUint32(4,36+u.length,true);w(8,'WAVE');w(12,'fmt ');dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);
+  dv.setUint32(24,rate,true);dv.setUint32(28,rate*2,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);w(36,'data');dv.setUint32(40,u.length,true);out.set(u,44);return out;
+}
+async function ttsFetch(text,voice,slow){
+  const ck=voice+'|'+(slow?1:0)+'|'+text;if(ttsCache.has(ck))return ttsCache.get(ck);
+  const key=vKey();if(!key)throw new Error('no voice key');
+  const style=slow?'Speak slowly and very clearly, like a patient coach, in a natural General American accent.':'Natural, relaxed, conversational General American English, like a friendly native speaker from Texas talking in person.';
+  let last;
+  for(const m of await ttsModelList(key)){
+    for(const shape of ['new','old']){
+      const parts=shape==='new'?[{text,speech_metadata:{style}}]:[{text:`Say in a ${style.toLowerCase()} way: ${text}`}];
+      const vc=shape==='new'?{voiceConfig:{voice}}:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}};
+      let r;try{r=await tfetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{role:'user',parts}],generationConfig:{responseModalities:['AUDIO'],speechConfig:vc}})},40000);}catch(e){last=new Error('Voice did not answer');break;}
+      const j=await r.json().catch(()=>({}));
+      if(r.ok){const part=(j.candidates?.[0]?.content?.parts||[]).find(p=>p.inlineData||p.inline_data);const d=part&&(part.inlineData||part.inline_data);
+        if(!d?.data){last=new Error('No audio returned');break;}
+        ttsModels=[m,...ttsModels.filter(x=>x!==m)];
+        const url=URL.createObjectURL(new Blob([toWav(b64bytes(d.data),d.mimeType||d.mime_type)],{type:'audio/wav'}));
+        if(ttsCache.size>80){const [k0,u0]=ttsCache.entries().next().value;URL.revokeObjectURL(u0);ttsCache.delete(k0);}
+        ttsCache.set(ck,url);return url;}
+      last=new Error('Voice: '+(j?.error?.message||r.status));
+      if(r.status===401||r.status===403||(r.status===400&&/API key/i.test(j?.error?.message||'')))throw last;
+      if(r.status===404||r.status===429)break; // try next model
+    }
+  }
+  throw last||new Error('Voice unavailable');
+}
+function stopVoice(){speakSeq++;try{player.pause();}catch(e){}try{speechSynthesis.cancel();}catch(e){}}
+async function say(text,slow,onEnd,who){
+  const my=++speakSeq;try{player.pause();speechSynthesis.cancel();}catch(e){}
+  const done=()=>{if(my===speakSeq)onEnd&&onEnd();};
+  if(S.engine!=='ai'||!vKey()){phoneSay(text,slow,done);return;}
+  const voice=(who&&S.cast&&CAST[who])||S.aiVoice;
+  $('liveBar').textContent='🔊 Loading voice…';
+  try{
+    const url=await ttsFetch(text,voice,slow);
+    if(my!==speakSeq)return;
+    $('liveBar').textContent='';
+    player.onended=done;player.onerror=done;player.src=url;player.playbackRate=slow?1:Math.max(.8,Math.min(1.2,S.rate/0.95));
+    await player.play();
+  }catch(e){
+    if(my!==speakSeq)return;$('liveBar').textContent='';
+    if(!ttsWarned){ttsWarned=true;toast('Natural voice unavailable ('+(e.message||'error').slice(0,60)+'). Using phone voice.',4500);}
+    phoneSay(text,slow,done);
+  }
+}
 /* ---------- microphone (Safari speech recognition) ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const Mic={rec:null,on:false,text:'',btn:null,silenceT:null,
   start({target=null,btn=null,onDone=null,autoStop=false}={}){
     if(!SR){toast('Speech input is not supported here. Use the 🎤 on your keyboard.',3500);return false;}
     if(this.on)this.stop();
-    try{speechSynthesis.cancel();}catch(e){}
+    stopVoice();
     const r=new SR();r.lang='en-US';r.interimResults=true;r.continuous=true;r.maxAlternatives=1;
     const base=target?target.value.trim():'';this.text=base;this.btn=btn;this.rec=r;
     r.onresult=e=>{let t='';for(let i=0;i<e.results.length;i++)t+=e.results[i][0].transcript;
@@ -458,9 +568,9 @@ function addAI(text,speakIt){
   convo.push({r:'ai',t:text});
   const el=document.createElement('div');el.className='msg ai';
   el.innerHTML=`<div class="who">${esc(scen.who)}</div>${esc(text)}<div class="acts"><button class="mini">🔊 Listen</button><button class="mini">🐢 Slow</button></div>`;
-  const [a,b]=el.querySelectorAll('.mini');a.onclick=()=>say(text);b.onclick=()=>say(text,true);
+  const [a,b]=el.querySelectorAll('.mini');const who=scen.who;a.onclick=()=>say(text,false,null,who);b.onclick=()=>say(text,true,null,who);
   $('chat').appendChild(el);scrollEnd();
-  if(speakIt&&S.speak)say(text,false,()=>{if(S.hands&&isView('coach'))setTimeout(()=>listenTalk(),250);});
+  if(speakIt&&S.speak)say(text,false,()=>{if(S.hands&&isView('coach'))setTimeout(()=>listenTalk(),250);},scen.who);
 }
 function addMe(text){convo.push({r:'me',t:text});const el=document.createElement('div');el.className='msg me';el.innerHTML=`<div class="who">You</div>${esc(text)}`;$('chat').appendChild(el);scrollEnd();}
 function addFb(f){
