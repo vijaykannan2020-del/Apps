@@ -60,6 +60,17 @@ with sync_playwright() as p:
  assert len(calls)==1
  persisted=page.evaluate("""()=>new Promise(resolve=>{const r=Persist.db.transaction('data').objectStore('data').get('ai4');r.onsuccess=()=>resolve(JSON.parse(r.result))})""")
  assert len(persisted)==7 and persisted['legacySaved']['end']==85000
+ # Explicit testing reset clears mappings, does not automatically spend AI,
+ # and preserves the complete selection plus a durable backup.
+ page.locator('#nav [data-v=set]').click();page.locator('#resetAi').click()
+ page.wait_for_function("document.querySelector('#aiResetStatus').textContent.includes('AI timings cleared')")
+ assert page.evaluate('Object.keys(AI.cache()).length')==0 and len(calls)==1
+ assert page.evaluate('ST.mix.length')==128
+ assert page.evaluate("Object.keys(JSON.parse(LS.get('ai_backup')).picks).length")==7
+ page.evaluate('AI.one(ST.mix[0])');assert len(calls)==2
+ assert page.evaluate('Object.keys(AI.cache()).length')==6
+ page.evaluate('Persist.flush()');page.reload();page.wait_for_function('Persist.ready&&ST.mix.length===128')
+ assert len(calls)==2
  # The database supports a catalog larger than the old localStorage ceiling.
  assert page.evaluate("async()=>{LS.set('library_large',JSON.stringify({padding:'x'.repeat(6*1024*1024)}));return await Persist.flush()}")
  page.reload();page.wait_for_function("Persist.ready&&ST.mix.length===128")
@@ -67,7 +78,7 @@ with sync_playwright() as p:
  # A failed database must not silently resurrect stale localStorage or spend AI again.
  context.add_init_script("Object.defineProperty(window,'indexedDB',{value:undefined})")
  page.reload();page.wait_for_selector('#bootBtns:visible');assert 'database' in page.locator('#bootMsg').inner_text()
- assert len(calls)==1
+ assert len(calls)==2
  assert not errors,errors
- print('PASS complete 128-song album order; no count picker; adaptive first batch; zero AI calls for identical recordings on another release; legacy migration and IndexedDB timings/queue survive reload; 6 MiB catalog persists; database failure does not re-query AI')
+ print('PASS complete 128-song album order; no count picker; adaptive first batch; zero AI calls for identical recordings on another release; legacy migration and IndexedDB timings/queue survive reload; 6 MiB catalog persists; explicit reset backs up old timings and requests a fresh batch; database failure does not re-query AI')
  browser.close()

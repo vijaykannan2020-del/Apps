@@ -1,4 +1,4 @@
-# Segue Version 37 playback contract
+# Segue Version 38 playback contract
 
 The Version 34 controller is superseded by a new SDK-only controller. Read
 [README.md](README.md) for timing/cache details and real-platform limits.
@@ -17,6 +17,7 @@ The Version 34 controller is superseded by a new SDK-only controller. Read
 | Complete sources | All album pages and artist releases/tracks; no song-count or search cap | 145-track album/160-track artist unit checks; 128-track browser album |
 | Automatic batches | Small startup request, larger while playing, input budget and uncached filtering | Small/large metadata tests and serialized requests |
 | Cross-release reuse | Same Spotify ID or verified ISRC/duration; no title-only reuse | Alias/mismatch/backfill tests and zero-new-AI browser flow |
+| Testing reset | Explicit Settings action backs up and clears AI mappings, keeps queues/keys/manual marks, waits for Play; rejects stale answers | Reset/cold-SDK/unconfirmed-pause cases and real browser reset/persist/fresh-batch check |
 | Database | Migrate and persist timing/library records in IndexedDB; retain backup; do not silently load stale data on failure | 6 MiB save, reload, migration and unavailable-database browser cases |
 | AI only | Reject incomplete/invalid timings; never generate a fixed fallback | Missing end, reversed range and out-of-duration cases |
 | No fixed excerpt length | Complete passage; short, multi-minute and song-end ranges allowed | 14-second, 142-second and song-end examples |

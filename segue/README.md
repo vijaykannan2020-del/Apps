@@ -1,4 +1,4 @@
-# Segue handoff — Version 37
+# Segue handoff — Version 38
 
 Read `../PROJECT.md` first. Updated 2026-11-15.
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
@@ -10,6 +10,26 @@ beat-driven charanam, save its returned range and play it in the browser.
 No song-count picker or mandatory eight-song rule. Existing valid timings
 are reused, including across release IDs when the recording is verified.
 The Play button is centered in both the CD deck and the compact player.
+
+## Explicit testing reset (Version 38)
+
+Settings → **Reset AI timings for testing** clears the active AI timing cache
+and saved AI-pick rows so the next Play asks Gemini again. Ordinary list Clear
+still only hides rows/clears mix lists and preserves AI mappings.
+
+Reset saves the previous nonempty cache in IndexedDB key `ai_backup`, verifies
+pause only when a stream/action needs stopping (it also works before any song
+has played), and clears runtime/checkpoint timing readiness for the saved queues.
+Albums, track order, sources, keys, recording identity metadata and manual start
+corrections remain. Manual marks are explicitly described in the Settings note.
+No new AI request is started by Reset itself. Open Playing and tap Play to test.
+
+A persisted `ai_revision` generation rejects queued or in-flight answers from
+before the reset. Old callbacks cannot refill the cache, restart a cancelled
+song, clear a newer pending request, or release a new prefetch lock. Request
+spacing is retained. The most recent backup is kept if Reset is pressed again
+while the cache is already empty. Reset is an on-device user action; publishing
+this version does not remotely clear anybody's phone or auto-reset on launch.
 
 ## Complete selected charanam (Version 37)
 
@@ -70,7 +90,7 @@ are enriched lazily when metadata candidates could match. Duplicate recordings
 within an AI request are skipped. Lookup failure never fabricates a match.
 
 `Persist` uses IndexedDB `segue-library`, object store `data`, for `ai4`,
-`recordings1` and account-scoped `library_*` records. It migrates legacy
+`ai_backup`, `ai_revision`, `recordings1` and account-scoped `library_*` records. It migrates legacy
 localStorage values only when no newer database value exists, keeping the old
 copies as a backup. Token/AI-key settings remain in the existing small settings
 store. Database writes serialize; AI saves wait for persistence. Storage errors
@@ -171,7 +191,7 @@ Firebase, other app edits, downloaded audio or new backend. Spotify redirect
 remains exactly `https://vijaykannan2020-del.github.io/Apps/segue/`.
 Client ID and AI key stay on the user's device; never ask for keys or commit them.
 
-- `node segue/tests/playback.test.cjs`: 46 rebuilt-controller/AI/library cases,
+- `node segue/tests/playback.test.cjs`: 50 rebuilt-controller/AI/library cases,
   actual advancing SDK state, frozen/late/wrong-song failures, cancellation,
   variable ranges, adaptive batching, all catalog pages, ISRC reuse/mismatch,
   cache preservation, late-AI pause/wait, media actions and manifest identity.
@@ -180,7 +200,8 @@ Client ID and AI key stay on the user's device; never ask for keys or commit the
   handler calls, wrong-track stop, pause/resume and reconnect failures.
 - `python segue/tests/catalog_browser.py`: complete 128-track album and second
   release-ID reuse with zero extra Gemini requests, legacy database migration,
-  reload durability, a 6 MiB catalog and unavailable-database handling.
+  reload durability, a 6 MiB catalog, explicit reset/backup/fresh-batch checks
+  and unavailable-database handling.
 - `python segue/tests/layout_browser.py`: populated 120-song library at seven
   phone/landscape/foldable sizes in both themes, neutral colors, removed badges,
   centered Play geometry, no count picker, 44px targets, scroll clearance,

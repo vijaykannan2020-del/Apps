@@ -347,6 +347,9 @@ img[src=""],img:not([src]){visibility:hidden}
         <button class="btn" id="aiSave" style="width:100%;margin-top:10px">Save key</button>
         <div class="note" id="aiNote">Gemini chooses the best beat-driven charanam and its complete timings. Saved selections are reused. The key stays only on this device.</div>
         <div class="note" id="aiSaved"></div>
+        <button class="btn ghost" id="resetAi" style="width:100%;margin-top:12px">Reset AI timings for testing</button>
+        <p class="tiny muted" style="margin-top:8px">Next Play asks AI again. Albums, queues, keys and manual start corrections stay saved.</p>
+        <p class="small muted" id="aiResetStatus" role="status" style="margin-top:8px"></p>
       </div>
       <div class="card">
         <h2>Browser player</h2>
@@ -401,7 +404,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 37;
+const APP_VERSION = 38;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -413,7 +416,7 @@ const SCOPES = 'streaming user-read-email user-read-private user-read-playback-s
 // Spotify credentials remain in the existing small settings store.
 const Persist={
   db:null,ready:false,values:new Map(),pending:Promise.resolve(true),failed:false,
-  owns(k){return k==='ai4'||k==='recordings1'||k.startsWith('library_');},
+  owns(k){return k==='ai4'||k==='ai_backup'||k==='ai_revision'||k==='recordings1'||k.startsWith('library_');},
   async init(){
     let migrated=false;try{migrated=localStorage.getItem('segue_database1')==='1';}catch{}
     if(typeof indexedDB==='undefined'){if(migrated)throw new Error('Your saved library database is unavailable. Reopen this app in the same browser.');return;}
@@ -833,7 +836,7 @@ const AI = {
       if(track?.id===t.id&&track.isrc&&Math.abs(track.dur-t.dur)<=1000){t.isrc=track.isrc;identities[t.id]={isrc:t.isrc,dur:t.dur};this._identitiesDirty=true;}
     }catch{} // Identity lookup failure never invents a match or blocks an AI choice.
   },
-  async prepareIdentities(batch){
+  async prepareIdentities(batch,revision=this.revision){
     let cursor=0;const worker=async()=>{while(cursor<batch.length)await this.identify(batch[cursor++]);};await Promise.all([worker(),worker(),worker()]);
     // Older saved picks lack ISRC. Verify only plausible metadata candidates;
     // their titles never authorize reuse without matching Spotify recording IDs.
@@ -844,7 +847,32 @@ const AI = {
       for(const c of candidates){await this.identify(c.song,true);if(c.song.isrc)changed=true;}
     }
     if(this._identitiesDirty){LS.set('recordings1',JSON.stringify(this._identities));this._identitiesDirty=false;}
-    if(changed){this._indexCache=null;await this.save(cache);}
+    if(changed&&revision===this.revision){this._indexCache=null;await this.save(cache);}
+  },
+  get revision(){return Number(LS.get('ai_revision'))||0;},
+  async resetForTesting(){
+    if(this.resetting)return false;this.resetting=true;
+    try{
+      const state=await DJ.sdkState();
+      if((DJ.busy||DJ.streamOwned||DJ.desiredPlaying||DJ.phase==='pause-unconfirmed'||state?.paused===false)&&!await DJ.pause())throw new Error('Pause was not confirmed. Stop audio, then reset again.');
+      DJ.epoch++;
+      const picks=this.cache();
+      if(Object.keys(picks).length){
+        if(!LS.set('ai_backup',JSON.stringify({at:Date.now(),picks}))||!await Persist.flush())throw new Error('Could not back up timings. Reset was not completed.');
+      }
+      LS.set('ai_revision',String(this.revision+1));
+      this.q=Promise.resolve();aheadSerial++;aheadBusy=false;
+      if(!LS.set('ai4','{}'))throw new Error('Could not clear the saved timings.');
+      this._raw=null;this._cache=null;this._indexCache=null;this.lastErr=null;
+      for(const t of new Set([...ST.mix,...(ST.pool||[])])){delete t._aiP;delete t._aiTries;t.aiPending=false;t._lock=false;}
+      for(const mix of Library.state.mixes){mix.positionReady=false;mix.pendingSeek=true;mix.position=0;mix.finished=false;}
+      Library.state.hiddenPicks=[];
+      DJ.loadedMix=DJ.loadedId=DJ.checkpointId=null;DJ.pendingSeek=true;DJ.pos=0;DJ.posAt=performance.now();DJ.finished=false;DJ.retryIdx=null;
+      planSegments(ST.mix);DJ.setPhase('ready','AI timings reset · tap Play for a fresh selection');
+      if(ST.mix.length)renderDeck();this.savedStatus();aiStatus();Library.capture();Library.write();Library.render();
+      if(!await Persist.flush())throw new Error('Reset could not be saved. Keep the app open and retry.');
+      return true;
+    }finally{this.resetting=false;DJ.render();}
   },
   savedStatus(){
     const n = Object.keys(this.cache()).length;
@@ -866,7 +894,8 @@ Give start and end times for the exact recording. Begin before its first sung wo
 Return only JSON: [{"id":"...","start":seconds,"end":seconds,"section":"short section name"}]. Valid ranges: 0 <= start < end <= duration.
 `+JSON.stringify(songs);
   },
-  async call(text){
+  async call(text,revision=this.revision){
+    if(revision!==this.revision)return '[]';
     const key = this.key();
     if (key.startsWith('sk-ant')) {
       const r = await tfetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{ 'x-api-key':key, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true' },
@@ -891,6 +920,7 @@ Return only JSON: [{"id":"...","start":seconds,"end":seconds,"section":"short se
     for (const model of candidates) {
       for (let attempt = 0; attempt < 2; attempt++) {
         const gap = (this.lastCall || 0) + 13000 - Date.now(); if (gap > 0) await sleep(gap);
+        if(revision!==this.revision)return '[]';
         this.lastCall = Date.now();
         let r;
         try {
@@ -918,19 +948,21 @@ Return only JSON: [{"id":"...","start":seconds,"end":seconds,"section":"short se
   get batchSize(){return DJ.streamOwned?20:6;},
   q:Promise.resolve(),
   one(t){
+    if(this.resetting)return Promise.resolve();
     const cache=this.cache();if(!this.key()||this.pick(t,cache)||(t._aiTries||0)>=2)return Promise.resolve();if(t._aiP)return t._aiP;
-    const mix=ST.mix,i=mix.indexOf(t),candidates=[t,...mix.slice(i>=0?i+1:0)].filter((x,j,a)=>a.indexOf(x)===j&&!this.pick(x,cache)&&!x._aiP&&(x._aiTries||0)<2);
+    const revision=this.revision,mix=ST.mix,i=mix.indexOf(t),candidates=[t,...mix.slice(i>=0?i+1:0)].filter((x,j,a)=>a.indexOf(x)===j&&!this.pick(x,cache)&&!x._aiP&&(x._aiTries||0)<2);
     const batch=[];let tokens=300;const budget=DJ.streamOwned?4000:1500;
     for(const x of candidates){const cost=Math.ceil(JSON.stringify({title:x.name,artists:x.artists,duration:x.dur/1000}).length/3)+80;if(batch.length&&(batch.length>=this.batchSize||tokens+cost>budget))break;batch.push(x);tokens+=cost;}
     const p=this.q=this.q.then(async()=>{
-      await this.prepareIdentities(batch);const latest=this.cache();
+      if(revision!==this.revision)return;
+      await this.prepareIdentities(batch,revision);if(revision!==this.revision)return;const latest=this.cache();
       const todo=uniqueRecordings(batch.filter(x=>!this.pick(x,latest)));
-      todo.forEach(x=>x._aiTries=(x._aiTries||0)+1);if(todo.length)await this.run(todo,undefined,undefined,todo.length);
-      planSegments(batch.filter(x=>!DJ.streamOwned||x!==ST.mix[DJ.idx]));
-    }).catch(e=>{this.lastErr=e.message;}).finally(()=>{batch.forEach(x=>{x._aiP=null;x.aiPending=false;});});
+      todo.forEach(x=>x._aiTries=(x._aiTries||0)+1);if(todo.length)await this.run(todo,undefined,undefined,todo.length,revision);
+      if(revision===this.revision)planSegments(batch.filter(x=>!DJ.streamOwned||x!==ST.mix[DJ.idx]));
+    }).catch(e=>{if(revision===this.revision)this.lastErr=e.message;}).finally(()=>{batch.forEach(x=>{if(x._aiP===p){x._aiP=null;x.aiPending=false;}});});
     batch.forEach(x=>x._aiP=p);return p;
   },
-  async run(tracks, onProg, onBatch, limit=this.batchSize){
+  async run(tracks, onProg, onBatch, limit=this.batchSize, revision=this.revision){
     if (!this.key()) return 0;
     this.lastErr = null; this.empty = 0;
     const cache = this.cache(); const todo = tracks.filter(t => !this.pick(t,cache));
@@ -938,10 +970,12 @@ Return only JSON: [{"id":"...","start":seconds,"end":seconds,"section":"short se
     const apply = list => list.forEach(t => { const c = this.pick(t,cache); if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     let done = 0;
     for (let i = 0; i < todo.length; i += limit) {
+      if(revision!==this.revision)return done;
       const batch = todo.slice(i, i + limit);
       onProg?.(i, todo.length);
       try {
-        const txt = await this.call(this.prompt(batch));
+        const txt = await this.call(this.prompt(batch),revision);
+        if(revision!==this.revision)return done;
         const arr = JSON.parse(txt.replace(/^[^\[]*/, '').replace(/[^\]]*$/, ''));
         for (const o of arr) {
           const t = batch.find(x => x.id === o.id); if (!t) continue;
@@ -953,8 +987,8 @@ Return only JSON: [{"id":"...","start":seconds,"end":seconds,"section":"short se
           cache[t.id]={schema:2,start,end,song:Library.track(t),boundary:end===t.dur?'song_end':'estimated',section:String(o.section||'').slice(0,100),why:String(o.section||o.why||'').slice(0,100),...(previous&&previous.schema!==2?{previous:{start:previous.start,end:previous.end}}:{})};
           done++;
         }
-        await this.save(cache);
-      } catch(e){ this.lastErr = e.message; toast(e.message, 6000); if (/key|quota|429|403|401|API_KEY|permission/i.test(e.message)) { todo.forEach(t => t.aiPending = false); break; } }
+        await this.save(cache);if(revision!==this.revision)return done;
+      } catch(e){ if(revision!==this.revision)return done; this.lastErr = e.message; toast(e.message, 6000); if (/key|quota|429|403|401|API_KEY|permission/i.test(e.message)) { todo.forEach(t => t.aiPending = false); break; } }
       batch.forEach(t => t.aiPending = false); apply(batch); onBatch?.();
     }
     tracks.forEach(t => { const c = this.pick(t,cache); if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
@@ -969,20 +1003,20 @@ function replanAhead(lockUpTo){
   renderDeck(); aiStatus(); Library.capture();
 }
 function aiStatus(){const n=ST.mix.filter(t=>AI.pick(t)).length;$('#aiStat').innerHTML=n===ST.mix.length?'':`<p class="tiny muted" style="margin-top:12px">Preparing passages · ${n}/${ST.mix.length} ready</p>`;}
-let aheadBusy = false;
+let aheadBusy = false,aheadSerial=0;
 async function aiAhead(){
   if (!AI.key() || !ST.mix.length || aheadBusy) return; aheadBusy = true;
-  const mix=ST.mix;
+  const mix=ST.mix,revision=AI.revision,serial=++aheadSerial;
   try {
     const from = DJ.playing ? DJ.idx + 1 : DJ.idx;
     for (const t of mix.slice(from, from + AI.batchSize)) {
       if (AI.pick(t)) continue;
       t.aiPending = true; renderDeck();
-      await AI.one(t); t.aiPending = false;
+      await AI.one(t);if(revision!==AI.revision)break;t.aiPending = false;
       if (ST.mix !== mix) break;
       replanAhead(DJ.streamOwned || DJ.confirmed ? DJ.idx : -1);
     }
-  } finally { aheadBusy = false;if(ST.mix!==mix&&ST.mix.length)setTimeout(()=>aiAhead(),0); }
+  } finally { if(serial===aheadSerial){aheadBusy=false;if(revision===AI.revision&&ST.mix!==mix&&ST.mix.length)setTimeout(()=>aiAhead(),0);} }
 }
 function rowPlan(t){const p=AI.pick(t);return p?`${fmt(t.start)}–${fmt(t.end)}`:t._aiTries>=2?'AI pick unavailable · retry':'AI preparing…';}
 
@@ -1108,6 +1142,7 @@ const DJ = {
     planSegments([t]);return this.current(n);
   },
   go(i,{automatic=false,position,historyBack=false}={}){
+    if(AI.resetting)return Promise.resolve(false);
     if(!ST.mix[i])return Promise.resolve(false);
     if(this.busy&&this.action?.kind==='play'&&this.action.idx===i)return this.flow;
     const activation=automatic?Promise.resolve(null):this.activate();
@@ -1300,7 +1335,7 @@ function renderTransport(){
   const running=phase==='playing',pending=DJ.busy||['checking','buffering','reconnecting'].includes(phase)||(DJ.desiredPlaying&&phase==='disconnected');
   const action=running?'Pause':phase==='pausing'?'Pausing':phase==='pause-unconfirmed'?'Retry pause':pending?'Cancel':phase==='error'||phase==='disconnected'?'Retry':phase==='ended'?'Replay':'Play';
   $('#miniTitle').textContent=t.name;$('#miniState').textContent=labels[phase]||'Ready';
-  $('#playerAction').textContent=action;$('#playBtn').title=action;$('#playBtn').ariaLabel=action;$('#playBtn').disabled=phase==='pausing';
+  $('#playerAction').textContent=action;$('#playBtn').title=action;$('#playBtn').ariaLabel=action;$('#playBtn').disabled=phase==='pausing'||AI.resetting;
   $('#playIco').innerHTML=running?'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>':pending?'<path d="M6 6h12v12H6z"/>':'<path d="M7 4v16l13-8z"/>';
   const detail=DJ.detail||labels[phase]||'Ready';
   if($('#stat').textContent!==detail)$('#stat').textContent=detail;
@@ -1367,6 +1402,12 @@ $('#saveMixName').onclick=()=>{
 $('#cancelMixName').onclick=()=>$('#renamePanel').classList.add('hide');
 $('#savedSongSearch').addEventListener('input', () => Library.render());
 $('#recoverPicks').onclick = () => Library.recoverPicks();
+$('#resetAi').onclick=async()=>{
+  const button=$('#resetAi');button.disabled=true;$('#aiResetStatus').textContent='Pausing and resetting…';
+  try{if(await AI.resetForTesting())$('#aiResetStatus').textContent='AI timings cleared. Open Playing and tap Play to test fresh selections.';}
+  catch(e){$('#aiResetStatus').textContent=e.message;}
+  finally{button.disabled=false;}
+};
 $('#reloadApp').onclick = () => { DJ.freeze(); Library.capture(); location.replace(REDIRECT + '?v=' + APP_VERSION + '&reload=' + Date.now()); };
 $('#clearMixes').onclick = () => Library.askClear('mixes');
 $('#clearSavedSongs').onclick = () => Library.askClear('songs');
