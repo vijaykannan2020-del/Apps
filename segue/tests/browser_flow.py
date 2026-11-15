@@ -43,7 +43,7 @@ with sync_playwright() as p:
     if 'reccobeats' in u:return r.fulfill(json={'content':[]})
     if '/v1beta/models?' in u:return r.fulfill(json={'models':[{'name':'models/gemini-3-flash','supportedGenerationMethods':['generateContent']}]})
     if ':generateContent?' in u:
-     counts['ai']+=1; text=r.request.post_data_json['contents'][0]['parts'][0]['text']; ids=re.findall(r'"id":"([^"]+)"',text)
+     counts['ai']+=1; text=r.request.post_data_json['contents'][0]['parts'][0]['text']; ids=[i for i in re.findall(r'"id":"([^"]+)"',text) if i!='...']
      return r.fulfill(json={'candidates':[{'content':{'parts':[{'text':json.dumps([{'id':i,'start':60,'end':105,'mood':'happy','why':'famous passage'} for i in ids])}]}}]})
     return r.fulfill(body='',content_type='application/javascript')
    context.route('**/*',route)
@@ -67,7 +67,7 @@ with sync_playwright() as p:
    page.locator('#nav [data-v=home]').click();assert page.locator('#savedMixes .mix-tile').count()==1;assert page.locator('#savedSongs .saved-song').count()==3
    page.locator('#savedSongSearch').fill('Going Home');assert page.locator('#savedSongs .saved-song').count()==1
    page.locator('#savedSongSearch').fill('');assert page.locator('#savedSongs .saved-song').count()==3
-   if width==390:page.screenshot(path=str(preview_dir/f'v35-home-{theme}.png'),full_page=True)
+   if width==390:page.screenshot(path=str(preview_dir/f'v36-home-{theme}.png'),full_page=True)
    page.locator('#continueMix button').click();page.wait_for_function('DJ.playing===true');page.evaluate("document.querySelector('#miniPlayer').transportIdentity='one-player'");assert counts['play']==1;assert counts['seek']==1;assert 60000<=state['pos']<64000
    current=page.evaluate('({id:ST.mix[DJ.idx].id,start:ST.mix[DJ.idx].start,end:ST.mix[DJ.idx].end})');plays_before=counts['play']
    for view in ['home','mix','set','play']:
@@ -78,7 +78,7 @@ with sync_playwright() as p:
    page.locator('#repeatBtn').click();assert page.evaluate('DJ.repeat')=='off'
    if width==390:
     for view in ['home','play']:
-     page.locator(f'#nav [data-v={view}]').click();page.screenshot(path=str(preview_dir/f'v35-{view}-playing-{theme}.png'),full_page=True)
+     page.locator(f'#nav [data-v={view}]').click();page.screenshot(path=str(preview_dir/f'v36-{view}-playing-{theme}.png'),full_page=True)
    page.locator('#renameMix').click();page.locator('#mixName').fill('Night Drive Edit');page.locator('#mixName').press('Space');page.locator('#saveMixName').click();assert page.locator('#mixTitle').inner_text()=='Night Drive Edit'
    page.locator('#playBtn').click();page.wait_for_function("DJ.phase==='paused'&&!DJ.busy")
    previous_plays=counts['play'];page.locator('#nextBtn').click();page.wait_for_function('DJ.idx===1');assert counts['play']==previous_plays;assert page.evaluate('DJ.phase')=='paused'
@@ -137,6 +137,7 @@ with sync_playwright() as p:
     assert counts['play']==reconnect_plays and page.evaluate('SDK_CONSTRUCTORS')==1
     print('PASS browser media actions, actual-progress CD animation, disconnect/reconnect without native fallback or autoplay')
     print('PASS phone adversarial flow: frozen-start rejection on all screens, retry, external pause/resume, network-loss status, recovery without replay, SDK-only state')
+   page.evaluate('Persist.flush()');assert page.evaluate('Persist.ready')
    assert page.evaluate('SDK_OPTIONS.enableMediaSession===true')
    assert not errors,errors
    print(f'PASS {width}x{height} {theme}: create, save, four screens, cached AI song list, play/pause, reopen, same order/position, no autoplay, continue without AI, library during Spotify outage, clear lists keeps AI mappings, ignored starts corrected, shared control/state, shuffle/repeat, paused next/seek')

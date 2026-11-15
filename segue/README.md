@@ -1,15 +1,69 @@
-# Segue handoff — Version 35
+# Segue handoff — Version 36
 
 Read `../PROJECT.md` first. Updated 2026-11-15.
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
 ## Goal
 
-Pick Spotify music, validate the tracks, let AI choose each complete favourite
-passage, and play those passages through one browser player. No song-length
-preset, native-output selection, diagnostic music badges or hidden timing
-fallback. Keep the CD deck right / bounded queue left on wide screens; stack
-on phones. Cinema Book's neutral white/black/gray palette and glass navigation.
+Select a complete Spotify album or artist catalog, ask Gemini for the best
+beat-driven charanam, save its returned range and play it in the browser.
+No song-count picker or mandatory eight-song rule. Existing valid timings
+are reused, including across release IDs when the recording is verified.
+The Play button is centered in both the CD deck and the compact player.
+
+## Complete selection and automatic batching (Version 36)
+
+Albums retain every available track page in album order. Artist selection pages
+through albums, singles, compilations and appearances, then every release's
+tracks credited to that artist. This replaces the former capped artist search.
+All playable songs are considered; repeat recording IDs are deduplicated. There
+is no 15/30/60/120 selection, random sample or initial shuffle. Spotify's account,
+market, catalog and API access still determine availability. A failed catalog
+page fails visibly rather than claiming a partial search was the whole artist.
+
+Gemini receives one compact question asking for the best charanam with a strong
+beat and energetic vocals, including the complete section and natural return to
+the chorus. It returns ID, start, end and a short section name. No fixed duration
+and no lyric lookup or post-answer range extension. If a song has no charanam,
+it can choose the best equivalent complete verse or beat-driven instrumental.
+A manual start remains an explicit user override. Times are still AI estimates,
+not a claim that Gemini listened to Spotify audio.
+
+A startup request packs a small group (up to six); playback prepares larger
+requests (up to twenty), adjusted down for long input metadata by a conservative
+token-budget estimate. Those are request safety bounds, never a queue/song cap.
+Requests serialize, only uncached recordings are included, and no new question
+is asked merely because an app version or source changes. The shared question
+reduces repeated prompt overhead; a batch does not make song metadata cost zero
+tokens. Gemini rate spacing/model fallback remain. Pending prefetch hands off
+when the selected source changes.
+
+Saved choices continue to be reused as requested; the new charanam question
+applies to uncached songs. This release does not automatically re-spend AI
+requests to replace valid older saved choices. Legacy pre-Version-35 capped
+entries still follow the existing one-time schema validation rule.
+
+## Recording reuse and database (Version 36)
+
+Spotify ID is the primary timing key. ISRC plus a duration within one second
+permits reuse for the same recording issued under another album ID. It does not
+match by title alone or reuse a live/remix/different-length recording. Simplified
+album tracks can obtain ISRC through Spotify track metadata; older cached songs
+are enriched lazily when metadata candidates could match. Duplicate recordings
+within an AI request are skipped. Lookup failure never fabricates a match.
+
+`Persist` uses IndexedDB `segue-library`, object store `data`, for `ai4`,
+`recordings1` and account-scoped `library_*` records. It migrates legacy
+localStorage values only when no newer database value exists, keeping the old
+copies as a backup. Token/AI-key settings remain in the existing small settings
+store. Database writes serialize; AI saves wait for persistence. Storage errors
+are surfaced. After migration, a database-open failure stops with Retry rather
+than loading stale backups as if the saved library had disappeared.
+
+This is a persistent database **on this device/browser**, not a cloud service.
+There is no extra login/backend and no cross-device sync. Clearing website data
+can still erase it. List Clear continues to preserve AI timings and recording
+identities. Larger catalogs no longer rely on localStorage's small quota.
 
 ## Version 35 rebuild
 
@@ -33,42 +87,24 @@ Cancel, silent paused navigation, local seek and mix restore reject old work.
 The one transport node moves inside the deck on Playing and floats elsewhere;
 this issues no audio commands. No second audio player or silent audio exists.
 
-## AI passages and boundaries
+## Playback continuity and limits
 
-The old prompt required 30–75 seconds, the planner capped at 75 seconds, and
-missing ends became 45 seconds. All those rules are removed. The new prompt
-requests a **complete musical passage**, start before the first sung word,
-end after the final phrase/sustained syllable, with no minimum, maximum or
-one-minute target. Song end is allowed. Missing, backwards, nonfinite or
-out-of-recording ranges are rejected, never filled with a duration fallback.
+The old fixed 30–75-second rule, 75-second cap and 45-second missing-end fallback
+remain removed. Invalid/nonfinite/out-of-recording ranges are rejected. The
+player uses the returned start/end; there is no extra extension to force a
+preset length. Optional previously saved section markers are retained solely
+for continuity if AI preparation is late; no new lyric service is contacted.
 
-`Phrase.load` optionally fetches LRCLIB timed metadata with a four-second
-budget. A title/artist match and duration within two seconds are required.
-Only timing arrays are cached, not full lyric text. Timed blank/instrumental
-markers are section-break hints; ordinary lyric line starts are NOT treated
-as proof of silence. The AI receives those distinctions. A marker within
-15 seconds after its proposed end may extend the ending, never shorten it.
-Without an applicable marker, its end remains explicitly `estimated`.
+Prefetch runs ahead while audio plays. If the next answer is late at a planned
+end, current playback continues to a previously stored section marker or the
+actual song end. No random range or unrelated Spotify song is substituted.
+Network/Spotify load latency and iOS suspension can still cause gaps or waits;
+continuous intent is not a gapless guarantee.
 
-Spotify does not expose audio/vocal detection to this app. Timed lyrics and AI
-knowledge can still be wrong or refer to imprecise timings. This is not a
-sample-accurate guarantee that every sung syllable completes. There is no
-claim that AI hears/analyzes Spotify audio. Audio Analysis is deprecated.
-
-`AI.one` prepares up to eight songs per serialized request; `aiAhead` rolls
-this buffer ahead while music plays. Gemini model discovery, finite retries
-and request spacing remain. Initial playback waits for a real pick. If the next
-pick is late at a planned end, the current song continues to a subsequent
-recorded section marker or its real end instead of being paused/cut mid-vocal.
-Even if AI finishes sooner, that boundary is preserved. If AI remains unavailable
-at the real song end, playback waits with an error/retry rather than skipping
-or using an estimated fallback. Network gaps/Spotify load latency cannot be
-eliminated; there is no gapless guarantee.
-
-No true crossfade/overlap or beat mixing. Spotify supplies one protected stream;
-iOS SDK volume is not settable in JavaScript. Do not add a fake fade or claim
-that iPhone fading works. Native Spotify crossfade settings are not exposed
-as a reliable control for these API loads.
+Gemini does not receive Spotify audio. It can misidentify the section or its
+start/end; no prompt can certify that the last sung syllable has finished.
+Spotify Audio Analysis is deprecated. No true overlap/crossfade/beat mixing or
+fake iOS volume ramp is added; SDK volume is not settable in JavaScript on iOS.
 
 ## Cache and saved library
 
@@ -78,13 +114,13 @@ as a reliable control for these API loads.
   New schema-2 picks are reused across playlists/reloads without new AI calls.
 - `segue_hooks` keeps manual start corrections. The prompt receives a manual
   start when present; no manual correction is deleted by this release.
-- `segue_boundaries1` caches duration-matched timing arrays, separately from AI.
+- Older `segue_boundaries1` data is left intact; Version 36 does not fetch new lyrics.
 - `segue_library_{Spotify user id}` keeps sources, mix order, position, shuffle,
   repeat/history and hidden saved-song IDs. Reopen selects the CD view without
   autoplay. Another mix can be prepared/saved without interrupting audio.
 - Clear mixes removes only the list and detaches autosave for that mix; Clear
   saved songs hides rows. Neither clears AI picks, corrections or Spotify music.
-- All storage is browser-local, not cloud backup/offline audio. Another browser
+- All storage is browser-local (IndexedDB with a legacy fallback), not cloud backup/offline audio. Another browser
   or Home Screen installation may have separate storage. Do not clear website
   data or uninstall as a routine update; that can lose local information.
 
@@ -119,16 +155,20 @@ Firebase, other app edits, downloaded audio or new backend. Spotify redirect
 remains exactly `https://vijaykannan2020-del.github.io/Apps/segue/`.
 Client ID and AI key stay on the user's device; never ask for keys or commit them.
 
-- `node segue/tests/playback.test.cjs`: 36 rebuilt-controller/AI/library cases,
+- `node segue/tests/playback.test.cjs`: 44 rebuilt-controller/AI/library cases,
   actual advancing SDK state, frozen/late/wrong-song failures, cancellation,
-  variable passage lengths, cache migration, matching boundary evidence,
-  late-AI continuity, media action selection and manifest identity.
+  variable ranges, adaptive batching, all catalog pages, ISRC reuse/mismatch,
+  cache preservation, late-AI continuity, media actions and manifest identity.
 - `python segue/tests/browser_flow.py`: mocked SDK/Spotify/AI flows at four
   sizes in both themes, single transport, persistence/clears, actual media
   handler calls, wrong-track stop, pause/resume and reconnect failures.
+- `python segue/tests/catalog_browser.py`: complete 128-track album and second
+  release-ID reuse with zero extra Gemini requests, legacy database migration,
+  reload durability, a 6 MiB catalog and unavailable-database handling.
 - `python segue/tests/layout_browser.py`: populated 120-song library at seven
   phone/landscape/foldable sizes in both themes, neutral colors, removed badges,
-  44px targets, scroll clearance, rotation, reduced transparency/motion.
+  centered Play geometry, no count picker, 44px targets, scroll clearance,
+  rotation and reduced transparency/motion.
 - Browser checks need Playwright/Chromium. `SEGUE_CHROMIUM` selects the browser;
   `SEGUE_PREVIEW_DIR` selects synthetic preview output. All requests intercepted;
   these are not real protected audio, audible musical judgment or iOS tests.

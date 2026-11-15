@@ -46,6 +46,8 @@ with sync_playwright() as p:
     box=page.evaluate("""()=>{const r=s=>document.querySelector(s).getBoundingClientRect().toJSON();return {player:r('#miniPlayer'),nav:r('#nav'),main:r('#app'),padding:parseFloat(getComputedStyle(document.querySelector('#scroller')).paddingBottom),radius:parseFloat(getComputedStyle(document.querySelector('#nav')).borderRadius),blur:getComputedStyle(document.querySelector('#nav')).backdropFilter,overflow:document.documentElement.scrollWidth>innerWidth,buttons:['shuffleBtn','prevBtn','playBtn','nextBtn','repeatBtn'].map(id=>r('#'+id))}}""")
     assert page.evaluate('getComputedStyle(document.body).backgroundColor')==('rgb(0, 0, 0)' if theme=='dark' else 'rgb(245, 245, 247)')
     assert page.locator('#npTags').count()==0
+    assert page.locator('[data-k=max]').count()==0
+    play=box['buttons'][2];assert abs(play['x']+play['width']/2-box['player']['x']-box['player']['width']/2)<1,(width,view,'Play not centered')
     assert not box['overflow'],(width,height,theme,view,'horizontal overflow')
     assert box['main']['width']<=1121,(width,view,'stretched content')
     assert 10<=box['nav']['left'] and box['nav']['right']<=width-10 and box['nav']['width']<=521
@@ -61,7 +63,7 @@ with sync_playwright() as p:
     if width>=720 and view=='home':
      assert page.locator('.hero').bounding_box()['x']<page.locator('#continueMix').bounding_box()['x']
     if width>=720 and view=='play':assert page.locator('#orderCard').bounding_box()['x']<page.locator('#deck').bounding_box()['x']
-    if width in [390,844,1280] and view in ['home','play']:page.screenshot(path=str(previews/f'v35-{width}x{height}-{view}-{theme}.png'))
+    if width in [390,844,1280] and view in ['home','play']:page.screenshot(path=str(previews/f'v36-{width}x{height}-{view}-{theme}.png'))
    # At the very end of Home content, floating chrome cannot cover its last note.
    page.locator('#nav [data-v=home]').click();page.evaluate("document.querySelector('#scroller').scrollTop=document.querySelector('#scroller').scrollHeight")
    page.wait_for_function("document.querySelector('#v-home>.local-note').getBoundingClientRect().bottom < document.querySelector('#miniPlayer').getBoundingClientRect().top")

@@ -214,6 +214,17 @@ img[src=""],img:not([src]){visibility:hidden}
 @media(prefers-color-scheme:dark){:root{--bg:#000000;--s1:#1C1C1E;--s2:#2C2C2E;--s3:#3A3A3C;--line:#2C2C2E;--tx:#FFFFFF;--mu:#98989F;--dim:#8E8E93;--ac:#FFFFFF;--hero:#1C1C1E;--player-glass:rgba(28,28,30,.78)}}
 .mini-player .transport-head #miniOpen{max-width:100%;width:100%}.transport-head{gap:0}.passage-adjust{margin-top:12px;font-size:12px;color:var(--mu)}.passage-adjust summary{cursor:pointer;padding:8px 0}.passage-adjust #hookCtl{margin-top:8px}#aiStat:empty{display:none}.is-inline .transport-detail{min-height:18px}.disc-stage{width:min(70%,250px)}.now>.disc-stage{width:min(70%,250px)}
 
+/* Version 36: geometrically centered play control on both deck and compact player. */
+.mini-player{--play-size:52px;--side-size:44px;--control-gap:8px}
+.transport-controls{display:grid;grid-template-columns:44px var(--side-size) var(--play-size) var(--side-size) 44px;gap:var(--control-gap);justify-content:center;align-items:center}
+.mini-player .transport-controls .round{width:var(--side-size);height:var(--side-size);padding:0;justify-self:center}
+.mini-player .transport-controls .round.big{width:var(--play-size);height:var(--play-size);border-radius:50%;display:flex;flex-direction:column;justify-content:center;gap:1px;padding:0}
+.mini-player .transport-controls #playerAction{font-size:10px}.mini-player .transport-controls .round.big svg{width:20px;height:20px}
+.mini-player.is-inline{--play-size:76px;--side-size:48px;--control-gap:12px}.is-inline .transport-controls #playerAction{font-size:12px}
+.mini-player:not(.is-inline){display:flex;flex-direction:column;max-width:640px;gap:5px}.mini-player:not(.is-inline) .transport-head{order:1}.mini-player:not(.is-inline) .transport-controls{order:2}.mini-player:not(.is-inline) .transport-seek{order:3}.mini-player:not(.is-inline) .transport-detail{order:4}
+@media(max-width:719px){.mini-player.is-inline{--play-size:68px;--side-size:44px;--control-gap:8px}}
+@media(max-width:360px){.mini-player.is-inline{--control-gap:0px}.mini-player:not(.is-inline){--control-gap:4px}}
+
 </style>
 </head>
 <body>
@@ -264,7 +275,7 @@ img[src=""],img:not([src]){visibility:hidden}
     </section>
     <!-- MIX -->
     <section class="view hide" id="v-mix">
-      <h1 class="page-title">Make it yours.</h1><p class="page-sub">Pick your music. Choose a size. Leave the best parts to AI.</p>
+      <h1 class="page-title">Make it yours.</h1><p class="page-sub">Pick an album or artist. Play all available songs with your saved AI timings.</p>
       <div class="card">
         <h2>Pick music</h2>
         <div class="tabs" id="tabs">
@@ -280,13 +291,7 @@ img[src=""],img:not([src]){visibility:hidden}
       <div class="card">
         <h2>Selected music · remembered next time</h2>
         <div class="chips" id="crate"><span class="dim small">Tap + on a playlist above.</span></div>
-        <div class="lbl">Songs in the mix</div>
-        <div class="seg" data-k="max">
-          <button class="opt" data-v="15">15</button>
-          <button class="opt on" data-v="30">30</button>
-          <button class="opt" data-v="60">60</button>
-          <button class="opt" data-v="120">120</button>
-        </div>
+        <p class="small muted" style="margin-top:12px">All available songs · saved timings reused automatically</p>
         <button class="btn pri" id="buildBtn" style="width:100%;margin-top:18px" disabled>Build mix</button>
         <div id="buildMsg" class="small muted" style="margin-top:10px"></div>
       </div>
@@ -340,7 +345,7 @@ img[src=""],img:not([src]){visibility:hidden}
         <h2>AI DJ</h2>
         <input id="aiKey" class="input" placeholder="Gemini key (AIza…) or Claude key (sk-ant…)" autocomplete="off" spellcheck="false">
         <button class="btn" id="aiSave" style="width:100%;margin-top:10px">Save key</button>
-        <div class="note" id="aiNote">Segue asks the AI which part of each song is the famous, best-loved one, and plays just that. The key stays only on this device.</div>
+        <div class="note" id="aiNote">Gemini chooses the best beat-driven charanam and its complete timings. Saved selections are reused. The key stays only on this device.</div>
         <div class="note" id="aiSaved"></div>
       </div>
       <div class="card">
@@ -396,7 +401,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 35;
+const APP_VERSION = 36;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -404,9 +409,37 @@ const CANON = 'https://vijaykannan2020-del.github.io/Apps/segue/';
 if (location.hostname === 'vijaykannan2020-del.github.io' && location.origin + location.pathname !== CANON) location.replace(CANON + location.search);
 const REDIRECT = location.hostname === 'vijaykannan2020-del.github.io' ? CANON : location.origin + location.pathname.replace(/index\.html$/, '');
 const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative user-library-read playlist-modify-private playlist-modify-public';
+// Persistent browser database: large artist catalogs need more than localStorage.
+// Spotify credentials remain in the existing small settings store.
+const Persist={
+  db:null,ready:false,values:new Map(),pending:Promise.resolve(true),failed:false,
+  owns(k){return k==='ai4'||k==='recordings1'||k.startsWith('library_');},
+  async init(){
+    let migrated=false;try{migrated=localStorage.getItem('segue_database1')==='1';}catch{}
+    if(typeof indexedDB==='undefined'){if(migrated)throw new Error('Your saved library database is unavailable. Reopen this app in the same browser.');return;}
+    try{
+      this.db=await new Promise((resolve,reject)=>{const r=indexedDB.open('segue-library',1);r.onupgradeneeded=()=>r.result.createObjectStore('data');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+      await new Promise((resolve,reject)=>{const tx=this.db.transaction('data','readonly'),r=tx.objectStore('data').openCursor();r.onsuccess=()=>{const c=r.result;if(c){this.values.set(c.key,c.value);c.continue();}};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+      this.ready=true;
+      // Migrate legacy values only when no newer database record exists.
+      for(let i=0;i<localStorage.length;i++){const raw=localStorage.key(i);if(!raw?.startsWith('segue_'))continue;const k=raw.slice(6);if(this.owns(k)&&!this.values.has(k))this.set(k,localStorage.getItem(raw));}
+      if(await this.flush())try{localStorage.setItem('segue_database1','1');}catch{}
+    }catch{this.ready=false;this.db?.close();this.db=null;if(migrated)throw new Error('Your saved library database could not open. Retry here; your data has not been cleared.');}
+  },
+  get(k){return this.values.get(k)??null;},
+  set(k,v){
+    if(this.values.get(k)===v)return true;
+    if(v==null)this.values.delete(k);else this.values.set(k,v);
+    this.pending=this.pending.then(()=>new Promise(resolve=>{
+      try{const tx=this.db.transaction('data','readwrite'),store=tx.objectStore('data');if(v==null)store.delete(k);else store.put(v,k);tx.oncomplete=()=>resolve(true);tx.onerror=tx.onabort=()=>resolve(false);}catch{resolve(false);}
+    })).then(ok=>{if(!ok){this.failed=true;toast('Could not save on this device. Keep the app open and check storage.',6000);$('#mixSaveState').textContent='Saving failed · keep the app open';}return ok;});
+    return true;
+  },
+  flush(){return this.pending;}
+};
 const LS = {
-  get: k => { try { return localStorage.getItem('segue_'+k); } catch { return null; } },
-  set: (k,v) => { try { v==null ? localStorage.removeItem('segue_'+k) : localStorage.setItem('segue_'+k, v); return true; } catch { return false; } },
+  get: k => { try { if(Persist.ready&&Persist.owns(k))return Persist.get(k);return localStorage.getItem('segue_'+k); } catch { return null; } },
+  set: (k,v) => { try { if(Persist.ready&&Persist.owns(k))return Persist.set(k,v);v==null ? localStorage.removeItem('segue_'+k) : localStorage.setItem('segue_'+k, v); return true; } catch { return false; } },
 };
 
 /* ---------------- Auth (PKCE) ---------------- */
@@ -472,16 +505,16 @@ async function api(path, { method='GET', body, retry=2, timeout=15000 } = {}){
 async function apiFirst(paths, opts){ let err; for (const p of paths) { try { return await api(p, opts); } catch(e){ err=e; if (![403,404,400].includes(e.status)) throw e; } } throw err; }
 
 /* ---------------- State ---------------- */
-const ST = {me:null,tab:'playlist',crate:[],max:30,myPlaylists:null,mix:[]};
+const ST = {me:null,tab:'playlist',crate:[],myPlaylists:null,mix:[]};
 
 /* Local library: song timings, saved mixes, and source selections are separate. */
 const Library = {
-  state:{schema:1,sources:[],max:30,activeId:null,mixes:[],hiddenPicks:[]}, ref:null, lastWrite:0,
+  state:{schema:1,sources:[],activeId:null,mixes:[],hiddenPicks:[]}, ref:null, lastWrite:0,
   key(){ return ST.me?.id ? 'library_' + ST.me.id : null; },
   track(t){
     if (!t || typeof t.id !== 'string' || typeof t.uri !== 'string' || t.uri!=='spotify:track:'+t.id || !Number.isFinite(t.dur) || t.dur <= 0) return null;
     const out = {};
-    for (const k of ['phrase','id','uri','name','dur','artists','artistId','img','imgS','aiStart','aiEnd','aiWhy','hook','hookSrc','start','end']) {
+    for (const k of ['isrc','phrase','id','uri','name','dur','artists','artistId','img','imgS','aiStart','aiEnd','aiWhy','hook','hookSrc','start','end']) {
       if (t[k] !== undefined) out[k] = t[k];
     }
     out.name = String(t.name || 'Song'); out.artists = Array.isArray(t.artists) ? t.artists.map(String) : [];
@@ -498,18 +531,18 @@ const Library = {
   },
   saveDraft(){
     if (!this.key()) return;
-    this.state.sources = ST.crate.map(s => this.source(s)); this.state.max = ST.max;
+    this.state.sources = ST.crate.map(s => this.source(s));
     this.write();
   },
   load(){
-    this.state = {schema:1,sources:[],max:30,activeId:null,mixes:[],hiddenPicks:[]}; this.ref = null;
+    this.state = {schema:1,sources:[],activeId:null,mixes:[],hiddenPicks:[]}; this.ref = null;
     let saved;
     try { saved = JSON.parse(LS.get(this.key()) || 'null'); } catch {}
     if (saved?.schema === 1 && Array.isArray(saved.mixes)) {
-      this.state = {schema:1,hiddenPicks:Array.isArray(saved.hiddenPicks) ? saved.hiddenPicks.filter(id => typeof id === 'string') : [],sources:Array.isArray(saved.sources) ? saved.sources.filter(s => s && ['playlist','album','artist','liked'].includes(s.type) && s.id).map(s => this.source(s)) : [],max:[15,30,60,120].includes(saved.max) ? saved.max : 30,activeId:saved.activeId,mixes:saved.mixes.filter(m => m && typeof m.id === 'string' && Array.isArray(m.tracks)).map(m => ({...m,tracks:m.tracks.map(t => this.track(t)).filter(Boolean)})).filter(m => m.tracks.length)};
+      this.state = {schema:1,hiddenPicks:Array.isArray(saved.hiddenPicks) ? saved.hiddenPicks.filter(id => typeof id === 'string') : [],sources:Array.isArray(saved.sources) ? saved.sources.filter(s => s && ['playlist','album','artist','liked'].includes(s.type) && s.id).map(s => this.source(s)) : [],activeId:saved.activeId,mixes:saved.mixes.filter(m => m && typeof m.id === 'string' && Array.isArray(m.tracks)).map(m => ({...m,tracks:m.tracks.map(t => this.track(t)).filter(Boolean)})).filter(m => m.tracks.length)};
     }
-    ST.crate = this.state.sources.slice(); ST.max = this.state.max;
-    renderCrate(); document.querySelectorAll('[data-k="max"] .opt').forEach(b => b.classList.toggle('on', +b.dataset.v === ST.max));
+    ST.crate = this.state.sources.slice();
+    renderCrate();
     const active = this.state.mixes.find(m => m.id === this.state.activeId);
     if (active) this.restore(active);
     showView(active?'play':'home'); this.render();
@@ -676,7 +709,7 @@ $('#crate').addEventListener('click', e => { const b=e.target.closest('button');
 const mapPl = p => ({ type:'playlist', id:p.id, name:p.name, img:p.images?.[0]?.url, sub:`${p.owner?.display_name||''} · ${(p.items||p.tracks)?.total ?? '?'} songs`,
   locked: !!(ST.me && p.owner?.id !== ST.me.id && !p.collaborative) });
 const mapAl = a => ({ type:'album', id:a.id, name:a.name, img:a.images?.[0]?.url, sub:`${a.artists?.map(x=>x.name).join(', ')} · ${(a.release_date||'').slice(0,4)}` });
-const mapAr = a => ({ type:'artist', id:a.id, name:a.name, img:a.images?.[0]?.url, sub:'Artist · top songs' });
+const mapAr = a => ({ type:'artist', id:a.id, name:a.name, img:a.images?.[0]?.url, sub:'Artist · complete catalog' });
 
 async function loadMyPlaylists(){
   if (ST.myPlaylists) return ST.myPlaylists;
@@ -721,43 +754,43 @@ async function refreshSources(){
 }
 $('#q').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(refreshSources, 320); });
 $('#tabs').addEventListener('click', e => { const b=e.target.closest('.tab'); if(!b) return; document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on', x===b)); ST.tab=b.dataset.t; refreshSources(); });
-document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e => {
-  const b = e.target.closest('.opt'); if (!b) return;
-  seg.querySelectorAll('.opt').forEach(x => x.classList.toggle('on', x===b));
-  ST[seg.dataset.k] = seg.dataset.k === 'max' ? +b.dataset.v : b.dataset.v;
-  Library.saveDraft();
-}));
-
 /* ---------------- Track fetching ---------------- */
 const normTrack = (t, album) => (t && typeof t.id==='string' && t.id && t.uri==='spotify:track:'+t.id && Number.isFinite(t.duration_ms) && t.duration_ms > 0 && t.type !== 'episode' && !t.is_local && t.is_playable !== false && !t.restrictions?.reason) ? {
-  id:t.id, uri:t.uri, name:t.name, dur:t.duration_ms, artists:(t.artists||[]).map(a=>a.name), artistId:t.artists?.[0]?.id,
+  id:t.id, uri:t.uri, name:t.name, dur:t.duration_ms, isrc:/^[A-Z]{2}[A-Z0-9]{3}\d{7}$/.test(String(t.external_ids?.isrc||'').toUpperCase())?String(t.external_ids.isrc).toUpperCase():null, artists:(t.artists||[]).map(a=>a.name), artistId:t.artists?.[0]?.id,
   img:(t.album||album)?.images?.[0]?.url || '', imgS:(t.album||album)?.images?.slice(-1)[0]?.url || '' } : null;
 
-async function tracksFromSource(src, cap){
-  const out = [];
-  if (src.type === 'playlist') {
-    let url = `/playlists/${src.id}/items?limit=50`;
-    try { await api(url.replace('limit=50','limit=1')); } catch(e){ if (e.status===404||e.status===400) url = `/playlists/${src.id}/tracks?limit=50`; else throw e; }
-    while (url && out.length < cap) { const j = await api(url); for (const it of j.items||[]) { const t = normTrack(it.item || it.track); if (t) out.push(t); } url = j.next; }
-  } else if (src.type === 'album') {
-    const al = await api(`/albums/${src.id}`);
-    let page = al.tracks; for (const t of page.items) { const n = normTrack(t, al); if (n) out.push(n); }
-    while (page.next && out.length < cap) { page = await api(page.next); for (const t of page.items) { const n = normTrack(t, al); if (n) out.push(n); } }
-  } else if (src.type === 'artist') {
-    // Artist "top tracks" was removed from the API, so use search (relevance ≈ popularity)
-    const ar = await api(`/artists/${src.id}`);
-    for (let off = 0; off < 60 && out.length < cap; off += 10) {
-      const j = await api(`/search?type=track&limit=10&offset=${off}&q=${encodeURIComponent('artist:"'+ar.name+'"')}`);
-      const items = j.tracks?.items || []; if (!items.length) break;
-      for (const t of items) if (t.artists?.some(a=>a.id===src.id)) { const n = normTrack(t); if (n) out.push(n); }
+async function tracksFromSource(src,onProgress){
+  const out=[],seenPages=new Set();
+  const readPages=async(url,album,artist)=>{
+    while(url){
+      if(seenPages.has(url))throw new Error('Spotify repeated a catalog page. Retry loading the music.');seenPages.add(url);
+      const page=await api(url);for(const item of page.items||[]){const raw=item.item||item.track||item;if(artist&&!raw.artists?.some(a=>a.id===artist))continue;const t=normTrack(raw,album);if(t)out.push(t);}
+      onProgress?.(out.length);url=page.next;
     }
-  } else if (src.type === 'liked') {
-    let url = '/me/tracks?limit=50';
-    while (url && out.length < cap) { const j = await api(url); for (const it of j.items) { const n = normTrack(it.track); if (n) out.push(n); } url = j.next; }
-  }
+  };
+  if(src.type==='album'){
+    const album=await api(`/albums/${src.id}`);
+    for(const raw of album.tracks?.items||[]){const t=normTrack(raw,album);if(t)out.push(t);}onProgress?.(out.length);
+    await readPages(album.tracks?.next,album);
+  }else if(src.type==='artist'){
+    const releases=[],seen=new Set();let url=`/artists/${src.id}/albums?include_groups=album,single,compilation,appears_on&limit=10`;
+    while(url){if(seenPages.has(url))throw new Error('Spotify repeated an artist page. Retry loading the music.');seenPages.add(url);const page=await api(url);for(const album of page.items||[])if(album.id&&!seen.has(album.id)){seen.add(album.id);releases.push(album);}url=page.next;}
+    for(const [i,album]of releases.entries()){onProgress?.(out.length,i+1,releases.length);await readPages(`/albums/${album.id}/tracks?limit=10`,album,src.id);}
+  }else if(src.type==='playlist'){
+    let url=`/playlists/${src.id}/items?limit=50`;
+    try{await api(url.replace('limit=50','limit=1'));}catch(e){if(e.status===404||e.status===400)url=`/playlists/${src.id}/tracks?limit=50`;else throw e;}
+    await readPages(url);
+  }else if(src.type==='liked')await readPages('/me/tracks?limit=50');
   return out;
 }
 const titleKey = t => (t.name.toLowerCase().replace(/\s*[\(\[].*?[\)\]]/g,'').replace(/\s+-\s+.*$/,'').replace(/[^a-z0-9\u0080-￿]+/g,' ').trim()) + '|' + (t.artists[0]||'').toLowerCase();
+
+function uniqueRecordings(tracks){
+  const ids=new Map();for(const t of tracks){const previous=ids.get(t.id);if(previous){if(!previous.isrc&&t.isrc)previous.isrc=t.isrc;}else ids.set(t.id,t);}
+  const recordings=new Map(),out=[];
+  for(const t of ids.values()){if(t.isrc){const durations=recordings.get(t.isrc)||[];if(durations.some(d=>Math.abs(d-t.dur)<=1000))continue;durations.push(t.dur);recordings.set(t.isrc,durations);}out.push(t);}
+  return out;
+}
 
 /* Timing comes only from a validated AI answer, never a duration preset. */
 const SRC={ai:'AI pick',you:'Your correction',pending:'AI preparing'};
@@ -772,35 +805,49 @@ function planSegments(tracks){
   }
 }
 const HK={get(){try{return JSON.parse(LS.get('hooks')||'{}');}catch{return {};}},set(id,ms){const c=this.get();c[id]=Math.round(ms);LS.set('hooks',JSON.stringify(c));},clear(id){const c=this.get();delete c[id];LS.set('hooks',JSON.stringify(c));}};
-/* Timed blank/instrumental markers help locate section breaks. Line starts
-   alone are not treated as proof that a singer has finished. No audio access. */
-const Phrase={
-  clean(s){return String(s||'').replace(/\s*[([].*?[)\]]/g,'').trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ');},
-  parse(text,dur){const lines=[],gaps=[];for(const raw of String(text||'').split('\n')){const lyric=raw.replace(/\[[^\]]*\]/g,'').trim();for(const m of raw.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)){const at=(+m[1]*60+ +m[2])*1000;if(at>=0&&at<=dur){lines.push(at);if(!lyric||/^(instrumental|music|interlude|\(instrumental\))$/i.test(lyric))gaps.push(at);}}}return {lines:[...new Set(lines)].sort((a,b)=>a-b),gaps:[...new Set(gaps)].sort((a,b)=>a-b)};},
-  async load(t){
-    if(t.phrase)return t.phrase;
-    let saved={};try{saved=JSON.parse(LS.get('boundaries1')||'{}');}catch{}
-    if(saved[t.id]?.dur===t.dur){t.phrase=saved[t.id];return t.phrase;}
-    let p={lines:[],gaps:[],dur:t.dur};
-    try{
-      const name=t.name.replace(/\s*[([].*?[)\]]/g,'').trim();
-      const qs=new URLSearchParams({track_name:name,artist_name:t.artists[0]||'',duration:String(Math.round(t.dur/1000))});
-      const r=await tfetch('https://lrclib.net/api/get?'+qs,{},4000);
-      if(r.ok){const j=await r.json();if(this.clean(j.trackName)===this.clean(name)&&this.clean(j.artistName).includes(this.clean(t.artists[0]))&&Math.abs(j.duration*1000-t.dur)<=2000){p={...p,...this.parse(j.syncedLyrics,t.dur)};}}
-    }catch{}
-    t.phrase=p;saved[t.id]=p;LS.set('boundaries1',JSON.stringify(saved));return p;
-  },
-  next(t,pos){return t.phrase?.gaps?.find(x=>x>=pos)??null;},
-  finish(t,end){return t.phrase?.gaps?.find(x=>x>=end&&x<=end+15000)??end;}
-};
+// Previously stored markers remain usable for late-AI continuity; no new lyric lookup.
+const Phrase={next(t,pos){return t.phrase?.gaps?.find(x=>x>=pos)??null;}};
 
 /* ---------------- AI DJ (Gemini or Claude) ---------------- */
 const AI = {
   key(){ return LS.get('aikey') || ''; },
-  cache(){ try { const c = JSON.parse(LS.get('ai4') || '{}'); return c && typeof c === 'object' && !Array.isArray(c) ? c : {}; } catch { return {}; } },
+  cache(){
+    const raw=LS.get('ai4')||'{}';if(this._raw===raw&&this._cache)return this._cache;
+    try{const c=JSON.parse(raw);this._cache=c&&typeof c==='object'&&!Array.isArray(c)?c:{};}catch{this._cache={};}
+    this._raw=raw;this._indexCache=null;return this._cache;
+  },
+  index(cache){
+    if(this._indexCache===cache)return this._recordings;
+    const index=new Map();for(const c of Object.values(cache))if(c?.schema===2&&c.song?.isrc){const group=index.get(c.song.isrc)||[];group.push(c);index.set(c.song.isrc,group);}
+    this._indexCache=cache;this._recordings=index;return index;
+  },
   pick(t,cache=this.cache()){
-    const c = cache[t.id];
-    return c && c.schema===2 && Number.isFinite(c.start) && Number.isFinite(c.end) && c.start >= 0 && c.end > c.start && c.end <= t.dur ? c : null;
+    const valid=c=>c&&c.schema===2&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.start>=0&&c.end>c.start&&c.end<=t.dur;
+    const own=cache[t.id];if(valid(own))return own;
+    return t.isrc?this.index(cache).get(t.isrc)?.find(c=>valid(c)&&Number.isFinite(c.song.dur)&&Math.abs(c.song.dur-t.dur)<=1000)||null:null;
+  },
+  identities(){const raw=LS.get('recordings1')||'{}';if(raw!==this._identityRaw){try{this._identities=JSON.parse(raw);}catch{this._identities={};}this._identityRaw=raw;}return this._identities||{};},
+  async identify(t,force=false){
+    if(t.isrc||(!force&&this.pick(t)))return;
+    const identities=this.identities();
+    const saved=identities[t.id];if(saved?.isrc&&Math.abs(saved.dur-t.dur)<=1000){t.isrc=saved.isrc;return;}
+    try{
+      const raw=await api(`/tracks/${encodeURIComponent(t.id)}`,{retry:0,timeout:3500}),track=normTrack(raw);
+      if(track?.id===t.id&&track.isrc&&Math.abs(track.dur-t.dur)<=1000){t.isrc=track.isrc;identities[t.id]={isrc:t.isrc,dur:t.dur};this._identitiesDirty=true;}
+    }catch{} // Identity lookup failure never invents a match or blocks an AI choice.
+  },
+  async prepareIdentities(batch){
+    let cursor=0;const worker=async()=>{while(cursor<batch.length)await this.identify(batch[cursor++]);};await Promise.all([worker(),worker(),worker()]);
+    // Older saved picks lack ISRC. Verify only plausible metadata candidates;
+    // their titles never authorize reuse without matching Spotify recording IDs.
+    let changed=false;const cache=this.cache();
+    for(const t of batch){
+      if(!t.isrc||this.pick(t,cache))continue;
+      const candidates=Object.values(cache).filter(c=>c?.schema===2&&c.song&&!c.song.isrc&&Math.abs(c.song.dur-t.dur)<=1000&&titleKey(c.song)===titleKey(t)).slice(0,3);
+      for(const c of candidates){await this.identify(c.song,true);if(c.song.isrc)changed=true;}
+    }
+    if(this._identitiesDirty){LS.set('recordings1',JSON.stringify(this._identities));this._identitiesDirty=false;}
+    if(changed){this._indexCache=null;await this.save(cache);}
   },
   savedStatus(){
     const n = Object.keys(this.cache()).length;
@@ -813,19 +860,13 @@ const AI = {
       this.lastErr = 'This device could not save AI picks. Check available browser storage.';
       toast(this.lastErr, 6000);
     }
-    this.savedStatus(); Library.render();
+    this._indexCache=null;this.savedStatus();Library.render();return Persist.flush();
   },
   prompt(batch){
-    const songs=batch.map(t=>({id:t.id,title:t.name,artists:t.artists,duration:t.dur/1000,
-      manualStart:Number.isFinite(HK.get()[t.id])?HK.get()[t.id]/1000:null,
-      previous:this.cache()[t.id]?{start:this.cache()[t.id].start/1000,end:this.cache()[t.id].end/1000}:null,
-      lineStarts:t.phrase?.lines?.map(x=>x/1000)||[],sectionBreaks:t.phrase?.gaps?.map(x=>x/1000)||[]}));
-    return `Choose the best-loved COMPLETE musical passage for each exact recording below. You do not hear the audio. Use your musical knowledge plus supplied timestamp evidence; do not invent certainty.
-There is NO target duration, minimum segment duration, one-minute rule or maximum segment duration. A complete refrain, charanam, interlude, instrumental theme or final reprise may be short or several minutes. Select the best passage, not a fixed-length excerpt.
-If manualStart is supplied, choose a complete ending after that user-selected start. Otherwise start before its first sung word. End AFTER the entire sung phrase/section and its last sustained syllable, preferably at an instrumental break or the song end. Never end merely because 30, 45, 60 or 75 seconds elapsed. Do not truncate a complete section to fit a clock. Do not always choose the opening pallavi.
-lineStarts are lyric LINE STARTS, not vocal end times; never assume every line start is a silence. sectionBreaks are timed blank/instrumental markers from a duration/title/artist-matched lyric source; prefer an appropriate one AFTER the selected passage. Without evidence, choose a conservative complete-section estimate and mark boundary as estimated. Song end is permitted.
-Older previous timings are only candidates; many were artificially length-capped. Preserve their chosen famous start if appropriate, but re-evaluate the full section ending.
-Return only JSON: [{"id":"...","start":seconds,"end":seconds,"boundary":"section_marker|estimated|song_end","why":"short reason"}]. Require finite 0 <= start < end <= duration. No substitute length for missing end.
+    const songs=batch.map(t=>({id:t.id,title:t.name,artists:t.artists,duration:t.dur/1000,...(Number.isFinite(HK.get()[t.id])?{manualStart:HK.get()[t.id]/1000}:{})}));
+    return `For each song, choose the best charanam with a strong rhythmic beat and energetic vocals. Compare the charanams rather than defaulting to the opening or refrain. Include the complete selected charanam and its natural return into the chorus. For a song without charanams, choose its best equivalent complete verse or beat-driven instrumental section.
+Give start and end times for the exact recording. Begin before its first sung word and finish after the complete phrase and final sustained syllable. No fixed duration or default timestamp. Respect a supplied manualStart. You do not hear the audio; do not claim verified timing. If you cannot identify the section/timing, return null times rather than inventing them.
+Return only JSON: [{"id":"...","start":seconds,"end":seconds,"section":"short section name"}]. Valid ranges: 0 <= start < end <= duration.
 `+JSON.stringify(songs);
   },
   async call(text){
@@ -877,31 +918,32 @@ Return only JSON: [{"id":"...","start":seconds,"end":seconds,"boundary":"section
     }
     throw lastErr;
   },
-  batchSize: 8,
-  q: Promise.resolve(),
-  one(t){ // decide this song and the next few in one request; requests are queued so they never overlap
-    const cache = this.cache();
-    if (!this.key() || this.pick(t,cache) || (t._aiTries || 0) >= 2) return Promise.resolve();
-    if (t._aiP) return t._aiP;
-    const mix = ST.mix, i = Math.max(0, mix.indexOf(t));
-    const batch = mix.slice(i, i + 12).filter(x => !this.pick(x,cache) && !x._aiP && (x._aiTries || 0) < 2).slice(0, this.batchSize);
-    if (!batch.includes(t)) { batch.unshift(t); batch.length = Math.min(batch.length, this.batchSize); }
-    const p = this.q = this.q.then(async () => { batch.forEach(x => x._aiTries = (x._aiTries || 0) + 1); await this.run(batch); }).catch(() => {}).then(() => { batch.forEach(x => { x._aiP = null; x.aiPending = false; }); });
-    batch.forEach(x => x._aiP = p);
-    return p;
+  get batchSize(){return DJ.streamOwned?20:6;},
+  q:Promise.resolve(),
+  one(t){
+    const cache=this.cache();if(!this.key()||this.pick(t,cache)||(t._aiTries||0)>=2)return Promise.resolve();if(t._aiP)return t._aiP;
+    const mix=ST.mix,i=mix.indexOf(t),candidates=[t,...mix.slice(i>=0?i+1:0)].filter((x,j,a)=>a.indexOf(x)===j&&!this.pick(x,cache)&&!x._aiP&&(x._aiTries||0)<2);
+    const batch=[];let tokens=300;const budget=DJ.streamOwned?4000:1500;
+    for(const x of candidates){const cost=Math.ceil(JSON.stringify({title:x.name,artists:x.artists,duration:x.dur/1000}).length/3)+80;if(batch.length&&(batch.length>=this.batchSize||tokens+cost>budget))break;batch.push(x);tokens+=cost;}
+    const p=this.q=this.q.then(async()=>{
+      await this.prepareIdentities(batch);const latest=this.cache();
+      const todo=uniqueRecordings(batch.filter(x=>!this.pick(x,latest)));
+      todo.forEach(x=>x._aiTries=(x._aiTries||0)+1);if(todo.length)await this.run(todo,undefined,undefined,todo.length);
+      planSegments(batch.filter(x=>!DJ.streamOwned||x!==ST.mix[DJ.idx]));
+    }).catch(e=>{this.lastErr=e.message;}).finally(()=>{batch.forEach(x=>{x._aiP=null;x.aiPending=false;});});
+    batch.forEach(x=>x._aiP=p);return p;
   },
-  async run(tracks, onProg, onBatch){
+  async run(tracks, onProg, onBatch, limit=this.batchSize){
     if (!this.key()) return 0;
     this.lastErr = null; this.empty = 0;
     const cache = this.cache(); const todo = tracks.filter(t => !this.pick(t,cache));
     todo.forEach(t => t.aiPending = true);
     const apply = list => list.forEach(t => { const c = this.pick(t,cache); if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     let done = 0;
-    for (let i = 0; i < todo.length; i += this.batchSize) {
-      const batch = todo.slice(i, i + this.batchSize);
+    for (let i = 0; i < todo.length; i += limit) {
+      const batch = todo.slice(i, i + limit);
       onProg?.(i, todo.length);
       try {
-        await Promise.all(batch.map(t=>Phrase.load(t)));
         const txt = await this.call(this.prompt(batch));
         const arr = JSON.parse(txt.replace(/^[^\[]*/, '').replace(/[^\]]*$/, ''));
         for (const o of arr) {
@@ -910,12 +952,11 @@ Return only JSON: [{"id":"...","start":seconds,"end":seconds,"boundary":"section
           let end=Number.isFinite(o.end)?Math.round(o.end*1000):null;
           if(end>t.dur&&end<=t.dur+1000)end=t.dur; // harmless rounding at the actual recording end
           if(start==null||end==null||start<0||end<=start||end>t.dur){this.empty++;continue;}
-          end=Math.min(t.dur,Phrase.finish(t,end));
           const previous=cache[t.id];
-          cache[t.id]={schema:2,start,end,song:Library.track(t),boundary:end===t.dur?'song_end':t.phrase?.gaps?.includes(end)?'section_marker':'estimated',why:String(o.why||'').slice(0,100),...(previous&&previous.schema!==2?{previous:{start:previous.start,end:previous.end}}:{})};
+          cache[t.id]={schema:2,start,end,song:Library.track(t),boundary:end===t.dur?'song_end':'estimated',section:String(o.section||'').slice(0,100),why:String(o.section||o.why||'').slice(0,100),...(previous&&previous.schema!==2?{previous:{start:previous.start,end:previous.end}}:{})};
           done++;
         }
-        this.save(cache);
+        await this.save(cache);
       } catch(e){ this.lastErr = e.message; toast(e.message, 6000); if (/key|quota|429|403|401|API_KEY|permission/i.test(e.message)) { todo.forEach(t => t.aiPending = false); break; } }
       batch.forEach(t => t.aiPending = false); apply(batch); onBatch?.();
     }
@@ -934,8 +975,9 @@ function aiStatus(){const n=ST.mix.filter(t=>AI.pick(t)).length;$('#aiStat').inn
 let aheadBusy = false;
 async function aiAhead(){
   if (!AI.key() || !ST.mix.length || aheadBusy) return; aheadBusy = true;
+  const mix=ST.mix;
   try {
-    const mix = ST.mix, from = DJ.playing ? DJ.idx + 1 : DJ.idx;
+    const from = DJ.playing ? DJ.idx + 1 : DJ.idx;
     for (const t of mix.slice(from, from + AI.batchSize)) {
       if (AI.pick(t)) continue;
       t.aiPending = true; renderDeck();
@@ -943,7 +985,7 @@ async function aiAhead(){
       if (ST.mix !== mix) break;
       replanAhead(DJ.streamOwned || DJ.confirmed ? DJ.idx : -1);
     }
-  } finally { aheadBusy = false; }
+  } finally { aheadBusy = false;if(ST.mix!==mix&&ST.mix.length)setTimeout(()=>aiAhead(),0); }
 }
 function rowPlan(t){const p=AI.pick(t);return p?`${fmt(t.start)}–${fmt(t.end)}`:t._aiTries>=2?'AI pick unavailable · retry':'AI preparing…';}
 
@@ -953,14 +995,13 @@ async function buildMix(){
   try {
     if (!AI.key()) throw new Error('Save an AI key in Settings first.');
     if (DJ.busy) throw new Error('Wait for the current playback action to finish.');
-    const cap = Math.max(ST.max * 3, 60);
-    let all = [];
-    for (const [i,src] of ST.crate.entries()) { msg.innerHTML = `<span class="spin"></span> Reading ${esc(src.name)} (${i+1}/${ST.crate.length})…`; all.push(...await tracksFromSource(src, Math.ceil(cap / ST.crate.length) + 20)); }
-    const seen = new Set(), uniq = [];
-    for (const t of all) { const k = titleKey(t); if (seen.has(t.id) || seen.has(k)) continue; seen.add(t.id); seen.add(k); uniq.push(t); }
-    if (uniq.length < 2) throw new Error('Not enough playable songs in these sources.');
-    for (let i = uniq.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [uniq[i],uniq[j]] = [uniq[j],uniq[i]]; }
-    const picked = uniq.slice(0, ST.max);
+    let all=[];
+    for(const [i,src]of ST.crate.entries()){
+      msg.textContent=`Reading ${src.name} (${i+1}/${ST.crate.length})…`;
+      all.push(...await tracksFromSource(src,(n,release,total)=>{msg.textContent=`Reading ${src.name} · ${n} songs${release?' · release '+release+'/'+total:''}`;}));
+    }
+    const picked=uniqueRecordings(all);
+    if(!picked.length)throw new Error('No available songs were returned by Spotify.');
     // Songs the AI has already seen get their saved picks straight away
     const aic = AI.cache(); picked.forEach(t => { const c = AI.pick(t,aic); if (c) { t.aiStart = c.start; t.aiEnd = c.end; t.mood = c.mood; t.aiWhy = c.why; } });
     msg.innerHTML = `<span class="spin"></span> Planning the set…`; await sleep(30);
@@ -1381,6 +1422,7 @@ $('#verTop').textContent = $('#verLbl').textContent = 'Version ' + APP_VERSION;
     if (!ST.me) { $('#bootMsg').textContent = msg; $('#bootBtns').classList.remove('hide'); return; }
     toast('Spotify is unavailable. Your saved library is here; reconnect to play.',7000);
   }
+  try{await Persist.init();}catch(e){$('#bootMsg').textContent=e.message;$('#bootBtns').classList.remove('hide');return;}
   $('#boot').classList.add('hide');
   $('#app').classList.remove('hide');
   $('#acct').textContent = ST.me.display_name || 'Connected to Spotify'; $('#nav').classList.remove('hide');
