@@ -488,7 +488,7 @@ function processSync(d) {
   if (S.firstSync) setTimeout(openFromUrl, 0);
   S.firstSync = false;
   scheduleList();
-  if (currentChanged) { renderTimeline(); markRead(); }
+  if (currentChanged) { renderTimeline(); markRead(); const cr = S.rooms.get(S.current); if (cr) renderChips(cr); }
   if (S.view === 'accounts') renderAccounts();
 }
 
@@ -615,7 +615,19 @@ function renderChips(r) {
   el.innerHTML = '';
   if (!b) { el.hidden = true; return; }
   el.hidden = false;
-  for (const cmd of ['login', 'list-logins', 'help']) {
+  // If the bot just listed login options (`qr`, `phone`, `android`...), offer each one as a button
+  let cmds = ['login', 'list-logins', 'help'];
+  for (let i = r.events.length - 1; i >= 0; i--) {
+    const ev = r.events[i];
+    if (ev.sender === S.userId) continue;
+    const body = (ev.content && ev.content.body) || '';
+    if (/specify a login flow/i.test(body)) {
+      const flows = [...body.matchAll(/^\s*\*\s*`([a-z0-9-]+)`/gim)].map(m => 'login ' + m[1]);
+      if (flows.length) cmds = flows.concat(['help']);
+    }
+    break;
+  }
+  for (const cmd of cmds) {
     const btn = document.createElement('button'); btn.textContent = cmd;
     btn.onclick = () => sendText(cmd);
     el.appendChild(btn);
