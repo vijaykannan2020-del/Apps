@@ -25,7 +25,8 @@ jobs:
           open('asc.p8', 'w').write('-----BEGIN PRIVATE KEY-----\n' + '\n'.join(body[i:i+64] for i in range(0, len(body), 64)) + '\n-----END PRIVATE KEY-----\n')
           PY
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with: { node-version: 22, cache: npm, cache-dependency-path: inbox-app/package-lock.json }
+      - run: npm ci
       - run: npx -y eas-cli@latest init --non-interactive --force --id 56e21f76-4238-4f34-97fa-a90d652d0133
       - name: Send to TestFlight
         run: |
