@@ -61,7 +61,8 @@ jobs:
             git add -f credentials/ios.enc && git commit -m "Save encrypted iPhone signing certificate" && git stash -q && git pull --rebase -q && git push && git stash pop -q
           fi
       - name: Build on EAS (takes 15–40 min)
-        run: npx -y eas-cli@latest build --platform ios --profile production --non-interactive --wait --json > /tmp/build.json
+        run: |
+          npx -y eas-cli@latest build --platform ios --profile production --non-interactive --wait --json > /tmp/build.json
           jq -r '.[0].id' /tmp/build.json > /tmp/build-id && echo "Build id: $(cat /tmp/build-id)"
         env: { EAS_BUILD_NO_EXPO_GO_WARNING: 'true' }
       - name: Send to TestFlight
