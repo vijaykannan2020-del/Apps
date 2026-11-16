@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#F5F5F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -190,7 +190,7 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .hint{margin:10px auto;max-width:440px;font-size:calc(14px * var(--fs,1));color:var(--soft);background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 16px;line-height:1.5}
 .hint b{color:var(--ink)}
 form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + var(--sb));background:var(--bg);border-top:1px solid var(--line)}
-#txt{flex:1;resize:none;border:1px solid var(--line);background:var(--paper);border-radius:20px;padding:9px 15px;outline:none;max-height:140px;line-height:1.35;font-size:calc(16px * var(--fs,1))}
+#txt{flex:1;resize:none;font-size:max(16px, calc(16px * var(--fs,1)))!important;border:1px solid var(--line);background:var(--paper);border-radius:20px;padding:9px 15px;outline:none;max-height:140px;line-height:1.35;font-size:calc(16px * var(--fs,1))}
 #send{width:38px;height:38px;border-radius:50%;background:var(--primary);color:var(--primary-text);display:grid;place-items:center;flex-shrink:0}
 #send svg{width:20px;height:20px}
 #attach{width:38px;height:38px;display:grid;place-items:center;color:var(--soft);flex-shrink:0;cursor:pointer}
@@ -257,6 +257,27 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 .dots{display:flex;gap:12px;padding:4px 16px 14px}
 .dots button{width:34px;height:34px;border-radius:50%;border:3px solid var(--paper);box-shadow:0 0 0 1px var(--line)}
 .dots button.on{box-shadow:0 0 0 2px var(--ink)}
+
+/* iPhone zooms into any text box under 16px: keep inputs at 16px+ whatever the text size setting */
+input,textarea,.field,.search input{font-size:max(16px, calc(16px * var(--fs,1)))!important}
+html,body{overflow-x:hidden;touch-action:manipulation}
+
+/* ---- Liquid Glass ---- */
+:root{--glass-bar:rgba(248,248,250,.66);--glass:rgba(250,250,252,.42);--glass-edge:rgba(255,255,255,.55);--glass-shine:inset 0 1px 0 rgba(255,255,255,.65),inset 0 -1px 0 rgba(0,0,0,.06)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--glass-bar:rgba(16,16,20,.62);--glass:rgba(28,28,32,.36);--glass-edge:rgba(255,255,255,.14);--glass-shine:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 0 rgba(0,0,0,.35)}}
+:root[data-theme="dark"]{--glass-bar:rgba(16,16,20,.62);--glass:rgba(28,28,32,.36);--glass-edge:rgba(255,255,255,.14);--glass-shine:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 0 rgba(0,0,0,.35)}
+.nav{background:var(--glass)!important;border-color:var(--glass-edge)!important;box-shadow:0 12px 34px rgba(0,0,0,.18),var(--glass-shine)!important;
+  -webkit-backdrop-filter:blur(14px) saturate(210%) brightness(1.06)!important;backdrop-filter:blur(14px) saturate(210%) brightness(1.06)!important}
+.nav button.on{background:rgba(127,127,127,.2)!important}
+/* chat header + message bar float over the conversation as glass */
+.chead{position:absolute;top:0;left:0;right:0;z-index:6;border-bottom:1px solid var(--glass-edge)!important;background:var(--glass-bar)!important;
+  -webkit-backdrop-filter:blur(24px) saturate(200%);backdrop-filter:blur(24px) saturate(200%);box-shadow:var(--glass-shine)}
+#cbottom{position:absolute;left:0;right:0;bottom:0;z-index:6;background:var(--glass-bar);border-top:1px solid var(--glass-edge);
+  -webkit-backdrop-filter:blur(24px) saturate(200%);backdrop-filter:blur(24px) saturate(200%);box-shadow:var(--glass-shine)}
+#cbottom form#comp,#cbottom #chips,#cbottom #replyBar{background:transparent!important;border-top:0!important}
+#cbottom #txt{background:rgba(127,127,127,.12);border-color:var(--glass-edge)}
+#tl{padding-top:calc(var(--chh,60px) + 10px)!important;padding-bottom:calc(var(--cbh,64px) + 10px)!important}
+@media (prefers-reduced-transparency:reduce){.nav,.chead,#cbottom{background:var(--paper)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}}
 </style>
 </head>
 <body>
@@ -323,6 +344,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
       <div class="t"><b id="cname"></b><span id="csub"></span></div>
     </div>
     <div id="tl" hidden></div>
+    <div id="cbottom" hidden>
     <div id="chips" hidden></div>
     <div id="replyBar" hidden><div class="rb"><b id="rbTitle"></b><span id="rbText"></span></div><button type="button" id="rbClose" aria-label="Cancel">✕</button></div>
     <form id="comp" hidden>
@@ -331,6 +353,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
       <textarea id="txt" rows="1" placeholder="Message"></textarea>
       <button id="send" aria-label="Send"><svg class="i" viewBox="0 0 24 24" style="stroke-width:2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
     </form>
+    </div>
   </main>
 </div>
 
@@ -339,7 +362,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 29; // bump on every change (shown in Accounts)
+const APP_VERSION = 30; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -946,7 +969,7 @@ function openChat(id, fromHistory) {
   const wasOpen = !!S.current;
   if (S.kind === 'unread') S.keepUnread.add(id);   // stays in the Unread list until you switch filter
   S.current = id; r.unread = 0;
-  $('#none').hidden = true; ['#chead', '#tl', '#comp'].forEach(s => $(s).hidden = false);
+  $('#none').hidden = true; ['#chead', '#tl', '#comp', '#cbottom'].forEach(s => $(s).hidden = false);
   const cav = $('#cav'); cav.innerHTML = ''; cav.appendChild(avatarEl(r, true));
   updateHeader(r);
   if (r.markedUnread) setMarkedUnread(r, false);
@@ -1701,6 +1724,16 @@ $('#q').addEventListener('focus', () => { appEl.classList.add('searching', 'kb')
 $('#q').addEventListener('blur', () => { setTimeout(() => { if (!$('#q').value) { appEl.classList.remove('searching'); $('#qCancel').hidden = true; } }, 120); });
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') $('#q').blur(); });
 $('#qCancel').onclick = () => { const q = $('#q'); q.value = ''; S.q = ''; scheduleMessageSearch(); q.blur(); appEl.classList.remove('searching'); $('#qCancel').hidden = true; renderList(); };
+if (window.ResizeObserver) {
+  const ro = new ResizeObserver(() => {
+    const root = document.documentElement, tl = $('#tl');
+    const atBottom = tl.scrollHeight - tl.scrollTop - tl.clientHeight < 40;
+    root.style.setProperty('--chh', $('#chead').offsetHeight + 'px');
+    root.style.setProperty('--cbh', $('#cbottom').offsetHeight + 'px');
+    if (atBottom) tl.scrollTop = tl.scrollHeight;
+  });
+  ro.observe($('#chead')); ro.observe($('#cbottom'));
+}
 if (window.visualViewport) {
   const vv = window.visualViewport, root = document.documentElement;
   const fit = () => {

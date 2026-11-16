@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 30. Inputs are never below 16px (iPhone auto-zoomed the page on focus when Text size = Small, shifting the layout) and the viewport has maximum-scale=1. Liquid Glass: the dock is much more transparent (blur 14px, saturate 210%, specular top edge); the chat header and a new #cbottom wrapper (chips, reply bar, composer) float over the conversation as frosted glass (`--glass-bar`, blur 24px) with the timeline padded by their live heights (ResizeObserver → --chh/--cbh). Reduced-transparency falls back to solid.
+
 - 2026-11-15, Claude: My Inbox Version 29. Accounts → Appearance: Text size (Small 0.88 / Default / Large 1.12 / XL 1.25 — every CSS font-size is calc(Npx * var(--fs))), Theme (Auto / Light / Dark via data-theme on <html>; dark tokens duplicated for :root[data-theme=dark]), Accent colour (mono default, blue, green, purple, pink — overrides --primary/--primary-text, used by my bubbles, send button and badges). Saved per device in localStorage `inbox-prefs`.
 
 - 2026-11-15, Claude: My Inbox Version 28. WhatsApp Status: auto-update.sh flips `enable_status_broadcast: true` → `false` in data/whatsapp/config.yaml (idempotent, restarts the WhatsApp bridge once), and the app hides the status-broadcast room (m.bridge channel id status@broadcast or a name containing "status broadcast"). Messages from a bridge bot account now show the app name ("WhatsApp") instead of the bot's username.
