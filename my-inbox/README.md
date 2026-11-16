@@ -59,7 +59,7 @@ The script asks three questions: your domain, a username and a password. After t
 ```bash
 cd /opt/my-inbox
 docker compose logs -f whatsapp instagram messenger   # see what the bridges are doing
-./update.sh                                           # get the latest My Inbox code (keeps your data)
+./update.sh                                           # get the latest code now (keeps your data); it also auto-updates every 5 min
 docker compose pull && docker compose up -d           # update server parts now (also automatic every Sunday 4am)
 tar czf backup.tgz data .env                          # backup
 ```

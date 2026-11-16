@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox servers now auto-deploy: `my-inbox/auto-update.sh` runs every 5 minutes (cron, installed by update.sh/setup.sh), checks this repo's main with git ls-remote, and only when the my-inbox folder actually changed copies it in and runs docker compose up -d --build. data/ and .env are never touched. So a push to my-inbox/ on main goes live on Vijay's server within ~5 minutes.
+
 - 2026-11-15, Claude: My Inbox redesigned to the shared Apps look: Apple-style light/dark tokens from Cinema Book, floating glass bottom dock (All / WhatsApp / Instagram / Messenger / Accounts) with unread dots, large left title, Accounts as a full page instead of a top-right button and sheet. Nothing important in the top-right corner (foldable clock/Wi-Fi pill); default status bar style; only top/bottom safe areas.
 
 - 2026-11-15, Claude: My Inbox now ignores the hidden bridge bots when counting chat members, so one-to-one WhatsApp chats no longer show "3 members" or per-message sender names. Added `my-inbox/update.sh` (pull latest code from this repo and restart, keeping data/.env). First real install is live on Vijay's DigitalOcean server with WhatsApp linked.
