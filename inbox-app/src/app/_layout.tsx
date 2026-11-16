@@ -24,6 +24,7 @@ export default function RootLayout() {
             <Stack.Screen name="chats" options={{ animation: 'fade' }} />
             <Stack.Screen name="chat/[id]" />
             <Stack.Screen name="accounts" />
+            <Stack.Screen name="info/[id]" />
           </Stack>
         )}
       </SafeAreaProvider>

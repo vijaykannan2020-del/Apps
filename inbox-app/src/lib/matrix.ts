@@ -1,6 +1,7 @@
 // Connection to your own server (Matrix), ported from the web Inbox.
 // Holds the chat list in memory and tells screens when anything changes.
 import { getItem, setItem, removeItem } from './storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const DEFAULT_SERVER = 'https://vijayinbox.duckdns.org';
 
@@ -27,10 +28,14 @@ export type Room = {
   readBy: Map<string, string>; typing: string[]; loadingOlder: boolean;
 };
 
+export type Starred = { room: string; event: string; ts: number; sender: string; body: string };
+export type Prefs = { fontScale: number; receipts: boolean; typing: boolean };
 // ---------------- state + change notifications ----------------
 export const S = {
   server: DEFAULT_SERVER, token: null as string | null, userId: null as string | null, since: null as string | null,
   rooms: new Map<string, Room>(), ready: false, status: '' as string, current: null as string | null,
+  muted: new Set<string>(), starred: [] as Starred[], reminders: {} as Record<string, number>, drafts: {} as Record<string, string>,
+  prefs: { fontScale: 1, receipts: true, typing: true } as Prefs,
 };
 let version = 0;
 const listeners = new Set<() => void>();
@@ -267,6 +272,15 @@ function processSync(d: any, first: boolean) {
     if (id === S.current) { r.unread = 0; markRead(r); }
   }
   for (const id of Object.keys(rooms.leave || {})) S.rooms.delete(id);
+  for (const ev of d.account_data?.events || []) {
+    if (ev.type === 'inbox.starred') S.starred = ev.content?.items || [];
+    else if (ev.type === 'inbox.reminders') S.reminders = ev.content?.reminders || {};
+    else if (ev.type === 'm.push_rules') {
+      const rules = ev.content?.global?.room || [];
+      S.muted = new Set(rules.filter((x: any) => x.enabled !== false && (!x.actions || !x.actions.length || x.actions.includes('dont_notify'))).map((x: any) => x.rule_id));
+    }
+  }
+  for (const id of Object.keys(rooms.invite || {})) api('POST', `/_matrix/client/v3/join/${enc(id)}`, {}).catch(() => {});
 }
 let syncing = false;
 export async function startSync() {
@@ -276,6 +290,7 @@ export async function startSync() {
       account_data: { types: ['m.tag', 'm.marked_unread', 'com.famedly.marked_unread'] },
       ephemeral: { types: ['m.receipt', 'm.typing'] } },
     presence: { types: [] },
+    account_data: { types: ['m.push_rules', 'inbox.starred', 'inbox.reminders'] },
   }));
   let backoff = 1000;
   while (S.token) {
@@ -309,6 +324,8 @@ export async function login(server: string, user: string, password: string) {
 export async function restore() {
   S.server = (await getItem('inbox.server')) || DEFAULT_SERVER;
   S.token = await getItem('inbox.token'); S.userId = await getItem('inbox.user');
+  try { S.prefs = { ...S.prefs, ...JSON.parse((await AsyncStorage.getItem('inbox.prefs')) || '{}') }; } catch {}
+  try { S.drafts = JSON.parse((await AsyncStorage.getItem('inbox.drafts')) || '{}'); } catch {}
   if (S.token) startSync();
   return !!S.token;
 }
@@ -323,7 +340,7 @@ export function markRead(r: Room) {
   const last = [...r.events].reverse().find(e => !e.pending && e.event_id && !e.event_id.startsWith('~'));
   r.unread = 0;
   if (r.markedUnread) { r.markedUnread = false; api('PUT', `/_matrix/client/v3/user/${enc(S.userId!)}/rooms/${enc(r.id)}/account_data/m.marked_unread`, { unread: false }).catch(() => {}); }
-  if (last) api('POST', `/_matrix/client/v3/rooms/${enc(r.id)}/read_markers`, { 'm.fully_read': last.event_id, 'm.read': last.event_id }).catch(() => {});
+  if (last) api('POST', `/_matrix/client/v3/rooms/${enc(r.id)}/read_markers`, S.prefs.receipts ? { 'm.fully_read': last.event_id, 'm.read': last.event_id } : { 'm.fully_read': last.event_id, 'm.read.private': last.event_id }).catch(() => {});
   changed();
 }
 const PREFIX: Record<Net, string> = { whatsapp: '!wa', instagram: '!ig', messenger: '!fb' };
@@ -391,3 +408,136 @@ export function fmtTime(ts: number) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 export function hueFor(id: string) { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; }
+
+
+// ---------------- more actions ----------------
+export async function redact(r: Room, ev: MEvent) {
+  ev.redacted = true; changed();
+  try { await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/redact/${enc(ev.event_id)}/${newTxn()}`, {}); }
+  catch (e) { ev.redacted = false; changed(); throw e; }
+}
+export async function editMessage(r: Room, ev: MEvent, text: string) {
+  const old = ev.content, oldEdited = ev.edited;
+  ev.content = { ...old, body: text }; ev.edited = true; changed();
+  try {
+    await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/send/m.room.message/${newTxn()}`,
+      { msgtype: 'm.text', body: '* ' + text, 'm.new_content': { msgtype: 'm.text', body: text }, 'm.relates_to': { rel_type: 'm.replace', event_id: ev.event_id } });
+  } catch (e) { ev.content = old; ev.edited = oldEdited; changed(); throw e; }
+}
+export async function forward(ev: MEvent, to: Room) {
+  const c = { ...(ev.content || {}) }; delete c['m.relates_to']; delete c['m.new_content'];
+  if (c.msgtype === 'm.text') c.body = mdPlain(stripReply(c.body || ''));
+  await api('PUT', `/_matrix/client/v3/rooms/${enc(to.id)}/send/${ev.type === 'm.sticker' ? 'm.sticker' : 'm.room.message'}/${newTxn()}`, c);
+}
+export async function setMuted(r: Room, on: boolean) {
+  if (on) S.muted.add(r.id); else S.muted.delete(r.id); changed();
+  try {
+    if (on) await api('PUT', `/_matrix/client/v3/pushrules/global/room/${enc(r.id)}`, { actions: [] });
+    else await api('DELETE', `/_matrix/client/v3/pushrules/global/room/${enc(r.id)}`);
+  } catch (e: any) { if (!(e.status === 404 && !on)) throw e; }
+}
+export const isStarred = (ev: MEvent) => S.starred.some(x => x.event === ev.event_id);
+export async function toggleStar(r: Room, ev: MEvent) {
+  if (isStarred(ev)) S.starred = S.starred.filter(x => x.event !== ev.event_id);
+  else S.starred = [{ room: r.id, event: ev.event_id, ts: ev.origin_server_ts, sender: ev.sender, body: bodyPreview(ev).slice(0, 300) }, ...S.starred].slice(0, 500);
+  changed();
+  await api('PUT', `/_matrix/client/v3/user/${enc(S.userId!)}/account_data/inbox.starred`, { items: S.starred });
+}
+export async function setReminder(r: Room, ts: number | null) {
+  S.reminders = { ...S.reminders }; if (ts) S.reminders[r.id] = ts; else delete S.reminders[r.id]; changed();
+  await api('PUT', `/_matrix/client/v3/user/${enc(S.userId!)}/account_data/inbox.reminders`, { reminders: S.reminders }).catch(() => {});
+}
+export function dueReminders() {
+  const due = Object.entries(S.reminders).filter(([, ts]) => ts <= Date.now()).map(([id]) => id);
+  if (!due.length) return [];
+  for (const id of due) { const r = S.rooms.get(id); if (r) { r.markedUnread = true; r.lastTs = Math.max(r.lastTs, Date.now()); setMarkedUnread(r, true); } delete S.reminders[id]; }
+  api('PUT', `/_matrix/client/v3/user/${enc(S.userId!)}/account_data/inbox.reminders`, { reminders: S.reminders }).catch(() => {});
+  changed(); return due;
+}
+let draftTimer: ReturnType<typeof setTimeout> | null = null;
+export function setDraft(roomId: string, text: string) {
+  if (text.trim()) S.drafts[roomId] = text; else delete S.drafts[roomId];
+  if (draftTimer) clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => { AsyncStorage.setItem('inbox.drafts', JSON.stringify(S.drafts)).catch(() => {}); changed(); }, 400);
+}
+export async function setPref<K extends keyof Prefs>(k: K, v: Prefs[K]) {
+  S.prefs = { ...S.prefs, [k]: v }; changed();
+  await AsyncStorage.setItem('inbox.prefs', JSON.stringify(S.prefs)).catch(() => {});
+}
+let typingAt = 0;
+export function sendTyping(r: Room, on: boolean) {
+  if (!S.prefs.typing || botNetOf(r)) return;
+  if (on && Date.now() - typingAt < 4000) return;
+  typingAt = on ? Date.now() : 0;
+  api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/typing/${enc(S.userId!)}`, on ? { typing: true, timeout: 6000 } : { typing: false }).catch(() => {});
+}
+export async function searchMessages(term: string): Promise<{ room: Room; ev: MEvent }[]> {
+  const d = await api('POST', '/_matrix/client/v3/search', { search_categories: { room_events: { search_term: term, order_by: 'recent', filter: { limit: 30 } } } });
+  const out: { room: Room; ev: MEvent }[] = [];
+  for (const res of d.search_categories?.room_events?.results || []) {
+    const ev = res.result as MEvent; const r = S.rooms.get((res.result as any).room_id);
+    if (r) out.push({ room: r, ev });
+  }
+  return out;
+}
+const DELAYED = ['/_matrix/client/unstable/org.matrix.msc4140/delayed_events', '/_matrix/client/v1/delayed_events'];
+let delayedBase: string | false | null = null;
+async function getDelayedBase() {
+  if (delayedBase !== null) return delayedBase;
+  for (const b of DELAYED) { try { await api('GET', b); delayedBase = b; return b; } catch (e: any) { if (e.status === 401) break; } }
+  delayedBase = false; return false;
+}
+export async function scheduleSend(r: Room, text: string, ts: number) {
+  const base = await getDelayedBase();
+  if (!base) throw new Error('Scheduling isn’t switched on on your server yet');
+  const res = await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/send/m.room.message/${newTxn()}?org.matrix.msc4140.delay=${Math.round(ts - Date.now())}`, { msgtype: 'm.text', body: text });
+  if (res.event_id && !res.delay_id) throw new Error('Sent now — scheduling isn’t available');
+}
+export async function listScheduled(roomId: string) {
+  const base = await getDelayedBase(); if (!base) return [];
+  try {
+    const d = await api('GET', base);
+    return (d.delayed_events || []).filter((x: any) => x.room_id === roomId && x.type === 'm.room.message')
+      .map((x: any) => ({ id: x.delay_id as string, at: (x.running_since || Date.now()) + (x.delay || 0), text: (x.content?.body || '') as string }));
+  } catch { return []; }
+}
+export async function cancelScheduled(id: string) {
+  const base = await getDelayedBase(); if (!base) return;
+  await api('POST', `${base}/${enc(id)}`, { action: 'cancel' });
+}
+export async function sendVoice(r: Room, uri: string, durationMs: number) {
+  const blob = await (await fetch(uri)).blob();
+  const mime = 'audio/mp4';
+  const up = await fetch(`${S.server}/_matrix/media/v3/upload?filename=voice.m4a`, { method: 'POST', headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': mime }, body: blob });
+  const j = await up.json(); if (!up.ok || !j.content_uri) throw new Error(j.error || 'Upload failed');
+  await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/send/m.room.message/${newTxn()}`, {
+    msgtype: 'm.audio', body: 'Voice message', url: j.content_uri, info: { mimetype: mime, size: blob.size, duration: Math.round(durationMs) },
+    'org.matrix.msc3245.voice': {}, 'org.matrix.msc1767.audio': { duration: Math.round(durationMs) },
+  });
+}
+const previews = new Map<string, any>();
+export async function linkPreview(url: string) {
+  if (previews.has(url)) return previews.get(url);
+  const p = api('GET', `/_matrix/client/v1/media/preview_url?url=${enc(url)}`).catch(() => null);
+  previews.set(url, p); const v = await p; previews.set(url, v); return v;
+}
+export function setupRoom(n: Net) {
+  const bid = botId(n);
+  const cands = [...S.rooms.values()].filter(x => !x.isSpace && botNetOf(x) === n);
+  const isMgmt = (x: Room) => x.events.some(e => /management room/i.test(e.content?.body || ''));
+  return cands.find(isMgmt) || cands.sort((a, b) => b.events.length - a.events.length)[0] || null;
+}
+export async function startWhatsAppChat(number: string) {
+  const r = setupRoom('whatsapp'); if (!r) throw new Error('Connect WhatsApp first');
+  const digits = number.replace(/[^\d]/g, ''); if (digits.length < 8) throw new Error('Enter the full number with country code');
+  await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/send/m.room.message/${newTxn()}`, { msgtype: 'm.text', body: '!wa start-chat +' + digits });
+  return digits;
+}
+export async function roomMembers(r: Room) {
+  const d = await api('GET', `/_matrix/client/v3/rooms/${enc(r.id)}/joined_members`);
+  return Object.entries<any>(d.joined || {}).filter(([id]) => id !== S.userId && !isBot(id))
+    .map(([id, m]) => ({ id, name: cleanName(m.display_name) || id.split(':')[0].slice(1), avatar: m.avatar_url as string | undefined }));
+}
+export function reelLink(c: any) {
+  return (/(https:\/\/(?:www\.)?instagram\.com\/(?:reel|reels|p)\/[A-Za-z0-9_-]+\/?)/.exec((c?.body || '') + ' ' + (c?.external_url || '')) || [])[1] || null;
+}

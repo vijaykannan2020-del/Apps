@@ -7,9 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "runtimeVersion": {
-      "policy": "sdkVersion"
-    },
+    "runtimeVersion": { "policy": "sdkVersion" },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vijaykannan.myinbox",
@@ -27,25 +25,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }
     },
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "output": "single"
-    },
-    "plugins": [
-      "expo-router",
-      "expo-secure-store"
-    ],
-    "experiments": {
-      "typedRoutes": false
-    },
-    "owner": "vijayakannankrishnans-team",
-    "extra": {
-      "eas": {
-        "projectId": "56e21f76-4238-4f34-97fa-a90d652d0133"
-      }
-    },
-    "updates": {
-      "url": "https://u.expo.dev/56e21f76-4238-4f34-97fa-a90d652d0133"
-    }
+    "web": { "favicon": "./assets/favicon.png", "output": "single" },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": { "typedRoutes": false }
   }
 }
