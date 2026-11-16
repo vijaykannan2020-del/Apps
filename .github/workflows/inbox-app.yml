@@ -24,10 +24,10 @@ jobs:
         run: npm ci
       - name: Link to your Expo project (creates it the first time)
         if: env.EXPO_TOKEN != ''
-        run: npx -y eas-cli@latest init --non-interactive --force
+        run: npx -y eas-cli@latest init --non-interactive --force --id 56e21f76-4238-4f34-97fa-a90d652d0133
       - name: Set up updates
         if: env.EXPO_TOKEN != ''
         run: npx -y eas-cli@latest update:configure --platform all --non-interactive || true
       - name: Publish update
         if: env.EXPO_TOKEN != ''
-        run: npx -y eas-cli@latest update --branch main --message "${{ github.event.head_commit.message || 'manual' }}" --non-interactive
+        run: npx -y eas-cli@latest update --channel main --message "${{ github.event.head_commit.message || 'manual' }}" --non-interactive
