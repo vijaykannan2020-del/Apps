@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 14. All / Unread / Groups filter chips under search (chats opened from Unread stay listed until the filter changes). Swipe a chat right = read/unread, left = archive; swipe a message right = reply. Avatars and images no longer flicker on redraw (resolved blob URLs reused synchronously). Bridge name suffixes like "(WA)" hidden in names.
+
 - 2026-11-15, Claude: My Inbox Version 13. Bridge commands sent from setup chats (login…, list-logins, cancel, help, logout) get the bridge prefix (!wa / !ig / !fb) so they work in any setup chat, not only the first "management room"; answers (usernames, codes, options) are sent as typed. Accounts reuses any existing chat with the bridge bot (preferring the management room) instead of creating a duplicate. Added a cancel button.
 
 - 2026-11-15, Claude: My Inbox Version 12. Accounts → App → "Check for updates" (reloads straight into a newer deployed version, otherwise says up to date). Server auto-update now runs every minute (auto-update.sh rewrites its own cron line and holds a flock so runs never overlap).
