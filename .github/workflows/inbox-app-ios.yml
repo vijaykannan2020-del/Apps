@@ -61,14 +61,15 @@ jobs:
             git add -f credentials/ios.enc && git commit -m "Save encrypted iPhone signing certificate" && git stash -q && git pull --rebase -q && git push && git stash pop -q
           fi
       - name: Build on EAS (takes 15–40 min)
-        run: npx -y eas-cli@latest build --platform ios --profile production --non-interactive --wait
+        run: npx -y eas-cli@latest build --platform ios --profile production --non-interactive --wait --json > /tmp/build.json
+          jq -r '.[0].id' /tmp/build.json > /tmp/build-id && echo "Build id: $(cat /tmp/build-id)"
         env: { EAS_BUILD_NO_EXPO_GO_WARNING: 'true' }
       - name: Send to TestFlight
         if: env.ASC_APP_ID != ''
         run: |
           jq --arg k "$EXPO_ASC_KEY_ID" --arg i "$EXPO_ASC_ISSUER_ID" --arg t "$EXPO_APPLE_TEAM_ID" --arg a "$ASC_APP_ID" \
             '.submit.production.ios = {ascApiKeyPath: "./asc.p8", ascApiKeyId: $k, ascApiKeyIssuerId: $i, appleTeamId: $t, ascAppId: $a}' eas.json > e.json && mv e.json eas.json
-          npx -y eas-cli@latest submit --platform ios --profile production --latest --non-interactive --wait
+          npx -y eas-cli@latest submit --platform ios --profile production --id "$(cat /tmp/build-id)" --non-interactive --wait
       - name: Next step
         if: env.ASC_APP_ID == ''
         run: echo "Build done. Add the App Store Connect app ID as repo variable ASC_APP_ID to send builds to TestFlight."
