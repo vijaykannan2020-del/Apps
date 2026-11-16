@@ -205,7 +205,8 @@ chown -R 991:991 data/synapse
 
 # ---------- start ----------
 say "Starting everything (first pull takes a few minutes)"
-docker compose up -d
+docker compose down --remove-orphans >/dev/null 2>&1 || true
+docker compose up -d --force-recreate --remove-orphans
 
 say "Waiting for Synapse"
 for _ in $(seq 1 90); do
