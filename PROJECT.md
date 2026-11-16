@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox redesigned to the shared Apps look: Apple-style light/dark tokens from Cinema Book, floating glass bottom dock (All / WhatsApp / Instagram / Messenger / Accounts) with unread dots, large left title, Accounts as a full page instead of a top-right button and sheet. Nothing important in the top-right corner (foldable clock/Wi-Fi pill); default status bar style; only top/bottom safe areas.
+
 - 2026-11-15, Claude: My Inbox now ignores the hidden bridge bots when counting chat members, so one-to-one WhatsApp chats no longer show "3 members" or per-message sender names. Added `my-inbox/update.sh` (pull latest code from this repo and restart, keeping data/.env). First real install is live on Vijay's DigitalOcean server with WhatsApp linked.
 
 - 2026-11-15, Claude: My Inbox setup can now run unattended as a DigitalOcean initialization script (env vars INBOX_DOMAIN/INBOX_USER/INBOX_PASS/DUCKDNS_TOKEN), points the DuckDNS address at the server itself, waits for the package lock on fresh servers, and installs a weekly Sunday 4am self-update cron.
