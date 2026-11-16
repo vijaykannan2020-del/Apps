@@ -2,6 +2,9 @@
 # Runs every minute (cron). If the my-inbox folder on GitHub changed, install it and restart.
 # Never touches data/ or .env.
 set -euo pipefail
+# Everything is inside main() so bash reads the whole script before running it:
+# an update that replaces this file mid-run can no longer make it skip steps.
+main() {
 cd "$(dirname "$0")"
 exec 9>/tmp/my-inbox-update.lock; flock -n 9 || exit 0   # never run two updates at once
 CRON="* * * * * root $PWD/auto-update.sh >> /var/log/my-inbox-update.log 2>&1"
@@ -57,6 +60,11 @@ EOF
   if [ "$OK" = 1 ]; then echo "$(date -u '+%F %T') enabled scheduled messages + link previews"
   else cp "$HS.bak-features" "$HS"; echo "# my-inbox: features v1 (rolled back)" >> "$HS"; docker compose restart synapse >/dev/null 2>&1 || true; echo "$(date -u '+%F %T') feature config rolled back"; fi
 fi
+# self-check: if the push/backup service code changed but its container wasn't rebuilt, rebuild it now
+PGH=$(cat pushgw/Dockerfile pushgw/server.mjs 2>/dev/null | sha256sum | cut -c1-16)
+if [ -n "$PGH" ] && [ "$PGH" != "$(cat .pushgw-built 2>/dev/null || true)" ]; then
+  if docker compose up -d --build pushgw >/dev/null 2>&1; then echo "$PGH" > .pushgw-built; echo "$(date -u '+%F %T') push/backup service rebuilt"; fi
+fi
 REPO=https://github.com/vijaykannan2020-del/Apps
 SHA=$(git ls-remote "$REPO" refs/heads/main 2>/dev/null | cut -f1)
 [ -n "$SHA" ] || exit 0
@@ -70,4 +78,8 @@ echo "$(date -u '+%F %T') updating to ${SHA:0:7}"
 cp -r "$TMP"/. .
 chmod +x setup.sh update.sh auto-update.sh media-cleanup.sh backup.sh restore.sh
 docker compose up -d --build --remove-orphans
+cat pushgw/Dockerfile pushgw/server.mjs | sha256sum | cut -c1-16 > .pushgw-built
 echo "$SHA" > .deployed-sha
+}
+main "$@"
+exit $?
