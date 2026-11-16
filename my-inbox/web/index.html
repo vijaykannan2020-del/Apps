@@ -146,6 +146,9 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 #tl{flex:1;overflow-y:auto;padding:12px 14px 8px;display:flex;flex-direction:column;gap:2px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 /* never let messages be squashed when the chat is longer than the screen (photos collapsed to 0 height) */
 #tl > *{flex-shrink:0}
+.sechead{list-style:none;font-size:13px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:.04em;padding:14px 12px 6px}
+.hit .prev mark{background:none;color:var(--ink);font-weight:700}
+.hit .who2{font-weight:600;color:var(--ink)}
 .day{align-self:center;font-size:12px;color:var(--soft);font-weight:600;margin:14px 0 8px}
 .who{font-size:12px;color:var(--soft);margin:8px 0 2px 12px;font-weight:600}
 .msg{max-width:min(78%,560px);padding:8px 13px;border-radius:20px;background:var(--other);color:var(--other-text);word-wrap:break-word;white-space:pre-wrap;align-self:flex-start;position:relative;font-size:16px}
@@ -316,7 +319,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 26; // bump on every change (shown in Accounts)
+const APP_VERSION = 27; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -686,6 +689,61 @@ function processSync(d) {
   if (S.view === 'accounts') renderAccounts();
 }
 
+// ---------- message search (whole history on the server, plus what's loaded on the phone) ----------
+const MS = { q: '', results: [], loading: false, timer: null, seq: 0 };
+function scheduleMessageSearch() {
+  clearTimeout(MS.timer);
+  const q = S.q.trim();
+  if (q.length < 2) { MS.q = ''; MS.results = []; MS.loading = false; return; }
+  MS.loading = true;
+  MS.timer = setTimeout(() => runMessageSearch(q), 300);
+}
+async function runMessageSearch(q) {
+  const seq = ++MS.seq;
+  let results = [];
+  try {
+    const d = await api('POST', '/_matrix/client/v3/search', { search_categories: { room_events: {
+      search_term: q, order_by: 'recent', filter: { limit: 40, types: ['m.room.message'] } } } });
+    results = (((d.search_categories || {}).room_events || {}).results || []).map(x => x.result).filter(Boolean);
+  } catch {
+    // fallback: search messages already loaded on this phone
+    const ql = q.toLowerCase();
+    for (const r of S.rooms.values()) for (const e of r.events) {
+      const b = ((e.content || {}).body || '');
+      if (b.toLowerCase().includes(ql)) results.push({ ...e, room_id: r.id });
+    }
+    results.sort((a, b) => b.origin_server_ts - a.origin_server_ts); results = results.slice(0, 40);
+  }
+  if (seq !== MS.seq) return;   // a newer search started
+  MS.q = q; MS.loading = false;
+  MS.results = results.filter(e => { const r = S.rooms.get(e.room_id); return r && !r.isSpace && !botNetOf(r) && (e.content || {}).body; });
+  renderList();
+}
+function highlight(el, text, q) {
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) { el.textContent = text; return; }
+  // keep the match visible: start shortly before it
+  const start = Math.max(0, i - 24);
+  const t = (start ? '…' : '') + text.slice(start);
+  const j = i - start + (start ? 1 : 0);
+  el.append(document.createTextNode(t.slice(0, j)));
+  const m = document.createElement('mark'); m.textContent = t.slice(j, j + q.length); el.append(m);
+  el.append(document.createTextNode(t.slice(j + q.length)));
+}
+async function openSearchHit(e) {
+  const r = S.rooms.get(e.room_id); if (!r) return;
+  openChat(r.id);
+  if (!r.idx.has(e.event_id)) {
+    try {
+      const d = await api('GET', `/_matrix/client/v3/rooms/${enc(r.id)}/context/${enc(e.event_id)}?limit=20&filter=${enc(JSON.stringify({ lazy_load_members: true }))}`);
+      (d.state || []).forEach(ev => applyState(r, ev));
+      for (const ev of [...(d.events_before || []), d.event, ...(d.events_after || [])]) if (ev) addEvent(r, ev);
+      sortEvents(r); renderTimeline();
+    } catch { addEvent(r, e); sortEvents(r); renderTimeline(); }
+  }
+  setTimeout(() => jumpTo(e.event_id), 150);
+}
+
 // ---------- UI: list ----------
 let listQueued = false;
 function scheduleList() { if (!listQueued) { listQueued = true; requestAnimationFrame(() => { listQueued = false; renderList(); }); } }
@@ -784,6 +842,9 @@ function renderList() {
     li.onclick = () => { S.showArchived = !S.showArchived; renderList(); $('#list').scrollTop = 0; };
     ul.appendChild(li);
   }
+  const searching = S.q.trim().length >= 2 && !S.showArchived;
+  if (searching) { const h = document.createElement('li'); h.className = 'sechead'; h.textContent = rooms.length ? 'Chats' : 'No chats named "' + S.q.trim() + '"'; ul.appendChild(h); }
+  if (searching) { renderRooms(ul, rooms.slice(0, 20)); renderHits(ul); return; }
   if (!rooms.length) {
     const li = document.createElement('li'); li.className = 'empty-list';
     if (S.firstSync) li.textContent = 'Loading…';
@@ -793,7 +854,34 @@ function renderList() {
     } else li.textContent = S.kind === 'unread' ? 'No unread chats 🎉' : S.kind === 'groups' ? 'No groups here.' : 'Nothing here.';
     ul.appendChild(li); return;
   }
-  for (const r of rooms.slice(0, 300)) {
+  renderRooms(ul, rooms.slice(0, 300));
+}
+function renderHits(ul) {
+  const h = document.createElement('li'); h.className = 'sechead';
+  h.textContent = MS.loading ? 'Searching messages…' : (MS.results.length ? 'Messages' : 'No messages found');
+  ul.appendChild(h);
+  if (MS.loading) return;
+  for (const e of MS.results) {
+    const r = S.rooms.get(e.room_id);
+    const li = document.createElement('li'); li.className = 'row hit';
+    li.appendChild(avatarEl(r));
+    const meta = document.createElement('div'); meta.className = 'meta';
+    const l1 = document.createElement('div'); l1.className = 'l1';
+    const nm = document.createElement('span'); nm.className = 'name'; nm.textContent = roomName(r);
+    const tm = document.createElement('span'); tm.className = 'time'; tm.textContent = fmtTime(e.origin_server_ts);
+    l1.append(nm, tm);
+    const l2 = document.createElement('div'); l2.className = 'l2';
+    const pv = document.createElement('span'); pv.className = 'prev';
+    const who = e.sender === S.userId ? 'You' : (isGroup(r) ? memberName(r, e.sender).split(' ')[0] : '');
+    if (who) { const w = document.createElement('span'); w.className = 'who2'; w.textContent = who + ': '; pv.appendChild(w); }
+    const body = document.createElement('span'); highlight(body, mdPlain(stripReply((e.content || {}).body || '')).replace(/\s+/g, ' '), MS.q); pv.appendChild(body);
+    l2.appendChild(pv); meta.append(l1, l2); li.appendChild(meta);
+    li.onclick = () => openSearchHit(e);
+    ul.appendChild(li);
+  }
+}
+function renderRooms(ul, rooms) {
+  for (const r of rooms) {
     const wrap = document.createElement('li'); wrap.className = 'swipe';
     wrap.innerHTML = '<div class="bg"><span class="l"></span><span class="r"></span></div>';
     wrap.querySelector('.l').textContent = isUnread(r) ? '✓ Read' : '● Unread';
@@ -1542,13 +1630,13 @@ function start() {
 
 // ---------- wiring ----------
 $('#loginForm').onsubmit = login;
-$('#q').oninput = e => { S.q = e.target.value; renderList(); };
+$('#q').oninput = e => { S.q = e.target.value; scheduleMessageSearch(); renderList(); };
 // search mode + hide the dock while the keyboard is up
 const appEl = $('#app');
 $('#q').addEventListener('focus', () => { appEl.classList.add('searching', 'kb'); $('#qCancel').hidden = false; });
 $('#q').addEventListener('blur', () => { setTimeout(() => { if (!$('#q').value) { appEl.classList.remove('searching'); $('#qCancel').hidden = true; } }, 120); });
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') $('#q').blur(); });
-$('#qCancel').onclick = () => { const q = $('#q'); q.value = ''; S.q = ''; q.blur(); appEl.classList.remove('searching'); $('#qCancel').hidden = true; renderList(); };
+$('#qCancel').onclick = () => { const q = $('#q'); q.value = ''; S.q = ''; scheduleMessageSearch(); q.blur(); appEl.classList.remove('searching'); $('#qCancel').hidden = true; renderList(); };
 if (window.visualViewport) {
   const vv = window.visualViewport, root = document.documentElement;
   const fit = () => {

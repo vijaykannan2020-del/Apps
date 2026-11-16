@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 27. Search now also searches message text: typing 2+ characters shows "Chats" (name matches) then "Messages" from Synapse server-side full-text search (POST /search, room_events, newest first, 40 results; falls back to messages loaded on the phone). The match is highlighted; tapping a hit opens the chat, loads context around the message if needed (/context) and jumps to it.
+
 - 2026-11-15, Claude: My Inbox Version 26 — ROOT CAUSE of invisible photos/videos/reels: #tl is a column flex scroll container; media bubbles have overflow:hidden, so their automatic min-height is 0 and, once a chat is longer than the screen, flex-shrink squashed them to 0px (text bubbles kept their content height). Fix: `#tl > *{flex-shrink:0}`. Reproduced (0px → 160/175px) with a long chat; short test chats had hidden it.
 
 - 2026-11-15, Claude: My Inbox Version 25. Opening a chat also fetches its latest 40 messages from the server (`/messages?dir=b` with no `from`), merges them and sorts the room's events by server timestamp, so anything missed by the local snapshot/sync shows up. Hidden diagnostics: tap the chat name in the header 5 times for version, message/bubble/image counts, scroll metrics, refresh status and the last 6 events (copyable). Investigating photos not showing on the iPhone while they render fine in desktop Chrome with the same event JSON.
