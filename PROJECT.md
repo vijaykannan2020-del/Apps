@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 31. Dock is clear glass: ~15% tint (`--glass-clear`), blur 3px, saturate 160%, so content behind it stays readable (Liquid Glass style); labels/icons get a soft halo in the page background colour for legibility.
+
 - 2026-11-15, Claude: My Inbox Version 30. Inputs are never below 16px (iPhone auto-zoomed the page on focus when Text size = Small, shifting the layout) and the viewport has maximum-scale=1. Liquid Glass: the dock is much more transparent (blur 14px, saturate 210%, specular top edge); the chat header and a new #cbottom wrapper (chips, reply bar, composer) float over the conversation as frosted glass (`--glass-bar`, blur 24px) with the timeline padded by their live heights (ResizeObserver → --chh/--cbh). Reduced-transparency falls back to solid.
 
 - 2026-11-15, Claude: My Inbox Version 29. Accounts → Appearance: Text size (Small 0.88 / Default / Large 1.12 / XL 1.25 — every CSS font-size is calc(Npx * var(--fs))), Theme (Auto / Light / Dark via data-theme on <html>; dark tokens duplicated for :root[data-theme=dark]), Accent colour (mono default, blue, green, purple, pink — overrides --primary/--primary-text, used by my bubbles, send button and badges). Saved per device in localStorage `inbox-prefs`.
