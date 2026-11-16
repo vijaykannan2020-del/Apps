@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 20. Instagram reel/post links (reel covers, "Open reel" buttons, links in text) open via `instagram://media?id=<id>` straight in the Instagram app instead of window.open, which left an empty in-app browser sheet in the Home Screen app. Media id comes from the link's `id=` parameter or is decoded from the shortcode (base64 alphabet A–Z a–z 0–9 - _); falls back to the web link if the app doesn't open within 1.5 s.
+
 - 2026-11-15, Claude: My Inbox Version 19. Older Instagram reels arrive from history as m.image (cover picture only, with the reel link as caption). These now render as a reel cover with a ▶ overlay that opens the reel in Instagram.
 
 - 2026-11-15, Claude: My Inbox: added `media-cleanup.sh`, run weekly (Sunday 03:30 server time) via a cron line that auto-update.sh installs. Deletes, through the Synapse admin media API, local copies of shared Instagram reels/posts (m.video/m.image whose body or external_url is an instagram.com reel/post link, plus their thumbnails) and Beeper link-preview images older than 7 days. Normal photos/videos are kept. Uses a dedicated admin account `inbox-cleanup` whose token is stored only in data/cleanup-token on the server. `--dry-run` lists what would go. SQL verified against sample rows with PGlite.
