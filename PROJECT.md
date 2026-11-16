@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox now ignores the hidden bridge bots when counting chat members, so one-to-one WhatsApp chats no longer show "3 members" or per-message sender names. Added `my-inbox/update.sh` (pull latest code from this repo and restart, keeping data/.env). First real install is live on Vijay's DigitalOcean server with WhatsApp linked.
+
 - 2026-11-15, Claude: My Inbox setup can now run unattended as a DigitalOcean initialization script (env vars INBOX_DOMAIN/INBOX_USER/INBOX_PASS/DUCKDNS_TOKEN), points the DuckDNS address at the server itself, waits for the package lock on fresh servers, and installs a weekly Sunday 4am self-update cron.
 
 - 2026-11-15, Claude: Added `my-inbox/`, a self-hosted unified inbox (private Matrix server with mautrix WhatsApp/Instagram/Messenger bridges, one-page PWA client, Web Push notifications via a small push gateway, security hardening in setup.sh). Server project, not served by Pages. Tested against a mock Matrix server only; not yet run on a real VPS or with real accounts.

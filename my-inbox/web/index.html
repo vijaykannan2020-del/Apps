@@ -304,11 +304,20 @@ function applyState(r, ev) {
       break;
   }
 }
-function others(r) {
+function allOthers(r) {
   const ids = new Set(r.heroes);
-  for (const [id, m] of r.members) if (m.membership === 'join' || m.membership === 'invite') ids.add(id);
+  for (const [id, m] of r.members) {
+    if (m.membership === 'join' || m.membership === 'invite') ids.add(id); else ids.delete(id);
+  }
   ids.delete(S.userId);
   return [...ids];
+}
+const isBot = id => Object.keys(NETS).some(n => id === botId(n));
+// people in the chat, not counting you or the hidden bridge bots
+const others = r => allOthers(r).filter(id => !isBot(id));
+function memberCount(r) {
+  const bots = allOthers(r).filter(isBot).length;
+  return r.joined ? Math.max(1, r.joined - bots) : others(r).length + 1;
 }
 function netOf(r) {
   if (r.net) return r.net;
@@ -316,7 +325,7 @@ function netOf(r) {
   return null;
 }
 function botNetOf(r) {
-  const o = others(r);
+  const o = allOthers(r);
   if (o.length !== 1) return null;
   for (const n in NETS) if (o[0] === botId(n)) return n;
   return null;
@@ -338,7 +347,7 @@ function roomAvatar(r) {
   if (o.length === 1) return (r.members.get(o[0]) || {}).avatar;
   return null;
 }
-const isGroup = r => (r.joined || others(r).length + 1) > 2;
+const isGroup = r => memberCount(r) > 2;
 
 // ---------- events ----------
 const SHOWN = new Set(['m.room.message', 'm.sticker']);
@@ -551,7 +560,7 @@ function openChat(id, fromHistory) {
   const cav = $('#cav'); cav.innerHTML = ''; cav.appendChild(avatarEl(r, true));
   $('#cname').textContent = roomName(r);
   const n = netOf(r) || botNetOf(r);
-  $('#csub').textContent = [n && NETS[n].label, isGroup(r) && r.joined ? r.joined + ' members' : ''].filter(Boolean).join(' · ');
+  $('#csub').textContent = [n && NETS[n].label, isGroup(r) ? memberCount(r) + ' members' : ''].filter(Boolean).join(' · ');
   renderChips(r);
   $('#app').classList.add('open');
   if (!fromHistory && !wasOpen && matchMedia('(max-width:760px)').matches) history.pushState({ chat: id }, '');
