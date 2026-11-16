@@ -144,8 +144,13 @@ http.createServer(async (req, res) => {
       }
       if (req.method === 'POST' && op === 'connect') {
         const { pasted } = await readJson(req);
-        let code = String(pasted || '').trim();
-        try { const u = new URL(code); if (u.searchParams.get('error')) return send(res, 400, { error: 'Google said: ' + u.searchParams.get('error') }); code = u.searchParams.get('code') || code; } catch {}
+        // Accept the full address with or without http:// (Safari copies it without), or just the code
+        const raw = String(pasted || '').trim();
+        const errM = /[?&]error=([^&\s#]+)/.exec(raw);
+        if (errM) return send(res, 400, { error: 'Google said: ' + decodeURIComponent(errM[1]) });
+        const m = /[?&]code=([^&\s#]+)/.exec(raw);
+        let code = m ? m[1] : raw;
+        try { code = decodeURIComponent(code.replace(/\+/g, ' ')); } catch {}
         if (!code || code.length < 10) return send(res, 400, { error: 'That doesn’t look like the address from the failed page' });
         const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ code, client_id: G_ID, client_secret: G_SECRET, redirect_uri: G_REDIRECT, grant_type: 'authorization_code' }) });
