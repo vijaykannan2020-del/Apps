@@ -168,6 +168,9 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .msg.hasmedia img,.msg.hasmedia video{display:block;max-width:100%;max-height:340px;border-radius:16px}
 .msg.hasmedia .extlink{padding:0 8px}
 .msg .cap{padding:6px 8px 0;white-space:pre-wrap}
+.reelthumb{position:relative;display:block;cursor:pointer}
+.reelthumb img{display:block;max-width:100%;max-height:340px;border-radius:16px;min-width:160px;min-height:200px;object-fit:cover;background:var(--fill)}
+.reelthumb .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:grid;place-items:center;font-size:22px;padding-left:4px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 #chips{display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px 2px}
 #chips button{background:var(--paper);border:1px solid var(--line);padding:7px 14px;border-radius:999px;font-size:14px;font-weight:600;white-space:nowrap}
 .hint{margin:10px auto;max-width:440px;font-size:14px;color:var(--soft);background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 16px;line-height:1.5}
@@ -310,7 +313,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 18; // bump on every change (shown in Accounts)
+const APP_VERSION = 19; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -887,8 +890,18 @@ function msgEl(r, ev) {
     const info = c.info || {};
     if (info.w && info.h) img.style.aspectRatio = info.w + '/' + info.h;
     loadInto(img, c.url, 640);
-    img.onclick = () => mediaUrl(c.url).then(u => window.open(u, '_blank'));
-    el.appendChild(img);
+    const reelLink = (/(https:\/\/(?:www\.)?instagram\.com\/(?:reel|reels)\/[A-Za-z0-9_-]+\/?)/.exec((c.body || '') + ' ' + (c.external_url || '')) || [])[1];
+    if (reelLink) {
+      // older reels only come with their cover picture: show it like a reel and open Instagram on tap
+      const box = document.createElement('div'); box.className = 'reelthumb';
+      box.appendChild(img);
+      const play = document.createElement('span'); play.className = 'play'; play.textContent = '▶'; box.appendChild(play);
+      box.onclick = e => { e.stopPropagation(); window.open(reelLink, '_blank'); };
+      el.appendChild(box);
+    } else {
+      img.onclick = () => mediaUrl(c.url).then(u => window.open(u, '_blank'));
+      el.appendChild(img);
+    }
   } else if (kind === 'm.video') {
     el.classList.add('media');
     const v = document.createElement('video'); v.controls = true; v.playsInline = true; v.preload = 'none';
