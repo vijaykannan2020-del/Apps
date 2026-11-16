@@ -164,6 +164,41 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 .acct.danger b{color:var(--red)}
 .foot{color:var(--soft);font-size:12px;text-align:center;margin:8px 0}
 #status{font-size:12px;color:var(--soft);text-align:center}
+.row,.msg{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.row .ic{font-size:13px;color:var(--soft);margin-left:2px}
+.badge.muted{background:var(--soft)}
+.badge.dot{min-width:12px;width:12px;height:12px;padding:0}
+.row.arch .av .c{background:var(--fill)!important;color:var(--ink)}
+.row.arch .name{font-weight:600}
+.msg .ts .tick{margin-left:3px;letter-spacing:-3px}
+.msg .ts .tick.read{color:#34B7F1;opacity:1}
+.msg.me .ts .tick.read{color:#34B7F1}
+.quote{cursor:pointer}
+.reacts span{cursor:pointer}
+.reacts span.mine{border-color:var(--ink);font-weight:600}
+.msg.flash{outline:2px solid #34B7F1;outline-offset:2px}
+#replyBar{display:flex;align-items:center;gap:10px;padding:8px 14px 0;background:var(--bg)}
+#replyBar .rb{flex:1;min-width:0;border-left:3px solid var(--ink);padding:2px 10px;font-size:14px}
+#replyBar .rb b{display:block;font-size:13px}
+#replyBar .rb span{display:block;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#replyBar button{width:30px;height:30px;border-radius:50%;background:var(--fill);font-size:16px}
+#veil{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s}
+#veil.on{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:520px;z-index:61;background:var(--paper);border-radius:22px 22px 0 0;padding:8px 12px calc(14px + var(--sb));transform:translateY(110%);transition:transform .28s cubic-bezier(.2,.8,.2,1);box-shadow:0 -10px 40px #0003}
+#sheet.on{transform:none}
+#sheet .grab{width:38px;height:5px;border-radius:3px;background:var(--line);margin:2px auto 10px}
+#sheet .st{font-size:13px;color:var(--soft);text-align:center;margin:0 8px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sheet .emojis{display:flex;justify-content:space-around;background:var(--fill);border-radius:16px;padding:8px;margin-bottom:10px}
+#sheet .emojis button{font-size:28px;width:46px;height:46px;border-radius:50%}
+#sheet .emojis button.mine{background:var(--paper)}
+#sheet .items{background:var(--fill);border-radius:16px;overflow:hidden}
+#sheet .items button{display:flex;align-items:center;justify-content:space-between;width:100%;padding:14px 16px;font-size:17px;text-align:left}
+#sheet .items button + button{border-top:1px solid var(--line)}
+#sheet .items button.danger{color:var(--red)}
+#sheet .items button span{font-size:19px;width:24px;text-align:center}
+#sheet .cancel{display:block;width:100%;margin-top:8px;padding:14px;border-radius:16px;background:var(--fill);font-size:17px;font-weight:600}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--sb) + 110px);background:var(--primary);color:var(--primary-text);padding:9px 16px;border-radius:999px;font-size:14px;font-weight:600;z-index:70;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.on{opacity:1}
 #newver{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(max(12px,var(--sb)) + 74px);z-index:11;background:var(--primary);color:var(--primary-text);border-radius:999px;padding:9px 16px;font-size:14px;font-weight:600;box-shadow:var(--dock-shadow);white-space:nowrap}
 </style>
 </head>
@@ -217,6 +252,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
     </div>
     <div id="tl" hidden></div>
     <div id="chips" hidden></div>
+    <div id="replyBar" hidden><div class="rb"><b id="rbTitle"></b><span id="rbText"></span></div><button type="button" id="rbClose" aria-label="Cancel">✕</button></div>
     <form id="comp" hidden>
       <button type="button" id="attach" aria-label="Attach">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9"/></svg>
@@ -228,9 +264,12 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
   </main>
 </div>
 
+<div id="veil"></div>
+<div id="sheet" role="dialog" aria-modal="true"><div class="grab"></div><div id="sheetBody"></div></div>
+<div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 10; // bump on every change (shown in Accounts)
+const APP_VERSION = 11; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -258,6 +297,7 @@ const PALETTE = ['#5b6cff','#e0664f','#2fa37a','#c25bd6','#d99a2b','#3c9bd6','#d
 const S = {
   token: store.get('tok'), userId: store.get('uid'), since: null,
   rooms: new Map(), filter: 'all', q: '', current: null, firstSync: true, view: 'list',
+  muted: new Set(), showArchived: false, replyTo: null, editing: null,
 };
 const domain = () => (S.userId || '').split(':').slice(1).join(':');
 const botId = net => `@${NETS[net].bot}:${domain()}`;
@@ -306,7 +346,8 @@ function room(id) {
   if (!r) {
     r = { id, name: null, avatar: null, members: new Map(), heroes: [], joined: 0, events: [], idx: new Map(), txns: new Map(),
       reacts: new Map(), reactIdx: new Map(), pendingEdits: new Map(), unread: 0, net: null, bridgeName: null, bridgeAvatar: null,
-      isSpace: false, prevBatch: undefined, lastTs: 0, loading: false, lastReceipt: null };
+      isSpace: false, prevBatch: undefined, lastTs: 0, loading: false, lastReceipt: null,
+      tags: {}, markedUnread: false, readBy: new Map(), typing: [] };
     S.rooms.set(id, r);
   }
   return r;
@@ -376,6 +417,9 @@ function roomAvatar(r) {
   return null;
 }
 const isGroup = r => memberCount(r) > 2;
+const isPinned = r => !!(r.tags && r.tags['m.favourite']);
+const isArchived = r => !!(r.tags && r.tags['m.lowpriority']);
+const isUnread = r => r.unread > 0 || r.markedUnread;
 
 // ---------- events ----------
 const SHOWN = new Set(['m.room.message', 'm.sticker']);
@@ -460,9 +504,10 @@ function saveSnapshot(limit = 30) {
     const members = [...r.members].filter(([id]) => keep.has(id) || Object.keys(NETS).some(n => id === botId(n)));
     rooms.push({ id: r.id, name: r.name, avatar: r.avatar, bridgeName: r.bridgeName, bridgeAvatar: r.bridgeAvatar, net: r.net,
       heroes: r.heroes, joined: r.joined, isSpace: r.isSpace, unread: r.unread, lastTs: r.lastTs,
-      prevBatch: events.length < r.events.length ? (r.prevBatch || null) : r.prevBatch, members, events });
+      prevBatch: events.length < r.events.length ? (r.prevBatch || null) : r.prevBatch, members, events,
+      tags: r.tags, markedUnread: r.markedUnread, readBy: [...r.readBy] });
   }
-  try { store.set(SNAP_KEY, JSON.stringify({ uid: S.userId, since: S.since, rooms })); }
+  try { store.set(SNAP_KEY, JSON.stringify({ uid: S.userId, since: S.since, muted: [...S.muted], rooms })); }
   catch { if (limit > 5) saveSnapshot(Math.floor(limit / 3)); }   // storage full: keep fewer messages
 }
 function loadSnapshot() {
@@ -474,9 +519,11 @@ function loadSnapshot() {
       heroes: x.heroes || [], joined: x.joined || 0, isSpace: !!x.isSpace, unread: x.unread || 0, lastTs: x.lastTs || 0,
       prevBatch: x.prevBatch === undefined ? null : x.prevBatch });
     r.members = new Map(x.members || []);
+    r.tags = x.tags || {}; r.markedUnread = !!x.markedUnread; r.readBy = new Map(x.readBy || []);
     for (const e of x.events || []) { r.idx.set(e.event_id, e); r.events.push(e); }
   }
   S.since = snap.since;
+  S.muted = new Set(snap.muted || []);
   S.firstSync = false;
   return true;
 }
@@ -484,8 +531,10 @@ function loadSnapshot() {
 // ---------- sync ----------
 async function syncLoop() {
   const filter = enc(JSON.stringify({
-    room: { timeline: { limit: 25 }, state: { lazy_load_members: true }, account_data: { not_types: ['*'] } },
-    presence: { not_types: ['*'] }, account_data: { not_types: ['*'] },
+    room: { timeline: { limit: 25 }, state: { lazy_load_members: true },
+      account_data: { types: ['m.tag', 'm.marked_unread', 'com.famedly.marked_unread'] },
+      ephemeral: { types: ['m.receipt', 'm.typing'] } },
+    presence: { not_types: ['*'] }, account_data: { types: ['m.push_rules'] },
   }));
   let backoff = 1000;
   while (S.token) {
@@ -517,7 +566,24 @@ function processSync(d) {
     if (r.prevBatch === undefined || tl.limited) r.prevBatch = tl.prev_batch || null;
     (tl.events || []).forEach(ev => addEvent(r, ev));
     if (j.unread_notifications) r.unread = j.unread_notifications.notification_count || 0;
+    for (const ev of (j.account_data && j.account_data.events) || []) {
+      if (ev.type === 'm.tag') r.tags = (ev.content && ev.content.tags) || {};
+      else if (/marked_unread$/.test(ev.type)) r.markedUnread = !!(ev.content && ev.content.unread);
+    }
+    for (const ev of (j.ephemeral && j.ephemeral.events) || []) {
+      if (ev.type === 'm.typing') r.typing = (ev.content.user_ids || []).filter(u => u !== S.userId && !isBot(u));
+      else if (ev.type === 'm.receipt') {
+        for (const [eid, rc] of Object.entries(ev.content || {})) {
+          for (const u of Object.keys(rc['m.read'] || {})) if (u !== S.userId && !isBot(u)) r.readBy.set(u, eid);
+        }
+      }
+    }
     if (id === S.current) { currentChanged = true; r.unread = 0; }
+  }
+  for (const ev of (d.account_data && d.account_data.events) || []) {
+    if (ev.type !== 'm.push_rules') continue;
+    const rules = ((ev.content || {}).global || {}).room || [];
+    S.muted = new Set(rules.filter(x => x.enabled !== false && (!x.actions || !x.actions.length || x.actions.includes('dont_notify'))).map(x => x.rule_id));
   }
   for (const id of Object.keys(rooms.invite || {})) {
     api('POST', `/_matrix/client/v3/join/${enc(id)}`, {}).catch(() => {});
@@ -529,7 +595,7 @@ function processSync(d) {
   if (S.firstSync) setTimeout(openFromUrl, 0);
   S.firstSync = false;
   scheduleList();
-  if (currentChanged) { renderTimeline(); markRead(); const cr = S.rooms.get(S.current); if (cr) renderChips(cr); }
+  if (currentChanged) { renderTimeline(); markRead(); const cr = S.rooms.get(S.current); if (cr) { renderChips(cr); updateHeader(cr); } }
   if (S.view === 'accounts') renderAccounts();
 }
 
@@ -571,7 +637,7 @@ const NAV = [
 ];
 function renderTabs(all) {
   const counts = { all: 0, whatsapp: 0, instagram: 0, messenger: 0 };
-  for (const r of all) if (r.unread) { counts.all++; const n = netOf(r); if (n) counts[n]++; }
+  for (const r of all) if (isUnread(r) && !isArchived(r)) { counts.all++; const n = netOf(r); if (n) counts[n]++; }
   const el = $('#nav'); el.innerHTML = '';
   for (const [k, label, svg] of NAV) {
     const b = document.createElement('button');
@@ -580,7 +646,7 @@ function renderTabs(all) {
     b.innerHTML = svg + '<span></span>';
     b.querySelector('span').textContent = label;
     if (counts[k]) { const d = document.createElement('i'); d.className = 'dot'; d.textContent = counts[k] > 99 ? '99+' : counts[k]; b.appendChild(d); }
-    b.onclick = () => { if (k === 'accounts') showAccounts(); else { S.filter = k; showList(); } };
+    b.onclick = () => { if (k === 'accounts') showAccounts(); else { S.filter = k; S.showArchived = false; showList(); } };
     el.appendChild(b);
   }
   $('#title').textContent = S.filter === 'all' ? 'Inbox' : NETS[S.filter].label;
@@ -593,11 +659,25 @@ function renderList() {
   const all = visibleRooms();
   renderTabs(all);
   const q = S.q.toLowerCase();
-  const rooms = all
+  const inTab = all
     .filter(r => S.filter === 'all' || netOf(r) === S.filter)
-    .filter(r => !q || roomName(r).toLowerCase().includes(q))
-    .sort((a, b) => b.lastTs - a.lastTs);
+    .filter(r => !q || roomName(r).toLowerCase().includes(q));
+  const archived = inTab.filter(isArchived);
+  if (S.showArchived && !archived.length) S.showArchived = false;
+  const rooms = (S.showArchived ? archived : inTab.filter(r => !isArchived(r)))
+    .sort((a, b) => (isPinned(b) - isPinned(a)) || (b.lastTs - a.lastTs));
+  if (S.showArchived) $('#title').textContent = 'Archived';
   const ul = $('#list'); ul.innerHTML = '';
+  // "Archived" entry at the top (or "back to chats" while viewing archived)
+  if (archived.length) {
+    const li = document.createElement('li'); li.className = 'row arch';
+    const n = archived.filter(isUnread).length;
+    li.innerHTML = `<div class="av"><div class="c">${S.showArchived ? '‹' : '🗄'}</div></div><div class="meta"><div class="l1"><span class="name"></span><span class="time"></span></div></div>`;
+    li.querySelector('.name').textContent = S.showArchived ? 'Back to chats' : 'Archived';
+    li.querySelector('.time').textContent = S.showArchived ? '' : (n ? n + ' unread · ' : '') + archived.length;
+    li.onclick = () => { S.showArchived = !S.showArchived; renderList(); $('#list').scrollTop = 0; };
+    ul.appendChild(li);
+  }
   if (!rooms.length) {
     const li = document.createElement('li'); li.className = 'empty-list';
     if (S.firstSync) li.textContent = 'Loading…';
@@ -609,7 +689,7 @@ function renderList() {
   }
   for (const r of rooms.slice(0, 300)) {
     const li = document.createElement('li');
-    li.className = 'row' + (r.unread ? ' unread' : '') + (r.id === S.current ? ' on' : '');
+    li.className = 'row' + (isUnread(r) ? ' unread' : '') + (r.id === S.current ? ' on' : '');
     li.appendChild(avatarEl(r));
     const meta = document.createElement('div'); meta.className = 'meta';
     const l1 = document.createElement('div'); l1.className = 'l1';
@@ -617,11 +697,17 @@ function renderList() {
     const tm = document.createElement('span'); tm.className = 'time'; tm.textContent = fmtTime(r.lastTs);
     l1.append(nm, tm);
     const l2 = document.createElement('div'); l2.className = 'l2';
-    const pv = document.createElement('span'); pv.className = 'prev'; pv.textContent = preview(r);
+    const pv = document.createElement('span'); pv.className = 'prev';
+    pv.textContent = r.typing.length ? 'typing…' : preview(r);
     l2.appendChild(pv);
-    if (r.unread) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = r.unread > 99 ? '99+' : r.unread; l2.appendChild(b); }
+    const muted = S.muted.has(r.id);
+    if (muted) { const i = document.createElement('span'); i.className = 'ic'; i.textContent = '🔕'; l2.appendChild(i); }
+    if (isPinned(r)) { const i = document.createElement('span'); i.className = 'ic'; i.textContent = '📌'; l2.appendChild(i); }
+    if (r.unread) { const b = document.createElement('span'); b.className = 'badge' + (muted ? ' muted' : ''); b.textContent = r.unread > 99 ? '99+' : r.unread; l2.appendChild(b); }
+    else if (r.markedUnread) { const b = document.createElement('span'); b.className = 'badge dot'; l2.appendChild(b); }
     meta.append(l1, l2); li.appendChild(meta);
     li.onclick = () => openChat(r.id);
+    longPress(li, () => chatActions(r));
     ul.appendChild(li);
   }
 }
@@ -634,9 +720,9 @@ function openChat(id, fromHistory) {
   S.current = id; r.unread = 0;
   $('#none').hidden = true; ['#chead', '#tl', '#comp'].forEach(s => $(s).hidden = false);
   const cav = $('#cav'); cav.innerHTML = ''; cav.appendChild(avatarEl(r, true));
-  $('#cname').textContent = roomName(r);
-  const n = netOf(r) || botNetOf(r);
-  $('#csub').textContent = [n && NETS[n].label, isGroup(r) ? memberCount(r) + ' members' : ''].filter(Boolean).join(' · ');
+  updateHeader(r);
+  if (r.markedUnread) setMarkedUnread(r, false);
+  clearCompose();
   renderChips(r);
   $('#app').classList.add('open');
   if (!fromHistory && !wasOpen && matchMedia('(max-width:760px)').matches) history.pushState({ chat: id }, '');
@@ -645,6 +731,12 @@ function openChat(id, fromHistory) {
   markRead();
   if (r.events.length < 20 && r.prevBatch) loadOlder(r);
   if (!matchMedia('(pointer:coarse)').matches) $('#txt').focus();
+}
+function updateHeader(r) {
+  $('#cname').textContent = roomName(r);
+  const n = netOf(r) || botNetOf(r);
+  const typing = r.typing.length ? (isGroup(r) ? memberName(r, r.typing[0]).split(' ')[0] + ' is typing…' : 'typing…') : '';
+  $('#csub').textContent = typing || [n && NETS[n].label, isGroup(r) ? memberCount(r) + ' members' : '', S.muted.has(r.id) ? 'muted' : ''].filter(Boolean).join(' · ');
 }
 function closeChat() {
   S.current = null;
@@ -733,9 +825,14 @@ function msgEl(r, ev) {
     if (kind === 'm.notice' && !mine) el.classList.add('notice');
     const raw = c.body || '';
     const body = stripReply(raw);
-    if (body !== raw && c['m.relates_to'] && c['m.relates_to']['m.in_reply_to']) {
+    const inReply = c['m.relates_to'] && c['m.relates_to']['m.in_reply_to'];
+    if (inReply) {
       const q = document.createElement('span'); q.className = 'quote';
-      q.textContent = raw.split('\n').filter(l => l.startsWith('> ')).map(l => l.slice(2)).join(' ').replace(/^<[^>]+>\s*/, '');
+      const orig = r.idx.get(inReply.event_id);
+      if (orig) q.textContent = (orig.sender === S.userId ? 'You' : memberName(r, orig.sender)) + ': ' + (orig.redacted ? 'Message deleted' : bodyPreview(orig));
+      else if (body !== raw) q.textContent = raw.split('\n').filter(l => l.startsWith('> ')).map(l => l.slice(2)).join(' ').replace(/^<[^>]+>\s*/, '');
+      else q.textContent = 'Reply to an earlier message';
+      q.onclick = e => { e.stopPropagation(); jumpTo(inReply.event_id); };
       el.appendChild(q);
     }
     linkify(el, kind === 'm.emote' ? '* ' + body : body);
@@ -743,8 +840,17 @@ function msgEl(r, ev) {
   if (!el.classList.contains('media')) {
     const ts = document.createElement('span'); ts.className = 'ts';
     ts.textContent = (ev.edited ? 'edited · ' : '') + (ev.failed ? 'failed' : new Date(ev.origin_server_ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
+    if (mine && !ev.failed && !botNetOf(r)) {
+      const t = document.createElement('span'); t.className = 'tick';
+      if (ev.pending) t.textContent = '🕓';
+      else if (ev._read) { t.textContent = '✓✓'; t.classList.add('read'); }
+      else t.textContent = '✓';
+      ts.appendChild(t);
+    }
     el.appendChild(ts);
   }
+  el.dataset.id = ev.event_id || '';
+  if (!ev.failed) longPress(el, () => messageActions(r, ev));
   return el;
 }
 function renderTimeline(jump) {
@@ -758,6 +864,10 @@ function renderTimeline(jump) {
   if (b) { const h = document.createElement('div'); h.className = 'hint'; h.innerHTML = '<b>Connect ' + NETS[b].label + '</b><br>' + NETS[b].hint; frag.appendChild(h); }
   let lastDay = '', lastSender = null, lastTs = 0;
   const group = isGroup(r);
+  // read ticks: everything up to the furthest message the other side has read
+  let readIdx = -1;
+  for (const eid of r.readBy.values()) { const i = r.events.indexOf(r.idx.get(eid)); if (i > readIdx) readIdx = i; }
+  r.events.forEach((e, i) => { e._read = i <= readIdx; });
   for (const ev of r.events) {
     const day = new Date(ev.origin_server_ts).toDateString();
     if (day !== lastDay) {
@@ -776,7 +886,12 @@ function renderTimeline(jump) {
       const parts = [...rx].filter(([, s]) => s.size);
       if (parts.length) {
         const row = document.createElement('div'); row.className = 'reacts' + (mine ? ' me' : '');
-        for (const [k, s] of parts) { const sp = document.createElement('span'); sp.textContent = k + (s.size > 1 ? ' ' + s.size : ''); row.appendChild(sp); }
+        for (const [k, s] of parts) {
+          const sp = document.createElement('span'); sp.textContent = k + (s.size > 1 ? ' ' + s.size : '');
+          if (s.has(S.userId)) sp.className = 'mine';
+          sp.onclick = () => toggleReaction(r, ev, k);
+          row.appendChild(sp);
+        }
         frag.appendChild(row);
       }
     }
@@ -805,6 +920,181 @@ function markRead() {
   if (!last || r.lastReceipt === last.event_id) return;
   r.lastReceipt = last.event_id;
   api('POST', `/_matrix/client/v3/rooms/${enc(r.id)}/receipt/m.read/${enc(last.event_id)}`, {}).catch(() => {});
+}
+
+// ---------- long-press, sheets, toast ----------
+function longPress(el, onLong) {
+  let t = null, fired = false, sx = 0, sy = 0;
+  el.addEventListener('touchstart', e => {
+    fired = false; const p = e.touches[0]; sx = p.clientX; sy = p.clientY;
+    t = setTimeout(() => { fired = true; try { navigator.vibrate && navigator.vibrate(10); } catch {} onLong(); }, 450);
+  }, { passive: true });
+  el.addEventListener('touchmove', e => { const p = e.touches[0]; if (Math.abs(p.clientX - sx) > 8 || Math.abs(p.clientY - sy) > 8) clearTimeout(t); }, { passive: true });
+  el.addEventListener('touchend', e => { clearTimeout(t); if (fired) e.preventDefault(); });
+  el.addEventListener('touchcancel', () => clearTimeout(t));
+  el.addEventListener('contextmenu', e => { e.preventDefault(); if (fired) return; clearTimeout(t); onLong(); });
+  el.addEventListener('click', e => { if (fired) { e.stopPropagation(); e.preventDefault(); fired = false; } }, true);
+}
+function openSheet({ title, emojis, mineEmoji, onEmoji, items }) {
+  const b = $('#sheetBody'); b.innerHTML = '';
+  if (title) { const t = document.createElement('div'); t.className = 'st'; t.textContent = title; b.appendChild(t); }
+  if (emojis) {
+    const row = document.createElement('div'); row.className = 'emojis';
+    for (const e of emojis) {
+      const x = document.createElement('button'); x.type = 'button'; x.textContent = e;
+      if (mineEmoji && mineEmoji.has(e)) x.className = 'mine';
+      x.onclick = () => { closeSheetUI(); onEmoji(e); };
+      row.appendChild(x);
+    }
+    b.appendChild(row);
+  }
+  const box = document.createElement('div'); box.className = 'items';
+  for (const it of items) {
+    const x = document.createElement('button'); x.type = 'button';
+    if (it.danger) x.className = 'danger';
+    x.innerHTML = '<b></b><span></span>';
+    x.querySelector('b').textContent = it.label; x.querySelector('b').style.fontWeight = '400';
+    x.querySelector('span').textContent = it.icon || '';
+    x.onclick = () => { closeSheetUI(); it.fn(); };
+    box.appendChild(x);
+  }
+  b.appendChild(box);
+  const c = document.createElement('button'); c.type = 'button'; c.className = 'cancel'; c.textContent = 'Cancel'; c.onclick = closeSheetUI;
+  b.appendChild(c);
+  $('#veil').classList.add('on'); $('#sheet').classList.add('on');
+}
+function closeSheetUI() { $('#veil').classList.remove('on'); $('#sheet').classList.remove('on'); }
+let toastTimer = null;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2200); }
+function jumpTo(eventId) {
+  const el = $('#tl').querySelector(`[data-id="${CSS.escape(eventId)}"]`);
+  if (!el) { toast('That message is further back'); return; }
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1400);
+}
+
+// ---------- chat actions (long-press a chat) ----------
+const userPath = () => `/_matrix/client/v3/user/${enc(S.userId)}`;
+async function setMarkedUnread(r, val) {
+  r.markedUnread = val; scheduleList();
+  try { await api('PUT', `${userPath()}/rooms/${enc(r.id)}/account_data/m.marked_unread`, { unread: val }); } catch {}
+}
+async function markChatRead(r) {
+  const last = [...r.events].reverse().find(e => e.event_id && !e.event_id.startsWith('~'));
+  r.unread = 0; if (r.markedUnread) setMarkedUnread(r, false);
+  scheduleList();
+  if (last) api('POST', `/_matrix/client/v3/rooms/${enc(r.id)}/receipt/m.read/${enc(last.event_id)}`, {}).catch(() => {});
+}
+async function setTag(r, tag, on) {
+  const before = { ...r.tags };
+  if (on) r.tags = { ...r.tags, [tag]: { order: 0.5 } }; else { const t = { ...r.tags }; delete t[tag]; r.tags = t; }
+  scheduleList();
+  try {
+    if (on) await api('PUT', `${userPath()}/rooms/${enc(r.id)}/tags/${enc(tag)}`, { order: 0.5 });
+    else await api('DELETE', `${userPath()}/rooms/${enc(r.id)}/tags/${enc(tag)}`);
+  } catch { r.tags = before; scheduleList(); toast('Could not update the chat'); }
+}
+async function setMuted(r, on) {
+  if (on) S.muted.add(r.id); else S.muted.delete(r.id);
+  scheduleList(); if (S.current === r.id) updateHeader(r);
+  try {
+    if (on) await api('PUT', `/_matrix/client/v3/pushrules/global/room/${enc(r.id)}`, { actions: [] });
+    else await api('DELETE', `/_matrix/client/v3/pushrules/global/room/${enc(r.id)}`);
+    toast(on ? 'Muted: no notifications from this chat' : 'Unmuted');
+  } catch (e) { if (!(e.status === 404 && !on)) { toast('Could not change mute'); } }
+}
+function chatActions(r) {
+  const unread = isUnread(r), pinned = isPinned(r), arch = isArchived(r), muted = S.muted.has(r.id);
+  openSheet({ title: roomName(r), items: [
+    unread ? { label: 'Mark as read', icon: '✓', fn: () => markChatRead(r) } : { label: 'Mark as unread', icon: '●', fn: () => setMarkedUnread(r, true) },
+    { label: pinned ? 'Unpin' : 'Pin to top', icon: '📌', fn: () => setTag(r, 'm.favourite', !pinned) },
+    { label: muted ? 'Unmute' : 'Mute notifications', icon: muted ? '🔔' : '🔕', fn: () => setMuted(r, !muted) },
+    { label: arch ? 'Unarchive' : 'Archive', icon: '🗄', fn: () => { setTag(r, 'm.lowpriority', !arch); toast(arch ? 'Moved back to chats' : 'Archived'); } },
+  ] });
+}
+
+// ---------- message actions (long-press a message) ----------
+const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+function myReactions(r, ev) {
+  const out = new Map();
+  for (const [rid, x] of r.reactIdx) if (x.target === ev.event_id && x.sender === S.userId) out.set(x.key, rid);
+  return out;
+}
+function removeReactionLocal(r, rid) {
+  const x = r.reactIdx.get(rid); if (!x) return;
+  r.reactIdx.delete(rid);
+  const m = r.reacts.get(x.target); if (m && m.get(x.key)) m.get(x.key).delete(x.sender);
+}
+async function toggleReaction(r, ev, key) {
+  if (!ev.event_id || ev.event_id.startsWith('~')) return;
+  const mine = myReactions(r, ev);
+  const redact = rid => { if (!rid.startsWith('~')) api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/redact/${enc(rid)}/${newTxn()}`, {}).catch(() => {}); };
+  if (mine.has(key)) { const rid = mine.get(key); removeReactionLocal(r, rid); renderTimeline(); redact(rid); return; }
+  for (const rid of mine.values()) { removeReactionLocal(r, rid); redact(rid); }   // WhatsApp: one reaction per person
+  const txn = newTxn(), tmp = '~' + txn;
+  const content = { 'm.relates_to': { rel_type: 'm.annotation', event_id: ev.event_id, key } };
+  addEvent(r, { event_id: tmp, type: 'm.reaction', sender: S.userId, content });
+  renderTimeline();
+  try {
+    const res = await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/send/m.reaction/${txn}`, content);
+    const x = r.reactIdx.get(tmp); if (x) { r.reactIdx.delete(tmp); r.reactIdx.set(res.event_id, x); }
+  } catch { removeReactionLocal(r, tmp); renderTimeline(); toast('Could not react'); }
+}
+function messageActions(r, ev) {
+  if (ev.redacted || ev.pending) return;
+  const c = ev.content || {};
+  const mine = ev.sender === S.userId;
+  const isText = !c.msgtype || ['m.text', 'm.notice', 'm.emote'].includes(c.msgtype);
+  const bot = !!botNetOf(r);
+  const items = [];
+  if (!bot) items.push({ label: 'Reply', icon: '↩︎', fn: () => startReply(r, ev) });
+  if (isText) items.push({ label: 'Copy', icon: '⧉', fn: () => { navigator.clipboard && navigator.clipboard.writeText(stripReply(c.body || '')).then(() => toast('Copied'), () => toast('Could not copy')); } });
+  if (mine && isText && !bot && ev.type === 'm.room.message') items.push({ label: 'Edit', icon: '✎', fn: () => startEdit(r, ev) });
+  if (mine && !bot) items.push({ label: 'Delete for everyone', icon: '🗑', danger: true, fn: () => confirmDelete(r, ev) });
+  openSheet({ title: bot ? '' : bodyPreview(ev), emojis: bot ? null : QUICK, mineEmoji: new Set(myReactions(r, ev).keys()), onEmoji: e => toggleReaction(r, ev, e), items });
+}
+function confirmDelete(r, ev) {
+  openSheet({ title: 'Delete this message for everyone?', items: [{ label: 'Delete for everyone', icon: '🗑', danger: true, fn: () => deleteMessage(r, ev) }] });
+}
+async function deleteMessage(r, ev) {
+  ev.redacted = true; renderTimeline(); scheduleList();
+  try { await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/redact/${enc(ev.event_id)}/${newTxn()}`, {}); }
+  catch { ev.redacted = false; renderTimeline(); toast('Could not delete'); }
+}
+function startReply(r, ev) {
+  S.editing = null; S.replyTo = ev;
+  $('#rbTitle').textContent = 'Replying to ' + (ev.sender === S.userId ? 'yourself' : memberName(r, ev.sender));
+  $('#rbText').textContent = bodyPreview(ev);
+  $('#replyBar').hidden = false; $('#txt').focus();
+}
+function startEdit(r, ev) {
+  S.replyTo = null; S.editing = ev;
+  $('#rbTitle').textContent = 'Editing message';
+  $('#rbText').textContent = bodyPreview(ev);
+  $('#replyBar').hidden = false;
+  const t = $('#txt'); t.value = stripReply((ev.content || {}).body || ''); autosize(); t.focus();
+}
+function clearCompose() {
+  const wasEditing = !!S.editing;
+  S.replyTo = null; S.editing = null; $('#replyBar').hidden = true;
+  if (wasEditing) { $('#txt').value = ''; autosize(); }
+}
+async function editMessage(r, ev, text) {
+  const old = ev.content, oldEdited = ev.edited;
+  const content = { msgtype: 'm.text', body: '* ' + text, 'm.new_content': { msgtype: 'm.text', body: text }, 'm.relates_to': { rel_type: 'm.replace', event_id: ev.event_id } };
+  ev.content = { ...old, body: text }; ev.edited = true; renderTimeline(); scheduleList();
+  try { await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/send/m.room.message/${newTxn()}`, content); }
+  catch { ev.content = old; ev.edited = oldEdited; renderTimeline(); toast('Could not edit (WhatsApp allows edits for 15 minutes)'); }
+}
+function sendComposer(text) {
+  const r = S.rooms.get(S.current); if (!r || !text.trim()) return;
+  if (S.editing) { const ev = S.editing; S.editing = null; $('#replyBar').hidden = true; editMessage(r, ev, text); return; }
+  const content = { msgtype: 'm.text', body: text };
+  const rt = S.replyTo;
+  if (rt && rt.event_id && !rt.event_id.startsWith('~')) content['m.relates_to'] = { 'm.in_reply_to': { event_id: rt.event_id } };
+  clearCompose();
+  const txn = newTxn();
+  putEvent(r, addLocal(r, content, txn), content);
 }
 
 // ---------- sending ----------
@@ -983,7 +1273,9 @@ txt.oninput = autosize;
 txt.onkeydown = e => {
   if (e.key === 'Enter' && !e.shiftKey && !matchMedia('(pointer:coarse)').matches) { e.preventDefault(); $('#comp').requestSubmit(); }
 };
-$('#comp').onsubmit = e => { e.preventDefault(); const v = txt.value; if (!v.trim()) return; txt.value = ''; autosize(); sendText(v); if (matchMedia('(pointer:coarse)').matches) txt.focus(); };
+$('#comp').onsubmit = e => { e.preventDefault(); const v = txt.value; if (!v.trim()) return; txt.value = ''; autosize(); sendComposer(v); if (matchMedia('(pointer:coarse)').matches) txt.focus(); };
+$('#rbClose').onclick = clearCompose;
+$('#veil').onclick = closeSheetUI;
 $('#attach').onclick = () => $('#file').click();
 $('#file').onchange = e => { [...e.target.files].forEach(sendFile); e.target.value = ''; };
 $('#tl').addEventListener('scroll', () => { const r = S.rooms.get(S.current); if (r && $('#tl').scrollTop < 80) loadOlder(r); }, { passive: true });

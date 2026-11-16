@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 11 adds WhatsApp-style features. Long-press a chat: mark read/unread (m.marked_unread account data), pin (m.favourite tag), mute (room push rule with no actions), archive (m.lowpriority tag; archived chats behind an "Archived" row). Long-press a message: quick reactions (one per person, toggle), reply (m.in_reply_to, quote shows the original, tap to jump), copy, edit own text (m.replace), delete for everyone (redaction). Read ticks from the other side's read receipts (✓ sent, blue ✓✓ read), typing… in header and list. Sync filter now includes those account-data, push-rule and ephemeral types; snapshot keeps tags/unread/receipts/muted. Pin/archive/mute/unread live in the inbox only (not guaranteed to sync to the phone apps); reactions, replies, edits, deletes and read state go through the bridges.
+
 - 2026-11-15, Claude: My Inbox Version 10. Saves a compact snapshot of rooms (last 30 messages each, needed members) plus the sync position in localStorage, so reopening shows chats instantly and only fetches changes (Synapse's full initial sync is slow on the 2 GB server). Shows "Syncing your chats…" on a first sync; Accounts won't create a duplicate setup chat while the first sync is still running; a rejected sync position resets to a fresh sync. Snapshot cleared on logout.
 
 - 2026-11-15, Claude: My Inbox Version 9. Added `APP_VERSION` in `my-inbox/web/index.html`, shown in Accounts and on the login screen. The app checks the server every 5 minutes and when reopened, and shows "Version N ready · Tap to update" when the deployed file has a higher number. RULE: bump `APP_VERSION` by 1 on every My Inbox change.
