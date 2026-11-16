@@ -1,0 +1,33 @@
+# Publishes the Inbox iPhone app (inbox-app/) as an EAS Update so it opens in Expo Go.
+# Needs the repo secret EXPO_TOKEN (expo.dev -> Account settings -> Access tokens).
+name: Inbox app update
+on:
+  push:
+    branches: [main]
+    paths: ['inbox-app/**', '.github/workflows/inbox-app.yml']
+  workflow_dispatch:
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: inbox-app } }
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Waiting for EXPO_TOKEN
+        if: env.EXPO_TOKEN == ''
+        run: echo "Add the EXPO_TOKEN repository secret to publish the app."
+      - uses: actions/setup-node@v4
+        if: env.EXPO_TOKEN != ''
+        with: { node-version: 22, cache: npm, cache-dependency-path: inbox-app/package-lock.json }
+      - if: env.EXPO_TOKEN != ''
+        run: npm ci
+      - name: Link to your Expo project (creates it the first time)
+        if: env.EXPO_TOKEN != ''
+        run: npx -y eas-cli@latest init --non-interactive --force
+      - name: Set up updates
+        if: env.EXPO_TOKEN != ''
+        run: npx -y eas-cli@latest update:configure --platform all --non-interactive || true
+      - name: Publish update
+        if: env.EXPO_TOKEN != ''
+        run: npx -y eas-cli@latest update --branch main --message "${{ github.event.head_commit.message || 'manual' }}" --non-interactive

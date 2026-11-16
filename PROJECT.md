@@ -17,6 +17,7 @@ Last updated: 2026-11-15.
 | `plate-log/` | Plate Log, a separate food diary app | https://vijaykannan2020-del.github.io/Apps/plate-log/ |
 | `speaknative/` | SpeakNative: American English speaking coach (AI role-play with feedback, Polish rewrites, drills with pronunciation check). Same Firebase sign-in | https://vijaykannan2020-del.github.io/Apps/speaknative/ |
 | `segue/` | Segue: plays saved passages selected from timed lyrics in Spotify albums, artists and playlists. Full handoff in `segue/README.md` | https://vijaykannan2020-del.github.io/Apps/segue/ |
+| `inbox-app/` | Native iPhone app for My Inbox (Expo; Expo Go now, TestFlight later) |
 | `my-inbox/` | My Inbox: own Beeper-style unified inbox for WhatsApp, Instagram and Messenger. NOT a GitHub Pages app: it runs on Vijay's own VPS (Docker: Synapse + mautrix bridges + push gateway + Caddy). Setup in `my-inbox/README.md`; holds no secrets (created on the server by `setup.sh`) | Vijay's own domain (not Pages) |
 
 Hosting is GitHub Pages from the `main` branch. A push to `main` is live in
@@ -148,6 +149,8 @@ the top right and cover part of the page.
   GitHub Pages and the free TMDB terms are for non-commercial use.
 
 ## Change log
+
+- 2026-11-16, Claude: Started the native iPhone app in `inbox-app/` (Expo SDK 58, Expo Router src/app, TypeScript). Phase 1: login (server address editable, token in Keychain via expo-secure-store), chat list (All/WhatsApp/Instagram/Messenger glass dock, Unread/Groups chips, search, archive, pin, mark unread via long-press), chat (inverted list, day separators, grouped bubbles, photos via expo-image with auth headers + full-screen view, reactions, reply, copy, send text/photo, load older), accounts. Matrix logic ported from my-inbox/web into src/lib/matrix.ts. Verified: tsc, expo export ios+web, Playwright against mock server (dark+light). `.github/workflows/inbox-app.yml` publishes an EAS Update on each push once the EXPO_TOKEN secret exists (eas init links/creates the Expo project). Open in Expo Go; TestFlight/calls need the Apple Developer account.
 
 - 2026-11-16, Claude: My Inbox Version 38: notifications after the server move. The phone's Web Push subscription was made with the old server's VAPID key, so the new push gateway couldn't deliver to it while the app still showed 'On'. enablePush now replaces a subscription whose applicationServerKey differs from /push/vapid; new ensurePush() runs 4 s after start and silently re-registers if the subscription key differs or Synapse has no pusher with our pushkey.
 
