@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 24. Chat photos: no lazy loading; load the 640px thumbnail, fall back to the full download, and if both fail (or the image can't be decoded) replace it with a visible "📷 Photo couldn't load (reason) · tap to retry" note. On iPhone a failed image with empty alt collapsed to nothing, so sent photos looked missing.
+
 - 2026-11-15, Claude: My Inbox Version 23. Each message renders inside try/catch: a message that fails to render becomes a note naming its type and the error instead of aborting the whole timeline (which left the chat frozen on old content — seen with a sent photo). renderTimeline itself is guarded and a global error handler shows errors as a toast.
 
 - 2026-11-15, Claude: My Inbox Version 22. Attach button is now a <label for=file> (programmatic click on a hidden file input is unreliable in iOS Home Screen apps). HEIC/HEIF photos are converted to JPEG before upload. Pasting photos/files into the message box asks "Send this photo to X?" and sends them. Upload errors now show the server's reason. Note: mautrix-whatsapp only bridges online status Matrix→WhatsApp, so contacts' online/last seen can't be shown (same for Instagram).
