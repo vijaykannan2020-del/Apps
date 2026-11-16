@@ -86,6 +86,10 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 /* keyboard open: the floating dock gets out of the way */
 #app.kb .nav,#app.kb #newver{display:none}
 #app.kb #list,#app.kb #acctView{padding-bottom:16px}
+/* fit the app to the area above the keyboard (iOS doesn't resize the page itself) */
+#app{position:fixed;left:0;right:0;top:var(--vvt,0px);height:var(--vvh,100%)}
+@media (max-width:760px){#chat{top:var(--vvt,0px);bottom:auto;height:var(--vvh,100%)}}
+#app.kb form#comp{padding-bottom:8px}
 /* search mode: hide the big title, keep filters */
 #app.searching .head{display:none}
 #app.searching #side{padding-top:calc(var(--st) + 8px)}
@@ -301,7 +305,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 15; // bump on every change (shown in Accounts)
+const APP_VERSION = 16; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1375,6 +1379,14 @@ $('#q').addEventListener('blur', () => { setTimeout(() => { if (!$('#q').value) 
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') $('#q').blur(); });
 $('#qCancel').onclick = () => { const q = $('#q'); q.value = ''; S.q = ''; q.blur(); appEl.classList.remove('searching'); $('#qCancel').hidden = true; renderList(); };
 if (window.visualViewport) {
+  const vv = window.visualViewport, root = document.documentElement;
+  const fit = () => {
+    root.style.setProperty('--vvh', vv.height + 'px');
+    root.style.setProperty('--vvt', vv.offsetTop + 'px');
+    if (document.activeElement === $('#txt')) { const tl = $('#tl'); if (tl.scrollHeight - tl.scrollTop - tl.clientHeight < 200) tl.scrollTop = tl.scrollHeight; }
+  };
+  vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); fit();
+  window.addEventListener('scroll', () => { if (window.scrollY) window.scrollTo(0, 0); fit(); }, { passive: true });
   const kbCheck = () => {
     const open = window.visualViewport.height < window.innerHeight * 0.78 || document.activeElement === $('#q') || document.activeElement === $('#txt');
     appEl.classList.toggle('kb', open);

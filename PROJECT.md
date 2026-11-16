@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 16. App shell is sized to window.visualViewport (CSS vars --vvh/--vvt) so the composer sits directly above the iOS keyboard instead of leaving a black gap; no safe-area padding under the composer while the keyboard is up. Note: iOS's ⌃ ⌄ ✓ form bar above the keyboard cannot be removed from a web app (only a native wrapper avoids it).
+
 - 2026-11-15, Claude: My Inbox Version 15. Floating dock hides while the keyboard is open (visualViewport + focus detection). Search mode: big title hides, filters stay, a back chevron on the LEFT closes search (top-right is covered by the foldable's clock). Swipe colours only render while a row is being swiped (no coloured outline at rest).
 
 - 2026-11-15, Claude: My Inbox Version 14. All / Unread / Groups filter chips under search (chats opened from Unread stay listed until the filter changes). Swipe a chat right = read/unread, left = archive; swipe a message right = reply. Avatars and images no longer flicker on redraw (resolved blob URLs reused synchronously). Bridge name suffixes like "(WA)" hidden in names.
