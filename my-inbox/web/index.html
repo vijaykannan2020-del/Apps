@@ -71,13 +71,24 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .search{display:flex;align-items:center;gap:8px;margin:6px 16px 8px;padding:9px 12px;border-radius:12px;background:var(--fill);color:var(--soft)}
 .search input{flex:1;border:0;background:none;outline:none;font-size:17px;min-width:0}
 .swipe{position:relative;border-radius:14px;overflow:hidden}
-.swipe .bg{position:absolute;inset:0;display:flex}
+.swipe .bg{position:absolute;inset:0;display:flex;visibility:hidden}
+.swipe.swiping .bg{visibility:visible}
 .swipe .bg span{flex:1;display:flex;align-items:center;padding:0 22px;color:#fff;font-weight:600;font-size:15px}
 .swipe .bg .l{background:#0A84FF}
 .swipe .bg .r{background:#8E8E93;justify-content:flex-end}
 .swipe .row{background:var(--bg);touch-action:pan-y;position:relative}
 .msg{touch-action:pan-y}
 .kinds{display:flex;gap:8px;padding:2px 16px 8px}
+.sbar{display:flex;align-items:center;gap:2px;padding-left:4px}
+.sbar .search{flex:1;margin-left:12px}
+#qCancel{display:grid;place-items:center;width:40px;height:40px;color:var(--ink);margin-left:6px}
+#qCancel:not([hidden]) + .search{margin-left:0}
+/* keyboard open: the floating dock gets out of the way */
+#app.kb .nav,#app.kb #newver{display:none}
+#app.kb #list,#app.kb #acctView{padding-bottom:16px}
+/* search mode: hide the big title, keep filters */
+#app.searching .head{display:none}
+#app.searching #side{padding-top:calc(var(--st) + 8px)}
 .kinds button{padding:6px 14px;border-radius:999px;background:var(--fill);color:var(--ink);font-size:14px;font-weight:600}
 .kinds button.on{background:var(--primary);color:var(--primary-text)}
 .kinds button i{font-style:normal;opacity:.7;margin-left:4px;font-weight:500}
@@ -232,10 +243,13 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
   <aside id="side">
     <section class="view" id="listView">
       <div class="head"><h2 id="title">Inbox</h2><div class="sub" id="status"></div></div>
-      <label class="search">
-        <svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input id="q" placeholder="Search" autocomplete="off">
-      </label>
+      <div class="sbar">
+        <button type="button" id="qCancel" hidden aria-label="Close search"><svg class="i" viewBox="0 0 24 24" style="stroke-width:2.2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <label class="search">
+          <svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="q" type="search" placeholder="Search" autocomplete="off" enterkeyhint="search">
+        </label>
+      </div>
       <div class="kinds" id="kinds"></div>
       <ul id="list"></ul>
     </section>
@@ -287,7 +301,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 14; // bump on every change (shown in Accounts)
+const APP_VERSION = 15; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1001,6 +1015,7 @@ function swipe(el, { onLeft, onRight, threshold = 70, max = 96 }) {
     const t = e.touches[0], x = t.clientX - sx, y = t.clientY - sy;
     if (!decided) { if (Math.abs(x) < 10 && Math.abs(y) < 10) return; decided = true; horiz = Math.abs(x) > Math.abs(y) * 1.3; }
     if (!horiz) return;
+    if (el.parentElement && el.parentElement.classList.contains('swipe')) el.parentElement.classList.add('swiping');
     dx = x;
     if ((dx > 0 && !onRight) || (dx < 0 && !onLeft)) dx = 0;
     const a = Math.abs(dx), d = Math.sign(dx) * (a <= max ? a : max + (a - max) * 0.2);
@@ -1010,6 +1025,7 @@ function swipe(el, { onLeft, onRight, threshold = 70, max = 96 }) {
   const end = () => {
     if (!horiz) return;
     horiz = false; el.style.transition = 'transform .25s cubic-bezier(.2,.8,.2,1)'; el.style.transform = '';
+    const par = el.parentElement; setTimeout(() => par && par.classList.remove('swiping'), 260);
     if (dx >= threshold && onRight) onRight(); else if (dx <= -threshold && onLeft) onLeft();
   };
   el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
@@ -1352,6 +1368,20 @@ function start() {
 // ---------- wiring ----------
 $('#loginForm').onsubmit = login;
 $('#q').oninput = e => { S.q = e.target.value; renderList(); };
+// search mode + hide the dock while the keyboard is up
+const appEl = $('#app');
+$('#q').addEventListener('focus', () => { appEl.classList.add('searching', 'kb'); $('#qCancel').hidden = false; });
+$('#q').addEventListener('blur', () => { setTimeout(() => { if (!$('#q').value) { appEl.classList.remove('searching'); $('#qCancel').hidden = true; } }, 120); });
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') $('#q').blur(); });
+$('#qCancel').onclick = () => { const q = $('#q'); q.value = ''; S.q = ''; q.blur(); appEl.classList.remove('searching'); $('#qCancel').hidden = true; renderList(); };
+if (window.visualViewport) {
+  const kbCheck = () => {
+    const open = window.visualViewport.height < window.innerHeight * 0.78 || document.activeElement === $('#q') || document.activeElement === $('#txt');
+    appEl.classList.toggle('kb', open);
+  };
+  visualViewport.addEventListener('resize', kbCheck);
+  document.addEventListener('focusout', () => setTimeout(kbCheck, 150));
+}
 $('#back').onclick = () => { if (history.state && history.state.chat) history.back(); else closeChat(); };
 window.onpopstate = () => { if (S.current) closeChat(); };
 $('#logout').onclick = () => logout(false);
