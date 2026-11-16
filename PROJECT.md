@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 13. Bridge commands sent from setup chats (login…, list-logins, cancel, help, logout) get the bridge prefix (!wa / !ig / !fb) so they work in any setup chat, not only the first "management room"; answers (usernames, codes, options) are sent as typed. Accounts reuses any existing chat with the bridge bot (preferring the management room) instead of creating a duplicate. Added a cancel button.
+
 - 2026-11-15, Claude: My Inbox Version 12. Accounts → App → "Check for updates" (reloads straight into a newer deployed version, otherwise says up to date). Server auto-update now runs every minute (auto-update.sh rewrites its own cron line and holds a flock so runs never overlap).
 
 - 2026-11-15, Claude: My Inbox Version 11 adds WhatsApp-style features. Long-press a chat: mark read/unread (m.marked_unread account data), pin (m.favourite tag), mute (room push rule with no actions), archive (m.lowpriority tag; archived chats behind an "Archived" row). Long-press a message: quick reactions (one per person, toggle), reply (m.in_reply_to, quote shows the original, tap to jump), copy, edit own text (m.replace), delete for everyone (redaction). Read ticks from the other side's read receipts (✓ sent, blue ✓✓ read), typing… in header and list. Sync filter now includes those account-data, push-rule and ephemeral types; snapshot keeps tags/unread/receipts/muted. Pin/archive/mute/unread live in the inbox only (not guaranteed to sync to the phone apps); reactions, replies, edits, deletes and read state go through the bridges.

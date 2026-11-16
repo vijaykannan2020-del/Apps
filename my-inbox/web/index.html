@@ -275,7 +275,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 12; // bump on every change (shown in Accounts)
+const APP_VERSION = 13; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -298,6 +298,13 @@ const NETS = {
   messenger:{label:'Messenger', color:'var(--fb)', bot:'messengerbot',
     hint:'Send <b>login</b> and follow the steps. It will ask for cookies from messenger.com (or facebook.com) while you are logged in on a computer browser. Paste them here.'},
 };
+const PREFIX = { whatsapp: '!wa', instagram: '!ig', messenger: '!fb' };
+const CMD_RE = /^(login|list-logins|help|cancel|logout|ping)(\s|$)/i;
+// Bridge commands work in every setup chat when prefixed (plain ones only work in the first one)
+function withPrefix(r, text) {
+  const n = botNetOf(r);
+  return n && CMD_RE.test(text.trim()) ? PREFIX[n] + ' ' + text.trim() : text;
+}
 const PALETTE = ['#5b6cff','#e0664f','#2fa37a','#c25bd6','#d99a2b','#3c9bd6','#d6517a','#6e8a3a'];
 
 const S = {
@@ -760,7 +767,7 @@ function renderChips(r) {
   if (!b) { el.hidden = true; return; }
   el.hidden = false;
   // If the bot just listed login options (`qr`, `phone`, `android`...), offer each one as a button
-  let cmds = ['login', 'list-logins', 'help'];
+  let cmds = ['login', 'list-logins', 'cancel', 'help'];
   for (let i = r.events.length - 1; i >= 0; i--) {
     const ev = r.events[i];
     if (ev.sender === S.userId) continue;
@@ -1095,7 +1102,7 @@ async function editMessage(r, ev, text) {
 function sendComposer(text) {
   const r = S.rooms.get(S.current); if (!r || !text.trim()) return;
   if (S.editing) { const ev = S.editing; S.editing = null; $('#replyBar').hidden = true; editMessage(r, ev, text); return; }
-  const content = { msgtype: 'm.text', body: text };
+  const content = { msgtype: 'm.text', body: withPrefix(r, text) };
   const rt = S.replyTo;
   if (rt && rt.event_id && !rt.event_id.startsWith('~')) content['m.relates_to'] = { 'm.in_reply_to': { event_id: rt.event_id } };
   clearCompose();
@@ -1120,7 +1127,7 @@ async function putEvent(r, ev, content) {
 }
 function sendText(text) {
   const r = S.rooms.get(S.current); if (!r || !text.trim()) return;
-  const content = { msgtype: 'm.text', body: text };
+  const content = { msgtype: 'm.text', body: withPrefix(r, text) };
   const txn = newTxn();
   putEvent(r, addLocal(r, content, txn), content);
 }
@@ -1163,7 +1170,11 @@ function renderAccounts() {
   $('#who').textContent = 'Version ' + APP_VERSION + ' · Signed in as ' + (S.userId || '');
 }
 async function openBotRoom(n, btn) {
-  let r = [...S.rooms.values()].find(x => botNetOf(x) === n);
+  const bid = botId(n);
+  const candidates = [...S.rooms.values()].filter(x => !x.isSpace && (botNetOf(x) === n ||
+    ((x.members.get(bid) || {}).membership === 'join' && others(x).length === 0) || (x.heroes.includes(bid) && others(x).length === 0)));
+  const isMgmt = x => x.events.some(e => /management room/i.test((e.content && e.content.body) || ''));
+  let r = candidates.find(isMgmt) || candidates.sort((a, b) => b.events.length - a.events.length)[0];
   if (!r && S.firstSync) { btn.querySelector('small').textContent = 'Still loading your chats, try again in a moment'; return; }
   if (!r) {
     btn.querySelector('small').textContent = 'Opening…';
