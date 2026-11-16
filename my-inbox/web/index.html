@@ -314,7 +314,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 24; // bump on every change (shown in Accounts)
+const APP_VERSION = 25; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -844,6 +844,7 @@ function openChat(id, fromHistory) {
   renderList();
   markRead();
   if (r.events.length < 20 && r.prevBatch) loadOlder(r);
+  refreshLatest(r);
   if (!matchMedia('(pointer:coarse)').matches) $('#txt').focus();
 }
 function updateHeader(r) {
@@ -861,6 +862,31 @@ function updateHeader(r) {
   }
   $('#csub').textContent = typing || seen || [n && NETS[n].label, isGroup(r) ? memberCount(r) + ' members' : '', S.muted.has(r.id) ? 'muted' : ''].filter(Boolean).join(' · ');
 }
+function showDiagnostics() {
+  const r = S.rooms.get(S.current); if (!r) return;
+  const tl = $('#tl');
+  const last = r.events.slice(-6).map(e => {
+    const c = e.content || {};
+    return `${new Date(e.origin_server_ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} ${e.sender === S.userId ? 'me' : 'them'} ${e.type === 'm.room.message' ? (c.msgtype || '?') : e.type}${e.redacted ? ' [deleted]' : ''}${e.pending ? ' [sending]' : ''}${c.url ? ' url✓' : ''}`;
+  }).join('\n');
+  const info = [
+    'Version ' + APP_VERSION,
+    'Messages in memory: ' + r.events.length + ' · bubbles on screen: ' + tl.querySelectorAll('.msg').length + ' · images: ' + tl.querySelectorAll('.msg img').length,
+    'Scroll: ' + Math.round(tl.scrollTop) + ' / ' + tl.scrollHeight + ' (view ' + tl.clientHeight + ') · screen ' + Math.round((window.visualViewport || {}).height || 0),
+    'Server refresh: ' + (r._refreshed ? 'ok' : (r._refreshErr || 'pending')),
+    'Last messages:\n' + last,
+  ].join('\n');
+  openSheet({ title: 'Diagnostics', items: [{ label: 'Copy details', icon: '⧉', fn: () => navigator.clipboard && navigator.clipboard.writeText(info).then(() => toast('Copied')) }] });
+  const pre = document.createElement('pre'); pre.textContent = info;
+  pre.style.cssText = 'white-space:pre-wrap;font-size:12px;margin:0 4px 10px;color:var(--ink)';
+  $('#sheetBody').insertBefore(pre, $('#sheetBody .items'));
+}
+let diagTaps = 0, diagTimer = null;
+document.addEventListener('click', e => {
+  if (!e.target.closest || !e.target.closest('.chead .t')) return;
+  diagTaps++; clearTimeout(diagTimer); diagTimer = setTimeout(() => { diagTaps = 0; }, 1500);
+  if (diagTaps >= 5) { diagTaps = 0; showDiagnostics(); }
+});
 function closeChat() {
   S.current = null;
   $('#app').classList.remove('open');
@@ -1093,6 +1119,22 @@ function renderTimelineInner(jump) {
   tl.innerHTML = ''; tl.appendChild(frag);
   if (nearBottom) tl.scrollTop = tl.scrollHeight;
   else if (S._prepending) tl.scrollTop = oldTop + (tl.scrollHeight - oldH);
+}
+async function refreshLatest(r) {
+  try {
+    const d = await api('GET', `/_matrix/client/v3/rooms/${enc(r.id)}/messages?dir=b&limit=40&filter=${enc(JSON.stringify({ lazy_load_members: true }))}`);
+    (d.state || []).forEach(ev => applyState(r, ev));
+    const before = r.events.length;
+    for (const ev of (d.chunk || []).slice().reverse()) addEvent(r, ev);
+    sortEvents(r);
+    if (r.events.length !== before) { scheduleList(); if (r.id === S.current) renderTimeline(); }
+    r._refreshed = Date.now();
+  } catch (e) { r._refreshErr = e.message; }
+}
+function sortEvents(r) {
+  const done = r.events.filter(e => !e.pending && !e.failed), local = r.events.filter(e => e.pending || e.failed);
+  done.sort((a, b) => (a.origin_server_ts || 0) - (b.origin_server_ts || 0));
+  r.events = done.concat(local);
 }
 async function loadOlder(r) {
   if (r.loading || !r.prevBatch) return;

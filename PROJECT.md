@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 25. Opening a chat also fetches its latest 40 messages from the server (`/messages?dir=b` with no `from`), merges them and sorts the room's events by server timestamp, so anything missed by the local snapshot/sync shows up. Hidden diagnostics: tap the chat name in the header 5 times for version, message/bubble/image counts, scroll metrics, refresh status and the last 6 events (copyable). Investigating photos not showing on the iPhone while they render fine in desktop Chrome with the same event JSON.
+
 - 2026-11-15, Claude: My Inbox Version 24. Chat photos: no lazy loading; load the 640px thumbnail, fall back to the full download, and if both fail (or the image can't be decoded) replace it with a visible "📷 Photo couldn't load (reason) · tap to retry" note. On iPhone a failed image with empty alt collapsed to nothing, so sent photos looked missing.
 
 - 2026-11-15, Claude: My Inbox Version 23. Each message renders inside try/catch: a message that fails to render becomes a note naming its type and the error instead of aborting the whole timeline (which left the chat frozen on old content — seen with a sent photo). renderTimeline itself is guarded and a global error handler shows errors as a toast.
