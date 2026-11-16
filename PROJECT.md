@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox also turns bridge prompts like "Options: `Text message`, `WhatsApp`…" into tap buttons. Note: Instagram's "Notification on another device" 2FA step fails through the bridge; use Text message / WhatsApp / Authentication app codes.
+
 - 2026-11-15, Claude: My Inbox setup chats turn the bridge bot's login-flow list into tap buttons (e.g. `login android`, `login phone`), so login commands don't have to be typed.
 
 - 2026-11-15, Claude: My Inbox servers now auto-deploy: `my-inbox/auto-update.sh` runs every 5 minutes (cron, installed by update.sh/setup.sh), checks this repo's main with git ls-remote, and only when the my-inbox folder actually changed copies it in and runs docker compose up -d --build. data/ and .env are never touched. So a push to my-inbox/ on main goes live on Vijay's server within ~5 minutes.

@@ -624,6 +624,10 @@ function renderChips(r) {
     if (/specify a login flow/i.test(body)) {
       const flows = [...body.matchAll(/^\s*\*\s*`([a-z0-9-]+)`/gim)].map(m => 'login ' + m[1]);
       if (flows.length) cmds = flows.concat(['help']);
+    } else if (/Options:\s*`/i.test(body)) {
+      // e.g. "Please enter your Login method. Options: `Text message`, `WhatsApp`, ..."
+      const opts = [...body.slice(body.search(/Options:/i)).matchAll(/`([^`]{1,40})`/g)].map(m => m[1]);
+      if (opts.length) cmds = opts;
     }
     break;
   }
