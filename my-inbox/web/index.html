@@ -230,6 +230,12 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
     <section class="view" id="acctView" hidden>
       <div class="head"><h2>Accounts</h2><div class="sub">Open a setup chat, send login, follow the steps.</div></div>
       <div class="group"><h4>Connected apps</h4><div class="card" id="accts"></div></div>
+      <div class="group"><h4>App</h4><div class="card">
+        <button class="acct" id="updBtn">
+          <span class="dot2" style="background:#30B0C7"><svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 0 1 7.7 5.9h-2.1A6 6 0 0 0 6.3 9H9v2H3V5h2v2.3A8 8 0 0 1 12 4zm-7.7 10.1h2.1A6 6 0 0 0 17.7 15H15v-2h6v6h-2v-2.3A8 8 0 0 1 4.3 14.1z"/></svg></span>
+          <span class="tx"><b>Check for updates</b><small id="updTxt"></small></span><span class="go">›</span>
+        </button>
+      </div></div>
       <div class="group"><h4>This device</h4><div class="card">
         <button class="acct" id="notifBtn">
           <span class="dot2" style="background:#8E8E93"><svg viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.8V3.5a1.5 1.5 0 0 0-3 0v.7A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2z"/></svg></span>
@@ -269,7 +275,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 11; // bump on every change (shown in Accounts)
+const APP_VERSION = 12; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -654,7 +660,7 @@ function renderTabs(all) {
   try { if (navigator.setAppBadge) counts.all ? navigator.setAppBadge(counts.all) : navigator.clearAppBadge(); } catch {}
 }
 function showList() { S.view = 'list'; $('#listView').hidden = false; $('#acctView').hidden = true; renderList(); }
-function showAccounts() { S.view = 'accounts'; $('#listView').hidden = true; $('#acctView').hidden = false; renderAccounts(); renderNotif(); renderList(); }
+function showAccounts() { $('#updTxt').textContent = 'Version ' + APP_VERSION + ' · tap to check'; S.view = 'accounts'; $('#listView').hidden = true; $('#acctView').hidden = false; renderAccounts(); renderNotif(); renderList(); }
 function renderList() {
   const all = visibleRooms();
   renderTabs(all);
@@ -1215,17 +1221,23 @@ function openFromUrl() {
 }
 
 // ---------- app updates ----------
-async function checkVersion() {
+async function checkVersion(manual) {
   try {
     const html = await (await fetch('/?v=' + Date.now(), { cache: 'no-store' })).text();
     const m = /const APP_VERSION = (\d+)/.exec(html);
-    if (m && Number(m[1]) > APP_VERSION) {
+    const latest = m ? Number(m[1]) : APP_VERSION;
+    if (latest > APP_VERSION) {
+      if (manual) { $('#updTxt').textContent = 'Updating to Version ' + latest + '…'; setTimeout(() => location.reload(), 300); return; }
       const b = $('#newver');
-      b.textContent = 'Version ' + m[1] + ' ready · Tap to update';
+      b.textContent = 'Version ' + latest + ' ready · Tap to update';
       b.hidden = false;
+    } else if (manual) {
+      $('#updTxt').textContent = 'Up to date · Version ' + APP_VERSION;
+      toast("You're on the latest version");
     }
-  } catch {}
+  } catch { if (manual) { $('#updTxt').textContent = 'Could not reach your server'; } }
 }
+$('#updBtn').onclick = () => { $('#updTxt').textContent = 'Checking…'; checkVersion(true); };
 $('#newver').onclick = () => location.reload();
 setInterval(checkVersion, 5 * 60e3);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(); });

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Runs every 5 minutes (cron). If the my-inbox folder on GitHub changed, install it and restart.
+# Runs every minute (cron). If the my-inbox folder on GitHub changed, install it and restart.
 # Never touches data/ or .env.
 set -euo pipefail
 cd "$(dirname "$0")"
+exec 9>/tmp/my-inbox-update.lock; flock -n 9 || exit 0   # never run two updates at once
+CRON="* * * * * root $PWD/auto-update.sh >> /var/log/my-inbox-update.log 2>&1"
+[ "$(cat /etc/cron.d/my-inbox-auto 2>/dev/null)" = "$CRON" ] || { echo "$CRON" > /etc/cron.d/my-inbox-auto; chmod 644 /etc/cron.d/my-inbox-auto; }
 REPO=https://github.com/vijaykannan2020-del/Apps
 SHA=$(git ls-remote "$REPO" refs/heads/main 2>/dev/null | cut -f1)
 [ -n "$SHA" ] || exit 0

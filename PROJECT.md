@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 12. Accounts → App → "Check for updates" (reloads straight into a newer deployed version, otherwise says up to date). Server auto-update now runs every minute (auto-update.sh rewrites its own cron line and holds a flock so runs never overlap).
+
 - 2026-11-15, Claude: My Inbox Version 11 adds WhatsApp-style features. Long-press a chat: mark read/unread (m.marked_unread account data), pin (m.favourite tag), mute (room push rule with no actions), archive (m.lowpriority tag; archived chats behind an "Archived" row). Long-press a message: quick reactions (one per person, toggle), reply (m.in_reply_to, quote shows the original, tap to jump), copy, edit own text (m.replace), delete for everyone (redaction). Read ticks from the other side's read receipts (✓ sent, blue ✓✓ read), typing… in header and list. Sync filter now includes those account-data, push-rule and ephemeral types; snapshot keeps tags/unread/receipts/muted. Pin/archive/mute/unread live in the inbox only (not guaranteed to sync to the phone apps); reactions, replies, edits, deletes and read state go through the bridges.
 
 - 2026-11-15, Claude: My Inbox Version 10. Saves a compact snapshot of rooms (last 30 messages each, needed members) plus the sync position in localStorage, so reopening shows chats instantly and only fetches changes (Synapse's full initial sync is slow on the 2 GB server). Shows "Syncing your chats…" on a first sync; Accounts won't create a duplicate setup chat while the first sync is still running; a rejected sync position resets to a fresh sync. Snapshot cleared on logout.
@@ -161,7 +163,7 @@ the top right and cover part of the page.
 
 - 2026-11-15, Claude: My Inbox setup chats turn the bridge bot's login-flow list into tap buttons (e.g. `login android`, `login phone`), so login commands don't have to be typed.
 
-- 2026-11-15, Claude: My Inbox servers now auto-deploy: `my-inbox/auto-update.sh` runs every 5 minutes (cron, installed by update.sh/setup.sh), checks this repo's main with git ls-remote, and only when the my-inbox folder actually changed copies it in and runs docker compose up -d --build. data/ and .env are never touched. So a push to my-inbox/ on main goes live on Vijay's server within ~5 minutes.
+- 2026-11-15, Claude: My Inbox servers now auto-deploy: `my-inbox/auto-update.sh` runs every minute (cron, installed by update.sh/setup.sh; Version 12+), checks this repo's main with git ls-remote, and only when the my-inbox folder actually changed copies it in and runs docker compose up -d --build. data/ and .env are never touched. So a push to my-inbox/ on main goes live on Vijay's server within ~5 minutes.
 
 - 2026-11-15, Claude: My Inbox redesigned to the shared Apps look: Apple-style light/dark tokens from Cinema Book, floating glass bottom dock (All / WhatsApp / Instagram / Messenger / Accounts) with unread dots, large left title, Accounts as a full page instead of a top-right button and sheet. Nothing important in the top-right corner (foldable clock/Wi-Fi pill); default status bar style; only top/bottom safe areas.
 

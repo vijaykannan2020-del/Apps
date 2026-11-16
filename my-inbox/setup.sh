@@ -225,10 +225,10 @@ cat > /etc/cron.d/my-inbox-update <<EOF
 0 4 * * 0 root cd $PWD && docker compose pull -q && docker compose up -d --build --remove-orphans && docker image prune -f >/dev/null 2>&1
 EOF
 
-# ---------- automatic code updates from GitHub (every 5 minutes) ----------
+# ---------- automatic code updates from GitHub (every minute) ----------
 command -v git >/dev/null || apt-get -o DPkg::Lock::Timeout=600 install -y -qq git >/dev/null
 git ls-remote https://github.com/vijaykannan2020-del/Apps refs/heads/main | cut -f1 > .deployed-sha || true
-echo "*/5 * * * * root $PWD/auto-update.sh >> /var/log/my-inbox-update.log 2>&1" > /etc/cron.d/my-inbox-auto
+echo "* * * * * root $PWD/auto-update.sh >> /var/log/my-inbox-update.log 2>&1" > /etc/cron.d/my-inbox-auto
 chmod 644 /etc/cron.d/my-inbox-auto
 
 say "Done!"
