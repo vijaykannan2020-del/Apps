@@ -78,3 +78,6 @@ echo "ip_range_whitelist: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']" >> 
 mkdir -p data/pushgw
 docker compose up -d --build && docker compose restart synapse
 ```
+
+## Versions
+The version number is shown at the bottom of the **Accounts** tab. When a newer version reaches your server, the app shows **"Version N ready · Tap to update"**. When changing the app, bump `APP_VERSION` near the top of the script in `web/index.html`.

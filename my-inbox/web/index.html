@@ -164,6 +164,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 .acct.danger b{color:var(--red)}
 .foot{color:var(--soft);font-size:12px;text-align:center;margin:8px 0}
 #status{font-size:12px;color:var(--soft);text-align:center}
+#newver{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(max(12px,var(--sb)) + 74px);z-index:11;background:var(--primary);color:var(--primary-text);border-radius:999px;padding:9px 16px;font-size:14px;font-weight:600;box-shadow:var(--dock-shadow);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -177,6 +178,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
     <input class="field" id="lp" type="password" placeholder="Password" autocomplete="current-password" required>
     <button class="btn" id="lb">Log in</button>
     <div class="err" id="le"></div>
+    <p class="foot" id="lver"></p>
   </form>
 </div>
 
@@ -202,6 +204,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
       </div></div>
       <p class="foot" id="who"></p>
     </section>
+    <button id="newver" hidden>New version ready · Tap to update</button>
     <nav class="nav" id="nav"></nav>
   </aside>
 
@@ -227,6 +230,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 
 <script>
 'use strict';
+const APP_VERSION = 9; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -823,7 +827,7 @@ function renderAccounts() {
     b.onclick = () => openBotRoom(n, b);
     el.appendChild(b);
   }
-  $('#who').textContent = 'Signed in as ' + (S.userId || '');
+  $('#who').textContent = 'Version ' + APP_VERSION + ' · Signed in as ' + (S.userId || '');
 }
 async function openBotRoom(n, btn) {
   let r = [...S.rooms.values()].find(x => botNetOf(x) === n);
@@ -882,6 +886,22 @@ function openFromUrl() {
   return !id;
 }
 
+// ---------- app updates ----------
+async function checkVersion() {
+  try {
+    const html = await (await fetch('/?v=' + Date.now(), { cache: 'no-store' })).text();
+    const m = /const APP_VERSION = (\d+)/.exec(html);
+    if (m && Number(m[1]) > APP_VERSION) {
+      const b = $('#newver');
+      b.textContent = 'Version ' + m[1] + ' ready · Tap to update';
+      b.hidden = false;
+    }
+  } catch {}
+}
+$('#newver').onclick = () => location.reload();
+setInterval(checkVersion, 5 * 60e3);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(); });
+
 // ---------- auth ----------
 async function login(e) {
   e.preventDefault();
@@ -931,6 +951,8 @@ $('#tl').addEventListener('scroll', () => { const r = S.rooms.get(S.current); if
 document.addEventListener('visibilitychange', () => { if (!document.hidden) markRead(); });
 
 if (S.token && S.userId) start(); else $('#login').hidden = false;
+checkVersion();
+$('#lver').textContent = 'Version ' + APP_VERSION;
 </script>
 </body>
 </html>

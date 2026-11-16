@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 9. Added `APP_VERSION` in `my-inbox/web/index.html`, shown in Accounts and on the login screen. The app checks the server every 5 minutes and when reopened, and shows "Version N ready · Tap to update" when the deployed file has a higher number. RULE: bump `APP_VERSION` by 1 on every My Inbox change.
+
 - 2026-11-15, Claude: My Inbox setup chats switch off auto-capitalise/autocorrect in the message box (an auto-capitalised Instagram profile name failed the exact-match option).
 
 - 2026-11-15, Claude: My Inbox also turns bridge prompts like "Options: `Text message`, `WhatsApp`…" into tap buttons. Note: Instagram's "Notification on another device" 2FA step fails through the bridge; use Text message / WhatsApp / Authentication app codes.
