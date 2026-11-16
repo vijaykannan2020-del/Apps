@@ -9,6 +9,12 @@ CRON="* * * * * root $PWD/auto-update.sh >> /var/log/my-inbox-update.log 2>&1"
 # weekly cleanup of shared reels/link media (Sunday 3:30am server time)
 CLEAN="30 3 * * 0 root $PWD/media-cleanup.sh >> /var/log/my-inbox-cleanup.log 2>&1"
 [ "$(cat /etc/cron.d/my-inbox-cleanup 2>/dev/null)" = "$CLEAN" ] || { echo "$CLEAN" > /etc/cron.d/my-inbox-cleanup; chmod 644 /etc/cron.d/my-inbox-cleanup; }
+# settings fixes for the bridge configs (only these lines are touched; data is otherwise left alone)
+if grep -qE '^\s*enable_status_broadcast: true' data/whatsapp/config.yaml 2>/dev/null; then
+  sed -i -E 's/^(\s*)enable_status_broadcast: true/\1enable_status_broadcast: false/' data/whatsapp/config.yaml
+  echo "$(date -u '+%F %T') WhatsApp Status bridging turned off"
+  docker compose restart whatsapp >/dev/null 2>&1 || true
+fi
 REPO=https://github.com/vijaykannan2020-del/Apps
 SHA=$(git ls-remote "$REPO" refs/heads/main 2>/dev/null | cut -f1)
 [ -n "$SHA" ] || exit 0

@@ -319,7 +319,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 27; // bump on every change (shown in Accounts)
+const APP_VERSION = 28; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -448,7 +448,7 @@ function applyState(r, ev) {
       r.members.set(ev.state_key, { name: c.displayname, avatar: c.avatar_url, membership: c.membership }); break;
     case 'm.bridge': case 'uk.half-shot.bridge':
       r.net = netFrom(c.protocol && c.protocol.id) || r.net;
-      if (c.channel) { r.bridgeName = c.channel.displayname || r.bridgeName; r.bridgeAvatar = c.channel.avatar_url || r.bridgeAvatar; }
+      if (c.channel) { r.bridgeName = c.channel.displayname || r.bridgeName; r.bridgeAvatar = c.channel.avatar_url || r.bridgeAvatar; r.channelId = c.channel.id || r.channelId; }
       break;
   }
 }
@@ -479,7 +479,10 @@ function botNetOf(r) {
   return null;
 }
 const cleanName = n => (n || '').replace(/\s*\((WA|WhatsApp|IG|Instagram|FB|Facebook|Messenger)\)\s*$/i, '');
-const memberName = (r, id) => cleanName((r.members.get(id) || {}).name) || id.split(':')[0].slice(1);
+const memberName = (r, id) => {
+  for (const n in NETS) if (id === botId(n)) return NETS[n].label;   // the bridge's helper account
+  return cleanName((r.members.get(id) || {}).name) || id.split(':')[0].slice(1);
+};
 function roomName(r) {
   const b = botNetOf(r);
   if (b) return NETS[b].label + ' setup';
@@ -585,7 +588,7 @@ function saveSnapshot(limit = 30) {
     const keep = new Set([...r.heroes, ...events.map(e => e.sender)]);
     const members = [...r.members].filter(([id]) => keep.has(id) || Object.keys(NETS).some(n => id === botId(n)));
     rooms.push({ id: r.id, name: r.name, avatar: r.avatar, bridgeName: r.bridgeName, bridgeAvatar: r.bridgeAvatar, net: r.net,
-      heroes: r.heroes, joined: r.joined, isSpace: r.isSpace, unread: r.unread, lastTs: r.lastTs,
+      heroes: r.heroes, joined: r.joined, isSpace: r.isSpace, channelId: r.channelId, unread: r.unread, lastTs: r.lastTs,
       prevBatch: events.length < r.events.length ? (r.prevBatch || null) : r.prevBatch, members, events,
       tags: r.tags, markedUnread: r.markedUnread, readBy: [...r.readBy] });
   }
@@ -601,7 +604,7 @@ function loadSnapshot() {
       heroes: x.heroes || [], joined: x.joined || 0, isSpace: !!x.isSpace, unread: x.unread || 0, lastTs: x.lastTs || 0,
       prevBatch: x.prevBatch === undefined ? null : x.prevBatch });
     r.members = new Map(x.members || []);
-    r.tags = x.tags || {}; r.markedUnread = !!x.markedUnread; r.readBy = new Map(x.readBy || []);
+    r.channelId = x.channelId; r.tags = x.tags || {}; r.markedUnread = !!x.markedUnread; r.readBy = new Map(x.readBy || []);
     for (const e of x.events || []) { r.idx.set(e.event_id, e); r.events.push(e); }
   }
   S.since = snap.since;
@@ -747,8 +750,9 @@ async function openSearchHit(e) {
 // ---------- UI: list ----------
 let listQueued = false;
 function scheduleList() { if (!listQueued) { listQueued = true; requestAnimationFrame(() => { listQueued = false; renderList(); }); } }
+const isStatusRoom = r => /status@broadcast/i.test(r.channelId || '') || /status broadcast/i.test(r.name || r.bridgeName || '');
 function visibleRooms() {
-  return [...S.rooms.values()].filter(r => !r.isSpace && !botNetOf(r) && (r.events.length || r.name));
+  return [...S.rooms.values()].filter(r => !r.isSpace && !botNetOf(r) && !isStatusRoom(r) && (r.events.length || r.name));
 }
 function avatarEl(r, sm) {
   const wrap = document.createElement('div');
