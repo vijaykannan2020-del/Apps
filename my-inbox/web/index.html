@@ -163,6 +163,10 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .reacts span{background:var(--paper);border:1px solid var(--line);border-radius:999px;font-size:12px;padding:1px 7px}
 .file{display:flex;gap:8px;align-items:center;text-decoration:none!important}
 .more{align-self:center;color:var(--soft);font-size:12px;padding:8px}
+.extlink{display:block;margin-top:6px;font-weight:600;text-decoration:none!important;opacity:.9}
+.msg.hasmedia{padding:4px 4px 8px}
+.msg.hasmedia img,.msg.hasmedia video{display:block;max-width:100%;max-height:340px;border-radius:16px}
+.msg.hasmedia .extlink{padding:0 8px}
 #chips{display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px 2px}
 #chips button{background:var(--paper);border:1px solid var(--line);padding:7px 14px;border-radius:999px;font-size:14px;font-weight:600;white-space:nowrap}
 .hint{margin:10px auto;max-width:440px;font-size:14px;color:var(--soft);background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 16px;line-height:1.5}
@@ -305,7 +309,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 16; // bump on every change (shown in Accounts)
+const APP_VERSION = 17; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -880,7 +884,10 @@ function msgEl(r, ev) {
   } else if (kind === 'm.video') {
     el.classList.add('media');
     const v = document.createElement('video'); v.controls = true; v.playsInline = true; v.preload = 'none';
-    const th = c.info && c.info.thumbnail_url;
+    v.style.minWidth = '200px'; v.style.minHeight = '260px'; v.style.background = '#000';
+    const info = c.info || {};
+    if (info.w && info.h) v.style.aspectRatio = info.w + '/' + info.h;
+    const th = info.thumbnail_url;
     if (th) loadInto(v, th, 640, 'poster');
     v.addEventListener('play', function once() { v.removeEventListener('play', once); if (!v.src) { v.pause(); mediaUrl(c.url).then(u => { v.src = u; v.play(); }); } });
     el.appendChild(v);
@@ -899,7 +906,8 @@ function msgEl(r, ev) {
     el.appendChild(a);
   } else {
     if (kind === 'm.notice' && !mine) el.classList.add('notice');
-    const raw = c.body || '';
+    let raw = c.body || '';
+    if (!raw.trim() && c.formatted_body) { const d = document.createElement('div'); d.innerHTML = c.formatted_body.replace(/<br\s*\/?>/gi, '\n'); raw = d.textContent || ''; }
     const body = stripReply(raw);
     const inReply = c['m.relates_to'] && c['m.relates_to']['m.in_reply_to'];
     if (inReply) {
@@ -912,6 +920,14 @@ function msgEl(r, ev) {
       el.appendChild(q);
     }
     linkify(el, kind === 'm.emote' ? '* ' + body : body);
+  }
+  // Reels / shared posts: bridges attach a link to the original
+  const ext = c.external_url || (c['com.beeper.linkpreviews'] && c['com.beeper.linkpreviews'][0] && c['com.beeper.linkpreviews'][0].matched_url);
+  if (ext && /^https:\/\//.test(ext) && !(c.body || '').includes(ext)) {
+    const a = document.createElement('a'); a.href = ext; a.target = '_blank'; a.rel = 'noopener';
+    a.className = 'extlink'; a.textContent = /instagram\.com\/(reel|reels)\//.test(ext) ? '▶ Open reel in Instagram' : /instagram\.com\/p\//.test(ext) ? 'Open post in Instagram' : 'Open original';
+    if (el.classList.contains('media')) { el.classList.remove('media'); el.classList.add('hasmedia'); }
+    el.appendChild(a);
   }
   if (!el.classList.contains('media')) {
     const ts = document.createElement('span'); ts.className = 'ts';
