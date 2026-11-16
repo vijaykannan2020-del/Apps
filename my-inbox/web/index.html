@@ -612,6 +612,11 @@ function closeChat() {
 }
 function renderChips(r) {
   const b = botNetOf(r), el = $('#chips');
+  // Setup chats need exact text (usernames, options): no auto-capitalise / autocorrect there
+  const t = $('#txt');
+  t.setAttribute('autocapitalize', b ? 'off' : 'sentences');
+  t.setAttribute('autocorrect', b ? 'off' : 'on');
+  t.spellcheck = !b;
   el.innerHTML = '';
   if (!b) { el.hidden = true; return; }
   el.hidden = false;
