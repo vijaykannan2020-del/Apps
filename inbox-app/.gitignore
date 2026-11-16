@@ -4,3 +4,7 @@ distios/
 .expo/
 web-build/
 *.log
+credentials/*
+!credentials/ios.enc
+credentials.json
+asc.p8
