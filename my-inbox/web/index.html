@@ -137,7 +137,7 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .reacts span{background:var(--paper);border:1px solid var(--line);border-radius:999px;font-size:12px;padding:1px 7px}
 .file{display:flex;gap:8px;align-items:center;text-decoration:none!important}
 .more{align-self:center;color:var(--soft);font-size:12px;padding:8px}
-#chips{display:flex;gap:8px;padding:8px 14px 0;overflow-x:auto}
+#chips{display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px 2px}
 #chips button{background:var(--paper);border:1px solid var(--line);padding:7px 14px;border-radius:999px;font-size:14px;font-weight:600;white-space:nowrap}
 .hint{margin:10px auto;max-width:440px;font-size:14px;color:var(--soft);background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 16px;line-height:1.5}
 .hint b{color:var(--ink)}
@@ -243,9 +243,9 @@ const ICON = {
 };
 const NETS = {
   whatsapp:{label:'WhatsApp', color:'var(--wa)', bot:'whatsappbot',
-    hint:'Send <b>login</b>, pick the <b>QR</b> option, then on your phone open WhatsApp → Settings → Linked devices → Link a device, and scan the code that appears here.'},
+    hint:'Tap <b>login</b>, then <b>login phone</b>, and send your number with country code. Then in WhatsApp go to Settings → Linked devices → Link a device → <b>Link with phone number instead</b> and type the 8-character code shown here.'},
   instagram:{label:'Instagram', color:'var(--ig)', bot:'instagrambot',
-    hint:'Send <b>login</b> and follow the steps. It will ask for cookies from instagram.com while you are logged in on a computer browser (DevTools → Application → Cookies). Paste them here.'},
+    hint:'Tap <b>login</b>, then <b>login android</b>. Send your username and password, choose <b>Text message</b> for the code, then tap your profile.'},
   messenger:{label:'Messenger', color:'var(--fb)', bot:'messengerbot',
     hint:'Send <b>login</b> and follow the steps. It will ask for cookies from messenger.com (or facebook.com) while you are logged in on a computer browser. Paste them here.'},
 };
