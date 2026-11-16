@@ -479,7 +479,7 @@ button:active,.btn:active{transform:scale(.96)}
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 37; // bump on every change (shown in Accounts)
+const APP_VERSION = 38; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1816,17 +1816,20 @@ function b64ToBytes(b64) {
   const s = atob((b64 + '='.repeat((4 - b64.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
   return Uint8Array.from(s, c => c.charCodeAt(0));
 }
-async function enablePush() {
+const sameKey = (buf, b64) => { if (!buf) return false; const a = new Uint8Array(buf), b = b64ToBytes(b64); return a.length === b.length && a.every((x, i) => x === b[i]); };
+async function enablePush(silent) {
   if (!pushSupported || Notification.permission === 'denied') { renderNotif(); return; }
   const txt = $('#notifTxt');
   try {
-    txt.textContent = 'Asking permission…';
+    if (!silent) txt.textContent = 'Asking permission…';
     if (await Notification.requestPermission() !== 'granted') { renderNotif(); return; }
-    txt.textContent = 'Setting up…';
+    if (!silent) txt.textContent = 'Setting up…';
     const reg = await navigator.serviceWorker.register('/sw.js');
     await navigator.serviceWorker.ready;
     const { publicKey } = await api('GET', '/push/vapid');
     let sub = await reg.pushManager.getSubscription();
+    // A subscription made for another server (e.g. after moving servers) can't receive this server's pushes: replace it
+    if (sub && !sameKey(sub.options && sub.options.applicationServerKey, publicKey)) { await sub.unsubscribe().catch(() => {}); sub = null; }
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
     const { pushkey } = await api('POST', '/push/subscribe', { subscription: sub.toJSON() });
     await api('POST', '/_matrix/client/v3/pushers/set', {
@@ -1834,9 +1837,22 @@ async function enablePush() {
       device_display_name: isIOS ? 'iPhone' : 'Browser', lang: navigator.language || 'en',
       data: { url: 'http://pushgw:8080/_matrix/push/v1/notify' }, append: false,
     });
-    store.set('pushkey', pushkey);
-  } catch (e) { txt.textContent = 'Could not turn on: ' + (e.message || e); return; }
+    store.set('pushkey', pushkey); store.set('pushvapid', publicKey);
+  } catch (e) { if (!silent) txt.textContent = 'Could not turn on: ' + (e.message || e); return; }
   renderNotif();
+}
+// On every start: if notifications are allowed, make sure this server really has this phone registered
+// (fixes "On" but nothing arrives after a server move, a reinstall, or an expired subscription)
+async function ensurePush() {
+  if (!pushSupported || Notification.permission !== 'granted') return;
+  try {
+    const [{ publicKey }, { pushers }] = await Promise.all([api('GET', '/push/vapid'), api('GET', '/_matrix/client/v3/pushers')]);
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    const mine = store.get('pushkey');
+    const ok = sub && sameKey(sub.options && sub.options.applicationServerKey, publicKey) && mine && (pushers || []).some(p => p.pushkey === mine);
+    if (!ok) await enablePush(true);
+  } catch {}
 }
 function openFromUrl() {
   const id = new URLSearchParams(location.search).get('room');
@@ -2520,6 +2536,7 @@ function start() {
     navigator.serviceWorker.addEventListener('message', e => { const id = e.data && e.data.openRoom; if (id && S.rooms.has(id)) openChat(id); });
   }
   renderList(); syncLoop();
+  setTimeout(ensurePush, 4000);
 }
 
 // ---------- wiring ----------
@@ -2560,7 +2577,7 @@ if (window.visualViewport) {
 $('#back').onclick = () => { if (history.state && history.state.chat) history.back(); else closeChat(); };
 window.onpopstate = () => { if (S.current) closeChat(); };
 $('#logout').onclick = () => logout(false);
-$('#notifBtn').onclick = enablePush;
+$('#notifBtn').onclick = () => enablePush(false);
 const txt = $('#txt');
 const autosize = () => { txt.style.height = 'auto'; txt.style.height = Math.min(txt.scrollHeight, 140) + 'px'; };
 txt.oninput = autosize;
