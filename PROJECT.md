@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox: added `media-cleanup.sh`, run weekly (Sunday 03:30 server time) via a cron line that auto-update.sh installs. Deletes, through the Synapse admin media API, local copies of shared Instagram reels/posts (m.video/m.image whose body or external_url is an instagram.com reel/post link, plus their thumbnails) and Beeper link-preview images older than 7 days. Normal photos/videos are kept. Uses a dedicated admin account `inbox-cleanup` whose token is stored only in data/cleanup-token on the server. `--dry-run` lists what would go. SQL verified against sample rows with PGlite.
+
 - 2026-11-15, Claude: My Inbox Version 18. Media captions: when an m.image/m.video/m.file has a separate `filename`, `body` is shown as a caption under it (WhatsApp captioned photos, Instagram reels). Markdown links `[label](url)` render as links (the Instagram bridge sends reels as m.video with a markdown reel link as caption). Instagram reel/post links get an "Open reel in Instagram" button; a caption that is only the reel link is hidden in favour of the button. List previews show captions and "🎬 Reel".
 
 - 2026-11-15, Claude: My Inbox Version 17. Reels/shared posts: messages with `external_url` (or a Beeper link preview) get an "Open reel/post in Instagram" link; videos show a visible tap-to-play frame even without a thumbnail; text messages with an empty body fall back to formatted_body.

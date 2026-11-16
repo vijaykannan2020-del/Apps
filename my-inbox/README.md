@@ -81,3 +81,8 @@ docker compose up -d --build && docker compose restart synapse
 
 ## Versions
 The version number is shown at the bottom of the **Accounts** tab. When a newer version reaches your server, the app shows **"Version N ready · Tap to update"**. When changing the app, bump `APP_VERSION` near the top of the script in `web/index.html`.
+
+## Weekly cleanup of shared reels and links
+Every Sunday 3:30am (server time) `media-cleanup.sh` deletes the server's copies of **shared Instagram reels/posts and link-preview images older than 7 days**. Normal photos and videos people send you are kept. Nothing changes in WhatsApp or Instagram; old reels still have the "Open reel in Instagram" button.
+- Preview what it would delete: `cd ~/my-inbox && ./media-cleanup.sh --dry-run`
+- Log: `/var/log/my-inbox-cleanup.log`
