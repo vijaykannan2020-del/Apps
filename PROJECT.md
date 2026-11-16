@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 29. Accounts → Appearance: Text size (Small 0.88 / Default / Large 1.12 / XL 1.25 — every CSS font-size is calc(Npx * var(--fs))), Theme (Auto / Light / Dark via data-theme on <html>; dark tokens duplicated for :root[data-theme=dark]), Accent colour (mono default, blue, green, purple, pink — overrides --primary/--primary-text, used by my bubbles, send button and badges). Saved per device in localStorage `inbox-prefs`.
+
 - 2026-11-15, Claude: My Inbox Version 28. WhatsApp Status: auto-update.sh flips `enable_status_broadcast: true` → `false` in data/whatsapp/config.yaml (idempotent, restarts the WhatsApp bridge once), and the app hides the status-broadcast room (m.bridge channel id status@broadcast or a name containing "status broadcast"). Messages from a bridge bot account now show the app name ("WhatsApp") instead of the bot's username.
 
 - 2026-11-15, Claude: My Inbox Version 27. Search now also searches message text: typing 2+ characters shows "Chats" (name matches) then "Messages" from Synapse server-side full-text search (POST /search, room_events, newest first, 40 results; falls back to messages loaded on the phone). The match is highlighted; tapping a hit opens the chat, loads context around the message if needed (/context) and jumps to it.
