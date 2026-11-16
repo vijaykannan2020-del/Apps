@@ -11,13 +11,15 @@ import { S, NETS, Net, visibleRooms, netOf, logout, setupRoom, setPref, changePa
 import { Sheet } from '@/components/Sheet';
 import { fmtWhen } from '@/lib/time';
 import { useTheme, useStore } from '@/lib/theme';
+import { useWindowDimensions } from 'react-native';
+import { useWide } from '@/lib/layout';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 4;
+export const APP_BUILD = 5;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
-  useStore(); const t = useTheme(); const ins = useSafeAreaInsets();
+  useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const dim = useWindowDimensions(); const wideNow = useWide();
   const rooms = visibleRooms();
   const [pw, setPw] = useState(false); const [pwOld, setPwOld] = useState(''); const [pwNew, setPwNew] = useState(''); const [pwNew2, setPwNew2] = useState('');
   const [pwErr, setPwErr] = useState(''); const [pwBusy, setPwBusy] = useState(false);
@@ -103,7 +105,7 @@ export default function Accounts() {
 
         <Text style={[styles.h, { color: t.soft }]}>APP</Text>
         <View style={styles.card}>
-          <Row label="Check for updates" sub={`Version ${APP_BUILD} · app preview in Expo Go`} icon="refresh" iconBg="#30B0C7" onPress={checkUpdate} />
+          <Row label="Check for updates" sub={`Version ${APP_BUILD} · screen ${Math.round(dim.width)}×${Math.round(dim.height)} · ${wideNow ? "unfolded" : "folded"}`} icon="refresh" iconBg="#30B0C7" onPress={checkUpdate} />
           <Row label="Backup" sub={bkSub} icon="cloud-upload" iconBg="#34A853" onPress={bk && !bk.forbidden ? () => { setBkErr(''); setBkPaste(''); setBkOpen(true); } : undefined} />
           <Row label="Change password" sub="Your Inbox login" icon="lock-closed" iconBg="#5E5CE6" onPress={() => { setPwErr(''); setPw(true); }} />
           <Row label="Notifications" sub="Coming with the full app — use the web Inbox for alerts meanwhile" icon="notifications" iconBg="#FF3B30" last />

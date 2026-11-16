@@ -3,7 +3,9 @@ import { useWindowDimensions } from 'react-native';
 
 /** Unfolded iPhone Duo / iPad / landscape: list + chat side by side. */
 export const WIDE_AT = 600;
-export function useWide() { return useWindowDimensions().width >= WIDE_AT; }
+/** Unfolded = wide screen, or a near-square screen (the open iPhone Duo is ~3:4, a folded phone ~9:19.5). */
+export function isWide(w: number, h: number) { return w >= WIDE_AT || (w >= 400 && w / h >= 0.6); }
+export function useWide() { const { width, height } = useWindowDimensions(); return isWide(width, height); }
 
 // The chat open in the right-hand pane — shared so folding/unfolding keeps the same chat open.
 let selected: string | null = null;
@@ -18,6 +20,6 @@ import { router } from 'expo-router';
 import { Dimensions } from 'react-native';
 /** Open a chat from anywhere: right-hand pane when unfolded, full screen when folded. */
 export function openChat(id: string) {
-  if (Dimensions.get('window').width >= WIDE_AT) { setSelected(id); router.navigate('/inbox'); }
+  const d = Dimensions.get('window'); if (isWide(d.width, d.height)) { setSelected(id); router.navigate('/inbox'); }
   else router.push({ pathname: '/chat/[id]', params: { id } });
 }

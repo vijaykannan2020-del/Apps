@@ -11,6 +11,8 @@ import { S, Room, MEvent, Net, NETS, visibleRooms, roomName, preview, fmtTime, i
   startWhatsAppChat, others } from '@/lib/matrix';
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
+import { Glass } from '@/components/Glass';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ChatView } from '@/components/ChatView';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
 import { quickTimes, fmtWhen } from '@/lib/time';
@@ -19,7 +21,7 @@ type Tab = 'all' | Net;
 type Kind = 'all' | 'unread' | 'groups' | 'starred';
 const KINDS: [Kind, string][] = [['all', 'All'], ['unread', 'Unread'], ['groups', 'Groups'], ['starred', '★ Starred']];
 
-const Row = memo(function Row({ r, t, open, onMore, selected, fs }: { r: Room; t: Theme; open: (id: string) => void; onMore: (r: Room) => void; selected: boolean; fs: number; v: number }) {
+const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact }: { r: Room; t: Theme; open: (id: string) => void; onMore: (r: Room) => void; selected: boolean; fs: number; v: number; compact?: boolean }) {
   const sw = useRef<SwipeableMethods>(null);
   const unread = isUnread(r);
   const tick = lastMine(r);
@@ -45,15 +47,15 @@ const Row = memo(function Row({ r, t, open, onMore, selected, fs }: { r: Room; t
       )}>
       <Pressable onPress={() => open(r.id)} onLongPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); onMore(r); }}
         style={({ pressed }) => [styles.row, { backgroundColor: selected || pressed ? (t.dark ? '#2C2C2E' : '#E5E5EA') : t.bg }]}>
-        <Avatar room={r} />
-        <View style={[styles.meta, { borderBottomColor: t.line }]}>
+        <Avatar room={r} size={compact ? 42 : undefined} />
+        <View style={[styles.meta, { borderBottomColor: t.line }, compact && { minHeight: 64, paddingRight: 10 }]}>
           <View style={styles.l1}>
             <Text numberOfLines={1} style={[styles.name, { color: t.ink, fontWeight: unread ? '700' : '600', fontSize: 17 * fs }]}>{roomName(r)}</Text>
-            <Text style={[styles.time, { color: unread ? t.ink : t.soft, fontWeight: unread ? '600' : '400' }]}>{fmtTime(r.lastTs)}</Text>
+            <Text style={[styles.time, { color: unread ? t.ink : t.soft, fontWeight: unread ? '600' : '400' }, compact && { fontSize: 12 }]}>{fmtTime(r.lastTs)}</Text>
           </View>
           <View style={styles.l2}>
             {tick && !draft && <Text style={[styles.tick, { color: tick === 'read' ? t.blue : t.soft }]}>{tick === 'pending' ? '◷' : tick === 'read' ? '✓✓' : '✓'}</Text>}
-            <Text numberOfLines={2} style={[styles.prev, { color: unread ? t.ink : t.soft, fontSize: 15 * fs, lineHeight: 20 * fs }]}>
+            <Text numberOfLines={compact ? 1 : 2} style={[styles.prev, { color: unread ? t.ink : t.soft, fontSize: 15 * fs, lineHeight: 20 * fs }]}>
               {r.typing.length ? <Text style={{ color: t.blue }}>typing…</Text> : draft ? <><Text style={{ color: t.red }}>Draft: </Text>{draft}</> : preview(r)}
             </Text>
             {S.reminders[r.id] ? <Ionicons name="alarm" size={14} color={t.soft} /> : null}
@@ -112,7 +114,8 @@ export function ChatList({ tab }: { tab: Tab }) {
   const open = (id: string) => { if (wide) setSelected(id); else router.push({ pathname: '/chat/[id]', params: { id } }); };
   const title = archived ? 'Archived' : tab === 'all' ? 'Inbox' : NETS[tab].label;
   const starredView = kind === 'starred' && !archived && !q;
-  const paneW = wide ? Math.min(420, Math.max(340, width * 0.38)) : width;
+  const paneW = wide ? Math.round(Math.min(420, Math.max(190, width * (width < 700 ? 0.44 : 0.38)))) : width;
+  const compact = wide && paneW < 300;
 
   const header = (
     <View style={{ paddingTop: ins.top + 6 }}>
@@ -120,6 +123,22 @@ export function ChatList({ tab }: { tab: Tab }) {
         {archived && <Pressable onPress={() => setArchived(false)} hitSlop={12}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>}
         <Text style={[styles.title, { color: t.ink }]}>{title}</Text>
       </View>
+      {wide && (
+        <Glass style={styles.switcher}>
+          {([['all', '/inbox'], ['whatsapp', '/whatsapp'], ['instagram', '/instagram'], ['messenger', '/messenger'], ['accounts', '/accounts']] as const).map(([k, href]) => {
+            const on = k === tab; const c = k === 'accounts' ? 0 : counts[k] || 0;
+            const col = on ? t.ink : t.soft;
+            return (
+              <Pressable key={k} hitSlop={4} onPress={() => { Haptics.selectionAsync().catch(() => {}); if (!on) router.navigate(href); }} style={[styles.swBtn, on && { backgroundColor: t.fill }]}>
+                {k === 'all' ? <Ionicons name="file-tray" size={21} color={col} /> : k === 'whatsapp' ? <Ionicons name="logo-whatsapp" size={21} color={col} />
+                  : k === 'instagram' ? <Ionicons name="logo-instagram" size={21} color={col} /> : k === 'messenger' ? <MaterialCommunityIcons name="facebook-messenger" size={21} color={col} />
+                  : <Ionicons name="person-circle-outline" size={23} color={col} />}
+                {c > 0 && <View style={[styles.swBadge, { backgroundColor: t.red }]}><Text style={styles.swBadgeTxt}>{c > 99 ? '99+' : c}</Text></View>}
+              </Pressable>
+            );
+          })}
+        </Glass>
+      )}
       <View style={[styles.search, { backgroundColor: t.fill }]}>
         <Ionicons name="search" size={17} color={t.soft} />
         <TextInput value={q} onChangeText={setQ} placeholder="Search chats and messages" placeholderTextColor={t.soft} style={{ flex: 1, color: t.ink, fontSize: 17 }} autoCorrect={false} returnKeyType="search" />
@@ -184,7 +203,7 @@ export function ChatList({ tab }: { tab: Tab }) {
       ) : (
         <FlatList
           data={list} keyExtractor={r => r.id} extraData={[v, selected]}
-          renderItem={({ item }) => <Row r={item} t={t} open={open} onMore={setMore} selected={wide && item.id === selected} fs={fs} v={v} />}
+          renderItem={({ item }) => <Row r={item} t={t} open={open} onMore={setMore} selected={wide && item.id === selected} fs={fs} v={v} compact={compact} />}
           ListHeaderComponent={header} ListFooterComponent={searchFooter}
           ListEmptyComponent={q ? undefined : (
             <View style={styles.empty}>
@@ -271,6 +290,10 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row' },
   act: { width: 78, alignItems: 'center', justifyContent: 'center', gap: 4 },
   actTxt: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  switcher: { flexDirection: 'row', marginHorizontal: 16, marginTop: 10, borderRadius: 24, padding: 4, overflow: 'hidden', justifyContent: 'space-between' },
+  swBtn: { flex: 1, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  swBadge: { position: 'absolute', top: 1, right: 8, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
+  swBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
   numInput: { height: 50, borderRadius: 12, paddingHorizontal: 14, fontSize: 17, marginBottom: 10 },
   bigBtn: { height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
 });

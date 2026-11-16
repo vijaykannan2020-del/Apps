@@ -387,3 +387,4 @@ Newest first. Add one line per change: date, who, version, what.
 - Earlier: real app at Version 13 (search fixes, posters, Post page,
   AI reviews, multi-platform texts, saved reviews, self-update).
 - 2026-11-16 · inbox-app build 4: native iOS tab bar (Liquid Glass on iOS 26+, minimizes on scroll, unread badges) replaces the custom dock; floating Liquid Glass chat header (expo-glass-effect, blur fallback); iPhone Duo fold/unfold keeps the open chat (two-pane at ≥600pt ↔ full-screen chat).
+- 2026-11-16 · inbox-app build 5: brand logos in tab bar; unfold detection by aspect ratio (Duo open ≈466×678pt); side tab bar hidden when unfolded, glass app switcher in list pane; compact two-pane list; screen size shown in Accounts.
