@@ -347,6 +347,35 @@ form#comp.recording #txt,form#comp.recording #attach{display:none}
 .kinds{overflow-x:auto;scrollbar-width:none}.kinds::-webkit-scrollbar{display:none}
 .kinds button{white-space:nowrap}
 .dtpick{width:100%;margin-bottom:8px;padding:12px 14px;border-radius:12px;border:0;background:var(--fill);color:var(--ink)}
+
+/* ---- v36: smooth motion ---- */
+:root{--spring:cubic-bezier(.32,.72,0,1);--ease-out:cubic-bezier(.2,.8,.2,1)}
+@media (max-width:760px){
+  #chat{transition:transform .5s var(--spring)!important;box-shadow:-8px 0 28px rgba(0,0,0,.18)}
+  #side{transition:transform .5s var(--spring),filter .5s var(--spring);will-change:transform}
+  #app.open #side{transform:translateX(-26%);filter:brightness(.82)}
+  #app.dragging #chat,#app.dragging #side{transition:none!important}
+}
+#sheet{transition:transform .45s var(--spring)!important;will-change:transform}
+#sheet.dragging{transition:none!important}
+#veil{transition:opacity .35s ease!important}
+#info{transition:transform .45s var(--spring)!important}
+#toast{transition:opacity .25s ease,transform .35s var(--spring)!important;transform:translateX(-50%) translateY(14px) scale(.96)}
+#toast.on{transform:translateX(-50%) translateY(0) scale(1)}
+#list,#tl{overscroll-behavior-y:contain}
+#list > .swipe{content-visibility:auto;contain-intrinsic-size:auto 76px}
+.row{transition:background-color .18s ease}
+.row:active{background:var(--fill)}
+button,.btn,.kinds button,.nav button{transition:transform .18s var(--ease-out),background-color .2s ease,color .2s ease,opacity .2s ease}
+button:active,.btn:active{transform:scale(.96)}
+.nav button:active{transform:scale(.92)}
+.msg img,.lp img{opacity:0;transition:opacity .3s ease}
+.msg img.ld,.lp img.ld{opacity:1}
+.view:not([hidden]){animation:vin .32s var(--spring)}
+@keyframes vin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#toBottom{transition:opacity .25s ease,transform .35s var(--spring)!important}
+#mentions:not([hidden]),#replyBar:not([hidden]){animation:vin .25s var(--spring)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
@@ -442,7 +471,7 @@ form#comp.recording #txt,form#comp.recording #attach{display:none}
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 35; // bump on every change (shown in Accounts)
+const APP_VERSION = 36; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -538,8 +567,45 @@ function loadPhoto(img, mxc, size) {
 function loadInto(el, mxc, size, attr = 'src') {
   if (!mxcParts(mxc)) return;
   const ready = mediaReady.get(mxc + '|' + (size || 0));
-  if (ready) { el[attr] = ready; return; }
+  if (ready) { el[attr] = ready; if (el.classList) el.classList.add('ld'); return; }
   mediaUrl(mxc, size).then(u => { el[attr] = u; }).catch(() => {});
+}
+
+
+document.addEventListener('load', e => { const t = e.target; if (t && t.tagName === 'IMG') t.classList.add('ld'); }, true);
+document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG') t.classList.add('ld'); }, true);
+// ---------- smooth re-render: reuse unchanged nodes, animate moves and new items ----------
+const normSig = n => n.outerHTML.replace(/ src="blob:[^"]*"/g, '').replace(/ class="ld"/g, '').replace(/ ld\b/g, '');
+function sig(n) { if (n._sig === undefined) n._sig = normSig(n); return n._sig; }
+function morph(live, fresh, opt = {}) {
+  const oldKids = [...live.children], newKids = [...fresh.children];
+  const keyOf = n => n.dataset ? (n.dataset.key || n.dataset.id || '') : '';
+  const byKey = new Map(), bySig = new Map();
+  for (const n of oldKids) { const k = keyOf(n); if (k) byKey.set(k, n); else { const g = sig(n); (bySig.get(g) || bySig.set(g, []).get(g)).push(n); } }
+  let tops = null;
+  if (opt.flip && oldKids.length) {
+    tops = new Map(); const vh = window.innerHeight;
+    for (const [k, n] of byKey) { const r = n.getBoundingClientRect(); if (r.bottom > -200 && r.top < vh + 200) tops.set(k, r.top); }
+  }
+  const used = new Set(), out = [], fresh2 = [];
+  for (const n of newKids) {
+    n._sig = normSig(n);
+    const k = keyOf(n);
+    let o = null;
+    if (k) { o = byKey.get(k); if (o && (used.has(o) || o._sig !== n._sig)) o = null; }
+    else { const arr = bySig.get(n._sig); while (arr && arr.length && !o) { const c = arr.shift(); if (!used.has(c)) o = c; } }
+    if (o) { used.add(o); out.push(o); } else { out.push(n); if (!k || !byKey.has(k)) fresh2.push(n); }
+  }
+  for (const n of oldKids) if (!used.has(n)) n.remove();
+  out.forEach((n, i) => { if (live.children[i] !== n) live.insertBefore(n, live.children[i] || null); });
+  if (tops && tops.size) {
+    for (const n of out) {
+      const k = keyOf(n), t = k && tops.get(k); if (t === undefined || !k) continue;
+      const d = t - n.getBoundingClientRect().top;
+      if (Math.abs(d) > 1 && Math.abs(d) < 2000) n.animate([{ transform: `translateY(${d}px)` }, { transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.32,.72,0,1)' });
+    }
+  }
+  if (opt.enter) for (const n of fresh2) if (opt.enter(n)) n.animate([{ opacity: 0, transform: 'translateY(10px) scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.32,.72,0,1)' });
 }
 
 // ---------- rooms ----------
@@ -935,6 +1001,14 @@ function renderTabs(all) {
 function showList() { S.view = 'list'; $('#listView').hidden = false; $('#acctView').hidden = true; renderList(); }
 function showAccounts() { renderAppearance(); $('#updTxt').textContent = 'Version ' + APP_VERSION + ' · tap to check'; S.view = 'accounts'; $('#listView').hidden = true; $('#acctView').hidden = false; renderAccounts(); renderNotif(); renderList(); }
 function renderList() {
+  const live = $('#list'), tmp = document.createElement('ul');
+  const first = !live.children.length || live._kind !== S.kind + '|' + S.filter + '|' + S.showArchived + '|' + (S.q.trim().length >= 2);
+  live._kind = S.kind + '|' + S.filter + '|' + S.showArchived + '|' + (S.q.trim().length >= 2);
+  renderListInto(tmp);
+  if (first) { live.innerHTML = ''; [...tmp.children].forEach(n => { n._sig = normSig(n); live.appendChild(n); }); live.animate([{ opacity: .4 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' }); }
+  else morph(live, tmp, { flip: true, enter: n => n.classList.contains('swipe') });
+}
+function renderListInto(ul) {
   const all = visibleRooms();
   renderTabs(all);
   const q = S.q.toLowerCase();
@@ -961,7 +1035,6 @@ function renderList() {
   const rooms = (S.showArchived ? archived : notArch.filter(r => S.kind === 'unread' ? (isUnread(r) || S.keepUnread.has(r.id)) : S.kind === 'groups' ? isGroup(r) : true))
     .sort((a, b) => (isPinned(b) - isPinned(a)) || (b.lastTs - a.lastTs));
   if (S.showArchived) $('#title').textContent = 'Archived';
-  const ul = $('#list'); ul.innerHTML = '';
   // "Archived" entry at the top (or "back to chats" while viewing archived)
   if (archived.length) {
     const li = document.createElement('li'); li.className = 'row arch';
@@ -1013,12 +1086,12 @@ function renderHits(ul) {
 }
 function renderRooms(ul, rooms) {
   for (const r of rooms) {
-    const wrap = document.createElement('li'); wrap.className = 'swipe';
+    const wrap = document.createElement('li'); wrap.className = 'swipe'; wrap.dataset.key = r.id;
     wrap.innerHTML = '<div class="bg"><span class="l"></span><span class="r"></span></div>';
     wrap.querySelector('.l').textContent = isUnread(r) ? '✓ Read' : '● Unread';
     wrap.querySelector('.r').textContent = isArchived(r) ? 'Unarchive' : 'Archive';
     const li = document.createElement('div');
-    li.className = 'row' + (isUnread(r) ? ' unread' : '') + (r.id === S.current ? ' on' : '');
+    li.className = 'row' + (isUnread(r) ? ' unread' : '') + (r.id === S.current && !matchMedia('(max-width:760px)').matches ? ' on' : '');
     li.appendChild(avatarEl(r));
     const meta = document.createElement('div'); meta.className = 'meta';
     const l1 = document.createElement('div'); l1.className = 'l1';
@@ -1120,7 +1193,7 @@ function showDiagnostics() {
   $('#sheetBody').insertBefore(pre, $('#sheetBody .items'));
 }
 function closeChat() {
-  S.current = null; $('#chat').style.transform = ''; $('#chat').style.transition = '';
+  S.current = null; $('#chat').style.transform = ''; $('#chat').style.transition = ''; $('#side').style.transform = ''; $('#side').style.filter = '';
   $('#app').classList.remove('open');
   renderList();
 }
@@ -1350,7 +1423,7 @@ function renderTimelineInner(jump) {
     if (rx) {
       const parts = [...rx].filter(([, s]) => s.size);
       if (parts.length) {
-        const row = document.createElement('div'); row.className = 'reacts' + (mine ? ' me' : '');
+        const row = document.createElement('div'); row.className = 'reacts' + (mine ? ' me' : ''); row.dataset.key = 'rx' + ev.event_id;
         for (const [k, s] of parts) {
           const sp = document.createElement('span'); sp.textContent = k + (s.size > 1 ? ' ' + s.size : '');
           if (s.has(S.userId)) sp.className = 'mine';
@@ -1363,9 +1436,12 @@ function renderTimelineInner(jump) {
     lastSender = ev.sender; lastTs = ev.origin_server_ts;
   }
   const prevCount = tl._count || 0; tl._count = r.events.length;
-  tl.innerHTML = ''; tl.appendChild(frag);
+  const sameRoom = tl._room === r.id && tl.children.length && !jump; tl._room = r.id;
+  if (!sameRoom) { [...frag.children].forEach(n => { n._sig = normSig(n); }); tl.innerHTML = ''; tl.appendChild(frag); }
+  else { const box = document.createElement('div'); box.appendChild(frag); morph(tl, box, { enter: n => !S._prepending && n.classList.contains('msg') && (!n.classList.contains('me') || (n.dataset.id || '').startsWith('~')) }); }
   const ul = jump && $('#unreadline');
   if (ul) ul.scrollIntoView({ block: 'center' });
+  else if (nearBottom && sameRoom && tl.scrollHeight - oldH > 0 && tl.scrollHeight - oldH < 900) tl.scrollTo({ top: tl.scrollHeight, behavior: 'smooth' });
   else if (nearBottom) tl.scrollTop = tl.scrollHeight;
   else if (S._prepending) tl.scrollTop = oldTop + (tl.scrollHeight - oldH);
   else if (!jump && r.events.length > prevCount && prevCount) newWhileUp += r.events.length - prevCount;
@@ -2266,37 +2342,59 @@ function newChatSheet() {
 
 // ---------- swipe back (own gesture: only from the left edge, never while typing) ----------
 (function edgeBack() {
-  const chat = $('#chat'); let sx = 0, sy = 0, dx = 0, active = false, decided = false;
+  const chat = $('#chat'), side = $('#side'), app = $('#app');
+  let sx = 0, sy = 0, dx = 0, active = false, decided = false, lastX = 0, lastT = 0, vel = 0;
   const keyboardOpen = () => document.activeElement === $('#txt') || (window.visualViewport && visualViewport.height < window.innerHeight - 120);
-  const blocked = () => !matchMedia('(max-width:760px)').matches || !$('#app').classList.contains('open') || keyboardOpen()
+  const blocked = () => !matchMedia('(max-width:760px)').matches || !app.classList.contains('open') || keyboardOpen()
     || $('#info').classList.contains('on') || !$('#viewer').hidden || $('#sheet').classList.contains('on') || $('#comp').classList.contains('recording');
-  const reset = () => { chat.style.transition = ''; chat.style.transform = ''; };
+  const paint = x => { const w = window.innerWidth, f = Math.min(1, x / w); chat.style.transform = `translate3d(${x}px,0,0)`; side.style.transform = `translate3d(${-26 * (1 - f)}%,0,0)`; side.style.filter = `brightness(${0.82 + 0.18 * f})`; };
+  const reset = () => { app.classList.remove('dragging'); chat.style.transform = ''; side.style.transform = ''; side.style.filter = ''; };
   const finish = () => {
-    const go = active && decided && dx > Math.min(120, window.innerWidth * 0.3);
-    active = false; decided = false; reset();
+    const go = active && decided && (dx > window.innerWidth * 0.4 || (vel > 0.45 && dx > 40));
+    active = false; decided = false;
+    app.classList.remove('dragging');
+    void chat.offsetWidth;                       // let the release animate from where the finger was
+    if (go) closeChat(); 
+    chat.style.transform = ''; side.style.transform = ''; side.style.filter = '';
     setTimeout(() => { window.EDGE_SWIPING = false; }, 50);
-    if (go) closeChat();
   };
   chat.addEventListener('touchstart', e => {
-    if (chat.style.transform) reset();           // never leave the chat half-slid
-    active = false; decided = false; dx = 0; window.EDGE_SWIPING = false;
+    if (chat.style.transform && !active) reset();
+    active = false; decided = false; dx = 0; vel = 0; window.EDGE_SWIPING = false;
     if (e.touches.length !== 1 || blocked()) return;
-    const t = e.touches[0]; if (t.clientX > 22) return;
-    sx = t.clientX; sy = t.clientY; active = true; window.EDGE_SWIPING = true;   // blocks long-press + reply on the message underneath
+    const t = e.touches[0]; if (t.clientX > 24) return;
+    sx = t.clientX; sy = t.clientY; lastX = sx; lastT = e.timeStamp; active = true; window.EDGE_SWIPING = true;
   }, { capture: true, passive: true });
   chat.addEventListener('touchmove', e => {
     if (!active) return;
     const t = e.touches[0], x = t.clientX - sx, y = t.clientY - sy;
     if (!decided) {
-      if (Math.abs(x) < 8 && Math.abs(y) < 8) return;
-      if (!(x > 0 && Math.abs(x) > Math.abs(y) * 1.5)) { active = false; window.EDGE_SWIPING = false; return; }
-      decided = true; chat.style.transition = 'none';
+      if (Math.abs(x) < 6 && Math.abs(y) < 6) return;
+      if (!(x > 0 && Math.abs(x) > Math.abs(y) * 1.4)) { active = false; window.EDGE_SWIPING = false; return; }
+      decided = true; app.classList.add('dragging');
     }
-    dx = Math.max(0, x); chat.style.transform = `translateX(${dx}px)`;
+    const dt = e.timeStamp - lastT; if (dt > 0) vel = 0.7 * ((t.clientX - lastX) / dt) + 0.3 * vel; lastX = t.clientX; lastT = e.timeStamp;
+    dx = Math.max(0, x); paint(dx);
   }, { capture: true, passive: true });
-  // listen on window too: iPhone sometimes takes the touch away without telling the chat panel
-  for (const ev of ['touchend', 'touchcancel']) window.addEventListener(ev, () => { if (active || chat.style.transform || window.EDGE_SWIPING) finish(); }, { capture: true });
+  for (const ev of ['touchend', 'touchcancel']) window.addEventListener(ev, () => { if (active || window.EDGE_SWIPING || app.classList.contains('dragging')) finish(); }, { capture: true });
   document.addEventListener('visibilitychange', reset); window.addEventListener('blur', reset);
+})();
+
+// ---------- sheet: drag down to dismiss ----------
+(function sheetDrag() {
+  const sh = $('#sheet'); let sy = 0, dy = 0, on = false, lastY = 0, lastT = 0, vel = 0;
+  sh.addEventListener('touchstart', e => { if (sh.scrollTop > 0 || e.touches.length !== 1) return; on = true; dy = 0; vel = 0; sy = lastY = e.touches[0].clientY; lastT = e.timeStamp; }, { passive: true });
+  sh.addEventListener('touchmove', e => {
+    if (!on) return; const y = e.touches[0].clientY; dy = y - sy;
+    if (dy <= 0) { if (sh.classList.contains('dragging')) { sh.style.transform = ''; } return; }
+    const dt = e.timeStamp - lastT; if (dt > 0) vel = (y - lastY) / dt; lastY = y; lastT = e.timeStamp;
+    sh.classList.add('dragging'); sh.style.transform = `translateY(${dy}px)`; $('#veil').style.opacity = String(Math.max(0, 1 - dy / 400));
+  }, { passive: true });
+  const end = () => {
+    if (!on) return; on = false; sh.classList.remove('dragging'); $('#veil').style.opacity = '';
+    if (dy > 110 || (vel > 0.5 && dy > 30)) { sh.style.transform = ''; closeSheetUI(); } else sh.style.transform = '';
+  };
+  sh.addEventListener('touchend', end); sh.addEventListener('touchcancel', end);
 })();
 
 // ---------- app updates ----------
