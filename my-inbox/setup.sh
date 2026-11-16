@@ -50,9 +50,17 @@ docker compose version >/dev/null 2>&1 || die "docker compose plugin missing"
 say "Securing the server (firewall, auto-updates, swap)"
 export DEBIAN_FRONTEND=noninteractive
 apt-get -o DPkg::Lock::Timeout=600 update -qq
-apt-get -o DPkg::Lock::Timeout=600 install -y -qq ufw fail2ban unattended-upgrades >/dev/null
-ufw allow OpenSSH >/dev/null; ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; ufw allow 443/udp >/dev/null
-ufw --force enable >/dev/null
+apt-get -o DPkg::Lock::Timeout=600 install -y -qq ufw fail2ban unattended-upgrades git curl >/dev/null
+if iptables -S INPUT 2>/dev/null | grep -q 'icmp-host-prohibited'; then
+  # Oracle Cloud images ship their own iptables rules (ufw conflicts with them): open web ports before Oracle's REJECT rule
+  for rule in "-p tcp --dport 80" "-p tcp --dport 443" "-p udp --dport 443"; do
+    iptables -C INPUT $rule -m state --state NEW -j ACCEPT 2>/dev/null || iptables -I INPUT 5 $rule -m state --state NEW -j ACCEPT
+  done
+  command -v netfilter-persistent >/dev/null && netfilter-persistent save >/dev/null 2>&1 || true
+else
+  ufw allow OpenSSH >/dev/null; ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; ufw allow 443/udp >/dev/null
+  ufw --force enable >/dev/null
+fi
 systemctl enable --now fail2ban >/dev/null 2>&1 || true
 dpkg-reconfigure -f noninteractive unattended-upgrades >/dev/null 2>&1 || true
 if ! swapon --show | grep -q .; then
