@@ -324,6 +324,29 @@ form#comp.recording #txt,form#comp.recording #attach{display:none}
 #mic{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--ink);flex-shrink:0}
 #mic svg{width:22px;height:22px}
 .pwform{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+
+/* ---- v33 ---- */
+.lp{display:block;margin-top:8px;border-radius:12px;overflow:hidden;background:rgba(127,127,127,.14);text-decoration:none!important;color:inherit;max-width:300px}
+.lp img{display:block;width:100%;max-height:160px;object-fit:cover;background:var(--fill)}
+.lp .lpt{padding:7px 10px 8px;font-size:calc(13px * var(--fs,1));line-height:1.3}
+.lp .lpt b{display:block;font-size:calc(14px * var(--fs,1));white-space:normal}
+.lp .lpt span{opacity:.7}
+.callb{display:flex;flex-direction:column;gap:8px}
+.callb .cbtn{align-self:flex-start;background:var(--primary);color:var(--primary-text);border-radius:999px;padding:7px 14px;font-weight:600;font-size:calc(14px * var(--fs,1))}
+#mentions{display:flex;flex-direction:column;padding:6px 10px 0;max-height:220px;overflow-y:auto}
+#mentions button{display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:10px;text-align:left;font-weight:600}
+#mentions button:active{background:var(--fill)}
+.toggle{width:51px;height:31px;border-radius:999px;background:var(--fill);position:relative;flex-shrink:0;transition:background .2s}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);transition:transform .2s}
+.toggle.on{background:#34C759}.toggle.on::after{transform:translateX(20px)}
+.schedrow{display:flex;align-items:center;gap:10px;padding:10px 14px}
+.schedrow + .schedrow{border-top:1px solid var(--line)}
+.schedrow .tx{flex:1;min-width:0}
+.schedrow .tx span{display:block;color:var(--soft);font-size:calc(13px * var(--fs,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.schedrow button{color:var(--red);font-weight:600}
+.kinds{overflow-x:auto;scrollbar-width:none}.kinds::-webkit-scrollbar{display:none}
+.kinds button{white-space:nowrap}
+.dtpick{width:100%;margin-bottom:8px;padding:12px 14px;border-radius:12px;border:0;background:var(--fill);color:var(--ink)}
 </style>
 </head>
 <body>
@@ -363,6 +386,10 @@ form#comp.recording #txt,form#comp.recording #attach{display:none}
         <div class="setlabel">Theme</div><div class="seg" id="segTheme"></div>
         <div class="setlabel">Accent colour</div><div class="dots" id="dotsAccent"></div>
       </div></div>
+      <div class="group"><h4>Privacy</h4><div class="card">
+        <button class="acct" id="tgReceipts"><span class="tx"><b>Send read receipts</b><small>Off: people won't see blue ticks when you read</small></span><span class="toggle"></span></button>
+        <button class="acct" id="tgTyping"><span class="tx"><b>Show when I'm typing</b><small>Others see "typing…" while you write</small></span><span class="toggle"></span></button>
+      </div></div>
       <div class="group"><h4>App</h4><div class="card">
         <button class="acct" id="updBtn">
           <span class="dot2" style="background:#30B0C7"><svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 0 1 7.7 5.9h-2.1A6 6 0 0 0 6.3 9H9v2H3V5h2v2.3A8 8 0 0 1 12 4zm-7.7 10.1h2.1A6 6 0 0 0 17.7 15H15v-2h6v6h-2v-2.3A8 8 0 0 1 4.3 14.1z"/></svg></span>
@@ -394,6 +421,7 @@ form#comp.recording #txt,form#comp.recording #attach{display:none}
     <button type="button" id="toBottom" hidden aria-label="Jump to latest"><svg class="i" viewBox="0 0 24 24" style="stroke-width:2.2"><path d="M6 9l6 6 6-6"/></svg></button>
     <section id="info" aria-label="Chat info"></section>
     <div id="cbottom" hidden>
+    <div id="mentions" hidden></div>
     <div id="chips" hidden></div>
     <div id="replyBar" hidden><div class="rb"><b id="rbTitle"></b><span id="rbText"></span></div><button type="button" id="rbClose" aria-label="Cancel">✕</button></div>
     <form id="comp" hidden>
@@ -414,7 +442,7 @@ form#comp.recording #txt,form#comp.recording #attach{display:none}
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 32; // bump on every change (shown in Accounts)
+const APP_VERSION = 33; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -450,7 +478,7 @@ const PALETTE = ['#5b6cff','#e0664f','#2fa37a','#c25bd6','#d99a2b','#3c9bd6','#d
 const S = {
   token: store.get('tok'), userId: store.get('uid'), since: null,
   rooms: new Map(), filter: 'all', q: '', current: null, firstSync: true, view: 'list',
-  presence: new Map(),
+  presence: new Map(), reminders: {}, starred: [], canSchedule: null,
   muted: new Set(), showArchived: false, replyTo: null, editing: null, kind: 'all', keepUnread: new Set(),
 };
 const domain = () => (S.userId || '').split(':').slice(1).join(':');
@@ -687,7 +715,7 @@ function saveSnapshot(limit = 30) {
       prevBatch: events.length < r.events.length ? (r.prevBatch || null) : r.prevBatch, members, events,
       tags: r.tags, markedUnread: r.markedUnread, readBy: [...r.readBy] });
   }
-  try { store.set(SNAP_KEY, JSON.stringify({ uid: S.userId, since: S.since, muted: [...S.muted], rooms })); }
+  try { store.set(SNAP_KEY, JSON.stringify({ uid: S.userId, since: S.since, muted: [...S.muted], reminders: S.reminders, starred: S.starred, rooms })); }
   catch { if (limit > 5) saveSnapshot(Math.floor(limit / 3)); }   // storage full: keep fewer messages
 }
 function loadSnapshot() {
@@ -703,7 +731,7 @@ function loadSnapshot() {
     for (const e of x.events || []) { r.idx.set(e.event_id, e); r.events.push(e); }
   }
   S.since = snap.since;
-  S.muted = new Set(snap.muted || []);
+  S.muted = new Set(snap.muted || []); S.reminders = snap.reminders || {}; S.starred = snap.starred || [];
   S.firstSync = false;
   return true;
 }
@@ -714,7 +742,7 @@ async function syncLoop() {
     room: { timeline: { limit: 25 }, state: { lazy_load_members: true },
       account_data: { types: ['m.tag', 'm.marked_unread', 'com.famedly.marked_unread'] },
       ephemeral: { types: ['m.receipt', 'm.typing'] } },
-    presence: { types: ['m.presence'] }, account_data: { types: ['m.push_rules'] },
+    presence: { types: ['m.presence'] }, account_data: { types: ['m.push_rules', 'inbox.reminders', 'inbox.starred'] },
   }));
   let backoff = 1000;
   while (S.token) {
@@ -769,6 +797,8 @@ function processSync(d) {
   }
   if (presenceChanged && S.current) { const cr = S.rooms.get(S.current); if (cr) updateHeader(cr); }
   for (const ev of (d.account_data && d.account_data.events) || []) {
+    if (ev.type === 'inbox.reminders') { S.reminders = (ev.content || {}).reminders || {}; continue; }
+    if (ev.type === 'inbox.starred') { S.starred = (ev.content || {}).items || []; continue; }
     if (ev.type !== 'm.push_rules') continue;
     const rules = ((ev.content || {}).global || {}).room || [];
     S.muted = new Set(rules.filter(x => x.enabled !== false && (!x.actions || !x.actions.length || x.actions.includes('dont_notify'))).map(x => x.rule_id));
@@ -912,9 +942,9 @@ function renderList() {
     .filter(r => S.filter === 'all' || netOf(r) === S.filter)
     .filter(r => !q || roomName(r).toLowerCase().includes(q));
   // All / Unread / Groups chips
-  const kinds = [['all', 'All'], ['unread', 'Unread'], ['groups', 'Groups']];
+  const kinds = [['all', 'All'], ['unread', 'Unread'], ['groups', 'Groups'], ['starred', '⭐ Starred']];
   const notArch = inTab.filter(r => !isArchived(r));
-  const kc = { all: 0, unread: notArch.filter(isUnread).length, groups: notArch.filter(isGroup).length };
+  const kc = { all: 0, unread: notArch.filter(isUnread).length, groups: notArch.filter(isGroup).length, starred: S.starred.length };
   const kel = $('#kinds'); kel.innerHTML = '';
   for (const [k, label] of kinds) {
     const b = document.createElement('button'); b.type = 'button';
@@ -924,6 +954,7 @@ function renderList() {
     b.onclick = () => { S.kind = k; S.showArchived = false; S.keepUnread.clear(); renderList(); $('#list').scrollTop = 0; };
     kel.appendChild(b);
   }
+  const nb = document.createElement('button'); nb.type = 'button'; nb.textContent = '＋ New'; nb.onclick = newChatSheet; kel.appendChild(nb);
   kel.hidden = S.showArchived;
   const archived = S.kind === 'all' ? inTab.filter(isArchived) : [];
   if (S.showArchived && !archived.length) S.showArchived = false;
@@ -941,6 +972,7 @@ function renderList() {
     li.onclick = () => { S.showArchived = !S.showArchived; renderList(); $('#list').scrollTop = 0; };
     ul.appendChild(li);
   }
+  if (S.kind === 'starred' && !S.showArchived) { [...ul.querySelectorAll('.arch')].forEach(x => x.remove()); renderStarred(ul); return; }
   const searching = S.q.trim().length >= 2 && !S.showArchived;
   if (searching) { const h = document.createElement('li'); h.className = 'sechead'; h.textContent = rooms.length ? 'Chats' : 'No chats named "' + S.q.trim() + '"'; ul.appendChild(h); }
   if (searching) { renderRooms(ul, rooms.slice(0, 20)); renderHits(ul); return; }
@@ -1011,6 +1043,7 @@ function renderRooms(ul, rooms) {
     const muted = S.muted.has(r.id);
     if (muted) { const i = document.createElement('span'); i.className = 'ic'; i.textContent = '🔕'; l2.appendChild(i); }
     if (isPinned(r)) { const i = document.createElement('span'); i.className = 'ic'; i.textContent = '📌'; l2.appendChild(i); }
+    if (S.reminders[r.id]) { const i = document.createElement('span'); i.className = 'ic'; i.textContent = '⏰'; l2.appendChild(i); }
     if (r.unread) { const b = document.createElement('span'); b.className = 'badge' + (muted ? ' muted' : ''); b.textContent = r.unread > 99 ? '99+' : r.unread; l2.appendChild(b); }
     else if (r.markedUnread) { const b = document.createElement('span'); b.className = 'badge dot'; l2.appendChild(b); }
     meta.append(l1, l2); li.appendChild(meta);
@@ -1041,7 +1074,7 @@ function openChat(id, fromHistory) {
   if (r.unread > 0) { const theirs = r.events.filter(e => e.sender !== S.userId && !e.redacted); const first = theirs[Math.max(0, theirs.length - r.unread)]; if (first) r._unreadFrom = first.event_id; }
   if (r.markedUnread) setMarkedUnread(r, false);
   clearCompose();
-  $('#txt').value = drafts[id] || ''; autosize(); newWhileUp = 0;
+  $('#txt').value = drafts[id] || ''; autosize(); newWhileUp = 0; S.mentions = []; $('#mentions').hidden = true; stopTyping();
   setTimeout(() => { updateMic(); updateToBottom(); }, 0);
   renderChips(r);
   $('#app').classList.add('open');
@@ -1215,6 +1248,17 @@ function msgEl(r, ev) {
     el.appendChild(a);
   } else {
     if (kind === 'm.notice' && !mine) el.classList.add('notice');
+    if (!mine && /\b(call|calling)\b/i.test(c.body || '') && /(incoming|missed|call (ended|started)|answer|voice call|video call)/i.test(c.body || '') && (kind === 'm.notice' || isBot(ev.sender))) {
+      el.classList.add('callb');
+      const t = document.createElement('div'); t.textContent = '📞 ' + (c.body || 'Call'); el.appendChild(t);
+      const n = netOf(r);
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'cbtn';
+      b.textContent = 'Open ' + (n ? NETS[n].label : 'app');
+      b.onclick = e => { e.stopPropagation(); location.href = n === 'instagram' ? 'instagram://direct-inbox' : n === 'messenger' ? 'fb-messenger://' : 'whatsapp://'; };
+      el.appendChild(b);
+      el.dataset.id = ev.event_id || '';
+      return el;
+    }
     let raw = c.body || '';
     if (!raw.trim() && c.formatted_body) { const d = document.createElement('div'); d.innerHTML = c.formatted_body.replace(/<br\s*\/?>/gi, '\n'); raw = d.textContent || ''; }
     const body = stripReply(raw);
@@ -1229,6 +1273,8 @@ function msgEl(r, ev) {
       el.appendChild(q);
     }
     linkify(el, kind === 'm.emote' ? '* ' + body : body);
+    const firstUrl = (/\bhttps?:\/\/[^\s<>()\]]+/.exec(mdPlain(body)) || [])[0];
+    if (firstUrl && !/instagram\.com\/(reel|reels|p)\//.test(firstUrl) && r.events.indexOf(ev) >= r.events.length - 40) attachPreview(el, firstUrl.replace(/[.,;:!?'")]+$/, ''));
   }
   // Caption under a photo / video / file
   const cap = ['m.image', 'm.video', 'm.audio', 'm.file'].includes(kind) ? captionOf(c) : '';
@@ -1248,7 +1294,7 @@ function msgEl(r, ev) {
   }
   if (!el.classList.contains('media')) {
     const ts = document.createElement('span'); ts.className = 'ts';
-    ts.textContent = (ev.edited ? 'edited · ' : '') + (ev.failed ? 'failed' : new Date(ev.origin_server_ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
+    ts.textContent = (isStarred(ev) ? '⭐ ' : '') + (ev.edited ? 'edited · ' : '') + (ev.failed ? 'failed' : new Date(ev.origin_server_ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
     if (mine && !ev.failed && !botNetOf(r)) {
       const t = document.createElement('span'); t.className = 'tick';
       if (ev.pending) t.textContent = '🕓';
@@ -1360,7 +1406,7 @@ function markRead() {
   const last = [...r.events].reverse().find(e => !e.pending && !e.failed && e.event_id && !e.event_id.startsWith('~'));
   if (!last || r.lastReceipt === last.event_id) return;
   r.lastReceipt = last.event_id;
-  api('POST', `/_matrix/client/v3/rooms/${enc(r.id)}/receipt/m.read/${enc(last.event_id)}`, {}).catch(() => {});
+  api('POST', `/_matrix/client/v3/rooms/${enc(r.id)}/receipt/${receiptType()}/${enc(last.event_id)}`, {}).catch(() => {});
 }
 
 // ---------- long-press, sheets, toast ----------
@@ -1446,7 +1492,7 @@ async function markChatRead(r) {
   const last = [...r.events].reverse().find(e => e.event_id && !e.event_id.startsWith('~'));
   r.unread = 0; if (r.markedUnread) setMarkedUnread(r, false);
   scheduleList();
-  if (last) api('POST', `/_matrix/client/v3/rooms/${enc(r.id)}/receipt/m.read/${enc(last.event_id)}`, {}).catch(() => {});
+  if (last) api('POST', `/_matrix/client/v3/rooms/${enc(r.id)}/receipt/${receiptType()}/${enc(last.event_id)}`, {}).catch(() => {});
 }
 async function setTag(r, tag, on) {
   const before = { ...r.tags };
@@ -1473,6 +1519,7 @@ function chatActions(r) {
     { label: pinned ? 'Unpin' : 'Pin to top', icon: '📌', fn: () => setTag(r, 'm.favourite', !pinned) },
     { label: muted ? 'Unmute' : 'Mute notifications', icon: muted ? '🔔' : '🔕', fn: () => setMuted(r, !muted) },
     { label: arch ? 'Unarchive' : 'Archive', icon: '🗄', fn: () => { setTag(r, 'm.lowpriority', !arch); toast(arch ? 'Moved back to chats' : 'Archived'); } },
+    { label: S.reminders[r.id] ? 'Reminder: ' + fmtWhen(S.reminders[r.id]) : 'Remind me', icon: '⏰', fn: () => reminderSheet(r) },
   ] });
 }
 
@@ -1515,6 +1562,7 @@ function messageActions(r, ev) {
   if (mine && isText && !bot && ev.type === 'm.room.message') items.push({ label: 'Edit', icon: '✎', fn: () => startEdit(r, ev) });
   if (mine && !bot) items.push({ label: 'Delete for everyone', icon: '🗑', danger: true, fn: () => confirmDelete(r, ev) });
   if (!bot) items.splice(1, 0, { label: 'Forward', icon: '↪︎', fn: () => forwardMessage(ev) });
+  if (!bot) items.splice(2, 0, { label: isStarred(ev) ? 'Unstar' : 'Star', icon: '⭐', fn: () => toggleStar(r, ev) });
   openSheet({ title: bot ? '' : bodyPreview(ev), emojis: bot ? null : QUICK, mineEmoji: new Set(myReactions(r, ev).keys()), onEmoji: e => toggleReaction(r, ev, e), items });
   if (!bot) { const row = $('#sheet .emojis'); if (row) { const plus = document.createElement('button'); plus.type = 'button'; plus.className = 'more'; plus.textContent = '＋'; plus.onclick = () => emojiGrid(r, ev); row.appendChild(plus); } }
 }
@@ -1551,10 +1599,23 @@ async function editMessage(r, ev, text) {
   try { await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/send/m.room.message/${newTxn()}`, content); }
   catch { ev.content = old; ev.edited = oldEdited; renderTimeline(); toast('Could not edit (WhatsApp allows edits for 15 minutes)'); }
 }
+function buildContent(r, text) {
+  const content = { msgtype: 'm.text', body: withPrefix(r, text) };
+  const used = (S.mentions || []).filter(m => text.includes('@' + m.name));
+  if (used.length) {
+    const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    let html = esc(text);
+    for (const m of used) html = html.split(esc('@' + m.name)).join(`<a href="https://matrix.to/#/${esc(m.id)}">@${esc(m.name)}</a>`);
+    content.format = 'org.matrix.custom.html'; content.formatted_body = html.replace(/\n/g, '<br>');
+    content['m.mentions'] = { user_ids: [...new Set(used.map(m => m.id))] };
+  }
+  return content;
+}
 function sendComposer(text) {
   const r = S.rooms.get(S.current); if (!r || !text.trim()) return;
   if (S.editing) { const ev = S.editing; S.editing = null; $('#replyBar').hidden = true; editMessage(r, ev, text); return; }
-  const content = { msgtype: 'm.text', body: withPrefix(r, text) };
+  stopTyping();
+  const content = buildContent(r, text); S.mentions = []; $('#mentions').hidden = true;
   const rt = S.replyTo;
   if (rt && rt.event_id && !rt.event_id.startsWith('~')) content['m.relates_to'] = { 'm.in_reply_to': { event_id: rt.event_id } };
   clearCompose();
@@ -1704,7 +1765,7 @@ const PREF_KEY = 'inbox-prefs';
 const FS = [['Small', 0.88], ['Default', 1], ['Large', 1.12], ['Extra large', 1.25]];
 const THEMES = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 const ACCENTS = { mono: null, blue: '#0A84FF', green: '#1FA855', purple: '#8B5CF6', pink: '#E1306C' };
-function getPrefs() { try { return Object.assign({ fs: 1, theme: 'auto', accent: 'mono' }, JSON.parse(store.get(PREF_KEY) || '{}')); } catch { return { fs: 1, theme: 'auto', accent: 'mono' }; } }
+function getPrefs() { try { return Object.assign({ fs: 1, theme: 'auto', accent: 'mono', receipts: true, typing: true }, JSON.parse(store.get(PREF_KEY) || '{}')); } catch { return { fs: 1, theme: 'auto', accent: 'mono' }; } }
 function applyPrefs() {
   const p = getPrefs(), root = document.documentElement;
   root.style.setProperty('--fs', p.fs);
@@ -1726,6 +1787,8 @@ function renderAppearance() {
       b.onclick = () => setPref(key, val); el.appendChild(b);
     }
   };
+  $('#tgReceipts .toggle').classList.toggle('on', p.receipts !== false);
+  $('#tgTyping .toggle').classList.toggle('on', p.typing !== false);
   seg($('#segFs'), FS.map(([l, v]) => [l === 'Extra large' ? 'XL' : l, v]), p.fs, 'fs');
   seg($('#segTheme'), THEMES.map(([v, l]) => [l, v]), p.theme, 'theme');
   const d = $('#dotsAccent'); d.innerHTML = '';
@@ -1820,6 +1883,19 @@ async function openInfo() {
       }
       if (list.length > 200) { const more = document.createElement('div'); more.className = 'mem'; more.style.color = 'var(--soft)'; more.textContent = '+ ' + (list.length - 200) + ' more'; box.appendChild(more); }
     } catch { const box = $('#imem'); if (box) box.innerHTML = '<div class="mem" style="color:var(--soft)">Could not load members</div>'; }
+  }
+  const sched = await listScheduled(r.id);
+  if (sched.length && $('#info').classList.contains('on') !== null) {
+    const g = document.createElement('div'); g.className = 'group';
+    g.innerHTML = '<h4>Scheduled messages</h4>'; const card = document.createElement('div'); card.className = 'card';
+    for (const x of sched) {
+      const row = document.createElement('div'); row.className = 'schedrow';
+      const tx = document.createElement('div'); tx.className = 'tx'; const bb = document.createElement('b'); bb.textContent = '⏱ ' + fmtWhen(x.at); const sp = document.createElement('span'); sp.textContent = x.text;
+      tx.append(bb, sp); const cb = document.createElement('button'); cb.type = 'button'; cb.textContent = 'Cancel';
+      cb.onclick = async () => { await cancelScheduled(x.id); openInfo(); };
+      row.append(tx, cb); card.appendChild(row);
+    }
+    g.appendChild(card); el.appendChild(g);
   }
   const g2 = document.createElement('div'); g2.className = 'group';
   g2.innerHTML = '<div class="card"><button class="acct" id="idiag"><span class="tx"><b>Diagnostics</b><small>For troubleshooting</small></span><span class="go">›</span></button></div>';
@@ -1959,6 +2035,234 @@ function changePassword() {
   };
 }
 $('#pwBtn').onclick = changePassword;
+
+
+// ================= v33: schedule send, reminders, starred, privacy, mentions, link previews, new chat =================
+const receiptType = () => getPrefs().receipts === false ? 'm.read.private' : 'm.read';
+function fmtWhen(ts) {
+  const d = new Date(ts), now = new Date(), tm = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (d.toDateString() === now.toDateString()) return 'today ' + tm;
+  const t = new Date(now); t.setDate(t.getDate() + 1);
+  if (d.toDateString() === t.toDateString()) return 'tomorrow ' + tm;
+  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) + ' ' + tm;
+}
+function quickTimes() {
+  const now = new Date(), out = [];
+  out.push(['In 1 hour', Date.now() + 3600e3]);
+  out.push(['In 3 hours', Date.now() + 3 * 3600e3]);
+  const t8 = new Date(now); t8.setHours(20, 0, 0, 0); if (t8 <= now) t8.setDate(t8.getDate() + 1);
+  out.push([(t8.getDate() === now.getDate() ? 'Tonight' : 'Tomorrow') + ' at 8 PM', +t8]);
+  const m9 = new Date(now); m9.setDate(m9.getDate() + 1); m9.setHours(9, 0, 0, 0);
+  out.push(['Tomorrow at 9 AM', +m9]);
+  return out;
+}
+function timeSheet(title, onPick, extraItems) {
+  const items = quickTimes().map(([label, ts]) => ({ label, icon: '', fn: () => onPick(ts) }));
+  items.push({ label: 'Pick date & time…', icon: '📅', fn: () => {
+    const b = $('#sheetBody'); b.innerHTML = '';
+    const t = document.createElement('div'); t.className = 'st'; t.textContent = title; b.appendChild(t);
+    const inp = document.createElement('input'); inp.type = 'datetime-local'; inp.className = 'dtpick';
+    const d = new Date(Date.now() + 3600e3); d.setSeconds(0, 0);
+    inp.value = new Date(d - d.getTimezoneOffset() * 60e3).toISOString().slice(0, 16); b.appendChild(inp);
+    const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'btn'; ok.style.width = '100%'; ok.textContent = 'Set';
+    ok.onclick = () => { const ts = new Date(inp.value).getTime(); if (!ts || ts < Date.now() + 30e3) { toast('Pick a time in the future'); return; } closeSheetUI(); onPick(ts); };
+    b.appendChild(ok);
+    const c = document.createElement('button'); c.type = 'button'; c.className = 'cancel'; c.textContent = 'Cancel'; c.onclick = closeSheetUI; b.appendChild(c);
+    $('#veil').classList.add('on'); $('#sheet').classList.add('on');
+  } });
+  openSheet({ title, items: items.concat(extraItems || []) });
+}
+// ---- schedule send (server sends it, even with the phone off) ----
+const DELAYED = ['/_matrix/client/unstable/org.matrix.msc4140/delayed_events', '/_matrix/client/v1/delayed_events'];
+async function delayedBase() {
+  if (S.canSchedule !== null) return S.canSchedule;
+  for (const b of DELAYED) { try { await api('GET', b); S.canSchedule = b; return b; } catch (e) { if (e.status === 401) break; } }
+  S.canSchedule = false; return false;
+}
+async function scheduleSend(r, text, ts) {
+  const base = await delayedBase();
+  if (!base) { toast('Scheduling is being switched on on your server — try again in a few minutes'); return; }
+  const content = buildContent(r, text); S.mentions = [];
+  try {
+    const res = await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/send/m.room.message/${newTxn()}?org.matrix.msc4140.delay=${Math.round(ts - Date.now())}`, content);
+    if (res.event_id && !res.delay_id) { toast('Sent now — scheduling isn\'t available'); return; }
+    $('#txt').value = ''; autosize(); delete drafts[r.id]; store.set(DRAFT_KEY, JSON.stringify(drafts)); updateMic();
+    toast('⏱ Scheduled for ' + fmtWhen(ts));
+  } catch (e) { toast('Could not schedule: ' + (e.message || 'error')); }
+}
+async function listScheduled(roomId) {
+  const base = await delayedBase(); if (!base) return [];
+  try {
+    const d = await api('GET', base);
+    return (d.delayed_events || []).filter(x => x.room_id === roomId && x.type === 'm.room.message')
+      .map(x => ({ id: x.delay_id, at: (x.running_since || Date.now()) + (x.delay || 0), text: ((x.content || {}).body) || '' }))
+      .sort((a, b) => a.at - b.at);
+  } catch { return []; }
+}
+async function cancelScheduled(id) {
+  const base = await delayedBase(); if (!base) return;
+  try { await api('POST', `${base}/${enc(id)}`, { action: 'cancel' }); toast('Scheduled message cancelled'); } catch { toast('Could not cancel'); }
+}
+longPress($('#send'), () => {
+  const r = S.rooms.get(S.current), text = $('#txt').value;
+  if (!r || !text.trim() || botNetOf(r) || S.editing) return;
+  timeSheet('Send later', ts => scheduleSend(r, text, ts));
+});
+// ---- reminders ----
+async function saveReminders() { try { await api('PUT', `${userPath()}/account_data/inbox.reminders`, { reminders: S.reminders }); } catch {} scheduleSnapshot(); }
+function reminderSheet(r) {
+  const extra = S.reminders[r.id] ? [{ label: 'Remove reminder', icon: '✕', danger: true, fn: () => { delete S.reminders[r.id]; saveReminders(); scheduleList(); toast('Reminder removed'); } }] : [];
+  timeSheet('Remind me about ' + roomName(r), ts => { S.reminders[r.id] = ts; saveReminders(); scheduleList(); toast('⏰ I\'ll remind you ' + fmtWhen(ts)); }, extra);
+}
+function checkReminders() {
+  let changed = false;
+  for (const [id, ts] of Object.entries(S.reminders)) {
+    if (ts > Date.now()) continue;
+    delete S.reminders[id]; changed = true;
+    const r = S.rooms.get(id); if (!r) continue;
+    r.lastTs = Math.max(r.lastTs, Date.now()); setMarkedUnread(r, true);
+    toast('⏰ Reminder: ' + roomName(r));
+    if ('Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) {
+      navigator.serviceWorker.ready.then(reg => reg.showNotification('⏰ ' + roomName(r), { body: 'You asked to be reminded about this chat', tag: 'remind-' + id, data: { room_id: id }, icon: '/icon-192.png' })).catch(() => {});
+    }
+  }
+  if (changed) { saveReminders(); scheduleList(); }
+}
+setInterval(checkReminders, 30e3);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkReminders(); });
+// ---- starred messages ----
+const isStarred = ev => !!ev.event_id && S.starred.some(x => x.event === ev.event_id);
+async function toggleStar(r, ev) {
+  if (isStarred(ev)) S.starred = S.starred.filter(x => x.event !== ev.event_id);
+  else S.starred = [{ room: r.id, event: ev.event_id, ts: ev.origin_server_ts, sender: ev.sender, body: bodyPreview(ev).slice(0, 300) }, ...S.starred].slice(0, 500);
+  renderTimeline(); scheduleList(); toast(isStarred(ev) ? '⭐ Starred' : 'Unstarred');
+  try { await api('PUT', `${userPath()}/account_data/inbox.starred`, { items: S.starred }); } catch { toast('Could not save star'); }
+  scheduleSnapshot();
+}
+function renderStarred(ul) {
+  const h = document.createElement('li'); h.className = 'sechead';
+  h.textContent = S.starred.length ? 'Starred messages' : 'No starred messages yet — long-press a message → Star'; ul.appendChild(h);
+  for (const x of S.starred) {
+    const r = S.rooms.get(x.room); if (!r) continue;
+    const li = document.createElement('li'); li.className = 'row hit';
+    li.appendChild(avatarEl(r));
+    const meta = document.createElement('div'); meta.className = 'meta';
+    const l1 = document.createElement('div'); l1.className = 'l1';
+    const nm = document.createElement('span'); nm.className = 'name'; nm.textContent = roomName(r);
+    const tm = document.createElement('span'); tm.className = 'time'; tm.textContent = fmtTime(x.ts);
+    l1.append(nm, tm);
+    const l2 = document.createElement('div'); l2.className = 'l2';
+    const pv = document.createElement('span'); pv.className = 'prev';
+    pv.textContent = '⭐ ' + (x.sender === S.userId ? 'You: ' : (isGroup(r) ? memberName(r, x.sender).split(' ')[0] + ': ' : '')) + x.body;
+    l2.appendChild(pv); meta.append(l1, l2); li.appendChild(meta);
+    li.onclick = () => openSearchHit({ room_id: x.room, event_id: x.event, origin_server_ts: x.ts, sender: x.sender, type: 'm.room.message', content: { msgtype: 'm.text', body: x.body } });
+    ul.appendChild(li);
+  }
+}
+// ---- privacy toggles ----
+$('#tgReceipts').onclick = () => setPref('receipts', getPrefs().receipts === false);
+$('#tgTyping').onclick = () => { setPref('typing', getPrefs().typing === false); if (getPrefs().typing === false) stopTyping(); };
+// ---- typing indicator ----
+let typingRoom = null, typingSent = 0, typingIdle = null;
+function sendTyping(on) {
+  const r = S.rooms.get(typingRoom); if (!r) return;
+  api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/typing/${enc(S.userId)}`, on ? { typing: true, timeout: 6000 } : { typing: false }).catch(() => {});
+}
+function stopTyping() { clearTimeout(typingIdle); if (typingRoom && typingSent) sendTyping(false); typingRoom = null; typingSent = 0; }
+$('#txt').addEventListener('input', () => {
+  const r = S.rooms.get(S.current);
+  if (!r || botNetOf(r) || getPrefs().typing === false || !$('#txt').value.trim()) { stopTyping(); return; }
+  if (typingRoom !== r.id) { stopTyping(); typingRoom = r.id; }
+  if (Date.now() - typingSent > 4000) { typingSent = Date.now(); sendTyping(true); }
+  clearTimeout(typingIdle); typingIdle = setTimeout(stopTyping, 5000);
+});
+$('#txt').addEventListener('blur', () => setTimeout(stopTyping, 300));
+// ---- @mentions ----
+S.mentions = [];
+async function roomPeople(r) {
+  if (!r._people) {
+    try {
+      const d = await api('GET', `/_matrix/client/v3/rooms/${enc(r.id)}/joined_members`);
+      r._people = Object.entries(d.joined || {}).filter(([id]) => id !== S.userId && !isBot(id))
+        .map(([id, m]) => ({ id, name: cleanName(m.display_name) || id.split(':')[0].slice(1), avatar: m.avatar_url }));
+    } catch { r._people = others(r).map(id => ({ id, name: memberName(r, id) })); }
+  }
+  return r._people;
+}
+$('#txt').addEventListener('input', async () => {
+  const r = S.rooms.get(S.current), box = $('#mentions'), t = $('#txt');
+  if (!r || !isGroup(r) || botNetOf(r)) { box.hidden = true; return; }
+  const before = t.value.slice(0, t.selectionStart || t.value.length);
+  const m = /(^|\s)@([^\s@]{0,30})$/.exec(before);
+  if (!m) { box.hidden = true; return; }
+  const q = m[2].toLowerCase();
+  const people = (await roomPeople(r)).filter(p => p.name.toLowerCase().includes(q)).slice(0, 6);
+  box.innerHTML = '';
+  for (const p of people) {
+    const b = document.createElement('button'); b.type = 'button';
+    const av = document.createElement('div'); av.className = 'av sm'; const c = document.createElement('div'); c.className = 'c';
+    let hh = 0; for (const ch of p.id) hh = (hh * 31 + ch.charCodeAt(0)) >>> 0; c.style.background = PALETTE[hh % PALETTE.length];
+    c.textContent = (p.name.replace(/[^\p{L}\p{N}]/gu, '')[0] || '#').toUpperCase(); av.appendChild(c);
+    b.append(av, document.createTextNode(p.name));
+    b.onclick = () => {
+      const start = before.length - m[2].length - 1;
+      t.value = t.value.slice(0, start) + '@' + p.name + ' ' + t.value.slice(before.length);
+      S.mentions.push({ id: p.id, name: p.name }); box.hidden = true; t.focus(); autosize(); saveDraft(S.current);
+    };
+    box.appendChild(b);
+  }
+  box.hidden = !people.length;
+});
+// ---- link previews (your server fetches the page) ----
+const previewCache = new Map();
+function attachPreview(el, url) {
+  const card = document.createElement('a'); card.className = 'lp'; card.href = url; card.target = '_blank'; card.rel = 'noopener'; card.hidden = true;
+  el.appendChild(card);
+  const fill = d => {
+    if (!d || !(d['og:title'] || d['og:description'])) return;
+    card.innerHTML = '';
+    if (mxcParts(d['og:image'])) { const im = document.createElement('img'); im.alt = ''; loadInto(im, d['og:image'], 320); card.appendChild(im); }
+    const t = document.createElement('div'); t.className = 'lpt';
+    const b = document.createElement('b'); b.textContent = (d['og:title'] || '').slice(0, 120); t.appendChild(b);
+    const sp = document.createElement('span'); sp.textContent = d['og:site_name'] || (() => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } })(); t.appendChild(sp);
+    card.appendChild(t); card.hidden = false;
+  };
+  if (previewCache.has(url)) { const v = previewCache.get(url); if (v && v.then) v.then(fill); else fill(v); return; }
+  const p = api('GET', `/_matrix/client/v1/media/preview_url?url=${enc(url)}`).then(d => { previewCache.set(url, d); return d; }, () => { previewCache.set(url, null); return null; });
+  previewCache.set(url, p); p.then(fill);
+}
+// ---- new chat ----
+function findBotRoom(n) {
+  const bid = botId(n);
+  const cands = [...S.rooms.values()].filter(x => !x.isSpace && (botNetOf(x) === n || ((x.members.get(bid) || {}).membership === 'join' && others(x).length === 0) || (x.heroes.includes(bid) && others(x).length === 0)));
+  const isMgmt = x => x.events.some(e => /management room/i.test((e.content && e.content.body) || ''));
+  return cands.find(isMgmt) || cands.sort((a, b) => b.events.length - a.events.length)[0] || null;
+}
+function newChatSheet() {
+  const b = $('#sheetBody'); b.innerHTML = '';
+  const t = document.createElement('div'); t.className = 'st'; t.textContent = 'New WhatsApp chat'; b.appendChild(t);
+  const inp = document.createElement('input'); inp.className = 'fwsearch'; inp.type = 'tel'; inp.placeholder = 'Phone number with country code, e.g. +91 98765 43210'; b.appendChild(inp);
+  const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'btn'; ok.style.width = '100%'; ok.textContent = 'Start chat'; b.appendChild(ok);
+  const c = document.createElement('button'); c.type = 'button'; c.className = 'cancel'; c.textContent = 'Cancel'; c.onclick = closeSheetUI; b.appendChild(c);
+  $('#veil').classList.add('on'); $('#sheet').classList.add('on'); setTimeout(() => inp.focus(), 250);
+  ok.onclick = async () => {
+    const digits = inp.value.replace(/[^\d]/g, '');
+    if (digits.length < 8) { toast('Enter the full number with country code'); return; }
+    const setup = findBotRoom('whatsapp');
+    if (!setup) { toast('Connect WhatsApp first (Accounts tab)'); return; }
+    closeSheetUI();
+    const known = new Set(S.rooms.keys());
+    try { await api('PUT', `/_matrix/client/v3/rooms/${enc(setup.id)}/send/m.room.message/${newTxn()}`, { msgtype: 'm.text', body: '!wa start-chat +' + digits }); }
+    catch { toast('Could not reach the WhatsApp bridge'); return; }
+    toast('Starting chat with +' + digits + '…');
+    const t0 = Date.now();
+    const iv = setInterval(() => {
+      const hit = [...S.rooms.values()].find(x => (!known.has(x.id) || x.events.length) && others(x).some(id => id.includes(digits)));
+      if (hit) { clearInterval(iv); openChat(hit.id); }
+      else if (Date.now() - t0 > 20e3) { clearInterval(iv); openChat(setup.id); toast('See the WhatsApp setup chat for the bridge\'s reply'); }
+    }, 1500);
+  };
+}
 
 // ---------- app updates ----------
 async function checkVersion(manual) {

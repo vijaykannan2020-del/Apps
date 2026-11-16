@@ -15,6 +15,42 @@ if grep -qE '^\s*enable_status_broadcast: true' data/whatsapp/config.yaml 2>/dev
   echo "$(date -u '+%F %T') WhatsApp Status bridging turned off"
   docker compose restart whatsapp >/dev/null 2>&1 || true
 fi
+# Synapse features for scheduled messages and link previews (added once; rolled back if Synapse won't start)
+HS=data/synapse/homeserver.yaml
+if [ -f "$HS" ] && ! grep -q '^# my-inbox: features v1' "$HS"; then
+  cp "$HS" "$HS.bak-features"
+  cat >> "$HS" <<'EOF'
+# my-inbox: features v1
+experimental_features:
+  msc4140_enabled: true
+max_event_delay_duration: 30d
+url_preview_enabled: true
+url_preview_ip_range_blacklist:
+  - '127.0.0.0/8'
+  - '10.0.0.0/8'
+  - '172.16.0.0/12'
+  - '192.168.0.0/16'
+  - '100.64.0.0/10'
+  - '192.0.0.0/24'
+  - '169.254.0.0/16'
+  - '192.88.99.0/24'
+  - '198.18.0.0/15'
+  - '192.0.2.0/24'
+  - '198.51.100.0/24'
+  - '203.0.113.0/24'
+  - '224.0.0.0/4'
+  - '::1/128'
+  - 'fe80::/10'
+  - 'fc00::/7'
+  - '2001:db8::/32'
+  - 'ff00::/8'
+  - 'fec0::/10'
+EOF
+  docker compose restart synapse >/dev/null 2>&1 || true
+  OK=0; for _ in $(seq 1 45); do sleep 2; if docker compose exec -T synapse curl -fsS http://localhost:8008/health >/dev/null 2>&1; then OK=1; break; fi; done
+  if [ "$OK" = 1 ]; then echo "$(date -u '+%F %T') enabled scheduled messages + link previews"
+  else cp "$HS.bak-features" "$HS"; echo "# my-inbox: features v1 (rolled back)" >> "$HS"; docker compose restart synapse >/dev/null 2>&1 || true; echo "$(date -u '+%F %T') feature config rolled back"; fi
+fi
 REPO=https://github.com/vijaykannan2020-del/Apps
 SHA=$(git ls-remote "$REPO" refs/heads/main 2>/dev/null | cut -f1)
 [ -n "$SHA" ] || exit 0
