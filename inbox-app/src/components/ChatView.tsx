@@ -4,6 +4,8 @@ import { View, Text, TextInput, Pressable, FlatList, StyleSheet, KeyboardAvoidin
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { Glass } from '@/components/Glass';
+import { startCall, callsAvailable } from '@/lib/calls';
+import { useStatusGutter } from '@/lib/layout';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
@@ -13,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { S, Room, MEvent, NETS, roomName, netOf, botNetOf, isGroup, memberName, memberCount, mediaSource, markRead, sendText, sendImage,
   loadOlder, react, mdPlain, captionOf, stripReply, bodyPreview, hueFor, redact, editMessage, forward, isStarred, toggleStar,
-  visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, isUnread, sendRich, roomMembers, setupChips } from '@/lib/matrix';
+  visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, isUnread, sendRich, roomMembers, setupChips , isPrivateRoom } from '@/lib/matrix';
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
@@ -151,7 +153,7 @@ const Bubble = memo(function Bubble({ r, ev, first, last, recent, t, onLong, onR
 });
 
 export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => void; embedded?: boolean }) {
-  const v = useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const { width: winW, height } = useWindowDimensions();
+  const v = useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const { width: winW, height } = useWindowDimensions(); const gut = useStatusGutter();
   const r = S.rooms.get(id);
   const [text, setText] = useState(S.drafts[id] || '');
   const [replyTo, setReplyTo] = useState<MEvent | null>(null); const [editing, setEditing] = useState<MEvent | null>(null);
@@ -244,7 +246,7 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
   }
   async function startRec() {
     const p = await requestRecordingPermissionsAsync();
-    if (!p.granted) { Alert.alert('Microphone', 'Allow microphone access for Expo Go in Settings to send voice messages.'); return; }
+    if (!p.granted) { Alert.alert('Microphone', 'Allow microphone access for Inbox in Settings to send voice messages.'); return; }
     await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
     await recorder.prepareToRecordAsync(); recorder.record(); setRecording(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -361,7 +363,7 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
 
       {/* glass header — controls stay on the left (the iPhone Duo's status pill sits top-right) */}
       <View pointerEvents="none" style={[styles.statusFade, { height: ins.top, backgroundColor: t.bg, opacity: 0.9 }]} />
-      <View pointerEvents="box-none" style={[styles.header, { paddingTop: ins.top + 4 }]}>
+      <View pointerEvents="box-none" style={[styles.header, { paddingTop: ins.top + 4, paddingRight: 12 + gut }]}>
         {onBack && <Glass interactive style={styles.backBtn}><Pressable onPress={onBack} hitSlop={8} style={styles.backHit}><Ionicons name="chevron-back" size={26} color={t.ink} /></Pressable></Glass>}
         <Glass interactive style={styles.hCapsule}>
           <Pressable onPress={showInfo} style={styles.hInfo}>
@@ -372,6 +374,10 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
             </View>
           </Pressable>
         </Glass>
+        {isPrivateRoom(r) && callsAvailable && <>
+          <Glass interactive style={styles.backBtn}><Pressable onPress={() => startCall(r, false).catch((e: any) => Alert.alert('Can’t call', e.message || ''))} hitSlop={6} style={styles.backHit} accessibilityLabel="Voice call"><Ionicons name="call" size={20} color={t.ink} /></Pressable></Glass>
+          <Glass interactive style={styles.backBtn}><Pressable onPress={() => startCall(r, true).catch((e: any) => Alert.alert('Can’t call', e.message || ''))} hitSlop={6} style={styles.backHit} accessibilityLabel="Video call"><Ionicons name="videocam" size={22} color={t.ink} /></Pressable></Glass>
+        </>}
       </View>
 
       {/* message menu */}

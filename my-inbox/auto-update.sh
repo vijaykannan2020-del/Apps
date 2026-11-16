@@ -60,6 +60,61 @@ EOF
   if [ "$OK" = 1 ]; then echo "$(date -u '+%F %T') enabled scheduled messages + link previews"
   else cp "$HS.bak-features" "$HS"; echo "# my-inbox: features v1 (rolled back)" >> "$HS"; docker compose restart synapse >/dev/null 2>&1 || true; echo "$(date -u '+%F %T') feature config rolled back"; fi
 fi
+# Calls: TURN relay (coturn) so voice/video calls connect through any network
+DOMAIN=$(grep -E '^DOMAIN=' .env 2>/dev/null | cut -d= -f2- | tr -d '"' || true)
+if [ -n "$DOMAIN" ] && [ -f data/synapse/homeserver.yaml ]; then
+  mkdir -p data/turn
+  [ -s data/turn/secret ] || { head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 40 > data/turn/secret; chmod 600 data/turn/secret; }
+  TSEC=$(cat data/turn/secret)
+  PUB=$(cat data/turn/public-ip 2>/dev/null || true)
+  if [ -z "$PUB" ] || [ "$(date +%M)" = "07" ]; then NEWPUB=$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || true); [ -n "$NEWPUB" ] && PUB=$NEWPUB && echo "$PUB" > data/turn/public-ip; fi
+  PRIV=$(hostname -I 2>/dev/null | awk '{print $1}')
+  EXT="$PUB"; [ -n "$PRIV" ] && [ "$PRIV" != "$PUB" ] && EXT="$PUB/$PRIV"
+  CONF="listening-port=3478
+fingerprint
+use-auth-secret
+static-auth-secret=$TSEC
+realm=$DOMAIN
+min-port=49160
+max-port=49200
+external-ip=$EXT
+no-tls
+no-dtls
+no-cli
+no-multicast-peers
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+denied-peer-ip=127.0.0.0-127.255.255.255
+denied-peer-ip=169.254.0.0-169.254.255.255
+total-quota=50
+log-file=stdout"
+  if [ -n "$PUB" ] && [ "$CONF" != "$(cat data/turn/turnserver.conf 2>/dev/null)" ]; then
+    printf '%s\n' "$CONF" > data/turn/turnserver.conf; chmod 644 data/turn/turnserver.conf
+    docker compose restart coturn >/dev/null 2>&1 || true
+    echo "$(date -u '+%F %T') call relay (TURN) configured for $EXT"
+  fi
+  # firewall on the server itself (Oracle images use iptables; others ufw)
+  if iptables -S INPUT 2>/dev/null | grep -q 'icmp-host-prohibited'; then
+    CH=0
+    for rule in "-p udp --dport 3478" "-p tcp --dport 3478" "-p udp --dport 49160:49200"; do
+      iptables -C INPUT $rule -m state --state NEW -j ACCEPT 2>/dev/null || { iptables -I INPUT 5 $rule -m state --state NEW -j ACCEPT; CH=1; }
+    done
+    if [ "$CH" = 1 ]; then command -v netfilter-persistent >/dev/null && netfilter-persistent save >/dev/null 2>&1 || true; fi
+  elif command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q 'Status: active' && ! ufw status | grep -q '49160:49200/udp'; then
+    ufw allow 3478 >/dev/null; ufw allow 49160:49200/udp >/dev/null
+  fi
+  HS=data/synapse/homeserver.yaml
+  if ! grep -q '^# my-inbox: turn v1' "$HS"; then
+    cp "$HS" "$HS.bak-turn"
+    printf '%s\n' "# my-inbox: turn v1" "turn_uris:" "  - \"turn:$DOMAIN:3478?transport=udp\"" "  - \"turn:$DOMAIN:3478?transport=tcp\"" \
+      "turn_shared_secret: \"$TSEC\"" "turn_user_lifetime: 1h" "turn_allow_guests: false" >> "$HS"
+    docker compose restart synapse >/dev/null 2>&1 || true
+    OK=0; for _ in $(seq 1 45); do sleep 2; if docker compose exec -T synapse curl -fsS http://localhost:8008/health >/dev/null 2>&1; then OK=1; break; fi; done
+    if [ "$OK" = 1 ]; then echo "$(date -u '+%F %T') calls enabled in Synapse"
+    else cp "$HS.bak-turn" "$HS"; echo "# my-inbox: turn v1 (rolled back)" >> "$HS"; docker compose restart synapse >/dev/null 2>&1 || true; echo "$(date -u '+%F %T') TURN config rolled back"; fi
+  fi
+fi
 # self-check: if the push/backup service code changed but its container wasn't rebuilt, rebuild it now
 PGH=$(cat pushgw/Dockerfile pushgw/server.mjs 2>/dev/null | sha256sum | cut -c1-16)
 if [ -n "$PGH" ] && [ "$PGH" != "$(cat .pushgw-built 2>/dev/null || true)" ]; then

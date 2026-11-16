@@ -77,6 +77,17 @@ function apnsSend(token, payload, { voip = false, sandbox = false, collapse } = 
   });
 }
 
+// Same UUID the app computes for a call (FNV-1a ×4) — CallKit matches the push to the call with it.
+function uuidFor(callId) {
+  let out = '';
+  for (let k = 0; k < 4; k++) {
+    let h = (0x811c9dc5 ^ (k * 0x9e3779b1)) >>> 0;
+    for (let i = 0; i < callId.length; i++) { h ^= callId.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    out += h.toString(16).padStart(8, '0');
+  }
+  return `${out.slice(0, 8)}-${out.slice(8, 12)}-4${out.slice(13, 16)}-a${out.slice(17, 20)}-${out.slice(20, 32)}`.toUpperCase();
+}
+
 const NETS = [['@whatsapp', 'WhatsApp'], ['@instagram', 'Instagram'], ['@messenger', 'Messenger']];
 const netOf = sender => (NETS.find(([p]) => (sender || '').startsWith(p)) || [])[1];
 
@@ -160,7 +171,7 @@ async function notify(body) {
       if (voip) {
         if (!isCall) return; // VoIP pushes are only for ringing
         const c = n.content || {};
-        p = { room_id: n.room_id, call_id: c.call_id, caller: isGroup ? n.room_name : name, sender: n.sender, video: /m=video/.test((c.offer && c.offer.sdp) || ''), lifetime: c.lifetime || 60000 };
+        p = { uuid: uuidFor(String(c.call_id || n.event_id)), room_id: n.room_id, call_id: c.call_id, caller: isGroup ? n.room_name : name, sender: n.sender, video: /m=video/.test((c.offer && c.offer.sdp) || ''), lifetime: c.lifetime || 60000 };
       } else {
         if (callEnd) return;
         const alert = isCall ? { title: name, body: '📞 Incoming call — tap to answer' } : { title: (isGroup ? n.room_name : name) + (net ? ` · ${net}` : ''), body: (isGroup ? name + ': ' : '') + preview(n) };

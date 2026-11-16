@@ -165,6 +165,10 @@ export const isPinned = (r: Room) => !!(r.tags && r.tags['m.favourite']);
 export const isArchived = (r: Room) => !!(r.tags && r.tags['m.lowpriority']);
 export const isUnread = (r: Room) => r.unread > 0 || r.markedUnread;
 const isStatusRoom = (r: Room) => /status@broadcast/i.test(r.channelId || '') || /status broadcast/i.test(r.name || r.bridgeName || '');
+let callHook: ((r: Room, ev: MEvent) => void) | null = null;
+export function setCallHook(f: (r: Room, ev: MEvent) => void) { callHook = f; }
+export { allOthers };
+
 export function visibleRooms() {
   return [...S.rooms.values()].filter(r => !r.isSpace && !botNetOf(r) && !isStatusRoom(r) && (r.events.length || r.name));
 }
@@ -259,7 +263,7 @@ function processSync(d: any, first: boolean) {
     if (tl.limited && !first) { r.events = r.events.filter(e => e.pending); r.idx = new Map(r.events.map(e => [e.event_id, e])); }
     if (r.prevBatch === undefined || tl.limited) r.prevBatch = tl.prev_batch || null;
     const before = r.events.length;
-    (tl.events || []).forEach((ev: MEvent) => addEvent(r, ev));
+    (tl.events || []).forEach((ev: MEvent) => { if (ev.type.startsWith('m.call.') && callHook) { try { callHook(r, ev); } catch (e) { console.warn('call', e); } } addEvent(r, ev); });
     if (!first && id !== S.current && r.events.length > before && !S.muted.has(id) && !botNetOf(r)) {
       const ev = r.events[r.events.length - 1];
       if (ev.sender !== S.userId && !ev.pending && Date.now() - ev.origin_server_ts < 120e3)

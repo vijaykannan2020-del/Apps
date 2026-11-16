@@ -7,16 +7,19 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "runtimeVersion": "2",
+    "runtimeVersion": "3",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vijaykannan.myinbox",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Inbox lets you send photos from your library.",
-        "NSCameraUsageDescription": "Inbox lets you take and send photos.",
+        "NSCameraUsageDescription": "Inbox uses the camera for photos and video calls.",
         "UIBackgroundModes": [
-          "remote-notification"
-        ]
+          "remote-notification",
+          "voip",
+          "audio"
+        ],
+        "NSMicrophoneUsageDescription": "Inbox uses the microphone for voice messages and calls."
       }
     },
     "android": {
@@ -40,7 +43,16 @@
         {
           "mode": "production"
         }
-      ]
+      ],
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Inbox uses the camera for photos and video calls.",
+          "microphonePermission": "Inbox uses the microphone for voice messages and calls."
+        }
+      ],
+      "@config-plugins/react-native-callkeep",
+      "./plugins/withInboxVoip"
     ],
     "experiments": {
       "typedRoutes": false
