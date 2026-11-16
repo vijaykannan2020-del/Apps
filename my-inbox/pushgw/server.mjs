@@ -4,6 +4,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import http2 from 'node:http2';
 import * as wpMod from 'web-push';
 
 const webpush = wpMod.default ?? wpMod;
@@ -24,6 +25,56 @@ let subs = fs.existsSync(subsFile) ? JSON.parse(fs.readFileSync(subsFile, 'utf8'
 function save() {
   fs.writeFileSync(subsFile + '.tmp', JSON.stringify(subs), { mode: 0o600 });
   fs.renameSync(subsFile + '.tmp', subsFile);
+}
+
+// ---- Family members created from the app (so they can find each other) ----
+const famFile = `${DATA}/family.json`;
+let fam = fs.existsSync(famFile) ? JSON.parse(fs.readFileSync(famFile, 'utf8')) : { owner: null, people: [] };
+function saveFam() { fs.writeFileSync(famFile, JSON.stringify(fam), { mode: 0o600 }); }
+
+// ---- Apple push (native iPhone app) ----
+const IOS_APP = 'com.vijaykannan.myinbox';
+const apnsFile = `${DATA}/apns.json`;
+let apns = fs.existsSync(apnsFile) ? JSON.parse(fs.readFileSync(apnsFile, 'utf8')) : null; // {keyId, teamId, key}
+let apnsJwt = null, apnsJwtAt = 0;
+const apnsSessions = {};
+function apnsToken() {
+  if (apnsJwt && Date.now() - apnsJwtAt < 40 * 60e3) return apnsJwt;
+  const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const head = b64({ alg: 'ES256', kid: apns.keyId }), body = b64({ iss: apns.teamId, iat: Math.floor(Date.now() / 1000) });
+  const sig = crypto.sign('sha256', Buffer.from(head + '.' + body), { key: apns.key, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+  apnsJwt = `${head}.${body}.${sig}`; apnsJwtAt = Date.now();
+  return apnsJwt;
+}
+function apnsSession(sandbox) {
+  const host = sandbox ? 'https://api.sandbox.push.apple.com' : 'https://api.push.apple.com';
+  let s = apnsSessions[host];
+  if (!s || s.closed || s.destroyed) { s = http2.connect(host); s.on('error', () => {}); s.on('goaway', () => s.close()); apnsSessions[host] = s; }
+  return s;
+}
+function apnsSend(token, payload, { voip = false, sandbox = false, collapse } = {}) {
+  return new Promise(resolve => {
+    if (!apns) return resolve({ status: 0, reason: 'not configured' });
+    let req;
+    try {
+      req = apnsSession(sandbox).request({
+        ':method': 'POST', ':path': `/3/device/${token}`,
+        authorization: `bearer ${apnsToken()}`,
+        'apns-topic': voip ? IOS_APP + '.voip' : IOS_APP,
+        'apns-push-type': voip ? 'voip' : 'alert',
+        'apns-priority': '10', 'apns-expiration': voip ? '0' : String(Math.floor(Date.now() / 1000) + 86400),
+        ...(collapse ? { 'apns-collapse-id': collapse.slice(0, 64) } : {}),
+        'content-type': 'application/json',
+      });
+    } catch (e) { return resolve({ status: 0, reason: e.message }); }
+    let status = 0, data = '';
+    req.on('response', h => { status = h[':status']; });
+    req.on('data', c => { data += c; });
+    req.on('end', () => { let reason = ''; try { reason = JSON.parse(data).reason; } catch {} resolve({ status, reason }); });
+    req.on('error', e => resolve({ status: 0, reason: e.message }));
+    req.setTimeout(15000, () => { req.close(); resolve({ status: 0, reason: 'timeout' }); });
+    req.end(JSON.stringify(payload));
+  });
 }
 
 const NETS = [['@whatsapp', 'WhatsApp'], ['@instagram', 'Instagram'], ['@messenger', 'Messenger']];
@@ -99,9 +150,30 @@ async function notify(body) {
     room_id: n.room_id,
     unread: (n.counts && n.counts.unread) || 0,
   });
+  const isCall = n.type === 'm.call.invite';
+  const callEnd = n.type === 'm.call.hangup' || n.type === 'm.call.answer' || n.type === 'm.call.reject';
   await Promise.all((n.devices || []).map(async d => {
+    if ((d.app_id || '').startsWith(IOS_APP)) {
+      const voip = d.app_id === IOS_APP + '.voip';
+      const sandbox = !!(d.data && d.data.sandbox);
+      let p;
+      if (voip) {
+        if (!isCall) return; // VoIP pushes are only for ringing
+        const c = n.content || {};
+        p = { room_id: n.room_id, call_id: c.call_id, caller: isGroup ? n.room_name : name, sender: n.sender, video: /m=video/.test((c.offer && c.offer.sdp) || ''), lifetime: c.lifetime || 60000 };
+      } else {
+        if (callEnd) return;
+        const alert = isCall ? { title: name, body: '📞 Incoming call — tap to answer' } : { title: (isGroup ? n.room_name : name) + (net ? ` · ${net}` : ''), body: (isGroup ? name + ': ' : '') + preview(n) };
+        p = { aps: { alert, sound: 'default', badge: (n.counts && n.counts.unread) || 0, 'thread-id': n.room_id, 'mutable-content': 1, 'interruption-level': isCall ? 'time-sensitive' : 'active' }, room_id: n.room_id, event_id: n.event_id };
+      }
+      const r = await apnsSend(d.pushkey, p, { voip, sandbox, collapse: voip ? undefined : n.event_id });
+      if (r.status === 410 || r.reason === 'BadDeviceToken' || r.reason === 'Unregistered' || r.reason === 'DeviceTokenNotForTopic') rejected.push(d.pushkey);
+      else if (r.status !== 200) console.error('apns failed', r.status, r.reason);
+      return;
+    }
     const s = subs[d.pushkey];
     if (!s) { rejected.push(d.pushkey); return; }
+    if (callEnd) return;
     try {
       await webpush.sendNotification(s.subscription, payload, { TTL: 86400, urgency: 'high' });
     } catch (e) {
@@ -129,6 +201,65 @@ http.createServer(async (req, res) => {
       return send(res, 200, { pushkey });
     }
 
+
+    if (req.method === 'GET' && url.pathname === '/push/apns/status') {
+      if (!(await whoami(req.headers.authorization))) return send(res, 401, { error: 'not logged in' });
+      return send(res, 200, { configured: !!apns, keyId: apns ? apns.keyId : null });
+    }
+    if (req.method === 'POST' && url.pathname === '/push/apns/config') {
+      if (!(await isAdmin(req.headers.authorization))) return send(res, 403, { error: 'Only the server owner can set this up' });
+      const { keyId, teamId, key } = await readJson(req);
+      const body = String(key || '').replace(/-----(BEGIN|END) PRIVATE KEY-----/g, '').replace(/\s+/g, '');
+      const pem = '-----BEGIN PRIVATE KEY-----\n' + (body.match(/.{1,64}/g) || []).join('\n') + '\n-----END PRIVATE KEY-----\n';
+      if (!/^[A-Z0-9]{10}$/.test(String(keyId || '').trim()) || !/^[A-Z0-9]{10}$/.test(String(teamId || '').trim())) return send(res, 400, { error: 'Key ID and Team ID are 10 letters/numbers' });
+      try { crypto.createPrivateKey(pem); } catch { return send(res, 400, { error: 'That doesn’t look like the .p8 key text' }); }
+      apns = { keyId: keyId.trim(), teamId: teamId.trim(), key: pem }; apnsJwt = null;
+      fs.writeFileSync(apnsFile, JSON.stringify(apns), { mode: 0o600 });
+      return send(res, 200, { ok: true });
+    }
+    if (req.method === 'POST' && url.pathname === '/push/apns/test') {
+      const userId = await whoami(req.headers.authorization);
+      if (!userId) return send(res, 401, { error: 'not logged in' });
+      const { token, sandbox } = await readJson(req);
+      if (!/^[0-9a-f]{64,200}$/i.test(token || '')) return send(res, 400, { error: 'bad token' });
+      const r = await apnsSend(token, { aps: { alert: { title: 'Inbox', body: 'Notifications are working ✓' }, sound: 'default' } }, { sandbox: !!sandbox });
+      return send(res, r.status === 200 ? 200 : 502, { status: r.status, reason: r.reason });
+    }
+
+    // ---- Family: the owner creates logins for family members (Synapse admin API stays private) ----
+    if (url.pathname === '/push/family/list' && req.method === 'GET') {
+      const userId = await whoami(req.headers.authorization);
+      if (!userId) return send(res, 401, { error: 'not logged in' });
+      const r = await fetch(`${SYNAPSE}/_synapse/admin/v2/users?from=0&limit=500&guests=false&deactivated=false`, { headers: { Authorization: req.headers.authorization } });
+      const admin = r.ok;
+      let users = [];
+      if (admin) users = (await r.json()).users || [];
+      else users = fam.people.map(u => ({ name: u.userId, displayname: u.displayname }));
+      if (admin) { fam.owner = { userId, displayname: (users.find(u => u.name === userId) || {}).displayname || userId.split(':')[0].slice(1) }; saveFam(); }
+      const people = (admin ? users : users.concat(fam.owner ? [{ name: fam.owner.userId, displayname: fam.owner.displayname }] : [])).filter(u => {
+        const local = (u.name || '').split(':')[0].slice(1).toLowerCase();
+        return u.name !== userId && !u.user_type && !u.appservice_id && !/^(_|whatsapp|instagram|messenger|meta|facebook)/.test(local) && !/bot$/.test(local);
+      }).map(u => ({ userId: u.name, displayname: u.displayname || u.name.split(':')[0].slice(1) }));
+      return send(res, 200, { admin, people });
+    }
+    if (url.pathname === '/push/family/create' && req.method === 'POST') {
+      if (!(await isAdmin(req.headers.authorization))) return send(res, 403, { error: 'Only the server owner can add family members' });
+      const me = await whoami(req.headers.authorization);
+      const { username, displayname, password } = await readJson(req);
+      const local = String(username || '').trim().toLowerCase();
+      if (!/^[a-z0-9._=-]{2,32}$/.test(local)) return send(res, 400, { error: 'Username: 2–32 letters or numbers, no spaces' });
+      if (/^(whatsapp|instagram|messenger|meta|facebook|_)/.test(local)) return send(res, 400, { error: 'Pick a different username' });
+      if (String(password || '').length < 8) return send(res, 400, { error: 'Password needs 8+ characters' });
+      const id = `@${local}:${me.split(':').slice(1).join(':')}`;
+      const path = `${SYNAPSE}/_synapse/admin/v2/users/${encodeURIComponent(id)}`;
+      const ex = await fetch(path, { headers: { Authorization: req.headers.authorization } });
+      if (ex.ok) return send(res, 409, { error: 'That username is already taken' });
+      const r = await fetch(path, { method: 'PUT', headers: { Authorization: req.headers.authorization, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, displayname: String(displayname || local).slice(0, 60), admin: false }) });
+      if (!r.ok) return send(res, 502, { error: 'Could not create the login' });
+      fam.people = fam.people.filter(p => p.userId !== id).concat({ userId: id, displayname: String(displayname || local).slice(0, 60) }); saveFam();
+      return send(res, 200, { userId: id });
+    }
 
     if (url.pathname.startsWith('/push/backup/')) {
       const who = await isAdmin(req.headers.authorization);

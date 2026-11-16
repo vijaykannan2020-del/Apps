@@ -5,6 +5,7 @@ import { S, visibleRooms, netOf, isUnread, isArchived } from '@/lib/matrix';
 import { useStore, useTheme } from '@/lib/theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useWide } from '@/lib/layout';
+import { updateBadge } from '@/lib/push';
 
 const badge = (n: number) => (n > 0 ? (n > 99 ? '99+' : String(n)) : undefined);
 
@@ -13,6 +14,7 @@ export default function TabsLayout() {
   const c = useMemo(() => {
     const out: Record<string, number> = { all: 0, whatsapp: 0, instagram: 0, messenger: 0 };
     for (const r of visibleRooms()) if (isUnread(r) && !isArchived(r) && !S.muted.has(r.id)) { out.all++; const n = netOf(r); if (n && n in out) out[n]++; }
+    updateBadge();
     return out;
   }, [v]);
   if (!S.token) return <Redirect href="/login" />;

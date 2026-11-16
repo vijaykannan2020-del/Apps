@@ -7,7 +7,8 @@ import * as Updates from 'expo-updates';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { S, NETS, Net, visibleRooms, netOf, logout, setupRoom, setPref, changePassword, backupApi } from '@/lib/matrix';
+import { S, NETS, Net, visibleRooms, netOf, logout, setupRoom, setPref, changePassword, backupApi, familyApi, startPrivateChat, Person } from '@/lib/matrix';
+import { pushCapable, enableNativePush, disableNativePush, pushWanted, apnsApi, deviceToken } from '@/lib/push';
 import { Sheet } from '@/components/Sheet';
 import { fmtWhen } from '@/lib/time';
 import { useTheme, useStore } from '@/lib/theme';
@@ -16,7 +17,7 @@ import { useWide, useStatusGutter } from '@/lib/layout';
 import { AppSwitcher } from '@/components/AppSwitcher';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 6;
+export const APP_BUILD = 7;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
@@ -25,6 +26,45 @@ export default function Accounts() {
   const [pw, setPw] = useState(false); const [pwOld, setPwOld] = useState(''); const [pwNew, setPwNew] = useState(''); const [pwNew2, setPwNew2] = useState('');
   const [pwErr, setPwErr] = useState(''); const [pwBusy, setPwBusy] = useState(false);
   const [bk, setBk] = useState<any>(null); const [bkOpen, setBkOpen] = useState(false); const [bkPaste, setBkPaste] = useState(''); const [bkErr, setBkErr] = useState(''); const [bkBusy, setBkBusy] = useState(false);
+  const [fam, setFam] = useState<{ admin: boolean; people: Person[] } | null>(null);
+  const [addOpen, setAddOpen] = useState(false); const [fName, setFName] = useState(''); const [fUser, setFUser] = useState(''); const [fPass, setFPass] = useState('');
+  const [fErr, setFErr] = useState(''); const [fBusy, setFBusy] = useState(false); const [fDone, setFDone] = useState<{ user: string; pass: string } | null>(null);
+  const [push, setPush] = useState<'on' | 'off' | 'denied' | 'unsupported' | 'error' | 'checking'>('checking');
+  const [apnsOk, setApnsOk] = useState<boolean | null>(null);
+  const [nOpen, setNOpen] = useState(false); const [nKeyId, setNKeyId] = useState(''); const [nTeam, setNTeam] = useState(''); const [nKey, setNKey] = useState('');
+  const [nErr, setNErr] = useState(''); const [nBusy, setNBusy] = useState(false);
+  const loadFam = () => familyApi.list().then(setFam).catch(() => setFam(null));
+  useEffect(() => {
+    loadFam();
+    apnsApi.status().then(x => setApnsOk(x.configured)).catch(() => setApnsOk(null));
+    if (!pushCapable) setPush('unsupported'); else pushWanted().then(w => setPush(w ? (deviceToken() ? 'on' : 'checking') : 'off'));
+    if (pushCapable) pushWanted().then(w => { if (w) enableNativePush(false).then(r => setPush(r === 'on' ? 'on' : r)); });
+  }, []);
+  async function togglePush(v: boolean) {
+    if (v) { const r = await enableNativePush(true); setPush(r); if (r === 'denied') Alert.alert('Notifications are off for Inbox', 'Turn them on in iPhone Settings → Inbox → Notifications.'); }
+    else { await disableNativePush(); setPush('off'); }
+  }
+  function genPass() { const a = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let p = ''; for (let i = 0; i < 14; i++) p += a[Math.floor(Math.random() * a.length)]; return p; }
+  async function addPerson() {
+    setFErr(''); setFBusy(true);
+    try { await familyApi.create(fUser, fName || fUser, fPass); setFDone({ user: fUser.trim().toLowerCase(), pass: fPass }); loadFam(); }
+    catch (e: any) { setFErr(e.message || 'Could not add'); }
+    setFBusy(false);
+  }
+  async function chatWith(p: Person) {
+    try { const id = await startPrivateChat(p.userId); openChat(id); } catch (e: any) { Alert.alert('Could not start the chat', e.message || ''); }
+  }
+  async function saveApns() {
+    setNErr(''); setNBusy(true);
+    try {
+      await apnsApi.config(nKeyId.trim().toUpperCase(), nTeam.trim().toUpperCase(), nKey);
+      setApnsOk(true); setNOpen(false);
+      const r = await enableNativePush(true); setPush(r);
+      const tok = deviceToken();
+      if (tok) { try { await apnsApi.test(tok); Alert.alert('All set', 'A test notification is on its way.'); } catch (e: any) { Alert.alert('Saved, but the test failed', (e.message || '') + ' — check the Key ID and Team ID.'); } }
+    } catch (e: any) { setNErr(e.message || 'Could not save'); }
+    setNBusy(false);
+  }
   const loadBk = () => backupApi.status().then(setBk).catch((e: any) => setBk(e.status === 403 ? { forbidden: true } : null));
   useEffect(() => { loadBk(); }, []);
   async function savePw() {
@@ -98,6 +138,31 @@ export default function Accounts() {
           })}
         </View>
 
+        <Text style={[styles.h, { color: t.soft }]}>NOTIFICATIONS</Text>
+        <View style={styles.card}>
+          {push === 'unsupported' ? (
+            <Row label="Notifications" sub="Work in the Inbox app from TestFlight (not in Expo Go)" icon="notifications" iconBg="#FF3B30" last />
+          ) : <>
+            <Row label="Message notifications" icon="notifications" iconBg="#FF3B30" last={!(fam?.admin && apnsOk === false)}
+              sub={push === 'denied' ? 'Blocked — allow in iPhone Settings → Inbox' : apnsOk === false ? (fam?.admin ? 'One-time setup needed — tap below' : 'Waiting for the owner to finish setup') : push === 'on' ? 'On · WhatsApp, Instagram, Messenger & private chats' : push === 'checking' ? 'Checking…' : 'Off'}
+              right={<Switch value={push === 'on'} onValueChange={togglePush} />} />
+            {fam?.admin && apnsOk === false && <Row label="Notifications setup" sub="Paste your Apple push key once" icon="key" iconBg="#FF9500" last onPress={() => { setNErr(''); setNOpen(true); }} />}
+          </>}
+        </View>
+
+        <Text style={[styles.h, { color: t.soft }]}>FAMILY · PRIVATE CHATS</Text>
+        <View style={styles.card}>
+          {(fam?.people || []).map((p, i) => (
+            <Row key={p.userId} label={p.displayname} sub="Private chat on your own server · tap to open" icon="lock-closed" iconBg="#5E5CE6"
+              last={!fam?.admin && i === fam!.people.length - 1} onPress={() => chatWith(p)} />
+          ))}
+          {fam?.admin && <Row label="Add family member" sub="Give them their own Inbox login" icon="person-add" iconBg="#34C759" last
+            onPress={() => { setFErr(''); setFDone(null); setFName(''); setFUser(''); setFPass(genPass()); setAddOpen(true); }} />}
+          {!fam && <Row label="Family" sub="Checking…" icon="people" iconBg="#5E5CE6" last />}
+          {fam && !fam.admin && !fam.people.length && <Row label="No family members yet" icon="people" iconBg="#5E5CE6" last />}
+        </View>
+        <Text style={[styles.note, { color: t.soft }]}>Private chats stay on your Oracle server — they never go through WhatsApp or Meta. Each person only sees their own chats.</Text>
+
         <Text style={[styles.h, { color: t.soft }]}>PRIVACY</Text>
         <View style={styles.card}>
           <Row label="Send read receipts" sub="Off: people won’t see blue ticks when you read" icon="checkmark-done" iconBg="#34C759"
@@ -110,8 +175,7 @@ export default function Accounts() {
         <View style={styles.card}>
           <Row label="Check for updates" sub={`Version ${APP_BUILD} · screen ${Math.round(dim.width)}×${Math.round(dim.height)} · ${wideNow ? "unfolded" : "folded"}`} icon="refresh" iconBg="#30B0C7" onPress={checkUpdate} />
           <Row label="Backup" sub={bkSub} icon="cloud-upload" iconBg="#34A853" onPress={bk && !bk.forbidden ? () => { setBkErr(''); setBkPaste(''); setBkOpen(true); } : undefined} />
-          <Row label="Change password" sub="Your Inbox login" icon="lock-closed" iconBg="#5E5CE6" onPress={() => { setPwErr(''); setPw(true); }} />
-          <Row label="Notifications" sub="Coming with the full app — use the web Inbox for alerts meanwhile" icon="notifications" iconBg="#FF3B30" last />
+          <Row label="Change password" sub="Your Inbox login" icon="lock-closed" iconBg="#5E5CE6" last onPress={() => { setPwErr(''); setPw(true); }} />
         </View>
 
         <Text style={[styles.h, { color: t.soft }]}>THIS DEVICE</Text>
@@ -153,6 +217,38 @@ export default function Accounts() {
           </View>
         </> : null}
       </Sheet>
+      <Sheet visible={addOpen} onClose={() => setAddOpen(false)} title={fDone ? 'Login ready' : 'Add family member'} scroll>
+        {fDone ? <>
+          <Text style={[styles.steps, { color: t.ink }]}>Send these to them. They install Inbox from TestFlight (add their Apple ID email as a tester in App Store Connect first), then sign in with:</Text>
+          <Text selectable style={[styles.creds, { color: t.ink }]}>{`Server: ${S.server.replace(/^https?:\/\//, '')}\nUsername: ${fDone.user}\nPassword: ${fDone.pass}`}</Text>
+          <Pressable onPress={() => { Clipboard.setStringAsync(`Inbox login\nServer: ${S.server.replace(/^https?:\/\//, '')}\nUsername: ${fDone.user}\nPassword: ${fDone.pass}`); Alert.alert('Copied'); }}
+            style={[styles.bigBtn, { backgroundColor: t.primary }]}><Text style={{ color: t.primaryText, fontWeight: '700', fontSize: 17 }}>Copy login</Text></Pressable>
+        </> : <>
+          <TextInput placeholder="Name (e.g. Sangeetha)" placeholderTextColor={t.soft} value={fName} onChangeText={v => { setFName(v); if (!fUser || fUser === fName.toLowerCase().replace(/[^a-z0-9]/g, '')) setFUser(v.toLowerCase().replace(/[^a-z0-9]/g, '')); }}
+            style={[styles.field, { backgroundColor: t.dark ? '#2C2C2E' : '#fff', color: t.ink }]} />
+          <TextInput placeholder="Username (letters/numbers)" placeholderTextColor={t.soft} value={fUser} onChangeText={setFUser} autoCapitalize="none" autoCorrect={false}
+            style={[styles.field, { backgroundColor: t.dark ? '#2C2C2E' : '#fff', color: t.ink }]} />
+          <TextInput placeholder="Password" placeholderTextColor={t.soft} value={fPass} onChangeText={setFPass} autoCapitalize="none" autoCorrect={false}
+            style={[styles.field, { backgroundColor: t.dark ? '#2C2C2E' : '#fff', color: t.ink }]} />
+          {!!fErr && <Text style={{ color: t.red, marginBottom: 8 }}>{fErr}</Text>}
+          <Pressable disabled={fBusy} onPress={addPerson} style={[styles.bigBtn, { backgroundColor: t.primary }]}>
+            {fBusy ? <ActivityIndicator color={t.primaryText} /> : <Text style={{ color: t.primaryText, fontWeight: '700', fontSize: 17 }}>Create login</Text>}
+          </Pressable>
+        </>}
+      </Sheet>
+      <Sheet visible={nOpen} onClose={() => setNOpen(false)} title="Notifications setup" scroll>
+        <Text style={[styles.steps, { color: t.ink }]}>From developer.apple.com → Keys → Inbox Push:{'\n'}• Key ID (10 characters){'\n'}• Team ID (Membership details){'\n'}• The key file: in Files rename AuthKey_….p8 to .txt, open it, select all, copy, paste below.{'\n'}It goes straight to your own server.</Text>
+        <TextInput placeholder="Key ID" placeholderTextColor={t.soft} value={nKeyId} onChangeText={setNKeyId} autoCapitalize="characters" autoCorrect={false}
+          style={[styles.field, { backgroundColor: t.dark ? '#2C2C2E' : '#fff', color: t.ink }]} />
+        <TextInput placeholder="Team ID" placeholderTextColor={t.soft} value={nTeam} onChangeText={setNTeam} autoCapitalize="characters" autoCorrect={false}
+          style={[styles.field, { backgroundColor: t.dark ? '#2C2C2E' : '#fff', color: t.ink }]} />
+        <TextInput placeholder="-----BEGIN PRIVATE KEY----- …" placeholderTextColor={t.soft} value={nKey} onChangeText={setNKey} autoCapitalize="none" autoCorrect={false} multiline
+          style={[styles.field, { height: 120, paddingTop: 12, backgroundColor: t.dark ? '#2C2C2E' : '#fff', color: t.ink, fontSize: 13 }]} />
+        {!!nErr && <Text style={{ color: t.red, marginBottom: 8 }}>{nErr}</Text>}
+        <Pressable disabled={nBusy} onPress={saveApns} style={[styles.bigBtn, { backgroundColor: t.primary }]}>
+          {nBusy ? <ActivityIndicator color={t.primaryText} /> : <Text style={{ color: t.primaryText, fontWeight: '700', fontSize: 17 }}>Save & test</Text>}
+        </Pressable>
+      </Sheet>
     </ScrollView>
   );
 }
@@ -172,5 +268,6 @@ const styles = StyleSheet.create({
   note: { fontSize: 13, marginHorizontal: 32, marginTop: 6 },
   field: { height: 50, borderRadius: 12, paddingHorizontal: 14, fontSize: 17, marginBottom: 10 },
   bigBtn: { height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  creds: { fontSize: 17, lineHeight: 26, fontWeight: '600', marginBottom: 14, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
   steps: { fontSize: 15, lineHeight: 22, marginBottom: 12 },
 });

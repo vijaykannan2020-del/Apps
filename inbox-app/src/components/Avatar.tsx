@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import { Room, NETS, roomName, roomAvatar, mediaSource, netOf, botNetOf, hueFor } from '@/lib/matrix';
+import { Room, NETS, roomName, roomAvatar, mediaSource, netOf, botNetOf, hueFor, isPrivateRoom } from '@/lib/matrix';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/theme';
 
 export function Avatar({ room, size = 52 }: { room: Room; size?: number }) {
@@ -19,6 +20,11 @@ export function Avatar({ room, size = 52 }: { room: Room; size?: number }) {
       {n && (
         <View style={[styles.badge, { width: b, height: b, borderRadius: b / 2, backgroundColor: NETS[n].color, borderColor: t.bg }]}>
           <Text style={[styles.badgeTxt, { fontSize: b * 0.5 }]}>{n === 'whatsapp' ? 'W' : n === 'instagram' ? 'I' : 'M'}</Text>
+        </View>
+      )}
+      {!n && isPrivateRoom(room) && (
+        <View style={[styles.badge, { width: b, height: b, borderRadius: b / 2, backgroundColor: '#5E5CE6', borderColor: t.bg }]}>
+          <Ionicons name="lock-closed" size={b * 0.5} color="#fff" />
         </View>
       )}
     </View>

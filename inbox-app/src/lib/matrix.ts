@@ -646,3 +646,32 @@ export function setupChips(r: Room): string[] {
   }
   return cmds;
 }
+
+// ---------------- family & private chats (your own server only — never WhatsApp/Meta) ----------------
+export type Person = { userId: string; displayname: string };
+export const familyApi = {
+  list: () => api('GET', '/push/family/list') as Promise<{ admin: boolean; people: Person[] }>,
+  create: (username: string, displayname: string, password: string) => api('POST', '/push/family/create', { username, displayname, password }) as Promise<{ userId: string }>,
+};
+/** A chat with someone on your own server (not bridged from WhatsApp/Instagram/Messenger). */
+export function isPrivateRoom(r: Room) {
+  if (netOf(r) || botNetOf(r)) return false;
+  const o = allOthers(r);
+  return o.length >= 1 && o.every(id => id.split(':').slice(1).join(':') === (S.userId || '').split(':').slice(1).join(':') && !netFrom(id.split(':')[0]));
+}
+export function privateRoomWith(userId: string) {
+  return [...S.rooms.values()].find(r => !r.isSpace && isPrivateRoom(r) && allOthers(r).length === 1 && allOthers(r)[0] === userId) || null;
+}
+/** Opens (or creates) the private 1-to-1 chat with a family member; resolves with the room id once it's synced. */
+export async function startPrivateChat(userId: string): Promise<string> {
+  const have = privateRoomWith(userId); if (have) return have.id;
+  const { room_id } = await api('POST', '/_matrix/client/v3/createRoom', { preset: 'trusted_private_chat', is_direct: true, invite: [userId], visibility: 'private' });
+  try {
+    let direct: Record<string, string[]> = {};
+    try { direct = await api('GET', `/_matrix/client/v3/user/${enc(S.userId!)}/account_data/m.direct`); } catch {}
+    direct[userId] = [...new Set([...(direct[userId] || []), room_id])];
+    await api('PUT', `/_matrix/client/v3/user/${enc(S.userId!)}/account_data/m.direct`, direct);
+  } catch {}
+  for (let i = 0; i < 40 && !S.rooms.has(room_id); i++) await new Promise(r => setTimeout(r, 250));
+  return room_id;
+}

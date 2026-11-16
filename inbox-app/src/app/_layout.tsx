@@ -7,11 +7,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { restore } from '@/lib/matrix';
 import { useTheme } from '@/lib/theme';
 import { Banner } from '@/components/Banner';
+import { startPush } from '@/lib/push';
+import { S } from '@/lib/matrix';
 
 export default function RootLayout() {
   const t = useTheme();
   const [loaded, setLoaded] = useState(false);
-  useEffect(() => { restore().finally(() => setLoaded(true)); }, []);
+  useEffect(() => { restore().finally(() => { setLoaded(true); if (S.token) startPush(); }); }, []);
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.bg }}>
       <SafeAreaProvider>
