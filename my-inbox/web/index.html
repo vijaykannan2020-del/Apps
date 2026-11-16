@@ -230,7 +230,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 
 <script>
 'use strict';
-const APP_VERSION = 9; // bump on every change (shown in Accounts)
+const APP_VERSION = 10; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -446,6 +446,41 @@ function stripReply(b) {
   return i ? lines.slice(i).join('\n') : b;
 }
 
+// ---------- local snapshot: show chats instantly on open, then fetch only what's new ----------
+const SNAP_KEY = 'inbox-snapshot-v1';
+let snapTimer = null;
+function scheduleSnapshot() { clearTimeout(snapTimer); snapTimer = setTimeout(saveSnapshot, 2500); }
+function saveSnapshot(limit = 30) {
+  if (!S.since || !S.userId) return;
+  const rooms = [];
+  for (const r of S.rooms.values()) {
+    const events = r.events.filter(e => !e.pending && !e.failed && e.event_id && !e.event_id.startsWith('~')).slice(-limit)
+      .map(e => ({ event_id: e.event_id, type: e.type, sender: e.sender, origin_server_ts: e.origin_server_ts, content: e.content, redacted: e.redacted, edited: e.edited }));
+    const keep = new Set([...r.heroes, ...events.map(e => e.sender)]);
+    const members = [...r.members].filter(([id]) => keep.has(id) || Object.keys(NETS).some(n => id === botId(n)));
+    rooms.push({ id: r.id, name: r.name, avatar: r.avatar, bridgeName: r.bridgeName, bridgeAvatar: r.bridgeAvatar, net: r.net,
+      heroes: r.heroes, joined: r.joined, isSpace: r.isSpace, unread: r.unread, lastTs: r.lastTs,
+      prevBatch: events.length < r.events.length ? (r.prevBatch || null) : r.prevBatch, members, events });
+  }
+  try { store.set(SNAP_KEY, JSON.stringify({ uid: S.userId, since: S.since, rooms })); }
+  catch { if (limit > 5) saveSnapshot(Math.floor(limit / 3)); }   // storage full: keep fewer messages
+}
+function loadSnapshot() {
+  let snap; try { snap = JSON.parse(store.get(SNAP_KEY) || 'null'); } catch { snap = null; }
+  if (!snap || snap.uid !== S.userId || !snap.since) return false;
+  for (const x of snap.rooms || []) {
+    const r = room(x.id);
+    Object.assign(r, { name: x.name, avatar: x.avatar, bridgeName: x.bridgeName, bridgeAvatar: x.bridgeAvatar, net: x.net,
+      heroes: x.heroes || [], joined: x.joined || 0, isSpace: !!x.isSpace, unread: x.unread || 0, lastTs: x.lastTs || 0,
+      prevBatch: x.prevBatch === undefined ? null : x.prevBatch });
+    r.members = new Map(x.members || []);
+    for (const e of x.events || []) { r.idx.set(e.event_id, e); r.events.push(e); }
+  }
+  S.since = snap.since;
+  S.firstSync = false;
+  return true;
+}
+
 // ---------- sync ----------
 async function syncLoop() {
   const filter = enc(JSON.stringify({
@@ -458,8 +493,10 @@ async function syncLoop() {
       const d = await api('GET', `/_matrix/client/v3/sync?filter=${filter}&timeout=${S.since ? 30000 : 0}${S.since ? '&since=' + enc(S.since) : ''}`);
       processSync(d);
       S.since = d.next_batch; backoff = 1000; status('');
+      scheduleSnapshot();
     } catch (e) {
       if (!S.token) return;
+      if (e.status === 400 && S.since) { S.since = null; S.firstSync = true; store.del(SNAP_KEY); }  // old position no longer valid: start fresh
       status('Reconnecting…');
       await sleep(e.retry || backoff); backoff = Math.min(backoff * 2, 30000);
     }
@@ -831,6 +868,7 @@ function renderAccounts() {
 }
 async function openBotRoom(n, btn) {
   let r = [...S.rooms.values()].find(x => botNetOf(x) === n);
+  if (!r && S.firstSync) { btn.querySelector('small').textContent = 'Still loading your chats, try again in a moment'; return; }
   if (!r) {
     btn.querySelector('small').textContent = 'Opening…';
     try {
@@ -918,12 +956,13 @@ async function login(e) {
 }
 async function logout(expired) {
   const tok = S.token;
-  S.token = null; store.del('tok'); store.del('uid'); store.del('pushkey');
+  S.token = null; store.del('tok'); store.del('uid'); store.del('pushkey'); store.del(SNAP_KEY);
   if (!expired && tok) fetch('/_matrix/client/v3/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + tok } }).catch(() => {});
   location.reload();
 }
 function start() {
   $('#login').hidden = true; $('#app').hidden = false;
+  if (!loadSnapshot()) status('Syncing your chats… this can take a minute the first time');
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
     navigator.serviceWorker.addEventListener('message', e => { const id = e.data && e.data.openRoom; if (id && S.rooms.has(id)) openChat(id); });
