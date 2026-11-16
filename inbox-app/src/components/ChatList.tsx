@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, memo } from 'react';
 import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
-import { router, Redirect } from 'expo-router';
-import { BlurView } from 'expo-blur';
+import { useWide, useSelected, setSelected as setSel, getSelected } from '@/lib/layout';
+import { router, Redirect, useIsFocused } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import ReanimatedSwipeable, { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -17,7 +17,6 @@ import { quickTimes, fmtWhen } from '@/lib/time';
 
 type Tab = 'all' | Net;
 type Kind = 'all' | 'unread' | 'groups' | 'starred';
-const TABS: [Tab | 'accounts', string, keyof typeof Ionicons.glyphMap][] = [['all', 'All', 'chatbubble-ellipses'], ['whatsapp', 'WhatsApp', 'logo-whatsapp'], ['instagram', 'Instagram', 'logo-instagram'], ['messenger', 'Messenger', 'logo-facebook'], ['accounts', 'Accounts', 'person-circle']];
 const KINDS: [Kind, string][] = [['all', 'All'], ['unread', 'Unread'], ['groups', 'Groups'], ['starred', '★ Starred']];
 
 const Row = memo(function Row({ r, t, open, onMore, selected, fs }: { r: Room; t: Theme; open: (id: string) => void; onMore: (r: Room) => void; selected: boolean; fs: number; v: number }) {
@@ -68,12 +67,12 @@ const Row = memo(function Row({ r, t, open, onMore, selected, fs }: { r: Room; t
   );
 });
 
-export default function Chats() {
+export function ChatList({ tab }: { tab: Tab }) {
   const v = useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const { width } = useWindowDimensions();
-  const wide = width >= 700;
-  const [tab, setTab] = useState<Tab>('all'); const [kind, setKind] = useState<Kind>('all');
+  const wide = useWide(); const focused = useIsFocused();
+  const selected = useSelected(); const setSelected = setSel;
+  const [kind, setKind] = useState<Kind>('all');
   const [q, setQ] = useState(''); const [archived, setArchived] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
   const [more, setMore] = useState<Room | null>(null); const [remind, setRemind] = useState<Room | null>(null);
   const [newChat, setNewChat] = useState(false); const [num, setNum] = useState('');
   const [hits, setHits] = useState<{ room: Room; ev: MEvent }[]>([]); const [searching, setSearching] = useState(false);
@@ -104,6 +103,10 @@ export default function Chats() {
     counts.all = all.filter(r => isUnread(r) && !isArchived(r)).length;
     return { list, counts, archCount: inTab.filter(isArchived).length };
   }, [v, tab, kind, q, archived]);
+
+  useEffect(() => {
+    if (!wide && focused) { const id = getSelected(); if (id) { setSelected(null); router.push({ pathname: '/chat/[id]', params: { id } }); } }
+  }, [wide, focused]);
 
   if (!S.token) return <Redirect href="/login" />;
   const open = (id: string) => { if (wide) setSelected(id); else router.push({ pathname: '/chat/[id]', params: { id } }); };
@@ -164,7 +167,7 @@ export default function Chats() {
     <View style={{ width: paneW, flex: wide ? undefined : 1, borderRightWidth: wide ? StyleSheet.hairlineWidth : 0, borderRightColor: t.line }}>
       {starredView ? (
         <FlatList data={S.starred} keyExtractor={x => x.event} ListHeaderComponent={header} extraData={v}
-          contentContainerStyle={{ paddingBottom: ins.bottom + 96 }}
+          contentContainerStyle={{ paddingBottom: ins.bottom + 16 }}
           ListEmptyComponent={<Text style={[styles.emptyTxt, { color: t.soft, textAlign: 'center', paddingTop: 40, paddingHorizontal: 30 }]}>No starred messages yet. Long-press a message → Star.</Text>}
           renderItem={({ item: x }) => {
             const r = S.rooms.get(x.room); if (!r) return null;
@@ -189,31 +192,10 @@ export default function Chats() {
                 : <Text style={[styles.emptyTxt, { color: t.soft }]}>{kind === 'unread' ? 'All caught up ✓' : 'No chats yet'}</Text>}
             </View>
           )}
-          contentContainerStyle={{ paddingBottom: ins.bottom + 96 }}
+          contentContainerStyle={{ paddingBottom: ins.bottom + 16 }}
           keyboardDismissMode="on-drag" initialNumToRender={14} windowSize={11}
         />
       )}
-      {/* floating glass dock */}
-      <View pointerEvents="box-none" style={[styles.dockWrap, { bottom: ins.bottom + 8 }]}>
-        <BlurView intensity={t.dark ? 40 : 60} tint={t.dark ? 'dark' : 'light'} style={[styles.dock, { borderColor: t.line }]}>
-          {TABS.map(([k, label, icon]) => {
-            const on = k === tab && !archived;
-            const c = k === 'accounts' ? 0 : counts[k] || 0;
-            return (
-              <Pressable key={k} style={styles.dockBtn} onPress={() => {
-                Haptics.selectionAsync().catch(() => {});
-                if (k === 'accounts') router.push('/accounts'); else { setTab(k); setArchived(false); }
-              }}>
-                <View style={[styles.dockPill, on && { backgroundColor: t.fill }]}>
-                  <Ionicons name={icon} size={22} color={on ? t.ink : t.soft} />
-                  {c > 0 && <View style={[styles.dockBadge, { backgroundColor: t.red }]}><Text style={styles.dockBadgeTxt}>{c > 99 ? '99+' : c}</Text></View>}
-                </View>
-                <Text numberOfLines={1} style={[styles.dockLabel, { color: on ? t.ink : t.soft }]}>{label}</Text>
-              </Pressable>
-            );
-          })}
-        </BlurView>
-      </View>
     </View>
   );
 
@@ -289,13 +271,6 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row' },
   act: { width: 78, alignItems: 'center', justifyContent: 'center', gap: 4 },
   actTxt: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  dockWrap: { position: 'absolute', left: 10, right: 10, alignItems: 'center' },
-  dock: { flexDirection: 'row', borderRadius: 32, overflow: 'hidden', paddingVertical: 6, paddingHorizontal: 4, borderWidth: StyleSheet.hairlineWidth, width: '100%', maxWidth: 520 },
-  dockBtn: { flex: 1, alignItems: 'center', gap: 2 },
-  dockPill: { width: 54, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  dockBadge: { position: 'absolute', top: -2, right: 2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
-  dockBadgeTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  dockLabel: { fontSize: 11, fontWeight: '600' },
   numInput: { height: 50, borderRadius: 12, paddingHorizontal: 14, fontSize: 17, marginBottom: 10 },
   bigBtn: { height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
 });

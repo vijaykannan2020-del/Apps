@@ -3,7 +3,7 @@ import { View, Text, TextInput, Pressable, FlatList, StyleSheet, KeyboardAvoidin
   ActivityIndicator, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
-import { BlurView } from 'expo-blur';
+import { Glass } from '@/components/Glass';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
@@ -360,16 +360,19 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
       </KeyboardAvoidingView>
 
       {/* glass header — controls stay on the left (the iPhone Duo's status pill sits top-right) */}
-      <BlurView intensity={t.dark ? 40 : 60} tint={t.dark ? 'dark' : 'light'} style={[styles.header, { paddingTop: ins.top, borderBottomColor: t.line }]}>
-        {onBack && <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>}
-        <Pressable onPress={showInfo} style={styles.hInfo}>
-          <Avatar room={r} size={36} />
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text numberOfLines={1} style={[styles.hName, { color: t.ink }]}>{roomName(r)}{S.muted.has(r.id) ? '  🔕' : ''}</Text>
-            {!!sub && <Text numberOfLines={1} style={[styles.hSub, { color: r.typing.length ? t.blue : t.soft }]}>{sub}</Text>}
-          </View>
-        </Pressable>
-      </BlurView>
+      <View pointerEvents="none" style={[styles.statusFade, { height: ins.top, backgroundColor: t.bg, opacity: 0.9 }]} />
+      <View pointerEvents="box-none" style={[styles.header, { paddingTop: ins.top + 4 }]}>
+        {onBack && <Glass interactive style={styles.backBtn}><Pressable onPress={onBack} hitSlop={8} style={styles.backHit}><Ionicons name="chevron-back" size={26} color={t.ink} /></Pressable></Glass>}
+        <Glass interactive style={styles.hCapsule}>
+          <Pressable onPress={showInfo} style={styles.hInfo}>
+            <Avatar room={r} size={34} />
+            <View style={{ flexShrink: 1, marginLeft: 9, marginRight: 6 }}>
+              <Text numberOfLines={1} style={[styles.hName, { color: t.ink }]}>{roomName(r)}{S.muted.has(r.id) ? '  🔕' : ''}</Text>
+              {!!sub && <Text numberOfLines={1} style={[styles.hSub, { color: r.typing.length ? t.blue : t.soft }]}>{sub}</Text>}
+            </View>
+          </Pressable>
+        </Glass>
+      </View>
 
       {/* message menu */}
       <Sheet visible={!!menu} onClose={() => setMenu(null)} title={menu ? bodyPreview(menu).slice(0, 80) : ''}>
@@ -439,9 +442,12 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
 }
 
 const styles = StyleSheet.create({
-  header: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  backBtn: { paddingHorizontal: 4, paddingVertical: 2 },
-  hInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingLeft: 4 },
+  header: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 8, gap: 8 },
+  backBtn: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
+  backHit: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingRight: 2 },
+  hCapsule: { height: 48, borderRadius: 24, overflow: 'hidden', flexShrink: 1, maxWidth: 420 },
+  hInfo: { flexDirection: 'row', alignItems: 'center', height: 48, paddingLeft: 7, paddingRight: 12 },
+  statusFade: { position: 'absolute', top: 0, left: 0, right: 0 },
   hName: { fontSize: 17, fontWeight: '600' },
   hSub: { fontSize: 13 },
   dayWrap: { alignItems: 'center', marginVertical: 10 },

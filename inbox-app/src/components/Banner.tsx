@@ -1,4 +1,5 @@
 // In-app banner when a message arrives in another chat (works in Expo Go; real push needs the full app).
+import { openChat } from '@/lib/layout';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, Text, View, StyleSheet, PanResponder } from 'react-native';
 import { router, usePathname } from 'expo-router';
@@ -33,7 +34,7 @@ export function Banner() {
   const r = S.rooms.get(cur.room);
   return (
     <Animated.View {...pan.panHandlers} style={[styles.wrap, { top: ins.top + 6, transform: [{ translateY: y }] }]} pointerEvents="box-none">
-      <Pressable onPress={() => { hide(); router.push({ pathname: '/chat/[id]', params: { id: cur.room } }); }} style={{ borderRadius: 22, overflow: 'hidden', maxWidth: 560, width: '100%' }}>
+      <Pressable onPress={() => { hide(); openChat(cur.room); }} style={{ borderRadius: 22, overflow: 'hidden', maxWidth: 560, width: '100%' }}>
         <BlurView intensity={t.dark ? 50 : 70} tint={t.dark ? 'dark' : 'light'} style={[styles.card, { borderColor: t.line }]}>
           {r && <Avatar room={r} size={40} />}
           <View style={{ flex: 1 }}>

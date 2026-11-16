@@ -14,7 +14,7 @@ export default function Login() {
   async function go() {
     if (!user || !pass) return;
     setBusy(true); setErr('');
-    try { await login(server, user, pass); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); router.replace('/chats'); }
+    try { await login(server, user, pass); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); router.replace('/inbox'); }
     catch (e: any) { setErr(e.status === 403 ? 'Wrong username or password' : e.message || 'Could not sign in'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {}); }
     setBusy(false);
   }

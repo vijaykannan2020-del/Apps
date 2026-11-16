@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { openChat } from '@/lib/layout';
 import { View, Text, Pressable, ScrollView, StyleSheet, Alert, Platform, Switch, TextInput, ActivityIndicator } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
@@ -12,7 +13,7 @@ import { fmtWhen } from '@/lib/time';
 import { useTheme, useStore } from '@/lib/theme';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 3;
+export const APP_BUILD = 4;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
@@ -57,10 +58,10 @@ export default function Accounts() {
   );
   const nets = Object.keys(NETS) as Net[];
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: ins.top + 6, paddingBottom: ins.bottom + 40, alignItems: 'center' }}>
+    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: ins.top + 6, paddingBottom: ins.bottom + 24, alignItems: 'center' }}>
       <View style={{ width: '100%', maxWidth: 640 }}>
         <View style={styles.titleRow}>
-          <Pressable onPress={() => router.back()} hitSlop={12}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>
+          
           <Text style={[styles.title, { color: t.ink }]}>Accounts</Text>
         </View>
 
@@ -71,7 +72,7 @@ export default function Accounts() {
             const sr = setupRoom(n);
             return <Row key={n} last={i === nets.length - 1} icon={n === 'whatsapp' ? 'logo-whatsapp' : n === 'instagram' ? 'logo-instagram' : 'logo-facebook'} iconBg={NETS[n].color}
               label={NETS[n].label} sub={count ? `${count} chats · tap for login & settings` : sr ? 'Not connected — tap to connect' : 'Connect it once in the web Inbox'}
-              onPress={sr ? () => router.push({ pathname: '/chat/[id]', params: { id: sr.id } }) : undefined} />;
+              onPress={sr ? () => openChat(sr.id) : undefined} />;
           })}
         </View>
 
