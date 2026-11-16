@@ -3,8 +3,10 @@ import { useWindowDimensions } from 'react-native';
 
 /** Unfolded iPhone Duo / iPad / landscape: list + chat side by side. */
 export const WIDE_AT = 600;
-/** Unfolded = wide screen, or a near-square screen (the open iPhone Duo is ~3:4, a folded phone ~9:19.5). */
-export function isWide(w: number, h: number) { return w >= WIDE_AT || (w >= 400 && w / h >= 0.6); }
+/** iPhone Duo: front screen 466×678pt (one pane), inner screen ~669×951pt (two panes). */
+export function isWide(w: number, _h?: number) { return w >= WIDE_AT; }
+/** On iPhone Duo the clock/Wi-Fi sit in a tall strip at the top-right; keep header controls clear of it. */
+export function useStatusGutter() { const { width, height } = useWindowDimensions(); return width < WIDE_AT && Math.abs(width - 466) < 8 && height < 760 ? 74 : 0; }
 export function useWide() { const { width, height } = useWindowDimensions(); return isWide(width, height); }
 
 // The chat open in the right-hand pane — shared so folding/unfolding keeps the same chat open.

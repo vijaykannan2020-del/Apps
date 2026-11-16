@@ -12,14 +12,15 @@ import { Sheet } from '@/components/Sheet';
 import { fmtWhen } from '@/lib/time';
 import { useTheme, useStore } from '@/lib/theme';
 import { useWindowDimensions } from 'react-native';
-import { useWide } from '@/lib/layout';
+import { useWide, useStatusGutter } from '@/lib/layout';
+import { AppSwitcher } from '@/components/AppSwitcher';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 5;
+export const APP_BUILD = 6;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
-  useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const dim = useWindowDimensions(); const wideNow = useWide();
+  useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const dim = useWindowDimensions(); const wideNow = useWide(); const gut = useStatusGutter();
   const rooms = visibleRooms();
   const [pw, setPw] = useState(false); const [pwOld, setPwOld] = useState(''); const [pwNew, setPwNew] = useState(''); const [pwNew2, setPwNew2] = useState('');
   const [pwErr, setPwErr] = useState(''); const [pwBusy, setPwBusy] = useState(false);
@@ -60,11 +61,13 @@ export default function Accounts() {
   );
   const nets = Object.keys(NETS) as Net[];
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: ins.top + 6, paddingBottom: ins.bottom + 24, alignItems: 'center' }}>
+    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: ins.top + 6, paddingBottom: ins.bottom + 40, alignItems: 'center' }}>
       <View style={{ width: '100%', maxWidth: 640 }}>
-        <View style={styles.titleRow}>
-          
-          <Text style={[styles.title, { color: t.ink }]}>Accounts</Text>
+        <View style={{ paddingRight: gut }}>
+          <View style={styles.titleRow}>
+            <Text style={[styles.title, { color: t.ink }]}>Accounts</Text>
+          </View>
+          <AppSwitcher current="accounts" />
         </View>
 
         <Text style={[styles.h, { color: t.soft }]}>CONNECTED APPS</Text>

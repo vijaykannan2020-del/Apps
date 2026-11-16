@@ -17,7 +17,7 @@ export default function TabsLayout() {
   }, [v]);
   if (!S.token) return <Redirect href="/login" />;
   return (
-    <NativeTabs hidden={wide} minimizeBehavior="onScrollDown" tintColor={t.dark ? '#FFFFFF' : '#000000'}>
+    <NativeTabs hidden minimizeBehavior="onScrollDown" tintColor={t.dark ? '#FFFFFF' : '#000000'}>
       <NativeTabs.Trigger name="inbox">
         <NativeTabs.Trigger.Icon sf={{ default: 'tray', selected: 'tray.fill' }} />
         <NativeTabs.Trigger.Label>All</NativeTabs.Trigger.Label>

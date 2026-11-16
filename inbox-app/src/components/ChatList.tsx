@@ -11,8 +11,8 @@ import { S, Room, MEvent, Net, NETS, visibleRooms, roomName, preview, fmtTime, i
   startWhatsAppChat, others } from '@/lib/matrix';
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
-import { Glass } from '@/components/Glass';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { AppSwitcher } from '@/components/AppSwitcher';
+import { useStatusGutter } from '@/lib/layout';
 import { ChatView } from '@/components/ChatView';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
 import { quickTimes, fmtWhen } from '@/lib/time';
@@ -71,7 +71,7 @@ const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact }: { r
 
 export function ChatList({ tab }: { tab: Tab }) {
   const v = useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const { width } = useWindowDimensions();
-  const wide = useWide(); const focused = useIsFocused();
+  const wide = useWide(); const focused = useIsFocused(); const gut = useStatusGutter();
   const selected = useSelected(); const setSelected = setSel;
   const [kind, setKind] = useState<Kind>('all');
   const [q, setQ] = useState(''); const [archived, setArchived] = useState(false);
@@ -119,26 +119,12 @@ export function ChatList({ tab }: { tab: Tab }) {
 
   const header = (
     <View style={{ paddingTop: ins.top + 6 }}>
+      <View style={{ paddingRight: gut }}>
       <View style={styles.titleRow}>
         {archived && <Pressable onPress={() => setArchived(false)} hitSlop={12}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>}
         <Text style={[styles.title, { color: t.ink }]}>{title}</Text>
       </View>
-      {wide && (
-        <Glass style={styles.switcher}>
-          {([['all', '/inbox'], ['whatsapp', '/whatsapp'], ['instagram', '/instagram'], ['messenger', '/messenger'], ['accounts', '/accounts']] as const).map(([k, href]) => {
-            const on = k === tab; const c = k === 'accounts' ? 0 : counts[k] || 0;
-            const col = on ? t.ink : t.soft;
-            return (
-              <Pressable key={k} hitSlop={4} onPress={() => { Haptics.selectionAsync().catch(() => {}); if (!on) router.navigate(href); }} style={[styles.swBtn, on && { backgroundColor: t.fill }]}>
-                {k === 'all' ? <Ionicons name="file-tray" size={21} color={col} /> : k === 'whatsapp' ? <Ionicons name="logo-whatsapp" size={21} color={col} />
-                  : k === 'instagram' ? <Ionicons name="logo-instagram" size={21} color={col} /> : k === 'messenger' ? <MaterialCommunityIcons name="facebook-messenger" size={21} color={col} />
-                  : <Ionicons name="person-circle-outline" size={23} color={col} />}
-                {c > 0 && <View style={[styles.swBadge, { backgroundColor: t.red }]}><Text style={styles.swBadgeTxt}>{c > 99 ? '99+' : c}</Text></View>}
-              </Pressable>
-            );
-          })}
-        </Glass>
-      )}
+      <AppSwitcher current={tab} counts={counts} />
       <View style={[styles.search, { backgroundColor: t.fill }]}>
         <Ionicons name="search" size={17} color={t.soft} />
         <TextInput value={q} onChangeText={setQ} placeholder="Search chats and messages" placeholderTextColor={t.soft} style={{ flex: 1, color: t.ink, fontSize: 17 }} autoCorrect={false} returnKeyType="search" />
@@ -154,6 +140,7 @@ export function ChatList({ tab }: { tab: Tab }) {
             </Pressable>
           )} />
       )}
+      </View>
       {!archived && !q && archCount > 0 && kind === 'all' && (
         <Pressable onPress={() => setArchived(true)} style={({ pressed }) => [styles.row, { backgroundColor: pressed ? t.fill : 'transparent' }]}>
           <View style={[styles.archIcon, { backgroundColor: t.fill }]}><Ionicons name="archive" size={24} color={t.ink} /></View>
@@ -290,10 +277,6 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row' },
   act: { width: 78, alignItems: 'center', justifyContent: 'center', gap: 4 },
   actTxt: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  switcher: { flexDirection: 'row', marginHorizontal: 16, marginTop: 10, borderRadius: 24, padding: 4, overflow: 'hidden', justifyContent: 'space-between' },
-  swBtn: { flex: 1, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  swBadge: { position: 'absolute', top: 1, right: 8, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
-  swBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
   numInput: { height: 50, borderRadius: 12, paddingHorizontal: 14, fontSize: 17, marginBottom: 10 },
   bigBtn: { height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
 });
