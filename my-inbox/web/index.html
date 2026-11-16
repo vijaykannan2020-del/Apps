@@ -167,6 +167,7 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .msg.hasmedia{padding:4px 4px 8px}
 .msg.hasmedia img,.msg.hasmedia video{display:block;max-width:100%;max-height:340px;border-radius:16px}
 .msg.hasmedia .extlink{padding:0 8px}
+.msg .cap{padding:6px 8px 0;white-space:pre-wrap}
 #chips{display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px 2px}
 #chips button{background:var(--paper);border:1px solid var(--line);padding:7px 14px;border-radius:999px;font-size:14px;font-weight:600;white-space:nowrap}
 .hint{margin:10px auto;max-width:440px;font-size:14px;color:var(--soft);background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:14px 16px;line-height:1.5}
@@ -309,7 +310,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 17; // bump on every change (shown in Accounts)
+const APP_VERSION = 18; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -525,13 +526,15 @@ function preview(r) {
 function bodyPreview(ev) {
   const c = ev.content || {};
   if (ev.type === 'm.sticker') return 'Sticker';
+  const capt = mdPlain(captionOf(c)).replace(/\s+/g, ' ').trim();
+  if (/instagram\.com\/(reel|reels)\//.test(c.body || '') && (c.msgtype === 'm.video' || !capt)) return '🎬 Reel';
   switch (c.msgtype) {
-    case 'm.image': return '📷 Photo';
-    case 'm.video': return '🎥 Video';
+    case 'm.image': return '📷 ' + (capt || 'Photo');
+    case 'm.video': return '🎥 ' + (capt || 'Video');
     case 'm.audio': return '🎤 Voice message';
     case 'm.file': return '📎 ' + (c.body || 'File');
     case 'm.location': return '📍 Location';
-    default: return stripReply(c.body || '').replace(/\s+/g, ' ');
+    default: return mdPlain(stripReply(c.body || '')).replace(/\s+/g, ' ');
   }
 }
 function stripReply(b) {
@@ -856,14 +859,19 @@ function renderChips(r) {
   }
 }
 function linkify(el, text) {
-  const re = /\bhttps?:\/\/[^\s<]+[^\s<.,:;"')\]]/g; let last = 0, m;
+  // handles [label](https://…) markdown links (bridges send these) and plain URLs
+  const re = /\[([^\]\n]{1,400})\]\((https?:\/\/[^)\s]+)\)|\bhttps?:\/\/[^\s<]+[^\s<.,:;"')\]]/g; let last = 0, m;
   while ((m = re.exec(text))) {
     el.appendChild(document.createTextNode(text.slice(last, m.index)));
-    const a = document.createElement('a'); a.href = m[0]; a.target = '_blank'; a.rel = 'noopener'; a.textContent = m[0];
+    const a = document.createElement('a'); a.target = '_blank'; a.rel = 'noopener';
+    if (m[2]) { a.href = m[2]; a.textContent = m[1]; } else { a.href = m[0]; a.textContent = m[0]; }
     el.appendChild(a); last = m.index + m[0].length;
   }
   el.appendChild(document.createTextNode(text.slice(last)));
 }
+const mdPlain = t => (t || '').replace(/\[([^\]\n]{1,400})\]\((https?:\/\/[^)\s]+)\)/g, '$1');
+// Media can carry a caption: body is the caption when a separate filename is set
+const captionOf = c => (c && c.filename && c.body && c.body !== c.filename) ? c.body : '';
 function msgEl(r, ev) {
   const c = ev.content || {};
   const mine = ev.sender === S.userId;
@@ -875,7 +883,7 @@ function msgEl(r, ev) {
   const kind = ev.type === 'm.sticker' ? 'm.image' : c.msgtype;
   if (kind === 'm.image') {
     el.classList.add('media');
-    const img = document.createElement('img'); img.alt = c.body || ''; img.loading = 'lazy';
+    const img = document.createElement('img'); img.alt = ''; img.loading = 'lazy';
     const info = c.info || {};
     if (info.w && info.h) img.style.aspectRatio = info.w + '/' + info.h;
     loadInto(img, c.url, 640);
@@ -921,9 +929,17 @@ function msgEl(r, ev) {
     }
     linkify(el, kind === 'm.emote' ? '* ' + body : body);
   }
-  // Reels / shared posts: bridges attach a link to the original
-  const ext = c.external_url || (c['com.beeper.linkpreviews'] && c['com.beeper.linkpreviews'][0] && c['com.beeper.linkpreviews'][0].matched_url);
-  if (ext && /^https:\/\//.test(ext) && !(c.body || '').includes(ext)) {
+  // Caption under a photo / video / file
+  const cap = ['m.image', 'm.video', 'm.audio', 'm.file'].includes(kind) ? captionOf(c) : '';
+  if (cap && !/^https?:\/\/(www\.)?instagram\.com\/\S+$/.test(mdPlain(cap).trim())) {   // a bare reel link gets the button below instead
+    if (el.classList.contains('media')) { el.classList.remove('media'); el.classList.add('hasmedia'); }
+    const d = document.createElement('div'); d.className = 'cap'; linkify(d, stripReply(cap)); el.appendChild(d);
+  }
+  // Reels / shared posts: link to the original (from the bridge, or an Instagram link in the text)
+  const igm = /(https:\/\/(?:www\.)?instagram\.com\/(?:reel|reels|p)\/[A-Za-z0-9_-]+\/?)/.exec(c.body || '');
+  const ext = c.external_url || (c['com.beeper.linkpreviews'] && c['com.beeper.linkpreviews'][0] && c['com.beeper.linkpreviews'][0].matched_url) || (igm && igm[1]);
+  const isIg = ext && /instagram\.com\/(reel|reels|p)\//.test(ext);
+  if (ext && /^https:\/\//.test(ext) && (isIg || !(c.body || '').includes(ext))) {
     const a = document.createElement('a'); a.href = ext; a.target = '_blank'; a.rel = 'noopener';
     a.className = 'extlink'; a.textContent = /instagram\.com\/(reel|reels)\//.test(ext) ? '▶ Open reel in Instagram' : /instagram\.com\/p\//.test(ext) ? 'Open post in Instagram' : 'Open original';
     if (el.classList.contains('media')) { el.classList.remove('media'); el.classList.add('hasmedia'); }

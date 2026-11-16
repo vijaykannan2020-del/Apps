@@ -149,6 +149,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-15, Claude: My Inbox Version 18. Media captions: when an m.image/m.video/m.file has a separate `filename`, `body` is shown as a caption under it (WhatsApp captioned photos, Instagram reels). Markdown links `[label](url)` render as links (the Instagram bridge sends reels as m.video with a markdown reel link as caption). Instagram reel/post links get an "Open reel in Instagram" button; a caption that is only the reel link is hidden in favour of the button. List previews show captions and "🎬 Reel".
+
 - 2026-11-15, Claude: My Inbox Version 17. Reels/shared posts: messages with `external_url` (or a Beeper link preview) get an "Open reel/post in Instagram" link; videos show a visible tap-to-play frame even without a thumbnail; text messages with an empty body fall back to formatted_body.
 
 - 2026-11-15, Claude: My Inbox Version 16. App shell is sized to window.visualViewport (CSS vars --vvh/--vvt) so the composer sits directly above the iOS keyboard instead of leaving a black gap; no safe-area padding under the composer while the keyboard is up. Note: iOS's ⌃ ⌄ ✓ form bar above the keyboard cannot be removed from a web app (only a native wrapper avoids it).
