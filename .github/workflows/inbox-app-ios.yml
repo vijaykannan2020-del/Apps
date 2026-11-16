@@ -56,7 +56,7 @@ jobs:
           jq '.build.production.ios.credentialsSource = "local"' eas.json > e.json && mv e.json eas.json
           if grep -q NEW_CREDENTIALS=1 /tmp/cred.log; then
             git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
-            git add -f credentials/ios.enc && git commit -m "Save encrypted iPhone signing certificate" && git pull --rebase -q && git push
+            git add -f credentials/ios.enc && git commit -m "Save encrypted iPhone signing certificate" && git stash -q && git pull --rebase -q && git push && git stash pop -q
           fi
       - name: Build on EAS (takes 15–40 min)
         run: npx -y eas-cli@latest build --platform ios --profile production --non-interactive --wait
