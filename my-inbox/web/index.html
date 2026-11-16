@@ -313,7 +313,7 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 20; // bump on every change (shown in Accounts)
+const APP_VERSION = 21; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -348,6 +348,7 @@ const PALETTE = ['#5b6cff','#e0664f','#2fa37a','#c25bd6','#d99a2b','#3c9bd6','#d
 const S = {
   token: store.get('tok'), userId: store.get('uid'), since: null,
   rooms: new Map(), filter: 'all', q: '', current: null, firstSync: true, view: 'list',
+  presence: new Map(),
   muted: new Set(), showArchived: false, replyTo: null, editing: null, kind: 'all', keepUnread: new Set(),
 };
 const domain = () => (S.userId || '').split(':').slice(1).join(':');
@@ -591,7 +592,7 @@ async function syncLoop() {
     room: { timeline: { limit: 25 }, state: { lazy_load_members: true },
       account_data: { types: ['m.tag', 'm.marked_unread', 'com.famedly.marked_unread'] },
       ephemeral: { types: ['m.receipt', 'm.typing'] } },
-    presence: { not_types: ['*'] }, account_data: { types: ['m.push_rules'] },
+    presence: { types: ['m.presence'] }, account_data: { types: ['m.push_rules'] },
   }));
   let backoff = 1000;
   while (S.token) {
@@ -637,6 +638,14 @@ function processSync(d) {
     }
     if (id === S.current) { currentChanged = true; r.unread = 0; }
   }
+  let presenceChanged = false;
+  for (const ev of (d.presence && d.presence.events) || []) {
+    const c = ev.content || {};
+    S.presence.set(ev.sender, { online: c.presence === 'online' || !!c.currently_active,
+      lastActive: c.last_active_ago != null ? Date.now() - c.last_active_ago : null });
+    presenceChanged = true;
+  }
+  if (presenceChanged && S.current) { const cr = S.rooms.get(S.current); if (cr) updateHeader(cr); }
   for (const ev of (d.account_data && d.account_data.events) || []) {
     if (ev.type !== 'm.push_rules') continue;
     const rules = ((ev.content || {}).global || {}).room || [];
@@ -822,7 +831,16 @@ function updateHeader(r) {
   $('#cname').textContent = roomName(r);
   const n = netOf(r) || botNetOf(r);
   const typing = r.typing.length ? (isGroup(r) ? memberName(r, r.typing[0]).split(' ')[0] + ' is typing…' : 'typing…') : '';
-  $('#csub').textContent = typing || [n && NETS[n].label, isGroup(r) ? memberCount(r) + ' members' : '', S.muted.has(r.id) ? 'muted' : ''].filter(Boolean).join(' · ');
+  let seen = '';
+  if (!isGroup(r)) {
+    const p = S.presence.get(others(r)[0] || '');
+    if (p && p.online) seen = 'online';
+    else if (p && p.lastActive) {
+      const d = new Date(p.lastActive), today = d.toDateString() === new Date().toDateString();
+      seen = 'last seen ' + (today ? 'today at ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }));
+    }
+  }
+  $('#csub').textContent = typing || seen || [n && NETS[n].label, isGroup(r) ? memberCount(r) + ' members' : '', S.muted.has(r.id) ? 'muted' : ''].filter(Boolean).join(' · ');
 }
 function closeChat() {
   S.current = null;
