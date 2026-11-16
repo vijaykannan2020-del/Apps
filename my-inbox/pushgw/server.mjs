@@ -59,6 +59,32 @@ async function whoami(auth) {
   return (await r.json()).user_id || null;
 }
 
+
+// ---------- Google Drive backup (weekly, encrypted; the host's backup.sh does the actual work) ----------
+// Uses rclone's public Google "desktop app" client and the loopback trick: after consent Google redirects to
+// http://127.0.0.1:53682/?code=... which fails to load on the phone; the user pastes that address back here.
+const G_ID = '202264815644.apps.googleusercontent.com';
+const G_SECRET = 'X4Z3ca8xfWDb1Voo-F9a7ZxJ';
+const G_REDIRECT = 'http://127.0.0.1:53682/';
+const tokenFile = `${DATA}/gdrive-token.json`;
+const statusFile = `${DATA}/backup-status.json`;
+const keyFile = `${DATA}/backup-key`;
+const requestFile = `${DATA}/backup-request`;
+const readJsonFile = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return null; } };
+function backupKey() {
+  if (!fs.existsSync(keyFile)) {
+    const a = crypto.randomBytes(15).toString('base64url').replace(/[-_]/g, 'x');
+    fs.writeFileSync(keyFile, a.match(/.{1,5}/g).join('-'), { mode: 0o600 });
+  }
+  return fs.readFileSync(keyFile, 'utf8').trim();
+}
+async function isAdmin(auth) {
+  const userId = await whoami(auth);
+  if (!userId) return null;
+  const r = await fetch(`${SYNAPSE}/_synapse/admin/v2/users/${encodeURIComponent(userId)}`, { headers: { Authorization: auth } });
+  return r.ok ? userId : false;
+}
+
 async function notify(body) {
   const n = body.notification || {};
   const rejected = [];
@@ -101,6 +127,46 @@ http.createServer(async (req, res) => {
       subs[pushkey] = { userId, subscription, at: Date.now() };
       save();
       return send(res, 200, { pushkey });
+    }
+
+
+    if (url.pathname.startsWith('/push/backup/')) {
+      const who = await isAdmin(req.headers.authorization);
+      if (who === null) return send(res, 401, { error: 'not logged in' });
+      if (who === false) return send(res, 403, { error: 'only the server owner can manage backups' });
+      const op = url.pathname.slice('/push/backup/'.length);
+      if (req.method === 'GET' && op === 'status') {
+        return send(res, 200, { connected: fs.existsSync(tokenFile), running: fs.existsSync(requestFile), last: readJsonFile(statusFile), key: backupKey() });
+      }
+      if (req.method === 'GET' && op === 'authurl') {
+        const q = new URLSearchParams({ client_id: G_ID, redirect_uri: G_REDIRECT, response_type: 'code', access_type: 'offline', prompt: 'consent', scope: 'https://www.googleapis.com/auth/drive.file' });
+        return send(res, 200, { url: 'https://accounts.google.com/o/oauth2/auth?' + q });
+      }
+      if (req.method === 'POST' && op === 'connect') {
+        const { pasted } = await readJson(req);
+        let code = String(pasted || '').trim();
+        try { const u = new URL(code); if (u.searchParams.get('error')) return send(res, 400, { error: 'Google said: ' + u.searchParams.get('error') }); code = u.searchParams.get('code') || code; } catch {}
+        if (!code || code.length < 10) return send(res, 400, { error: 'That doesn’t look like the address from the failed page' });
+        const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ code, client_id: G_ID, client_secret: G_SECRET, redirect_uri: G_REDIRECT, grant_type: 'authorization_code' }) });
+        const t = await r.json().catch(() => ({}));
+        if (!r.ok || !t.refresh_token) return send(res, 400, { error: 'Google didn’t accept it (' + (t.error_description || t.error || r.status) + '). Start again from step 1 — each address works only once.' });
+        const tok = { access_token: t.access_token, token_type: t.token_type || 'Bearer', refresh_token: t.refresh_token, expiry: new Date(Date.now() + (t.expires_in || 3600) * 1000).toISOString() };
+        fs.writeFileSync(tokenFile, JSON.stringify(tok), { mode: 0o600 });
+        backupKey();
+        fs.writeFileSync(requestFile, String(Date.now()));          // first backup right away
+        return send(res, 200, { ok: true });
+      }
+      if (req.method === 'POST' && op === 'run') {
+        if (!fs.existsSync(tokenFile)) return send(res, 400, { error: 'Connect Google Drive first' });
+        fs.writeFileSync(requestFile, String(Date.now()));
+        return send(res, 200, { ok: true });
+      }
+      if (req.method === 'POST' && op === 'disconnect') {
+        try { fs.unlinkSync(tokenFile); } catch {}
+        return send(res, 200, { ok: true });
+      }
+      return send(res, 404, { error: 'not found' });
     }
 
     if (req.method === 'POST' && url.pathname === '/_matrix/push/v1/notify') {

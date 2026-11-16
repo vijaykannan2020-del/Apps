@@ -376,6 +376,13 @@ button:active,.btn:active{transform:scale(.96)}
 #toBottom{transition:opacity .25s ease,transform .35s var(--spring)!important}
 #mentions:not([hidden]),#replyBar:not([hidden]){animation:vin .25s var(--spring)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+.bkcard{background:var(--fill);border-radius:14px;padding:12px 14px;margin-bottom:10px;font-size:calc(14px * var(--fs,1));line-height:1.45}
+.bkcard b{display:block;margin-bottom:2px}
+.bkkey{font:600 calc(17px * var(--fs,1))/1.3 ui-monospace,Menlo,monospace;letter-spacing:.5px;user-select:all;-webkit-user-select:all}
+.bkrow{display:flex;gap:8px;margin-bottom:8px}.bkrow .btn{flex:1}
+.bksteps{margin:0 0 10px;padding-left:20px;font-size:calc(14px * var(--fs,1));line-height:1.5}
+.bkerr{color:var(--red);font-size:calc(13px * var(--fs,1));margin:-2px 0 8px;min-height:1em}
 </style>
 </head>
 <body>
@@ -431,6 +438,7 @@ button:active,.btn:active{transform:scale(.96)}
           <span class="tx"><b>Notifications</b><small id="notifTxt">Off</small></span><span class="go">›</span>
         </button>
         <button class="acct" id="pwBtn"><span class="dot2" style="background:#5E5CE6"><svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg></span><span class="tx"><b>Change password</b><small>Your Inbox login</small></span><span class="go">›</span></button>
+        <button class="acct" id="bkBtn"><span class="dot2" style="background:#34A853"><svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg></span><span class="tx"><b>Backup</b><small id="bkSub">Weekly copy to your Google Drive</small></span><span class="go">›</span></button>
         <button class="acct danger" id="logout"><span class="tx"><b>Log out</b></span></button>
       </div></div>
       <p class="foot" id="who"></p>
@@ -471,7 +479,7 @@ button:active,.btn:active{transform:scale(.96)}
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 36; // bump on every change (shown in Accounts)
+const APP_VERSION = 37; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -2396,6 +2404,71 @@ function newChatSheet() {
   };
   sh.addEventListener('touchend', end); sh.addEventListener('touchcancel', end);
 })();
+
+
+// ---------- backup to Google Drive ----------
+function fmtSize(b) { return b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB'; }
+function bkSummary(st) {
+  if (!st.connected) return 'Not set up — tap to connect Google Drive';
+  if (st.running) return 'Backing up now…';
+  if (!st.last) return 'Connected · first backup starting';
+  const when = fmtWhen(Date.parse(st.last.time));
+  return st.last.ok ? `Last backup ${when} · ${fmtSize(st.last.size)} ✓` : `Last backup failed ${when}`;
+}
+async function refreshBackupRow() {
+  try { const st = await api('GET', '/push/backup/status'); $('#bkSub').textContent = bkSummary(st); return st; }
+  catch (e) { $('#bkBtn').hidden = e.status === 403; return null; }
+}
+function sheetShell(title) {
+  const b = $('#sheetBody'); b.innerHTML = '';
+  const t = document.createElement('div'); t.className = 'st'; t.textContent = title; b.appendChild(t);
+  $('#veil').classList.add('on'); $('#sheet').classList.add('on');
+  return b;
+}
+function addBtn(parent, label, cls, fn) { const x = document.createElement('button'); x.type = 'button'; x.className = cls; x.textContent = label; x.onclick = fn; parent.appendChild(x); return x; }
+async function backupSheet() {
+  const b = sheetShell('Backup'); b.insertAdjacentHTML('beforeend', '<div class="bkcard">Loading…</div>');
+  let st; try { st = await api('GET', '/push/backup/status'); } catch (e) { b.querySelector('.bkcard').textContent = e.status === 403 ? 'Only the server owner can manage backups.' : 'Could not reach the server.'; return; }
+  b.innerHTML = ''; b.appendChild(Object.assign(document.createElement('div'), { className: 'st', textContent: 'Backup' }));
+  if (!st.connected) return backupConnect(b);
+  const c = document.createElement('div'); c.className = 'bkcard';
+  c.innerHTML = '<b>Google Drive connected</b>';
+  c.appendChild(document.createTextNode(bkSummary(st).replace(/…$/, '') + '. Every Sunday your chats, logins and settings are saved, encrypted, to the "My Inbox backups" folder. The last 8 weeks are kept.'));
+  if (st.last && !st.last.ok) { const e = document.createElement('div'); e.className = 'bkerr'; e.textContent = st.last.message; c.appendChild(e); }
+  b.appendChild(c);
+  const k = document.createElement('div'); k.className = 'bkcard';
+  k.innerHTML = '<b>Backup password</b><div class="bkkey"></div><div style="opacity:.75;margin-top:4px">Save this in your Passwords app. It’s needed to restore a backup — without it the backup can’t be opened.</div>';
+  k.querySelector('.bkkey').textContent = st.key; b.appendChild(k);
+  const row = document.createElement('div'); row.className = 'bkrow'; b.appendChild(row);
+  addBtn(row, 'Copy password', 'btn', async () => { try { await navigator.clipboard.writeText(st.key); toast('Backup password copied'); } catch { toast('Long-press the password to copy'); } });
+  addBtn(row, st.running ? 'Backing up…' : 'Back up now', 'btn', async e => {
+    e.target.disabled = true; e.target.textContent = 'Starting…';
+    try { await api('POST', '/push/backup/run'); toast('Backup started — takes about a minute'); closeSheetUI(); setTimeout(refreshBackupRow, 70e3); }
+    catch (er) { toast(er.message || 'Could not start'); e.target.disabled = false; e.target.textContent = 'Back up now'; }
+  });
+  addBtn(b, 'Disconnect Google Drive', 'cancel', async () => { if (!confirm('Stop weekly backups? Existing backups stay in your Drive.')) return; await api('POST', '/push/backup/disconnect').catch(() => {}); closeSheetUI(); refreshBackupRow(); toast('Backups turned off'); });
+  addBtn(b, 'Close', 'cancel', closeSheetUI);
+}
+async function backupConnect(b) {
+  let url = ''; try { url = (await api('GET', '/push/backup/authurl')).url; } catch {}
+  b.insertAdjacentHTML('beforeend', `<ol class="bksteps">
+    <li>Tap <b>Copy sign-in link</b>, open <b>Safari</b>, paste it in the address bar and go.</li>
+    <li>Sign in to Google and tap <b>Allow</b>. (Google shows the name “rclone” — that’s the free backup tool your server uses. It can only see files it creates.)</li>
+    <li>You’ll land on a page that <b>won’t load</b> (“Safari can’t connect to 127.0.0.1”). That’s expected — tap the address bar, <b>copy the whole address</b>.</li>
+    <li>Come back here, paste it below and tap <b>Connect</b>.</li></ol>`);
+  addBtn(b, 'Copy sign-in link', 'btn', async () => { try { await navigator.clipboard.writeText(url); toast('Link copied — paste it in Safari'); } catch { prompt('Copy this link', url); } }).style.width = '100%';
+  const inp = document.createElement('input'); inp.className = 'fwsearch'; inp.placeholder = 'Paste the address of the page that didn’t load'; inp.autocapitalize = 'off'; inp.autocomplete = 'off'; inp.spellcheck = false; inp.style.marginTop = '10px'; b.appendChild(inp);
+  const err = document.createElement('div'); err.className = 'bkerr'; b.appendChild(err);
+  const go = addBtn(b, 'Connect', 'btn', async () => {
+    err.textContent = ''; go.disabled = true; go.textContent = 'Connecting…';
+    try { await api('POST', '/push/backup/connect', { pasted: inp.value }); toast('✓ Google Drive connected — first backup starting'); closeSheetUI(); setTimeout(refreshBackupRow, 3000); setTimeout(refreshBackupRow, 90e3); }
+    catch (e) { err.textContent = e.message || 'Could not connect'; go.disabled = false; go.textContent = 'Connect'; }
+  });
+  go.style.width = '100%';
+  addBtn(b, 'Cancel', 'cancel', closeSheetUI);
+}
+$('#bkBtn').onclick = backupSheet;
+refreshBackupRow();
 
 // ---------- app updates ----------
 async function checkVersion(manual) {

@@ -9,6 +9,12 @@ CRON="* * * * * root $PWD/auto-update.sh >> /var/log/my-inbox-update.log 2>&1"
 # weekly cleanup of shared reels/link media (Sunday 3:30am server time)
 CLEAN="30 3 * * 0 root $PWD/media-cleanup.sh >> /var/log/my-inbox-cleanup.log 2>&1"
 [ "$(cat /etc/cron.d/my-inbox-cleanup 2>/dev/null)" = "$CLEAN" ] || { echo "$CLEAN" > /etc/cron.d/my-inbox-cleanup; chmod 644 /etc/cron.d/my-inbox-cleanup; }
+# weekly encrypted backup to Google Drive (Sunday 4:00am server time) + "Back up now" from the app
+BACK="0 4 * * 0 root $PWD/backup.sh >> /var/log/my-inbox-backup.log 2>&1"
+[ "$(cat /etc/cron.d/my-inbox-backup 2>/dev/null)" = "$BACK" ] || { echo "$BACK" > /etc/cron.d/my-inbox-backup; chmod 644 /etc/cron.d/my-inbox-backup; }
+if [ -f data/pushgw/backup-request ] && [ -x backup.sh ] && ! pgrep -f "$PWD/backup.sh" >/dev/null; then
+  setsid nohup "$PWD/backup.sh" >> /var/log/my-inbox-backup.log 2>&1 < /dev/null &
+fi
 # settings fixes for the bridge configs (only these lines are touched; data is otherwise left alone)
 if grep -qE '^\s*enable_status_broadcast: true' data/whatsapp/config.yaml 2>/dev/null; then
   sed -i -E 's/^(\s*)enable_status_broadcast: true/\1enable_status_broadcast: false/' data/whatsapp/config.yaml
@@ -62,6 +68,6 @@ if diff -qr --exclude=data --exclude=.env --exclude=.deployed-sha "$TMP" . >/dev
 fi
 echo "$(date -u '+%F %T') updating to ${SHA:0:7}"
 cp -r "$TMP"/. .
-chmod +x setup.sh update.sh auto-update.sh media-cleanup.sh
+chmod +x setup.sh update.sh auto-update.sh media-cleanup.sh backup.sh restore.sh
 docker compose up -d --build --remove-orphans
 echo "$SHA" > .deployed-sha
