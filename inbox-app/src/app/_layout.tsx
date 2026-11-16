@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { restore } from '@/lib/matrix';
 import { useTheme } from '@/lib/theme';
+import { Banner } from '@/components/Banner';
 
 export default function RootLayout() {
   const t = useTheme();
@@ -27,6 +28,7 @@ export default function RootLayout() {
             <Stack.Screen name="info/[id]" />
           </Stack>
         )}
+        {loaded && <Banner />}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

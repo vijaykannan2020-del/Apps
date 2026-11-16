@@ -29,13 +29,15 @@ export type Room = {
 };
 
 export type Starred = { room: string; event: string; ts: number; sender: string; body: string };
-export type Prefs = { fontScale: number; receipts: boolean; typing: boolean };
+export type Prefs = { fontScale: number; receipts: boolean; typing: boolean; theme: 'auto' | 'light' | 'dark' };
+export type Banner = { room: string; title: string; body: string; at: number };
 // ---------------- state + change notifications ----------------
 export const S = {
   server: DEFAULT_SERVER, token: null as string | null, userId: null as string | null, since: null as string | null,
   rooms: new Map<string, Room>(), ready: false, status: '' as string, current: null as string | null,
   muted: new Set<string>(), starred: [] as Starred[], reminders: {} as Record<string, number>, drafts: {} as Record<string, string>,
-  prefs: { fontScale: 1, receipts: true, typing: true } as Prefs,
+  prefs: { fontScale: 1, receipts: true, typing: true, theme: 'auto' } as Prefs,
+  banner: null as Banner | null,
 };
 let version = 0;
 const listeners = new Set<() => void>();
@@ -256,7 +258,13 @@ function processSync(d: any, first: boolean) {
     const tl = j.timeline || {};
     if (tl.limited && !first) { r.events = r.events.filter(e => e.pending); r.idx = new Map(r.events.map(e => [e.event_id, e])); }
     if (r.prevBatch === undefined || tl.limited) r.prevBatch = tl.prev_batch || null;
+    const before = r.events.length;
     (tl.events || []).forEach((ev: MEvent) => addEvent(r, ev));
+    if (!first && id !== S.current && r.events.length > before && !S.muted.has(id) && !botNetOf(r)) {
+      const ev = r.events[r.events.length - 1];
+      if (ev.sender !== S.userId && !ev.pending && Date.now() - ev.origin_server_ts < 120e3)
+        S.banner = { room: id, title: roomName(r), body: (isGroup(r) ? memberName(r, ev.sender).split(' ')[0] + ': ' : '') + bodyPreview(ev), at: Date.now() };
+    }
     if (j.unread_notifications) r.unread = j.unread_notifications.notification_count || 0;
     for (const ev of j.account_data?.events || []) {
       if (ev.type === 'm.tag') r.tags = ev.content?.tags || {};
@@ -299,7 +307,7 @@ export async function startSync() {
       const d = await api('GET', `/_matrix/client/v3/sync?filter=${filter}&timeout=${S.since ? 30000 : 0}${S.since ? '&since=' + enc(S.since) : ''}`);
       if (!S.token) break;
       processSync(d, first);
-      S.since = d.next_batch; S.ready = true; S.status = ''; backoff = 1000; changed();
+      S.since = d.next_batch; S.ready = true; S.status = ''; backoff = 1000; changed(); saveSnapshot();
     } catch (e: any) {
       if (!S.token) break;
       if (e.status === 400 && S.since) S.since = null;
@@ -326,13 +334,13 @@ export async function restore() {
   S.token = await getItem('inbox.token'); S.userId = await getItem('inbox.user');
   try { S.prefs = { ...S.prefs, ...JSON.parse((await AsyncStorage.getItem('inbox.prefs')) || '{}') }; } catch {}
   try { S.drafts = JSON.parse((await AsyncStorage.getItem('inbox.drafts')) || '{}'); } catch {}
-  if (S.token) startSync();
+  if (S.token) { await loadSnapshot(); startSync(); }
   return !!S.token;
 }
 export async function logout(expired = false) {
   const tok = S.token;
   S.token = null; S.userId = null; S.since = null; S.rooms.clear(); S.ready = false;
-  await removeItem('inbox.token'); await removeItem('inbox.user');
+  await removeItem('inbox.token'); await removeItem('inbox.user'); AsyncStorage.removeItem(SNAP).catch(() => {});
   if (!expired && tok) fetch(S.server + '/_matrix/client/v3/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + tok } }).catch(() => {});
   changed();
 }
@@ -540,4 +548,101 @@ export async function roomMembers(r: Room) {
 }
 export function reelLink(c: any) {
   return (/(https:\/\/(?:www\.)?instagram\.com\/(?:reel|reels|p)\/[A-Za-z0-9_-]+\/?)/.exec((c?.body || '') + ' ' + (c?.external_url || '')) || [])[1] || null;
+}
+
+
+// ---------------- instant open: keep a copy of the chat list on the phone ----------------
+const SNAP = 'inbox.snapshot.v1';
+let snapTimer: ReturnType<typeof setTimeout> | null = null;
+export function saveSnapshot() {
+  if (snapTimer) return;
+  snapTimer = setTimeout(async () => {
+    snapTimer = null;
+    if (!S.token || !S.since) return;
+    const rooms = [...S.rooms.values()].map(r => ({
+      id: r.id, name: r.name, avatar: r.avatar, heroes: r.heroes, joined: r.joined, unread: r.unread, net: r.net,
+      bridgeName: r.bridgeName, bridgeAvatar: r.bridgeAvatar, channelId: r.channelId, isSpace: r.isSpace, lastTs: r.lastTs,
+      tags: r.tags, markedUnread: r.markedUnread, prevBatch: r.prevBatch ?? null,
+      members: [...r.members.entries()].filter(([id]) => r.heroes.includes(id) || id === S.userId || isBot(id) || r.members.size < 30),
+      readBy: [...r.readBy.entries()],
+      events: r.events.filter(e => !e.pending && !e.failed).slice(-20),
+      reacts: [...r.reacts.entries()].filter(([eid]) => r.events.slice(-20).some(e => e.event_id === eid)).map(([eid, m]) => [eid, [...m.entries()].map(([k, set]) => [k, [...set]])]),
+    }));
+    try { await AsyncStorage.setItem(SNAP, JSON.stringify({ uid: S.userId, since: S.since, muted: [...S.muted], starred: S.starred, reminders: S.reminders, rooms })); } catch {}
+  }, 3000);
+}
+async function loadSnapshot() {
+  try {
+    const raw = await AsyncStorage.getItem(SNAP); if (!raw) return;
+    const snap = JSON.parse(raw); if (snap.uid !== S.userId) return;
+    S.muted = new Set(snap.muted || []); S.starred = snap.starred || []; S.reminders = snap.reminders || {};
+    for (const x of snap.rooms || []) {
+      const r = room(x.id);
+      Object.assign(r, { name: x.name, avatar: x.avatar, heroes: x.heroes || [], joined: x.joined, unread: x.unread, net: x.net,
+        bridgeName: x.bridgeName, bridgeAvatar: x.bridgeAvatar, channelId: x.channelId, isSpace: x.isSpace, lastTs: x.lastTs,
+        tags: x.tags || {}, markedUnread: x.markedUnread, prevBatch: x.prevBatch });
+      r.members = new Map(x.members || []); r.readBy = new Map(x.readBy || []);
+      r.events = x.events || []; r.idx = new Map(r.events.map((e: MEvent) => [e.event_id, e]));
+      r.reacts = new Map((x.reacts || []).map(([eid, list]: any) => [eid, new Map(list.map(([k, arr]: any) => [k, new Set(arr)]))]));
+    }
+    S.since = snap.since; S.ready = true; changed();
+  } catch {}
+}
+
+// ---------------- @mentions + password + backup ----------------
+export async function sendRich(r: Room, text: string, mentions: { id: string; name: string }[], replyTo?: MEvent | null) {
+  const used = mentions.filter(m => text.includes('@' + m.name));
+  if (!used.length) return sendText(r, text, replyTo);
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  let html = esc(text);
+  for (const m of used) html = html.split(esc('@' + m.name)).join(`<a href="https://matrix.to/#/${esc(m.id)}">@${esc(m.name)}</a>`);
+  const content: any = { msgtype: 'm.text', body: text, format: 'org.matrix.custom.html', formatted_body: html.replace(/\n/g, '<br>'), 'm.mentions': { user_ids: [...new Set(used.map(m => m.id))] } };
+  if (replyTo) content['m.relates_to'] = { 'm.in_reply_to': { event_id: replyTo.event_id } };
+  const txn = newTxn();
+  const ev: MEvent = { event_id: '~' + txn, type: 'm.room.message', sender: S.userId!, origin_server_ts: Date.now(), content, pending: true, txn };
+  r.txns.set(txn, ev); r.idx.set(ev.event_id, ev); r.events.push(ev); r.lastTs = ev.origin_server_ts; changed();
+  try { const res = await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/send/m.room.message/${txn}`, content); ev.event_id = res.event_id; ev.pending = false; r.idx.set(res.event_id, ev); }
+  catch { ev.pending = false; ev.failed = true; }
+  changed();
+}
+export async function changePassword(oldPw: string, newPw: string) {
+  const body: any = { new_password: newPw, logout_devices: false };
+  try { await api('POST', '/_matrix/client/v3/account/password', body); return; }
+  catch (e: any) {
+    if (e.status !== 401) throw e;
+  }
+  // server asks for your current password first (user-interactive auth)
+  const res = await fetch(S.server + '/_matrix/client/v3/account/password', { method: 'POST', headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await res.json().catch(() => ({}));
+  body.auth = { type: 'm.login.password', identifier: { type: 'm.id.user', user: S.userId }, password: oldPw, session: j.session };
+  await api('POST', '/_matrix/client/v3/account/password', body);
+}
+export const backupApi = {
+  status: () => api('GET', '/push/backup/status'),
+  authUrl: () => api('GET', '/push/backup/authurl'),
+  connect: (pasted: string) => api('POST', '/push/backup/connect', { pasted }),
+  run: () => api('POST', '/push/backup/run'),
+  disconnect: () => api('POST', '/push/backup/disconnect'),
+};
+export function igMediaId(url: string) {
+  const m = /instagram\.com\/(?:reel|reels|p)\/([A-Za-z0-9_-]+)/.exec(url); if (!m) return null;
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  let id = BigInt(0); for (const ch of m[1].slice(0, 11)) { const v = A.indexOf(ch); if (v < 0) return null; id = id * BigInt(64) + BigInt(v); }
+  return id.toString();
+}
+export function setupChips(r: Room): string[] {
+  let cmds = ['login', 'list-logins', 'cancel', 'help'];
+  for (let i = r.events.length - 1; i >= 0; i--) {
+    const ev = r.events[i]; if (ev.sender === S.userId) continue;
+    const body = ev.content?.body || '';
+    if (/specify a login flow/i.test(body)) {
+      const flows = [...body.matchAll(/^\s*\*\s*`([a-z0-9-]+)`/gim)].map(m => 'login ' + m[1]);
+      if (flows.length) cmds = flows.concat(['help']);
+    } else if (/Options:\s*`/i.test(body)) {
+      const opts = [...body.slice(body.search(/Options:/i)).matchAll(/`([^`]{1,40})`/g)].map(m => m[1]);
+      if (opts.length) cmds = opts;
+    }
+    break;
+  }
+  return cmds;
 }

@@ -1,6 +1,6 @@
 import { useColorScheme } from 'react-native';
 import { useSyncExternalStore } from 'react';
-import { subscribe, getVersion } from './matrix';
+import { subscribe, getVersion, S } from './matrix';
 
 export type Theme = ReturnType<typeof makeTheme>;
 function makeTheme(dark: boolean) {
@@ -23,7 +23,12 @@ function makeTheme(dark: boolean) {
   };
 }
 const LIGHT = makeTheme(false), DARK = makeTheme(true);
-export function useTheme(): Theme { return useColorScheme() === 'dark' ? DARK : LIGHT; }
+export function useTheme(): Theme {
+  const sys = useColorScheme();
+  useSyncExternalStore(subscribe, getVersion, getVersion);
+  const mode = S.prefs.theme === 'auto' ? sys : S.prefs.theme;
+  return mode === 'dark' ? DARK : LIGHT;
+}
 
 // Re-render a screen whenever chats change
 export function useStore() { return useSyncExternalStore(subscribe, getVersion, getVersion); }

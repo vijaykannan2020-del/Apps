@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
-import { mediaSource } from '@/lib/matrix';
+import { mediaSource, igMediaId } from '@/lib/matrix';
 import { Theme } from '@/lib/theme';
 
 function VideoPlayer({ uri, headers, w, h }: { uri: string; headers: Record<string, string>; w: number; h: number }) {
@@ -34,8 +34,8 @@ export function ReelBubble({ c, link, maxW, t }: { c: any; link: string; maxW: n
   const w = Math.min(maxW, 220); const h = Math.min(w / ratio, 390);
   const cover = c.msgtype === 'm.image' ? mediaSource(c.url, 640) : mediaSource(info.thumbnail_url, 640);
   const open = () => {
-    const sc = (/instagram\.com\/(?:reel|reels|p)\/([A-Za-z0-9_-]+)/.exec(link) || [])[1];
-    Linking.openURL(sc ? `instagram://reel/${sc}` : link).catch(() => Linking.openURL(link));
+    const id = igMediaId(link);
+    Linking.openURL(id ? `instagram://media?id=${id}` : link).catch(() => Linking.openURL(link));
   };
   return (
     <Pressable onPress={open} style={{ width: w, height: h, borderRadius: 16, overflow: 'hidden', backgroundColor: t.dark ? '#1c1c1e' : '#d8d8dc' }}>

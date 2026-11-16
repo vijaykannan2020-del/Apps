@@ -13,12 +13,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { S, Room, MEvent, NETS, roomName, netOf, botNetOf, isGroup, memberName, memberCount, mediaSource, markRead, sendText, sendImage,
   loadOlder, react, mdPlain, captionOf, stripReply, bodyPreview, hueFor, redact, editMessage, forward, isStarred, toggleStar,
-  visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, isUnread } from '@/lib/matrix';
+  visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, isUnread, sendRich, roomMembers, setupChips } from '@/lib/matrix';
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
 import { VideoBubble, VoiceBubble, ReelBubble } from '@/components/Media';
 import { quickTimes, fmtWhen, EMOJI_ALL } from '@/lib/time';
+import { PhotoViewer } from '@/components/PhotoViewer';
 
 type Item = { key: string; kind: 'day'; label: string } | { key: string; kind: 'unread' } | { key: string; kind: 'msg'; ev: MEvent; first: boolean; last: boolean; recent: boolean };
 const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -158,6 +159,10 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
   const [menu, setMenu] = useState<MEvent | null>(null); const [grid, setGrid] = useState<MEvent | null>(null);
   const [fwd, setFwd] = useState<MEvent | null>(null); const [sched, setSched] = useState(false);
   const [up, setUp] = useState(false); const [newCount, setNewCount] = useState(0);
+  const [attachSheet, setAttachSheet] = useState(false);
+  const [people, setPeople] = useState<{ id: string; name: string }[] | null>(null);
+  const [mentionQ, setMentionQ] = useState<string | null>(null);
+  const mentions = useRef<{ id: string; name: string }[]>([]);
   const [width, setWidth] = useState(winW);
   const listRef = useRef<FlatList<Item>>(null);
   const inputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
@@ -169,7 +174,7 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
   const fs = S.prefs.fontScale;
 
   useEffect(() => {
-    setText(S.drafts[id] || ''); setReplyTo(null); setEditing(null); unreadAtOpen.current = r ? r.unread : 0; lastCount.current = r ? r.events.length : 0;
+    setText(S.drafts[id] || ''); setReplyTo(null); setEditing(null); setPeople(null); setMentionQ(null); mentions.current = []; unreadAtOpen.current = r ? r.unread : 0; lastCount.current = r ? r.events.length : 0;
     S.current = id; if (r) markRead(r);
     return () => { if (S.current === id) S.current = null; };
   }, [id]);
@@ -207,25 +212,34 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
   function onChange(s: string) {
     setText(s); if (!editing) setDraft(r!.id, s);
     if (s.trim()) sendTyping(r!, true);
+    const m = isGroup(r!) && !botNetOf(r!) ? /(^|\s)@([^\s@]{0,30})$/.exec(s) : null;
+    setMentionQ(m ? m[2].toLowerCase() : null);
+    if (m && !people) roomMembers(r!).then(setPeople).catch(() => setPeople([]));
+  }
+  function pickMention(p: { id: string; name: string }) {
+    setText(text.replace(/@([^\s@]{0,30})$/, '@' + p.name + ' ')); mentions.current.push(p); setMentionQ(null);
   }
   async function send() {
     const s = text.trim(); if (!s) return;
     setText(''); setDraft(r!.id, ''); sendTyping(r!, false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     if (editing) { const ev = editing; setEditing(null); try { await editMessage(r!, ev, s); } catch { Alert.alert('Could not edit', 'WhatsApp only allows edits for about 15 minutes.'); } return; }
-    const rt = replyTo; setReplyTo(null);
-    await sendText(r!, s, rt);
+    const rt = replyTo; setReplyTo(null); setMentionQ(null);
+    const ms = mentions.current; mentions.current = [];
+    await sendRich(r!, s, ms, rt);
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
   }
   async function attach(camera = false) {
     const res = camera
       ? await ImagePicker.requestCameraPermissionsAsync().then(p => p.granted ? ImagePicker.launchCameraAsync({ quality: 0.85 }) : null)
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85, allowsMultipleSelection: true, selectionLimit: 10, orderedSelection: true });
     if (!res || res.canceled || !res.assets?.length) return;
-    const a = res.assets[0];
     setSending(true);
-    try { await sendImage(r!, a.uri, a.mimeType || 'image/jpeg', a.width, a.height, a.fileName || 'photo.jpg'); }
-    catch (e: any) { Alert.alert('Could not send photo', e.message || ''); }
+    let failed = 0;
+    for (const a of res.assets) {
+      try { await sendImage(r!, a.uri, a.mimeType || 'image/jpeg', a.width, a.height, a.fileName || 'photo.jpg'); } catch { failed++; }
+    }
+    if (failed) Alert.alert('Some photos didn’t send', `${failed} of ${res.assets.length} failed. Try again.`);
     setSending(false);
   }
   async function startRec() {
@@ -285,6 +299,25 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
         )}
         {/* composer */}
         <View style={[styles.composerWrap, { paddingBottom: Math.max(ins.bottom, 8) }]}>
+          {mentionQ !== null && people && people.filter(p => p.name.toLowerCase().includes(mentionQ)).length > 0 && (
+            <View style={[styles.mentions, { backgroundColor: t.surface }]}>
+              {people.filter(p => p.name.toLowerCase().includes(mentionQ)).slice(0, 6).map(p => (
+                <Pressable key={p.id} onPress={() => pickMention(p)} style={({ pressed }) => [styles.mentionRow, { backgroundColor: pressed ? t.fill : 'transparent' }]}>
+                  <View style={[styles.mAv, { backgroundColor: hueFor(p.id) }]}><Text style={{ color: '#fff', fontWeight: '700' }}>{(p.name.replace(/[^\p{L}\p{N}]/gu, '')[0] || '#').toUpperCase()}</Text></View>
+                  <Text style={{ color: t.ink, fontSize: 16, fontWeight: '600' }}>{p.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          {botNetOf(r) && !recording && (
+            <View style={styles.chips}>
+              {setupChips(r).map(c => (
+                <Pressable key={c} onPress={() => sendText(r, c)} style={({ pressed }) => [styles.chip, { backgroundColor: pressed ? t.fill : t.surface, borderColor: t.line }]}>
+                  <Text style={{ color: t.ink, fontWeight: '600', fontSize: 14 }}>{c}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
           {(replyTo || editing) && (
             <View style={[styles.replyBar, { backgroundColor: t.surface }]}>
               <Ionicons name={editing ? 'pencil' : 'arrow-undo'} size={18} color={t.blue} />
@@ -307,11 +340,12 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
             </View>
           ) : (
             <View style={styles.composer}>
-              <Pressable onPress={() => attach(false)} onLongPress={() => attach(true)} hitSlop={8} style={[styles.round, { backgroundColor: t.fill }]}>
+              <Pressable onPress={() => setAttachSheet(true)} hitSlop={8} style={[styles.round, { backgroundColor: t.fill }]}>
                 {sending ? <ActivityIndicator /> : <Ionicons name="add" size={24} color={t.ink} />}
               </Pressable>
               <TextInput ref={inputRef} value={text} onChangeText={onChange} placeholder="Message" placeholderTextColor={t.soft}
-                multiline style={[styles.input, { backgroundColor: t.fill, color: t.ink, fontSize: 17 * Math.max(1, fs) }]} />
+                multiline style={[styles.input, { backgroundColor: t.fill, color: t.ink, fontSize: 17 * Math.max(1, fs) }]}
+                autoCapitalize={botNetOf(r) ? 'none' : 'sentences'} autoCorrect={!botNetOf(r)} spellCheck={!botNetOf(r)} />
               {text.trim() ? (
                 <Pressable onPress={send} onLongPress={() => { if (!editing && !botNetOf(r)) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}); setSched(true); } }} delayLongPress={350}
                   style={({ pressed }) => [styles.round, { backgroundColor: t.primary, transform: [{ scale: pressed ? 0.92 : 1 }] }]}>
@@ -377,6 +411,14 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
         </SheetGroup>
       </Sheet>
 
+      {/* attach */}
+      <Sheet visible={attachSheet} onClose={() => setAttachSheet(false)}>
+        <SheetGroup>
+          <SheetItem label="Photo library" icon={<Ionicons name="images-outline" size={20} color={t.ink} />} onPress={() => { setAttachSheet(false); setTimeout(() => attach(false), 300); }} />
+          <SheetItem label="Camera" last icon={<Ionicons name="camera-outline" size={20} color={t.ink} />} onPress={() => { setAttachSheet(false); setTimeout(() => attach(true), 300); }} />
+        </SheetGroup>
+      </Sheet>
+
       {/* schedule */}
       <Sheet visible={sched} onClose={() => setSched(false)} title="Send later">
         <SheetGroup>
@@ -391,12 +433,7 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
       </Sheet>
 
       {/* full-screen photo */}
-      <Modal visible={!!photo} transparent animationType="fade" onRequestClose={() => setPhoto(null)}>
-        <Pressable style={styles.viewer} onPress={() => setPhoto(null)}>
-          {photo && <Image source={mediaSource(photo)} style={{ width: winW, height: height * 0.85 }} contentFit="contain" transition={150} />}
-          <View style={[styles.viewerClose, { top: ins.top + 12 }]}><Ionicons name="close" size={26} color="#fff" /></View>
-        </Pressable>
-      </Modal>
+      <PhotoViewer mxc={photo} onClose={() => setPhoto(null)} />
     </View>
   );
 }
@@ -436,6 +473,9 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', paddingBottom: 20 },
   gridBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   fwdRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10 },
-  viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', alignItems: 'center', justifyContent: 'center' },
-  viewerClose: { position: 'absolute', right: 20 },
+  mentions: { borderRadius: 14, overflow: 'hidden', paddingVertical: 4 },
+  mentionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  mAv: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, borderWidth: StyleSheet.hairlineWidth },
 });

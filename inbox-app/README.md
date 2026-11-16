@@ -9,5 +9,6 @@ The native version of My Inbox. Talks to the same server as the web app (`../my-
 
 ## Phases
 1. ✅ Login, chat list (All/WhatsApp/Instagram/Messenger, Unread/Groups, archive, pin), chat (bubbles, photos, reactions, reply, copy, send text/photo), accounts.
-2. ✅ iPhone Duo two-pane when unfolded; message menu (reactions + all emojis, reply, forward, copy, star, edit, delete), swipe-to-reply, video + voice notes (play & record), reels, link previews, unread line, jump-to-latest, drafts, typing, schedule send, chat info (mute/pin/remind/archive/scheduled/photos/members), chat-list swipes, mute, reminders, starred, message search, new WhatsApp chat, text size, privacy toggles.
+2. Voice notes, video playback, forward, search inside messages, schedule send, reminders (parity with web Inbox).
+2b. ✅ Build 3: instant open (chat list cached on the phone), photo viewer with zoom + Share + Save to Photos, multi-photo send + camera, @mentions in groups, setup-chat option buttons, in-app banner for new messages, Auto/Light/Dark theme, change password, Google Drive backup screen, reels open in Instagram.
 3. Real app (TestFlight): notifications, voice/video calls with lock-screen ringing, wife's private chat.
