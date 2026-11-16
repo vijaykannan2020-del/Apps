@@ -312,10 +312,11 @@ form#comp{display:flex;align-items:flex-end;gap:8px;padding:8px 12px calc(8px + 
 <div id="toast" role="status"></div>
 <script>
 'use strict';
-const APP_VERSION = 22; // bump on every change (shown in Accounts)
+const APP_VERSION = 23; // bump on every change (shown in Accounts)
 const $ = s => document.querySelector(s);
 const enc = encodeURIComponent;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+window.addEventListener('error', e => { try { const t = document.getElementById('toast'); t.textContent = 'App error: ' + e.message; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 4000); } catch {} });
 const store = {
   get(k){ try { return localStorage.getItem(k); } catch { return null; } },
   set(k,v){ try { localStorage.setItem(k,v); } catch {} },
@@ -1017,6 +1018,10 @@ function msgEl(r, ev) {
   return el;
 }
 function renderTimeline(jump) {
+  try { renderTimelineInner(jump); }
+  catch (err) { toast('Display problem: ' + (err && err.message)); console.error(err); }
+}
+function renderTimelineInner(jump) {
   const r = S.rooms.get(S.current); if (!r) return;
   const tl = $('#tl');
   const nearBottom = jump || tl.scrollHeight - tl.scrollTop - tl.clientHeight < 150;
@@ -1041,7 +1046,12 @@ function renderTimeline(jump) {
     const mine = ev.sender === S.userId;
     const newRun = ev.sender !== lastSender || ev.origin_server_ts - lastTs > 5 * 60e3;
     if (group && !mine && newRun) { const w = document.createElement('div'); w.className = 'who'; w.textContent = memberName(r, ev.sender); frag.appendChild(w); }
-    const el = msgEl(r, ev);
+    let el;
+    try { el = msgEl(r, ev); }
+    catch (err) {   // one odd message must never freeze the whole chat
+      el = document.createElement('div'); el.className = 'msg notice' + (mine ? ' me' : '');
+      el.textContent = (mine ? 'You sent' : 'Received') + ' a message Inbox can\'t show yet (' + ((ev.content && ev.content.msgtype) || ev.type) + ': ' + (err && err.message) + ')';
+    }
     if (newRun) el.classList.add('gap');
     frag.appendChild(el);
     const rx = r.reacts.get(ev.event_id);
