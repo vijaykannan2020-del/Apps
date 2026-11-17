@@ -24,7 +24,7 @@ export type Room = {
   events: MEvent[]; idx: Map<string, MEvent>; txns: Map<string, MEvent>; reacts: Map<string, Map<string, Set<string>>>;
   reactIdx: Map<string, { target: string; key: string; sender: string }>; pendingEdits: Map<string, any>;
   unread: number; net: Net | null; bridgeName: string | null; bridgeAvatar: string | null; channelId: string | null;
-  isSpace: boolean; prevBatch: string | null | undefined; lastTs: number; tags: Record<string, unknown>; markedUnread: boolean; myRead?: string;
+  isSpace: boolean; prevBatch: string | null | undefined; lastTs: number; tags: Record<string, unknown>; markedUnread: boolean; myRead?: string; prevUnread?: number;
   readBy: Map<string, string>; typing: string[]; loadingOlder: boolean; isDM?: boolean;
 };
 
@@ -363,7 +363,12 @@ function processSync(d: any, first: boolean) {
           if (rc['m.read']?.[S.userId!] || rc['m.read.private']?.[S.userId!]) r.myRead = eid;
       }
     }
-    if (S.muted.has(id)) r.unread = Math.max(r.unread, unreadAfterReceipt(r));
+    if (S.muted.has(id) && id !== S.current) {
+      // No receipt known yet (chat muted before this version): new messages from others still count as unread.
+      const fresh = r.myRead ? 0 : r.events.slice(before).filter(e => e.sender !== S.userId && !e.pending && SHOWN_UNREAD.has(e.type) && !isBot(e.sender)).length;
+      r.unread = Math.max(r.unread, r.myRead ? unreadAfterReceipt(r) : (r.prevUnread || 0) + fresh);
+    }
+    r.prevUnread = r.unread;
     if (id === S.current) { r.unread = 0; markRead(r); }
   }
   for (const ev of d.presence?.events || []) {
@@ -440,7 +445,7 @@ export async function logout(expired = false) {
 }
 export function markRead(r: Room) {
   const last = [...r.events].reverse().find(e => !e.pending && e.event_id && !e.event_id.startsWith('~'));
-  r.unread = 0;
+  r.unread = 0; r.prevUnread = 0;
   if (last) r.myRead = last.event_id;
   if (r.markedUnread) { r.markedUnread = false; api('PUT', `/_matrix/client/v3/user/${enc(S.userId!)}/rooms/${enc(r.id)}/account_data/m.marked_unread`, { unread: false }).catch(() => {}); }
   if (last) api('POST', `/_matrix/client/v3/rooms/${enc(r.id)}/read_markers`, S.prefs.receipts ? { 'm.fully_read': last.event_id, 'm.read': last.event_id } : { 'm.fully_read': last.event_id, 'm.read.private': last.event_id }).catch(() => {});
@@ -722,7 +727,7 @@ async function loadSnapshot() {
       const r = room(x.id);
       Object.assign(r, { name: x.name, avatar: x.avatar, heroes: x.heroes || [], joined: x.joined, unread: x.unread, net: x.net,
         bridgeName: x.bridgeName, bridgeAvatar: x.bridgeAvatar, channelId: x.channelId, isSpace: x.isSpace, lastTs: x.lastTs,
-        tags: x.tags || {}, markedUnread: x.markedUnread, myRead: x.myRead, prevBatch: x.prevBatch });
+        tags: x.tags || {}, markedUnread: x.markedUnread, myRead: x.myRead, prevUnread: x.unread || 0, prevBatch: x.prevBatch });
       r.members = new Map(x.members || []); r.readBy = new Map(x.readBy || []);
       r.events = x.events || []; r.idx = new Map(r.events.map((e: MEvent) => [e.event_id, e]));
       r.reacts = new Map((x.reacts || []).map(([eid, list]: any) => [eid, new Map(list.map(([k, arr]: any) => [k, new Set(arr)]))]));
