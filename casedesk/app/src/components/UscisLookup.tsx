@@ -4,7 +4,7 @@
 // Starts out of sight; if USCIS shows a check ("Verify you are human") the page slides up so the
 // person can complete it, then it closes again on its own.
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Platform, Pressable, View, ActivityIndicator } from 'react-native';
+import { Platform, Pressable, View, ActivityIndicator } from 'react-native';
 import { T } from './ui';
 import { useTheme } from '../theme';
 
@@ -13,22 +13,24 @@ type Job = { receipt: string; resolve: (r: WebCase) => void; reject: (e: Error) 
 
 const URL = 'https://egov.uscis.gov/';
 const queue: Job[] = [];
-let wake: (() => void) | null = null;
-let mounted = false;
+// Mounted hosts, newest last. The newest (the screen on top) runs the checks.
+const hosts: { id: number; wake: () => void }[] = [];
+let nextId = 1;
+const wakeTop = () => hosts[hosts.length - 1]?.wake();
 
-export const phoneLookupAvailable = () => Platform.OS !== 'web' && mounted;
+export const phoneLookupAvailable = () => Platform.OS !== 'web' && hosts.length > 0;
 
 export function lookupOnPhone(receipt: string): Promise<WebCase> {
   return new Promise((resolve, reject) => {
     queue.push({ receipt, resolve, reject });
-    wake?.();
+    wakeTop();
   });
 }
 
 // Runs inside the USCIS page. Fills the form, submits, then reports the result card.
 const script = (receipt: string) => `
 (function () {
-  var R = ${JSON.stringify(receipt)}, sent = false, started = Date.now(), last = '';
+  var R = ${JSON.stringify(receipt)}, sent = false, sentAt = 0, before = [], filling = false, started = Date.now(), last = '';
   function post(o) { window.ReactNativeWebView.postMessage(JSON.stringify(o)); }
   function visible(el) { return el && el.offsetParent !== null; }
   function setVal(input, v) {
@@ -61,7 +63,18 @@ const script = (receipt: string) => `
         if (!best || t.length < best.innerText.trim().length) best = n;
       }
     }
-    if (!best) return null;
+    if (!best) {
+      // Fallback: a heading that appeared after submitting, with its text block.
+      if (Date.now() - sentAt < 2500) return null;
+      var hs = document.querySelectorAll('h1, h2, h3');
+      for (var j = 0; j < hs.length; j++) {
+        var ht = (hs[j].innerText || '').trim();
+        if (!ht || before.indexOf(ht) >= 0 || /case status online|check case status/i.test(ht)) continue;
+        var blk = hs[j].parentElement, bt = blk ? (blk.innerText || '').replace(ht, '').trim() : '';
+        if (bt.length > 40) return { status: ht, detail: bt };
+      }
+      return null;
+    }
     var status = '';
     var box = best;
     for (var up = 0; up < 6 && box && !status; up++) {
@@ -79,16 +92,19 @@ const script = (receipt: string) => `
     var title = document.title || '';
     var challenge = /just a moment|attention required|verify you are human/i.test(title + ' ' + (document.body ? document.body.innerText.slice(0, 400) : ''));
     if (challenge) { if (last !== 'challenge') { last = 'challenge'; post({ type: 'challenge' }); } return setTimeout(tick, 700); }
+    if (last !== (sent ? 'sent' : 'page')) { last = sent ? 'sent' : 'page'; post({ type: 'stage', stage: last }); }
     var r = sent ? result() : null;
     if (r && (r.error || (r.status && r.detail))) return post(Object.assign({ type: r.error ? 'error' : 'done' }, r));
-    if (!sent) {
+    if (!sent && !filling) {
       var input = findInput();
       if (input) {
+        filling = true;
         input.focus(); setVal(input, R);
         var btn = findButton(input.form);
         setTimeout(function () {
+          before = Array.prototype.map.call(document.querySelectorAll('h1, h2, h3'), function (h) { return (h.innerText || '').trim(); });
           if (btn) btn.click(); else if (input.form) input.form.requestSubmit ? input.form.requestSubmit() : input.form.submit();
-          sent = true;
+          sent = true; sentAt = Date.now();
         }, 300);
       }
     }
@@ -107,40 +123,66 @@ function parse(raw: { status: string; detail: string }): WebCase {
   return { status: raw.status.replace(/\s+/g, ' ').trim(), detail, form, date };
 }
 
+// Several hosts can be mounted (root, each detail screen); the most recent one — the screen on
+// top — runs the check, so its page can appear over that screen (iOS can't stack modals).
+
+const STAGE: Record<string, string> = {
+  start: 'Opening USCIS Case Status…',
+  page: 'Entering the receipt number…',
+  sent: 'Waiting for USCIS…',
+  challenge: 'USCIS wants a quick check — tap it below',
+};
+
 export function UscisLookupHost() {
   const t = useTheme();
+  const [id] = useState(() => nextId++);
   const [job, setJob] = useState<Job | null>(null);
   const [show, setShow] = useState(false);
+  const [stage, setStage] = useState('start');
   const [key, setKey] = useState(0);
-  const timer = useRef<any>(null);
+  const timers = useRef<any[]>([]);
+  const jobRef = useRef<Job | null>(null);
+  jobRef.current = job;
+  const wakeRef = useRef<() => void>(() => {});
+
+  wakeRef.current = () => setJob((cur) => cur || queue.shift() || null);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    mounted = true;
-    wake = () => setJob((cur) => cur || queue.shift() || null);
-    wake();
-    return () => { mounted = false; wake = null; };
+    const entry = { id, wake: () => wakeRef.current() };
+    hosts.push(entry);
+    if (queue.length) wakeTop();
+    return () => {
+      jobRef.current?.reject(new Error('Check stopped. Pull down to try again.'));
+      const i = hosts.indexOf(entry); if (i >= 0) hosts.splice(i, 1);
+      if (queue.length) wakeTop();
+    };
   }, []);
 
+  const clear = () => { timers.current.forEach(clearTimeout); timers.current = []; };
   const finish = (fn: () => void) => {
-    clearTimeout(timer.current);
+    clear();
     fn();
     setShow(false);
+    setStage('start');
     setJob(queue.shift() || null);
     setKey((k) => k + 1);
   };
 
   useEffect(() => {
     if (!job) return;
-    // If nothing comes back quickly, show the page so the person can see what USCIS wants.
-    timer.current = setTimeout(() => setShow(true), 12000);
-    return () => clearTimeout(timer.current);
+    setStage('start');
+    // Show the page if it is slow, and give up after 90 seconds so nothing spins forever.
+    timers.current.push(setTimeout(() => setShow(true), 8000));
+    timers.current.push(setTimeout(() => finish(() => job.reject(new Error('USCIS did not respond. Check the receipt number and try again.'))), 90000));
+    return clear;
   }, [job]);
 
   const onMessage = (e: any) => {
     if (!job) return;
     let m: any; try { m = JSON.parse(e.nativeEvent.data); } catch { return; }
-    if (m.type === 'challenge') setShow(true);
+    if (m.type === 'stage') setStage(m.stage);
+    else if (m.type === 'challenge') { setStage('challenge'); setShow(true); }
     else if (m.type === 'done') finish(() => job.resolve(parse(m)));
     else if (m.type === 'error') finish(() => job.reject(new Error(m.error)));
   };
@@ -149,36 +191,36 @@ export function UscisLookupHost() {
 
   if (!job || Platform.OS === 'web') return null;
   const { WebView } = require('react-native-webview');
-  const web = (
-    <WebView
-      key={key}
-      source={{ uri: URL }}
-      injectedJavaScript={script(job.receipt)}
-      onMessage={onMessage}
-      onError={() => finish(() => job.reject(new Error('Could not open the USCIS website. Check your connection.')))}
-      sharedCookiesEnabled
-      thirdPartyCookiesEnabled
-      javaScriptEnabled
-      domStorageEnabled
-      style={{ flex: 1, backgroundColor: t.bg }}
-    />
-  );
-
-  return show ? (
-    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={cancel}>
-      <View style={{ flex: 1, backgroundColor: t.bg }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 10 }}>
+  return (
+    <View
+      pointerEvents={show ? 'auto' : 'none'}
+      style={show
+        ? { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: t.bg, zIndex: 100, elevation: 100 }
+        : { position: 'absolute', left: 0, top: 0, width: 390, height: 700, opacity: 0.01, zIndex: -1 }}
+    >
+      {show ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 60, paddingBottom: 12, gap: 10 }}>
           <ActivityIndicator color={t.sub} />
           <View style={{ flex: 1 }}>
             <T v="h3">Checking with USCIS</T>
-            <T v="small">{job.receipt} · complete any check on the page; this closes by itself.</T>
+            <T v="small">{job.receipt} · {STAGE[stage] || ''}</T>
           </View>
           <Pressable onPress={cancel} hitSlop={10}><T v="body" style={{ color: t.accent }}>Cancel</T></Pressable>
         </View>
-        {web}
-      </View>
-    </Modal>
-  ) : (
-    <View pointerEvents="none" style={{ position: 'absolute', width: 390, height: 844, left: -2000, top: 0, opacity: 0 }}>{web}</View>
+      ) : null}
+      <WebView
+        key={key}
+        source={{ uri: URL }}
+        injectedJavaScript={script(job.receipt)}
+        onMessage={onMessage}
+        onError={() => finish(() => job.reject(new Error('Could not open the USCIS website. Check your connection.')))}
+        onHttpError={(e: any) => { if (e?.nativeEvent?.statusCode >= 500) setShow(true); }}
+        sharedCookiesEnabled
+        thirdPartyCookiesEnabled
+        javaScriptEnabled
+        domStorageEnabled
+        style={{ flex: 1, backgroundColor: t.bg }}
+      />
+    </View>
   );
 }

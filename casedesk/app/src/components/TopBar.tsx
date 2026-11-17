@@ -7,6 +7,7 @@ import { useTheme } from '../theme';
 import { tap } from './ui';
 import { useLayout } from '../lib/layout';
 import { Glass } from './Glass';
+import { UscisLookupHost } from './UscisLookup';
 
 // Detail pages. On iPhone / Android they use the system navigation bar (iOS 26 Liquid Glass back button,
 // swipe-back, Material top app bar on Android). The web preview draws its own bar.
@@ -42,7 +43,7 @@ export function DetailScreen({ title, children, right, modal }: { title?: string
 
   if (Platform.OS !== 'web') {
     return (
-      <>
+      <View style={{ flex: 1, backgroundColor: t.bg }}>
         <Stack.Screen options={options} />
         <ScrollView
           style={{ flex: 1, backgroundColor: t.bg }}
@@ -54,7 +55,8 @@ export function DetailScreen({ title, children, right, modal }: { title?: string
         >
           {content}
         </ScrollView>
-      </>
+        <UscisLookupHost />
+      </View>
     );
   }
 
