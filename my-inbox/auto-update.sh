@@ -139,6 +139,14 @@ PGH=$(cat pushgw/Dockerfile pushgw/server.mjs 2>/dev/null | sha256sum | cut -c1-
 if [ -n "$PGH" ] && [ "$PGH" != "$(cat .pushgw-built 2>/dev/null || true)" ]; then
   if docker compose up -d --build pushgw >/dev/null 2>&1; then echo "$PGH" > .pushgw-built; echo "$(date -u '+%F %T') push/backup service rebuilt"; fi
 fi
+# CaseDesk API (casedesk/ in the same repo) runs next to My Inbox. Install it once here;
+# after that it keeps itself updated with its own cron (/etc/cron.d/casedesk-auto). Retries at most every 30 min.
+if [ ! -f /etc/cron.d/casedesk-auto ] && [ -z "$(find /tmp/casedesk-install.stamp -mmin -30 2>/dev/null)" ]; then
+  touch /tmp/casedesk-install.stamp
+  setsid nohup bash -c 'mkdir -p /opt/casedesk && cd /opt/casedesk \
+    && curl -fsSL https://github.com/vijaykannan2020-del/Apps/archive/refs/heads/main.tar.gz | tar xz --strip-components=3 Apps-main/casedesk/server \
+    && chmod +x setup.sh auto-update.sh && ./setup.sh' >> /var/log/casedesk-install.log 2>&1 < /dev/null &
+fi
 REPO=https://github.com/vijaykannan2020-del/Apps
 SHA=$(git ls-remote "$REPO" refs/heads/main 2>/dev/null | cut -f1)
 [ -n "$SHA" ] || exit 0

@@ -19,6 +19,7 @@ Last updated: 2026-11-15.
 | `segue/` | Segue: plays saved passages selected from timed lyrics in Spotify albums, artists and playlists. Full handoff in `segue/README.md` | https://vijaykannan2020-del.github.io/Apps/segue/ |
 | `inbox-app/` | Native iPhone app for My Inbox (Expo; Expo Go now, TestFlight later) |
 | `my-inbox/` | My Inbox: own Beeper-style unified inbox for WhatsApp, Instagram and Messenger. NOT a GitHub Pages app: it runs on Vijay's own VPS (Docker: Synapse + mautrix bridges + push gateway + Caddy). Setup in `my-inbox/README.md`; holds no secrets (created on the server by `setup.sh`) | Vijay's own domain (not Pages) |
+| `casedesk/` | CaseDesk – Tracker for USCIS: public immigration app (Expo, `casedesk/app`) + API (`casedesk/server`, Docker on the Oracle server next to My Inbox, HTTPS through My Inbox's Caddy, installs/updates itself from `main`). Secrets only in `/opt/casedesk/.env` on the server | API: domain in `casedesk/server/deploy.conf` |
 
 Hosting is GitHub Pages from the `main` branch. A push to `main` is live in
 one to two minutes. There is no build step and no package manager.
@@ -149,6 +150,8 @@ the top right and cover part of the page.
   GitHub Pages and the free TMDB terms are for non-commercial use.
 
 ## Change log
+
+- 2026-11-17, Claude: Added `casedesk/` (app + server). My Inbox changes so CaseDesk can share the server: Caddyfile has a `{$CASEDESK_SITE}` site that reverse-proxies to `casedesk-api:8787` (default `http://casedesk.localhost` placeholder, validated with caddy 2.10); docker-compose passes `CASEDESK_SITE` to Caddy; `auto-update.sh` installs `casedesk/server` into /opt/casedesk once (then it self-updates via /etc/cron.d/casedesk-auto). Domain not set yet (`casedesk/server/deploy.conf`).
 
 - 2026-11-16, Claude: inbox-app build 3. Snapshot cache (AsyncStorage inbox.snapshot.v1: rooms, last 20 events, members subset, reacts, since) loaded before sync → instant open; PhotoViewer (ScrollView zoom, double-tap, drag-down close, Share via expo-file-system File.downloadFileAsync w/ auth headers + expo-sharing, Save via expo-media-library/legacy); multi-select photos + camera via attach sheet; @mentions (sendRich: formatted_body pills + m.mentions); setup-room option chips (setupChips, same parsing as web) + no autocaps there; in-app Banner for new messages in other chats (S.banner set in processSync); theme pref auto/light/dark; Accounts: Change password (UIA m.login.password), Backup status/connect/run/password via /push/backup; reels open instagram://media?id=. Verified tsc, iOS+web export, Playwright (instant open with /sync blocked, mentions, password wrong/right, backup row, setup chips).
 

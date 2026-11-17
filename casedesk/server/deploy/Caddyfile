@@ -1,0 +1,6 @@
+# Replace api.example.com with your domain (an A record pointing at the Oracle server's public IP).
+# Caddy gets and renews the HTTPS certificate automatically.
+api.example.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:8787
+}

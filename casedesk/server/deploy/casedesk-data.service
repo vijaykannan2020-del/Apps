@@ -1,0 +1,8 @@
+[Unit]
+Description=CaseDesk weekly data refresh (DOL wages, H-1B Data Hub, PERM)
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/casedesk-server
+ExecStart=/usr/bin/node --env-file=.env scripts/update-data.mjs

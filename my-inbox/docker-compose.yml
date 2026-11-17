@@ -84,6 +84,7 @@ services:
       - pushgw
     environment:
       DOMAIN: ${DOMAIN}
+      CASEDESK_SITE: ${CASEDESK_SITE:-http://casedesk.localhost}
     ports:
       - "80:80"
       - "443:443"

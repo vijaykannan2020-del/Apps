@@ -1,0 +1,20 @@
+{
+  "name": "casedesk-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API for the CaseDesk app: USCIS case status proxy, official news feed, DOL wages, H-1B Data Hub.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.mjs",
+    "ingest:wages": "node scripts/ingest-wages.mjs",
+    "ingest:employers": "node scripts/ingest-employers.mjs",
+    "update-data": "node --env-file-if-exists=.env scripts/update-data.mjs",
+    "test": "node --env-file-if-exists=.env scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
+}

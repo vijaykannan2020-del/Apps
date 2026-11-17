@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "CaseDesk",
+    "slug": "casedesk",
+    "scheme": "casedesk",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.vijaykannan.casedesk",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.vijaykannan.casedesk",
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0B0D",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "asyncRoutes": {
+            "web": false,
+            "default": false
+          }
+        }
+      ],
+      "expo-font",
+      "expo-sharing",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow CaseDesk to use Face ID to unlock your immigration documents."
+        }
+      ]
+    ],
+    "extra": {
+      "apiBase": ""
+    }
+  }
+}
