@@ -66,11 +66,29 @@ let started = false;
 export function startPush() {
   if (started || !pushCapable) return; started = true;
   pushWanted().then(w => { if (w) enableNativePush(true); });
-  const go = (r: Notifications.NotificationResponse | null) => {
-    const room = (r?.notification.request.content.data as any)?.room_id;
-    if (room && S.rooms.has(room)) openChat(room); else if (room) setTimeout(() => S.rooms.has(room) && openChat(room), 2500);
+  // The chat id can sit in a few places depending on how iOS hands the push over.
+  const roomOf = (r: Notifications.NotificationResponse | null): string | undefined => {
+    if (!r) return;
+    const req: any = r.notification.request;
+    const d: any = req.content?.data || {};
+    const p: any = req.trigger?.payload || {};
+    return d.room_id || d.body?.room_id || p.room_id || p.body?.room_id;
   };
-  Notifications.getLastNotificationResponseAsync().then(go).catch(() => {});
-  Notifications.addNotificationResponseReceivedListener(go);
+  let lastHandled = '';
+  const go = (r: Notifications.NotificationResponse | null, coldStart = false) => {
+    const room = roomOf(r);
+    const key = r?.notification.request.identifier || '';
+    if (!room || key === lastHandled) return;
+    lastHandled = key;
+    // On a cold start the screens mount a moment after this runs — wait, then open (and wait for sync if needed).
+    let tries = 0;
+    const attempt = () => {
+      if (S.rooms.has(room)) { openChat(room); return; }
+      if (++tries < 30) setTimeout(attempt, 300);
+    };
+    setTimeout(attempt, coldStart ? 900 : 0);
+  };
+  Notifications.getLastNotificationResponseAsync().then(r => go(r, true)).catch(() => {});
+  Notifications.addNotificationResponseReceivedListener(r => go(r));
   AppState.addEventListener('change', s => { if (s !== 'active') updateBadge(); else Notifications.dismissAllNotificationsAsync().catch(() => {}); });
 }

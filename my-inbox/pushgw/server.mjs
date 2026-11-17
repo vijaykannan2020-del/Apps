@@ -175,7 +175,7 @@ async function notify(body) {
       } else {
         if (callEnd) return;
         const alert = isCall ? { title: name, body: '📞 Incoming call — tap to answer' } : { title: (isGroup ? n.room_name : name) + (net ? ` · ${net}` : ''), body: (isGroup ? name + ': ' : '') + preview(n) };
-        p = { aps: { alert, sound: 'default', badge: (n.counts && n.counts.unread) || 0, 'thread-id': n.room_id, 'mutable-content': 1, 'interruption-level': isCall ? 'time-sensitive' : 'active' }, room_id: n.room_id, event_id: n.event_id };
+        p = { aps: { alert, sound: 'default', badge: (n.counts && n.counts.unread) || 0, 'thread-id': n.room_id, 'mutable-content': 1, 'interruption-level': isCall ? 'time-sensitive' : 'active' }, room_id: n.room_id, event_id: n.event_id, body: { room_id: n.room_id, event_id: n.event_id } };
       }
       const r = await apnsSend(d.pushkey, p, { voip, sandbox, collapse: voip ? undefined : n.event_id });
       if (r.status === 410 || r.reason === 'BadDeviceToken' || r.reason === 'Unregistered' || r.reason === 'DeviceTokenNotForTopic') rejected.push(d.pushkey);

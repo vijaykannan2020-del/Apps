@@ -393,3 +393,4 @@ Newest first. Add one line per change: date, who, version, what.
 - 2026-11-16 · inbox-app build 8 (runtime 3): voice & video calls in private chats — WebRTC + Matrix VoIP signalling, CallKit call screen, PushKit VoIP pushes via plugins/withInboxVoip (InboxVoip.m), coturn TURN relay on the server (auto-update), in-call screen + return-to-call pill.
 - 2026-11-16 · inbox-app v9 (OTA): chat swipe-back only from the left edge (no clash with swipe-to-reply); mute adds top-priority override push rules so muted chats stay silent even for @mentions, mirrors WhatsApp-side mutes.
 - 2026-11-16 · inbox-app v10 (OTA): app switcher moved to a floating glass bar at the bottom (thumb reach) on chat lists and Accounts.
+- 2026-11-16 · inbox-app v11 (OTA) + pushgw: tapping a notification opens that chat (reads room id from data/body/trigger payload; waits for screens on cold start).
