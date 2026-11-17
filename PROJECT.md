@@ -394,3 +394,4 @@ Newest first. Add one line per change: date, who, version, what.
 - 2026-11-16 · inbox-app v9 (OTA): chat swipe-back only from the left edge (no clash with swipe-to-reply); mute adds top-priority override push rules so muted chats stay silent even for @mentions, mirrors WhatsApp-side mutes.
 - 2026-11-16 · inbox-app v10 (OTA): app switcher moved to a floating glass bar at the bottom (thumb reach) on chat lists and Accounts.
 - 2026-11-16 · inbox-app v11 (OTA) + pushgw: tapping a notification opens that chat (reads room id from data/body/trigger payload; waits for screens on cold start).
+- 2026-11-16 · calls fix (v12 OTA): never send ICE candidates before invite/answer; callee keeps early candidates; connected via ICE state too. Server: coturn allowed-peer-ip for private IP; /push/health status endpoint.

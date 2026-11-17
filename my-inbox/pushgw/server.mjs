@@ -213,6 +213,10 @@ http.createServer(async (req, res) => {
     }
 
 
+    if (req.method === 'GET' && url.pathname === '/push/health') {
+      let h = {}; try { h = JSON.parse(fs.readFileSync(`${DATA}/health.json`, 'utf8')); } catch {}
+      return send(res, 200, { ...h, apns: !!apns });
+    }
     if (req.method === 'GET' && url.pathname === '/push/apns/status') {
       if (!(await whoami(req.headers.authorization))) return send(res, 401, { error: 'not logged in' });
       return send(res, 200, { configured: !!apns, keyId: apns ? apns.keyId : null });

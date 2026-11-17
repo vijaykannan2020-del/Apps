@@ -87,6 +87,7 @@ denied-peer-ip=172.16.0.0-172.31.255.255
 denied-peer-ip=192.168.0.0-192.168.255.255
 denied-peer-ip=127.0.0.0-127.255.255.255
 denied-peer-ip=169.254.0.0-169.254.255.255
+${PRIV:+allowed-peer-ip=$PRIV}
 total-quota=50
 log-file=stdout"
   if [ -n "$PUB" ] && [ "$CONF" != "$(cat data/turn/turnserver.conf 2>/dev/null)" ]; then
@@ -115,6 +116,18 @@ log-file=stdout"
     else cp "$HS.bak-turn" "$HS"; echo "# my-inbox: turn v1 (rolled back)" >> "$HS"; docker compose restart synapse >/dev/null 2>&1 || true; echo "$(date -u '+%F %T') TURN config rolled back"; fi
   fi
 fi
+# Health snapshot for /push/health (on/off status only — no secrets)
+{
+  CT=$(docker compose ps -a --format '{{.Service}}={{.State}}' 2>/dev/null | tr '\n' ' ')
+  CL=$(docker compose logs --no-color --tail 6 coturn 2>&1 | sed 's/"/'"'"'/g' | tail -6 | tr '\n' '|' | cut -c1-900)
+  printf '{"ts":"%s","services":"%s","turnConf":%s,"publicIp":%s,"synapseTurn":%s,"listen3478":%s,"coturnLog":"%s"}\n' \
+    "$(date -u '+%F %T')" "$CT" \
+    "$([ -s data/turn/turnserver.conf ] && echo true || echo false)" \
+    "$([ -s data/turn/public-ip ] && echo true || echo false)" \
+    "$(grep -q '^# my-inbox: turn v1$' data/synapse/homeserver.yaml 2>/dev/null && echo true || echo false)" \
+    "$( (ss -lntu 2>/dev/null | grep -q ':3478 ') && echo true || echo false)" \
+    "$CL"
+} > data/pushgw/health.json.tmp 2>/dev/null && mv data/pushgw/health.json.tmp data/pushgw/health.json
 # self-check: if the push/backup service code changed but its container wasn't rebuilt, rebuild it now
 PGH=$(cat pushgw/Dockerfile pushgw/server.mjs 2>/dev/null | sha256sum | cut -c1-16)
 if [ -n "$PGH" ] && [ "$PGH" != "$(cat .pushgw-built 2>/dev/null || true)" ]; then

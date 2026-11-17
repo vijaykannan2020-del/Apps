@@ -31,6 +31,8 @@ let remoteParty: string | null = null;
 let outCands: any[] = []; let candTimer: any = null;
 let inCands: any[] = []; let remoteSet = false;
 let answerWanted = false; let inviteTimer: any = null;
+let signalled = false; // invite (caller) or answer (callee) has been sent — candidates must not go out before it
+const earlyCands = new Map<string, any[]>(); // candidates that arrived before their invite
 const subs = new Set<() => void>();
 let ver = 0;
 const emit = () => { ver++; subs.forEach(f => f()); };
@@ -73,27 +75,30 @@ async function makePeer(video: boolean) {
   stream.getTracks().forEach(t => pc!.addTrack(t, stream));
   const anyPc = pc as any;
   anyPc.addEventListener('icecandidate', (e: any) => {
-    if (!e.candidate) return;
+    if (!e.candidate) { if (signalled) flushCands(); return; }
     outCands.push({ candidate: e.candidate.candidate, sdpMid: e.candidate.sdpMid, sdpMLineIndex: e.candidate.sdpMLineIndex });
-    if (!candTimer) candTimer = setTimeout(flushCands, 300);
+    if (!candTimer && signalled) candTimer = setTimeout(flushCands, 200);
   });
   anyPc.addEventListener('track', (e: any) => {
     const s = (e.streams && e.streams[0]) || new MediaStream([e.track]);
     set({ remote: s });
   });
-  anyPc.addEventListener('connectionstatechange', () => {
-    const st = (pc as any)?.connectionState;
+  const onState = () => {
+    const ice = (pc as any)?.iceConnectionState; const conn = (pc as any)?.connectionState;
+    const st = conn === 'connected' || ice === 'connected' || ice === 'completed' ? 'connected' : conn === 'failed' || ice === 'failed' ? 'failed' : '';
     if (st === 'connected' && cur && cur.state !== 'connected') {
       set({ state: 'connected', startedAt: Date.now() });
       if (cur.dir === 'out') RNCallKeep.reportConnectedOutgoingCallWithUUID(cur.uuid);
     }
     if (st === 'failed') end('Call failed — check your connection', true);
-  });
+  };
+  anyPc.addEventListener('connectionstatechange', onState);
+  anyPc.addEventListener('iceconnectionstatechange', onState);
   return pc;
 }
 async function flushCands() {
   candTimer = null;
-  if (!cur || !outCands.length) return;
+  if (!cur || !outCands.length || !signalled) return;
   // the other side can't use candidates before it has the invite; send them after it
   const batch = outCands.splice(0);
   try { await sendCallEvent(cur.roomId, 'm.call.candidates', { candidates: batch }); } catch { outCands.unshift(...batch); }
@@ -106,7 +111,7 @@ async function addRemoteCandidates(c: any[]) {
 function reset() {
   try { cur?.local?.getTracks().forEach(t => t.stop()); } catch {}
   try { pc?.close(); } catch {}
-  pc = null; offer = null; remoteParty = null; outCands = []; inCands = []; remoteSet = false; answerWanted = false;
+  pc = null; offer = null; remoteParty = null; outCands = []; inCands = []; remoteSet = false; answerWanted = false; signalled = false;
   clearTimeout(candTimer); candTimer = null; clearTimeout(inviteTimer);
 }
 
@@ -125,8 +130,9 @@ export async function startCall(room: Room, video: boolean) {
     const o = await pc!.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: video } as any);
     await pc!.setLocalDescription(o as any);
     await sendCallEvent(room.id, 'm.call.invite', { lifetime: 60000, offer: { type: 'offer', sdp: (o as any).sdp }, invitee: allOthers(room)[0] });
+    signalled = true;
     RNCallKeep.reportConnectingOutgoingCallWithUUID(cur.uuid);
-    if (outCands.length) flushCands();
+    flushCands();
     inviteTimer = setTimeout(() => { if (cur && cur.callId === callId && cur.state === 'calling') hangup('No answer'); }, 60000);
   } catch (e: any) {
     end(e?.message?.includes('ermission') ? 'Allow microphone/camera for Inbox in Settings' : 'Could not start the call', true);
@@ -147,6 +153,7 @@ function onInvite(r: Room, ev: MEvent) {
   const video = /m=video/.test(c.offer?.sdp || '');
   reset();
   offer = c.offer; remoteParty = c.party_id || null;
+  inCands = earlyCands.get(c.call_id) || []; earlyCands.delete(c.call_id);
   cur = { callId: c.call_id, uuid: uuidFor(c.call_id), roomId: r.id, name: roomName(r), video, dir: 'in', state: 'ringing', startedAt: null,
     muted: false, speaker: video, camOff: false, frontCam: true, local: null, remote: null };
   emit();
@@ -169,7 +176,8 @@ async function doAnswer() {
     const a = await pc!.createAnswer();
     await pc!.setLocalDescription(a as any);
     await sendCallEvent(cur.roomId, 'm.call.answer', { answer: { type: 'answer', sdp: (a as any).sdp } });
-    if (outCands.length) flushCands();
+    signalled = true;
+    flushCands();
   } catch (e: any) { end('Could not connect the call', true); }
 }
 
@@ -177,6 +185,11 @@ async function doAnswer() {
 function onCallEvent(r: Room, ev: MEvent) {
   const c = ev.content || {};
   if (ev.type === 'm.call.invite') return onInvite(r, ev);
+  if (ev.type === 'm.call.candidates' && ev.sender !== S.userId && (!cur || c.call_id !== cur.callId)) {
+    const l = earlyCands.get(c.call_id) || []; l.push(...(c.candidates || [])); earlyCands.set(c.call_id, l);
+    if (earlyCands.size > 20) earlyCands.delete(earlyCands.keys().next().value as string);
+    return;
+  }
   if (!cur || c.call_id !== cur.callId || ev.sender === S.userId) {
     // our own other device answered/declined → stop ringing here
     if (cur && c.call_id === cur.callId && ev.sender === S.userId && c.party_id !== PARTY && (ev.type === 'm.call.answer' || ev.type === 'm.call.reject')) end('Answered on another device');
