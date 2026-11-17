@@ -11,7 +11,7 @@ services:
     networks:
       inbox:
         aliases: [casedesk-api]
-    mem_limit: 3g
+    mem_limit: 5g
 
 networks:
   inbox:

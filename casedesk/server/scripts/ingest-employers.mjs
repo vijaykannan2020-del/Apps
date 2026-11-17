@@ -29,7 +29,7 @@ const fyOf = (date, fallback) => {
 const fyFromName = (f) => f.match(/FY\s?(\d{4})/i)?.[1] || f.match(/(20\d{2})/)?.[1] || '';
 
 // 1) H-1B Employer Data Hub
-for (const f of files('h1b', /\.(csv|tsv|txt)$/i)) {
+for (const f of files('h1b', /\.(csv|tsv|txt)$/i)) try {
   let n = 0;
   for await (const r of readRows(f)) {
     const keys = Object.keys(r);
@@ -47,40 +47,60 @@ for (const f of files('h1b', /\.(csv|tsv|txt)$/i)) {
     n++;
   }
   console.log(`H-1B ${path.basename(f)}: ${n.toLocaleString()} rows`);
-}
+} catch (e) { console.error(`H-1B ${path.basename(f)} failed: ${e.message}`); }
 
-// 2) & 3) DOL disclosure spreadsheets
-function sheetRows(f) {
-  const wb = XLSX.readFile(f, { dense: true, cellDates: true });
-  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+// 2) & 3) DOL disclosure spreadsheets — read as plain rows and keep only the few columns we need
+// (the files have ~150 columns; turning every row into an object runs out of memory).
+function* sheetRows(f, wanted) {
+  const wb = XLSX.readFile(f, { dense: true, cellDates: false, cellHTML: false, cellText: false, cellFormula: false, cellStyles: false });
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, blankrows: false });
+  const head = (rows[0] || []).map((h) => String(h).trim().toUpperCase());
+  const idx = Object.fromEntries(wanted.map((w) => [w, head.indexOf(w)]));
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const o = {};
+    for (const w of wanted) o[w] = idx[w] >= 0 ? r[idx[w]] ?? '' : '';
+    rows[i] = null; // free as we go
+    yield o;
+  }
 }
-for (const f of files('perm', /\.xlsx$/i)) {
-  const rows = sheetRows(f);
+const excelDate = (v) => (typeof v === 'number' ? new Date(Math.round((v - 25569) * 864e5)) : v);
+const each = (label, list, fn) => {
+  for (const f of list) {
+    try { const n = fn(f); console.log(`${label} ${path.basename(f)}: ${n.toLocaleString()} rows`); }
+    catch (e) { console.error(`${label} ${path.basename(f)} failed: ${e.message}`); }
+    if (global.gc) global.gc();
+  }
+};
+
+each('PERM', files('perm', /\.xlsx$/i), (f) => {
   const fyFile = fyFromName(path.basename(f));
-  for (const r of rows) {
-    const name = r.EMP_BUSINESS_NAME || r.EMPLOYER_NAME || r.EMPLOYER_BUSINESS_NAME || '';
-    const e = get(name, r.EMP_STATE || r.EMPLOYER_STATE || '');
+  let n = 0;
+  for (const r of sheetRows(f, ['CASE_STATUS', 'EMP_BUSINESS_NAME', 'EMPLOYER_NAME', 'EMP_STATE', 'EMPLOYER_STATE', 'DECISION_DATE'])) {
+    n++;
+    const e = get(r.EMP_BUSINESS_NAME || r.EMPLOYER_NAME || '', r.EMP_STATE || r.EMPLOYER_STATE || '');
     if (!e) continue;
-    const fy = fyFile || fyOf(r.DECISION_DATE, '');
+    const fy = fyFile || fyOf(excelDate(r.DECISION_DATE), '');
     const y = (e.perm[fy] ||= { certified: 0, denied: 0, withdrawn: 0 });
     const s = String(r.CASE_STATUS || '').toLowerCase();
     if (s.startsWith('certified')) y.certified++; else if (s.startsWith('denied')) y.denied++; else if (s.startsWith('withdrawn')) y.withdrawn++;
   }
-  console.log(`PERM ${path.basename(f)}: ${rows.length.toLocaleString()} rows`);
-}
-for (const f of files('lca', /\.xlsx$/i)) {
-  const rows = sheetRows(f);
+  return n;
+});
+each('LCA', files('lca', /\.xlsx$/i), (f) => {
   const fyFile = fyFromName(path.basename(f));
-  for (const r of rows) {
+  let n = 0;
+  for (const r of sheetRows(f, ['CASE_STATUS', 'VISA_CLASS', 'EMPLOYER_NAME', 'EMPLOYER_STATE', 'DECISION_DATE'])) {
+    n++;
     if (!String(r.CASE_STATUS || '').toLowerCase().startsWith('certified')) continue;
     if (r.VISA_CLASS && !/H-1B/i.test(r.VISA_CLASS)) continue;
     const e = get(r.EMPLOYER_NAME || '', r.EMPLOYER_STATE || '');
     if (!e) continue;
-    const fy = fyFile || fyOf(r.DECISION_DATE, '');
+    const fy = fyFile || fyOf(excelDate(r.DECISION_DATE), '');
     (e.lca[fy] ||= { certified: 0 }).certified++;
   }
-  console.log(`LCA ${path.basename(f)}: ${rows.length.toLocaleString()} rows`);
-}
+  return n;
+});
 
 fs.mkdirSync('data', { recursive: true });
 fs.writeFileSync('data/employers.json', JSON.stringify(Object.fromEntries(db)));

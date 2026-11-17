@@ -60,7 +60,11 @@ async function download(url, dir) {
   log(`downloaded ${name} (${(fs.statSync(dest).size / 1e6).toFixed(1)} MB)`);
   return dest;
 }
-const run = (script, args = []) => execFileSync(process.execPath, [script, ...args], { stdio: 'inherit' });
+// Run a step in its own Node process with a bigger memory limit; keep the end of its error output for /api/health
+const run = (script, args = []) => {
+  try { execFileSync(process.execPath, ['--max-old-space-size=4500', '--expose-gc', script, ...args], { stdio: ['ignore', 'inherit', 'pipe'], maxBuffer: 1e7 }); }
+  catch (e) { throw new Error(`${path.basename(script)} failed: ${String(e.stderr || e.message).trim().split('\n').slice(-3).join(' | ').slice(0, 300)}`); }
+};
 const tryIt = async (label, fn) => { try { return await fn(); } catch (e) { log(`${label}: ${e.message}`); errors.push(`${label}: ${e.message}`.slice(0, 200)); return null; } };
 
 // 1) Prevailing wages
