@@ -344,7 +344,7 @@ img[src=""],img:not([src]){visibility:hidden}
       <div class="card">
         <h2>Choose a passage</h2>
         <label for="passageSource">Selection method</label>
-        <select class="input" id="passageSource"><option value="lyrics">Timed lyrics · automatic</option><option value="local">Matching audio file · manual review</option><option value="gemini">Gemini · estimated timings</option></select>
+        <select class="input" id="passageSource"><option value="lyrics">Timed lyrics · automatic</option><option value="replay">Replay peaks · experimental</option><option value="local">Matching audio file · manual review</option><option value="gemini">Gemini · estimated timings</option></select>
         <div id="lyricsSettings" style="margin-top:16px">
           <p class="small muted">Automatically match timed lyrics and choose one verse, with its refrain return when possible. No files or AI key needed. Upcoming passages prepare while music plays.</p>
           <p class="note" id="lyricsStatus" role="status"></p>
@@ -367,6 +367,17 @@ img[src=""],img:not([src]){visibility:hidden}
           </div>
         </div>
       </div>
+      <details class="card" id="replaySetup">
+        <summary style="cursor:pointer;font-weight:700;min-height:44px;line-height:44px">Replay trial · setup</summary>
+        <p class="small muted" style="margin:12px 0">Uses listener replay peaks from matching release audio. Spotify plays the music. No Gemini or audio-file upload.</p>
+        <label for="replayUrl">Replay service address</label><input class="input" id="replayUrl" type="url" placeholder="https://segue-replay.your-account.workers.dev" autocomplete="off">
+        <label for="replayToken">Service connection token</label><input class="input" id="replayToken" type="password" autocomplete="off" placeholder="Your service token, not the YTAPI key">
+        <button class="btn" id="connectReplay" style="margin-top:12px">Connect and use replay</button>
+        <button class="btn ghost small" id="retryReplay" style="margin-top:12px">Retry missing replay data</button>
+        <p class="note" id="replayStatus" role="status"></p>
+        <p class="tiny muted">Experimental: peaks show audience interest, not a complete charanam or a verified vocal ending. Same title, artist and duration do not prove perfect audio alignment. Only release-audio matches are accepted. Missing data pauses with a reason.</p>
+        <p class="tiny muted" style="margin-top:12px">The backend requires a <a href="https://ytapi.dev" target="_blank" rel="noopener">YTAPI account</a> (free trial credits available). Its API key stays on the server. <a href="https://github.com/vijaykannan2020-del/Apps/tree/main/segue/replay-service" target="_blank" rel="noopener">Setup instructions</a>.</p>
+      </details>
       <div class="card hide" id="geminiSettings">
         <h2>Optional AI DJ</h2>
         <input id="aiKey" class="input" placeholder="Gemini key (AIza…) or Claude key (sk-ant…)" autocomplete="off" spellcheck="false">
@@ -374,7 +385,7 @@ img[src=""],img:not([src]){visibility:hidden}
         <div class="note" id="aiNote">Gemini estimates a beat-driven charanam and its timings without hearing the recording. Saved selections are reused. The key stays only on this device.</div>
         <div class="note" id="aiSaved"></div>
         <button class="btn ghost" id="resetAi" style="width:100%;margin-top:12px">Reset AI timings for testing</button>
-        <p class="tiny muted" style="margin-top:8px">Clears AI estimates. Timed-lyric and audio-reviewed passages, albums, queues, keys and manual corrections stay saved.</p>
+        <p class="tiny muted" style="margin-top:8px">Clears AI estimates. Replay, timed-lyric and audio-reviewed passages, albums, queues, keys and manual corrections stay saved.</p>
         <p class="small muted" id="aiResetStatus" role="status" style="margin-top:8px"></p>
       </div>
       <div class="card">
@@ -430,7 +441,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const fmt = ms => { ms = Math.max(0, ms|0); const s = Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function toast(msg, ms=3200){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'), ms); }
 
-const APP_VERSION = 41;
+const APP_VERSION = 42;
 // YouTube mode was removed in Version 4: clear anything it stored on this device
 ['ytkey','ytc','out'].forEach(k => { try { localStorage.removeItem('segue_'+k); } catch {} });
 // One fixed address, so it always matches the Redirect URI saved in the Spotify dashboard
@@ -442,7 +453,7 @@ const SCOPES = 'streaming user-read-email user-read-private user-read-playback-s
 // Spotify credentials remain in the existing small settings store.
 const Persist={
   db:null,ready:false,values:new Map(),pending:Promise.resolve(true),failed:false,
-  owns(k){return k==='ai4'||k==='ai_backup'||k==='ai_revision'||k==='recordings1'||k==='lyrics_lookups1'||k.startsWith('library_');},
+  owns(k){return k==='ai4'||k==='ai_backup'||k==='ai_revision'||k==='recordings1'||k==='lyrics_lookups1'||k==='replay_lookups1'||k.startsWith('library_');},
   async init(){
     let migrated=false;try{migrated=localStorage.getItem('segue_database1')==='1';}catch{}
     if(typeof indexedDB==='undefined'){if(migrated)throw new Error('Your saved library database is unavailable. Reopen this app in the same browser.');return;}
@@ -696,7 +707,7 @@ const Library = {
     $('#recoverPicks').classList.toggle('hide', !Object.entries(cache).some(([id,c]) => c && !c.song && !hidden.has(id)));
     $('#pickCount').textContent = `${Object.keys(cache).length} timings kept`;
     $('#clearSavedSongs').classList.toggle('hide', !allSongs.length);
-    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${c.schema===2?fmt(c.start)+'–'+fmt(c.end)+(c.source==='local-audio'?' · Reviewed audio passage':c.source==='timed-lyrics'?(c.method==='lyrics-structure-v2'?' · '+esc(c.section||'Single section estimate'):' · Passage will be refined'):' · AI pick saved'):'Timing will be rechecked'}</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : hidden.size && !Object.keys(cache).some(id => !hidden.has(id)) ? 'List cleared. Your Saved passage timings are still saved and will be reused when you build another mix.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Songs appear here as their timed-lyric sections are prepared.'}</div>`;
+    $('#savedSongs').innerHTML = songs.length ? songs.map(([id,c]) => `<div class="saved-song">${c.song.imgS || c.song.img ? `<img loading="lazy" src="${esc(c.song.imgS || c.song.img)}" alt="">` : ''}<div><b>${esc(c.song.name)}</b><span>${esc((c.song.artists || []).join(', '))}</span><span>${c.schema===2?fmt(c.start)+'–'+fmt(c.end)+(c.source==='local-audio'?' · Reviewed audio passage':c.source==='replay'?' · Replay-region estimate':c.source==='timed-lyrics'?(c.method==='lyrics-structure-v2'?' · '+esc(c.section||'Single section estimate'):' · Passage will be refined'):' · AI pick saved'):'Timing will be rechecked'}</span></div><button class="btn ghost small" data-song="${esc(id)}" aria-label="Play ${esc(c.song.name)}">Play</button></div>`).join('') : `<div class="empty-library">${query ? 'No saved songs match your search.' : hidden.size && !Object.keys(cache).some(id => !hidden.has(id)) ? 'List cleared. Your Saved passage timings are still saved and will be reused when you build another mix.' : Object.keys(cache).length ? 'Your earlier AI timings are still saved. Tap Show older saved songs to look up their names in Spotify, without asking AI again.' : 'Songs appear here as their timed-lyric sections are prepared.'}</div>`;
     this.mini();
   },
   mini(){ DJ.render();
@@ -829,7 +840,7 @@ function planSegments(tracks){
     if(t._lock)continue;const pick=AI.pick(t),mine=LocalAudio.draft?.id===t.id?undefined:HK.get()[t.id];
     if(!pick){t.start=t.end=t.hook=0;t.hookSrc='pending';delete t.aiStart;delete t.aiEnd;continue;}
     t.aiStart=pick.start;t.aiEnd=pick.end;t.aiWhy=pick.why;
-    const corrected=Number.isFinite(mine)&&mine>=0&&mine<pick.end&&(pick.source!=='timed-lyrics'||Lyrics.usable({...pick,start:mine},t));
+    const corrected=Number.isFinite(mine)&&mine>=0&&mine<pick.end&&(pick.source!=='timed-lyrics'||Lyrics.usable({...pick,start:mine},t))&&(pick.source!=='replay'||Replay.valid({...pick,start:mine},t));
     t.start=corrected?mine:pick.start;
     t.end=pick.end;t.hook=t.start;t.hookSrc=corrected?'you':'ai';
   }
@@ -839,7 +850,7 @@ const HK={get(){try{return JSON.parse(LS.get('hooks')||'{}');}catch{return {};}}
 const AI = {
   source(){return LS.get('passage_source')||'lyrics';},
   usesGemini(){return this.source()==='gemini';},
-  accepts(c){return this.usesGemini()||c?.source==='local-audio'||(this.source()==='lyrics'&&c?.source==='timed-lyrics');},
+  accepts(c){return this.usesGemini()||c?.source==='local-audio'||(this.source()==='lyrics'&&c?.source==='timed-lyrics')||(this.source()==='replay'&&c?.source==='replay');},
   key(){ return LS.get('aikey') || ''; },
   cache(){
     const raw=LS.get('ai4')||'{}';if(this._raw===raw&&this._cache)return this._cache;
@@ -852,7 +863,7 @@ const AI = {
     this._indexCache=cache;this._recordings=index;return index;
   },
   pick(t,cache=this.cache()){
-    const valid=c=>c&&this.accepts(c)&&c.schema===2&&(c.source!=='timed-lyrics'||Lyrics.usable(c,t))&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.start>=0&&c.end>c.start&&c.end<=t.dur;
+    const valid=c=>c&&this.accepts(c)&&c.schema===2&&(c.source!=='timed-lyrics'||Lyrics.usable(c,t))&&(c.source!=='replay'||Replay.valid(c,t))&&Number.isFinite(c.start)&&Number.isFinite(c.end)&&c.start>=0&&c.end>c.start&&c.end<=t.dur;
     if(LocalAudio.draft?.id===t.id&&valid(LocalAudio.draft))return LocalAudio.draft;
     const own=cache[t.id];if(valid(own))return own;
     return t.isrc?this.index(cache).get(t.isrc)?.find(c=>valid(c)&&Number.isFinite(c.song.dur)&&Math.abs(c.song.dur-t.dur)<=1000)||null:null;
@@ -893,7 +904,7 @@ const AI = {
       }
       LS.set('ai_revision',String(this.revision+1));
       this.q=Promise.resolve();aheadSerial++;aheadBusy=false;
-      if(!LS.set('ai4',JSON.stringify(Object.fromEntries(Object.entries(picks).filter(([,c])=>(c?.source==='local-audio'||c?.source==='timed-lyrics'))))))throw new Error('Could not clear the saved timings.');
+      if(!LS.set('ai4',JSON.stringify(Object.fromEntries(Object.entries(picks).filter(([,c])=>(c?.source==='local-audio'||c?.source==='timed-lyrics'||c?.source==='replay'))))))throw new Error('Could not clear the saved timings.');
       this._raw=null;this._cache=null;this._indexCache=null;this.lastErr=null;
       for(const t of new Set([...ST.mix,...(ST.pool||[])])){delete t._aiP;delete t._aiTries;t.aiPending=false;t._lock=false;}
       for(const mix of Library.state.mixes){mix.positionReady=false;mix.pendingSeek=true;mix.position=0;mix.finished=false;}
@@ -1033,9 +1044,10 @@ function replanAhead(lockUpTo){
   planSegments(mix); mix.forEach(t => t._lock = false);
   renderDeck(); aiStatus(); Library.capture();
 }
-function aiStatus(){const n=ST.mix.filter(t=>AI.pick(t)).length;$('#aiStat').innerHTML=n===ST.mix.length?'':`<p class="tiny muted" style="margin-top:12px">${AI.usesGemini()?'Preparing passages':AI.source()==='lyrics'?'Preparing timed lyrics':'Matching files'} · ${n}/${ST.mix.length} ready</p>`;}
+function aiStatus(){const n=ST.mix.filter(t=>AI.pick(t)).length;$('#aiStat').innerHTML=n===ST.mix.length?'':`<p class="tiny muted" style="margin-top:12px">${AI.usesGemini()?'Preparing passages':AI.source()==='replay'?'Preparing replay regions':AI.source()==='lyrics'?'Preparing timed lyrics':'Matching files'} · ${n}/${ST.mix.length} ready</p>`;}
 let aheadBusy = false,aheadSerial=0;
 async function aiAhead(){
+  if(AI.source()==='replay')return Replay.ahead();
   if(AI.source()==='lyrics')return lyricsAhead();
   if (!AI.usesGemini() || !AI.key() || !ST.mix.length || aheadBusy) return; aheadBusy = true;
   const mix=ST.mix,revision=AI.revision,serial=++aheadSerial;
@@ -1050,7 +1062,69 @@ async function aiAhead(){
     }
   } finally { if(serial===aheadSerial){aheadBusy=false;if(revision===AI.revision&&ST.mix!==mix&&ST.mix.length)setTimeout(()=>aiAhead(),0);} }
 }
-function rowPlan(t){const p=AI.pick(t);return p?`${fmt(t.start)}–${fmt(t.end)}`:AI.source()==='lyrics'?(Lyrics.failure(t)?.message||'Preparing timed lyrics…'):!AI.usesGemini()?'Choose matching file in Settings':t._aiTries>=2?'AI pick unavailable · retry':'AI preparing…';}
+function rowPlan(t){const p=AI.pick(t);return p?`${fmt(t.start)}–${fmt(t.end)}`:AI.source()==='replay'?(Replay.failure(t)?.message||'Preparing replay data…'):AI.source()==='lyrics'?(Lyrics.failure(t)?.message||'Preparing timed lyrics…'):!AI.usesGemini()?'Choose matching file in Settings':t._aiTries>=2?'AI pick unavailable · retry':'AI preparing…';}
+
+/* Experimental audience-replay metadata. The provider key stays on the backend. */
+const Replay={
+  q:Promise.resolve(),pending:new Map(),aheadBusy:false,serial:0,cooldownUntil:0,
+  endpoint(value=LS.get('replay_url')||''){
+    try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&!u.search&&!u.hash&&/^\/?$/.test(u.pathname)?u.origin:null;}catch{return null;}
+  },
+  configured(){return !!this.endpoint()&&!!LS.get('replay_token');},
+  failure(t){try{return JSON.parse(LS.get('replay_lookups1')||'{}')[`${t.isrc||t.id}:${Math.round(t.dur/1000)}`];}catch{return null;}},
+  async miss(t,message,until=Date.now()+86400000){let c;try{c=JSON.parse(LS.get('replay_lookups1')||'{}');}catch{c={};}c[`${t.isrc||t.id}:${Math.round(t.dur/1000)}`]={message,until};LS.set('replay_lookups1',JSON.stringify(Object.fromEntries(Object.entries(c).sort((a,b)=>b[1].until-a[1].until).slice(0,2000))));await Persist.flush();},
+  valid(c,t){
+    if(c?.method!=='replay-v1'||c.source!=='replay'||!['replay-valley','video-chapter'].includes(c.boundary)||!/^[\w-]{11}$/.test(c.videoId)||!Number.isFinite(c.start)||!Number.isFinite(c.end)||c.start<=0||c.end<=c.start||c.end>t.dur||c.end-c.start>t.dur*.5||!Number.isFinite(c.videoDuration)||Math.abs(c.videoDuration-t.dur)>1000||!Number.isFinite(c.peak)||c.peak<c.start||c.peak>=c.end||!Number.isFinite(c.intensity)||c.intensity<0||c.intensity>1||c.alignment!=='metadata-duration-only')return false;
+    const song=t.isrc&&c.song?.isrc===t.isrc&&Math.abs(c.song.dur-t.dur)<=1000?c.song:t;
+    return Array.isArray(c.music)&&c.music.some(m=>Lyrics.title(m.title)===Lyrics.title(song.name)&&Lyrics.artist(m.artist).some(a=>song.artists.flatMap(x=>Lyrics.artist(x)).includes(a)));
+  },
+  async request(path,track,config){
+    const endpoint=config?.endpoint||this.endpoint(),token=config?.token||LS.get('replay_token');
+    if(!endpoint||!token)throw new Error('Replay is not connected. Open Settings → Replay trial.');
+    if(!config&&Date.now()<this.cooldownUntil)throw new Error('Replay service is cooling down. Retry after its rate limit resets.');
+    const response=await tfetch(endpoint+path,{method:track?'POST':'GET',headers:{Authorization:`Bearer ${token}`,...(track?{'Content-Type':'application/json'}:{})},credentials:'omit',...(track?{body:JSON.stringify({id:track.id,name:track.name,artists:track.artists,dur:track.dur})}:{})},track?45000:8000);
+    if(response.status===429){const raw=response.headers.get('Retry-After'),n=Number(raw);this.cooldownUntil=Date.now()+Math.max(1000,raw&&Number.isFinite(n)?n*1000:Date.parse(raw||'')-Date.now()||60000);}
+    const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||'Replay service is unavailable.');return data;
+  },
+  async connect(){
+    const endpoint=this.endpoint($('#replayUrl').value.trim()),token=$('#replayToken').value.trim();
+    if(!endpoint||token.length<16)throw new Error('Enter your HTTPS replay service address and its connection token.');
+    $('#replayStatus').textContent='Checking the replay service…';const result=await this.request('/health',null,{endpoint,token});
+    if(result.status!=='ready'||result.provider!=='YTAPI')throw new Error('This is not a configured Segue replay service.');
+    if(!LS.set('replay_url',endpoint)||!LS.set('replay_token',token))throw new Error('Could not save the replay connection on this device.');
+    this.cooldownUntil=0;LS.set('replay_lookups1','{}');await LocalAudio.mode('replay');this.status();
+  },
+  status(){
+    const ready=ST.mix.filter(t=>AI.pick(t)?.source==='replay').length;
+    $('#replayStatus').textContent=this.configured()?`Service configured · ${ready}/${ST.mix.length} replay regions saved. Live provider access and coverage are checked by each lookup.`:'Not connected. This trial needs the replay backend and a YTAPI account; no provider key belongs in this app.';
+  },
+  one(t){
+    if(AI.source()!=='replay'||AI.pick(t))return Promise.resolve();const revision=AI.revision,key=revision+':'+t.id;if(this.pending.has(key))return this.pending.get(key);
+    const p=this.q=this.q.then(async()=>{
+      if(revision!==AI.revision||AI.source()!=='replay')return;
+      await AI.prepareIdentities([t],revision);if(revision!==AI.revision||AI.pick(t))return;
+      const failure=this.failure(t);if(failure?.until>Date.now())return;
+      if(!this.configured()){await this.miss(t,'Replay is not connected. Open Settings → Replay trial.',Date.now()+1000);return;}
+      try{
+        const result=await this.request('/v1/replay',t);if(revision!==AI.revision||AI.source()!=='replay')return;
+        if(result.status!=='ready'){await this.miss(t,result.message||'No replay data is available for this recording.');return;}
+        if(!this.valid(result.pick,t))throw new Error('Replay data did not match this recording. It was not saved.');
+        const cache=AI.cache(),previous=cache[t.id];cache[t.id]={...result.pick,song:Library.track(t),...(previous?{previous:{start:previous.start,end:previous.end}}:{})};
+        if(!await AI.save(cache))throw new Error('Could not save this replay region.');
+        if(revision===AI.revision&&(!DJ.streamOwned||ST.mix[DJ.idx]!==t)){t._lock=false;planSegments([t]);}
+      }catch(e){if(revision===AI.revision&&AI.source()==='replay')await this.miss(t,e.message,Math.max(Date.now()+60000,this.cooldownUntil));}
+    }).finally(()=>{if(this.pending.get(key)===p)this.pending.delete(key);});this.q=p.catch(()=>{});this.pending.set(key,p);return p;
+  },
+  async ahead(){
+    if(this.aheadBusy||AI.source()!=='replay'||!this.configured())return;
+    this.aheadBusy=true;const serial=++this.serial,revision=AI.revision,mix=ST.mix;
+    try{for(const t of mix.slice(DJ.streamOwned?DJ.idx+1:DJ.idx,(DJ.streamOwned?DJ.idx+1:DJ.idx)+3)){
+      if(revision!==AI.revision||mix!==ST.mix||AI.source()!=='replay')break;
+      await this.one(t);if(revision!==AI.revision||mix!==ST.mix)break;
+      replanAhead(DJ.streamOwned||DJ.confirmed?DJ.idx:-1);this.status();if(Date.now()<this.cooldownUntil)break;
+    }}catch(e){$('#replayStatus').textContent=e.message;}finally{if(serial===this.serial){this.aheadBusy=false;if(revision===AI.revision&&mix!==ST.mix)setTimeout(()=>aiAhead(),0);}}
+  }
+};
 
 /* Timed lyric sections: structural estimates, not audio/beat or vocal-end detection. */
 const Lyrics={
@@ -1262,15 +1336,16 @@ function analyzeAudioSignal(samples,rate,progress=()=>{}){
 const LocalAudio={
   serial:0,worker:null,reject:null,result:null,draft:null,selected:null,
   refresh(){
-    const source=AI.source(),local=source==='local';$('#passageSource').value=source;$('#matchingForm').classList.toggle('hide',!local);$('#geminiSettings').classList.toggle('hide',source!=='gemini');$('#lyricsSettings').classList.toggle('hide',source!=='lyrics');Lyrics.status();
+    const source=AI.source(),local=source==='local';$('#passageSource').value=source;$('#matchingForm').classList.toggle('hide',!local);$('#geminiSettings').classList.toggle('hide',source!=='gemini');$('#lyricsSettings').classList.toggle('hide',source!=='lyrics');Lyrics.status();Replay.status();if(source==='replay')$('#replaySetup').open=true;
     const select=$('#audioTrack'),value=select.value;
     select.innerHTML=ST.mix.map(t=>`<option value="${esc(t.id)}">${esc(t.name)} · ${esc(t.artists.join(', '))}</option>`).join('');
     select.value=ST.mix.some(t=>t.id===value)?value:ST.mix[DJ.idx]?.id||'';
     $('#analyseFile').disabled=!ST.mix.length;$('#audioEmpty').classList.toggle('hide',!!ST.mix.length);
   },
   async mode(value){
+    if(value==='replay'&&!Replay.configured()){$('#replaySetup').open=true;$('#passageSource').value=AI.source();Replay.status();throw new Error('Connect the replay service before choosing Replay peaks.');}
     const state=await DJ.sdkState();if((DJ.busy||DJ.streamOwned||DJ.desiredPlaying||state?.paused===false)&&!await DJ.pause())throw new Error('Pause audio before changing the selection source.');
-    this.cancel();this.draft=null;LS.set('passage_source',value);LS.set('ai_revision',String(AI.revision+1));AI.q=Promise.resolve();aheadSerial++;aheadBusy=false;lyricAheadSerial++;lyricAheadBusy=false;clearTimeout(lyricRetryTimer);DJ.epoch++;DJ.loadedMix=DJ.loadedId=DJ.checkpointId=null;DJ.pendingSeek=true;DJ.pos=0;DJ.setPhase('ready');ST.mix.forEach(t=>{t._lock=false;delete t._aiP;delete t._aiTries;t.aiPending=false;});planSegments(ST.mix);if(ST.mix.length)renderDeck();AI.savedStatus();this.refresh();Library.render();Library.capture();aiAhead();
+    this.cancel();this.draft=null;Replay.serial++;Replay.aheadBusy=false;LS.set('passage_source',value);LS.set('ai_revision',String(AI.revision+1));AI.q=Promise.resolve();aheadSerial++;aheadBusy=false;lyricAheadSerial++;lyricAheadBusy=false;clearTimeout(lyricRetryTimer);DJ.epoch++;DJ.loadedMix=DJ.loadedId=DJ.checkpointId=null;DJ.pendingSeek=true;DJ.pos=0;DJ.setPhase('ready');ST.mix.forEach(t=>{t._lock=false;delete t._aiP;delete t._aiTries;t.aiPending=false;});planSegments(ST.mix);if(ST.mix.length)renderDeck();AI.savedStatus();this.refresh();Library.render();Library.capture();aiAhead();
   },
   cancel(){this.serial++;this.worker?.terminate();this.worker=null;this.reject?.(new Error('Analysis cancelled.'));this.reject=null;$('#analyseFile').disabled=!ST.mix.length;$('#cancelAnalysis').disabled=true;},
   async metadata(file){
@@ -1443,6 +1518,11 @@ const DJ = {
     throw new Error('Audio has not started. Tap Play to retry.');
   },
   async prepare(t,n){
+    if(!AI.pick(t)&&AI.source()==='replay'){
+      this.setPhase('waiting-replay','Finding a listener replay region…');
+      if(!await this.waitPreparation(Replay.one(t),n))return false;
+      if(!AI.pick(t))throw new Error(Replay.failure(t)?.message||'No replay data is available for this recording.');
+    }
     if(!AI.pick(t)&&AI.source()==='lyrics'){
       this.setPhase('waiting-lyrics','Finding a timed-lyric section…');
       if(!await this.waitPreparation(Lyrics.one(t),n))return false;
@@ -1651,7 +1731,7 @@ function renderTransport(){
   if(!exists){$('#deck').classList.remove('disc-running');if(typeof ResizeObserver!=='function')scheduleChrome();return;}
   const fresh=DJ.confirmed&&now-DJ.lastFrameAt<3500&&now-DJ.lastMotionAt<3500;
   const phase=DJ.playing&&!fresh?'reconnecting':DJ.phase;
-  const labels={ready:'Ready',paused:'Paused',playing:'Playing',starting:'Starting browser audio…','waiting-ai':'Waiting for AI…','waiting-lyrics':'Preparing timed lyrics…',buffering:'Buffering…',checking:'Checking playback…',reconnecting:'Reconnecting…',disconnected:'Browser player unavailable',external:'Playback changed',error:'Playback needs attention',ended:'Mix finished',pausing:'Confirming pause…','pause-unconfirmed':'Pause not confirmed',seeking:'Seeking…'};
+  const labels={ready:'Ready',paused:'Paused',playing:'Playing',starting:'Starting browser audio…','waiting-ai':'Waiting for AI…','waiting-lyrics':'Preparing timed lyrics…','waiting-replay':'Preparing replay data…',buffering:'Buffering…',checking:'Checking playback…',reconnecting:'Reconnecting…',disconnected:'Browser player unavailable',external:'Playback changed',error:'Playback needs attention',ended:'Mix finished',pausing:'Confirming pause…','pause-unconfirmed':'Pause not confirmed',seeking:'Seeking…'};
   $('#deck').classList.toggle('disc-running',phase==='playing');
   const running=phase==='playing',pending=DJ.busy||['checking','buffering','reconnecting'].includes(phase)||(DJ.desiredPlaying&&phase==='disconnected');
   const action=running?'Pause':phase==='pausing'?'Pausing':phase==='pause-unconfirmed'?'Retry pause':pending?'Cancel':phase==='error'||phase==='disconnected'?'Retry':phase==='ended'?'Replay':'Play';
@@ -1693,6 +1773,7 @@ function applyHook(ms, label){
   const t = ST.mix[DJ.idx]; if (!t) return;
   const pick=AI.pick(t);if(ms!=null&&(!pick||!Number.isFinite(ms)||ms>=pick.end))return toast('Choose a start before this passage ends.');
   if(ms!=null&&pick.source==='timed-lyrics'&&!Lyrics.usable({...pick,start:Math.max(0,ms)},t))return toast('Keep the start within this selected section.');
+  if(ms!=null&&pick.source==='replay'&&!Replay.valid({...pick,start:Math.max(0,ms)},t))return toast('Keep the start within this replay region.');
   if (ms == null) HK.clear(t.id); else HK.set(t.id,Math.max(0,ms));
   const locked=DJ.streamOwned||DJ.confirmed;if(locked)t._lock=true;
   planSegments(ST.mix);t._lock=false;renderDeck();Library.capture();
@@ -1713,7 +1794,9 @@ function showView(v){
   if (v === 'home') Library.render();
   Library.mini();
 }
-const localAction=fn=>async()=>{try{await fn();}catch(e){$('#audioStatus').textContent=e.message;}};
+const localAction=fn=>async()=>{try{await fn();}catch(e){$('#audioStatus').textContent=e.message;if($('#passageSource').value==='replay'||$('#replaySetup').open)$('#replayStatus').textContent=e.message;}};
+$('#connectReplay').onclick=async()=>{const b=$('#connectReplay');b.disabled=true;try{await Replay.connect();}catch(e){$('#replayStatus').textContent=e.message;}finally{b.disabled=false;}};
+$('#retryReplay').onclick=()=>{LS.set('replay_lookups1','{}');Replay.status();aiAhead();};
 $('#retryLyrics').onclick=()=>Lyrics.retry();
 $('#passageSource').onchange=localAction(()=>LocalAudio.mode($('#passageSource').value));
 $('#analyseFile').onclick=localAction(()=>LocalAudio.analyse());
@@ -1803,6 +1886,7 @@ $('#verTop').textContent = $('#verLbl').textContent = 'Version ' + APP_VERSION;
   $('#lo').onclick = logout;
   if(LS.get('passage_mode40')!=='1'){LS.set('passage_source','lyrics');LS.set('passage_mode40','1');}
   Library.load();
+  $('#replayUrl').value=LS.get('replay_url')||'';$('#replayToken').value=LS.get('replay_token')||'';
   LocalAudio.refresh();
   refreshSources();
   $('#aiKey').value = LS.get('aikey') || '';

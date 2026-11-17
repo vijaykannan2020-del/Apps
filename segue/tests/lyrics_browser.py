@@ -27,7 +27,7 @@ with sync_playwright() as p:
   if 'sdk.scdn.co' in u:return r.fulfill(body=sdk,content_type='application/javascript')
   if 'generativelanguage' in u or 'anthropic' in u:ai_calls.append(u);return r.abort()
   if 'lrclib.net' in u:
-   assert 'Segue/41' in r.request.headers.get('lrclib-client','')
+   assert 'Segue/42' in r.request.headers.get('lrclib-client','')
    assert not r.request.headers.get('authorization')
    name=qs['track_name'][0];i=int(name.split()[-1]);lyric_calls.append(i)
    # Song 3 has plain lyrics only. Wrong versions/artists must not be accepted.

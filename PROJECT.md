@@ -122,7 +122,7 @@ the top right and cover part of the page.
 - Test copy (`cinema-book-test/`): Version 26 (same as the real app).
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
-- Segue (`segue/`): Version 41. Spotify sign-in, automatic timed-lyric passage selection with
+- Segue (`segue/`): Version 42 (opt-in replay trial implemented; backend not connected). Spotify sign-in, automatic timed-lyric passage selection with
   saved recording reuse and optional file review/Gemini estimates, and a phone layout matching Cinema Book are in place. Player
   now uses one shared transport on every screen, observed playback phases,
   shuffle/repeat/seek and saved queues. Pending work is not shown as Playing. Simulated checks pass; live phone confirmation pending.
@@ -150,6 +150,8 @@ the top right and cover part of the page.
   GitHub Pages and the free TMDB terms are for non-commercial use.
 
 ## Change log
+
+- 2026-11-17, ChatGPT: Segue Version 42 adds an opt-in audience-replay trial, private YTAPI Worker/Node backend adapters and phone connection UI. Checks release-audio title/artist/duration, derives peak regions from graph valleys or named chapters, rejects malformed/missing data and caches recording results. No Gemini, audio upload, direct YouTube scrape or automatic fallback/skip. Existing method remains until configured. 78 controller cases, 12 backend cases, mocked replay connection/SDK/cache browser flow and existing lyric/catalog/file/player/14-layout checks pass. **Backend is not deployed and no provider account/key is connected; actual replay/Tamil audio coverage is unverified.** Setup/dependency details in segue/replay-service/README.md. No provider credits purchased or live lookups made.
 
 - 2026-11-17, Claude: CaseDesk Alerts: user-chosen local date reminders, background case-status checks, and server push for official updates / Visa Bulletin by topic (server stores only push token + topics in data/subscribers.json).
 

@@ -1,6 +1,6 @@
-# Segue handoff — Version 41
+# Segue handoff — Version 42
 
-Read `../PROJECT.md` first. Updated 2026-11-15.
+Read `../PROJECT.md` first. Updated 2026-11-17.
 Live: https://vijaykannan2020-del.github.io/Apps/segue/
 
 ## Goal
@@ -10,6 +10,62 @@ select a section automatically, save its timings and prepare upcoming songs whil
 Spotify plays in the browser. No files, AI key, song-count picker, fixed excerpt
 length or mandatory eight-song batch. Local-file review and Gemini estimates
 remain explicit optional methods, not automatic fallbacks.
+
+## Replay-data trial (Version 42) — backend not connected
+
+The user approved trying audience replay data after Gemini, audio-file uploads
+and timed-lyrics coverage failed their expectations. Version 42 implements an
+opt-in experimental path; it is **not a verified/live replay feed**. No service
+account, provider key, backend hostname or hosting-account access was available.
+Do not tell the user it is ready to play real replay-selected Tamil passages.
+
+Settings → **Replay trial · setup** accepts an HTTPS backend origin and a private
+app connection token. The YTAPI provider key stays on the backend. Connect verifies
+the backend's configured state, saves the app connection locally, confirms pause
+and switches to Replay. Health does not yet validate live provider credentials;
+the first real lookup does. An unconnected selector opens setup and preserves
+the current method. No default migration, Gemini retry or file upload occurs.
+
+`replay-service/worker.mjs` is a Cloudflare Worker with a dependency-free Node
+adapter (`server.mjs`) for an existing server. Deployment/secrets/cache/cost steps
+are in [replay-service/README.md](replay-service/README.md). Both options are
+prepared; neither was deployed. An optional `REPLAY_CACHE` KV binding shares
+successful derived ranges for 30 days. Browser `ai4`/`replay_lookups1` persist
+successful ranges and negative results. Explicit Retry can clear client misses.
+
+YTAPI's documented search, video-info and heatmap endpoints supply the data.
+Search considers up to three duration-matched video candidates. Only Topic or
+auto-generated release audio with matching Music-section title/credited artist
+and duration within one second is accepted. This is a conservative metadata
+match, **not proof of identical audio alignment**. No Spotify credential or audio
+is sent to this service, and no audio stream/video is downloaded. The legacy
+free endpoint returned 404; direct YouTube access returned 403; neither is used.
+
+The backend validates a contiguous replay curve, ignores opening-only peaks and
+flat/broken graphs, and picks surrounding low-interest valleys around a peak.
+Flat tops are traversed while valley plateaus use the nearer edge. Named
+verse/chorus chapters wholly within a region can refine its boundaries. Regions
+over half the song are rejected rather than truncated to a timer. Output is
+labelled **Replay-region estimate**, source `replay`, method `replay-v1`, alignment
+`metadata-duration-only`. Crowd attention does not establish hype or a complete
+charanam/vocal ending. No missing-data full-song/auto-skip policy was authorized.
+
+The client prepares up to three songs ahead, saves once, reuses by recording and
+rejects stale mode-change/Cancel completions. Cached replay ranges survive list
+Clear and AI Reset. Same common Spotify transport is used, with observed SDK
+progress. The new path makes no Gemini or LRCLIB calls. Missing graphs, mismatches,
+unconnected service, rate/credit errors all remain explicit. An uncached match
+uses 3–7 successful YTAPI calls; provider signup advertises 200 free credits. No
+purchases or automatic top-ups were made/configured. Worker calls have spacing,
+Retry-After handling and an overall approximately 32-second lookup budget. This
+is not a promise of gapless playback, available replay data, or fewer pauses on
+the user's actual collection until the live service and coverage are tested.
+
+Checks: 78 controller/selection/library cases; 12 backend tests; mocked replay
+browser flow (setup guard, connection, album, SDK start/next, no-graph failure,
+local reload/cache/ISRC reuse); existing lyric/catalog/file/player regressions
+and 14 layout/theme cases. These use fixtures, not live provider results/audio.
+Live trial remains blocked on provider credentials and a deployed backend.
 
 ## One verse or refrain, not the lyric sheet (Version 41)
 
@@ -343,7 +399,7 @@ Firebase, other app edits, downloaded audio or new backend. Spotify redirect
 remains exactly `https://vijaykannan2020-del.github.io/Apps/segue/`.
 Client ID and AI key stay on the user's device; never ask for keys or commit them.
 
-- `node segue/tests/playback.test.cjs`: 73 controller/selection/library cases,
+- `node segue/tests/playback.test.cjs`: 78 controller/selection/library cases,
   actual advancing SDK state, frozen/late/wrong-song failures, cancellation,
   variable ranges, adaptive batching, all catalog pages, ISRC reuse/mismatch,
   cache preservation, late-AI pause/wait, media actions and manifest identity.

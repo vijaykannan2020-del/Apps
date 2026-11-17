@@ -1,0 +1,8 @@
+{
+  "name": "segue-replay",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-17",
+  "vars": { "ALLOWED_ORIGIN": "https://vijaykannan2020-del.github.io" }
+  // Optional durable cache: create a KV namespace and add REPLAY_CACHE binding.
+  // Required secrets: YTAPI_API_KEY and REPLAY_ACCESS_TOKEN (never commit values).
+}
