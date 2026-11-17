@@ -5,6 +5,8 @@ import http from 'node:http';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import http2 from 'node:http2';
+import { spawn } from 'node:child_process';
+import os from 'node:os';
 import * as wpMod from 'web-push';
 
 const webpush = wpMod.default ?? wpMod;
@@ -213,6 +215,29 @@ http.createServer(async (req, res) => {
     }
 
 
+    // Voice notes: iPhone records M4A, WhatsApp only takes Ogg Opus voice notes — convert, then store in the media repo
+    if (req.method === 'POST' && url.pathname === '/push/voice') {
+      const userId = await whoami(req.headers.authorization);
+      if (!userId) return send(res, 401, { error: 'not logged in' });
+      const chunks = []; let size = 0;
+      for await (const c of req) { size += c.length; if (size > 25 * 1024 * 1024) return send(res, 413, { error: 'too long' }); chunks.push(c); }
+      const dir = fs.mkdtempSync(`${os.tmpdir()}/v-`), inF = `${dir}/in.m4a`, outF = `${dir}/out.ogg`;
+      try {
+        fs.writeFileSync(inF, Buffer.concat(chunks));
+        const ok = await new Promise(resolve => {
+          const p = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', inF, '-vn', '-ac', '1', '-ar', '48000', '-c:a', 'libopus', '-b:a', '32k', '-application', 'voip', outF]);
+          const t = setTimeout(() => p.kill('SIGKILL'), 60000);
+          p.on('close', code => { clearTimeout(t); resolve(code === 0); });
+          p.on('error', () => { clearTimeout(t); resolve(false); });
+        });
+        if (!ok) return send(res, 500, { error: 'Could not convert the voice note' });
+        const ogg = fs.readFileSync(outF);
+        const up = await fetch(`${SYNAPSE}/_matrix/media/v3/upload?filename=voice.ogg`, { method: 'POST', headers: { Authorization: req.headers.authorization, 'Content-Type': 'audio/ogg' }, body: ogg });
+        const j = await up.json().catch(() => ({}));
+        if (!up.ok || !j.content_uri) return send(res, 502, { error: 'Upload failed' });
+        return send(res, 200, { content_uri: j.content_uri, size: ogg.length, mimetype: 'audio/ogg' });
+      } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+    }
     if (req.method === 'GET' && url.pathname === '/push/health') {
       let h = {}; try { h = JSON.parse(fs.readFileSync(`${DATA}/health.json`, 'utf8')); } catch {}
       return send(res, 200, { ...h, apns: !!apns });

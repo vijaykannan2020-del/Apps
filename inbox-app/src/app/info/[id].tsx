@@ -48,6 +48,12 @@ export default function Info() {
           <Btn icon="archive" label={isArchived(r) ? 'Unarchive' : 'Archive'} on={isArchived(r)} onPress={() => setTag(r, 'm.lowpriority', !isArchived(r))} />
         </View>
         {S.reminders[r.id] ? <Text style={[styles.note, { color: t.soft }]}>⏰ Reminder {fmtWhen(S.reminders[r.id])}</Text> : null}
+        <Pressable onPress={() => router.push({ pathname: '/media/[id]', params: { id: r.id } })}
+          style={({ pressed }) => [styles.card, { backgroundColor: pressed ? t.fill : t.surface, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginTop: 18 }]}>
+          <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#0A84FF', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="images" size={18} color="#fff" /></View>
+          <Text style={{ flex: 1, color: t.ink, fontSize: 17 }}>Media, links and docs</Text>
+          <Ionicons name="chevron-forward" size={18} color={t.soft} />
+        </Pressable>
         {sched.length > 0 && <>
           <Text style={[styles.h, { color: t.soft }]}>SCHEDULED MESSAGES</Text>
           <View style={[styles.card, { backgroundColor: t.surface }]}>

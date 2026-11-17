@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { mediaSource, igMediaId } from '@/lib/matrix';
 import { Theme } from '@/lib/theme';
 
-function VideoPlayer({ uri, headers, w, h }: { uri: string; headers: Record<string, string>; w: number; h: number }) {
+export function VideoPlayer({ uri, headers, w, h }: { uri: string; headers: Record<string, string>; w: number; h: number }) {
   const player = useVideoPlayer({ uri, headers }, p => { p.play(); });
   return <VideoView player={player} style={{ width: w, height: h, borderRadius: 16, backgroundColor: '#000' }} nativeControls contentFit="contain" fullscreenOptions={{ enable: true }} allowsPictureInPicture />;
 }
@@ -30,18 +30,34 @@ export function VideoBubble({ c, maxW, t }: { c: any; maxW: number; t: Theme }) 
 }
 
 export function ReelBubble({ c, link, maxW, t }: { c: any; link: string; maxW: number; t: Theme }) {
+  const [playing, setPlaying] = useState(false);
   const info = c.info || {}; const ratio = info.w && info.h ? info.w / info.h : 9 / 16;
-  const w = Math.min(maxW, 220); const h = Math.min(w / ratio, 390);
+  const w = Math.min(maxW, 240); const h = Math.min(w / ratio, 420);
+  const isVideo = c.msgtype === 'm.video' && !!c.url;
+  const src = isVideo ? mediaSource(c.url) : null;
   const cover = c.msgtype === 'm.image' ? mediaSource(c.url, 640) : mediaSource(info.thumbnail_url, 640);
-  const open = () => {
+  const openIg = () => {
     const id = igMediaId(link);
     Linking.openURL(id ? `instagram://media?id=${id}` : link).catch(() => Linking.openURL(link));
   };
+  const igButton = (
+    <Pressable onPress={openIg} hitSlop={8} style={styles.reelTag} accessibilityLabel="Open in Instagram">
+      <Ionicons name="logo-instagram" size={13} color="#fff" /><Text style={styles.reelTxt}>{isVideo ? 'Instagram' : 'Open in Instagram'}</Text>
+    </Pressable>
+  );
+  // The bridge delivered the reel itself → play it right here. Only a cover picture → Instagram has the video.
+  if (playing && src) return (
+    <View style={{ width: w, height: h }}>
+      <VideoPlayer uri={src.uri} headers={src.headers} w={w} h={h} />
+      {igButton}
+    </View>
+  );
   return (
-    <Pressable onPress={open} style={{ width: w, height: h, borderRadius: 16, overflow: 'hidden', backgroundColor: t.dark ? '#1c1c1e' : '#d8d8dc' }}>
+    <Pressable onPress={isVideo ? () => setPlaying(true) : openIg} style={{ width: w, height: h, borderRadius: 16, overflow: 'hidden', backgroundColor: t.dark ? '#1c1c1e' : '#d8d8dc' }}>
       {cover && <Image source={cover} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />}
-      <View style={styles.playWrap}><View style={styles.play}><Ionicons name="play" size={30} color="#fff" style={{ marginLeft: 4 }} /></View></View>
-      <View style={styles.reelTag}><Ionicons name="logo-instagram" size={13} color="#fff" /><Text style={styles.reelTxt}>Reel</Text></View>
+      <View style={styles.playWrap}><View style={styles.play}><Ionicons name={isVideo ? 'play' : 'logo-instagram'} size={30} color="#fff" style={{ marginLeft: isVideo ? 4 : 0 }} /></View></View>
+      {igButton}
+      {isVideo && !!info.duration && <Text style={styles.dur}>{fmtDur(info.duration)}</Text>}
     </Pressable>
   );
 }
@@ -71,7 +87,8 @@ function VoicePlayer({ uri, headers, mine, t, durMs }: { uri: string; headers: R
   );
 }
 export function VoiceBubble({ c, mine, t }: { c: any; mine: boolean; t: Theme }) {
-  const src = mediaSource(c.url);
+  // WhatsApp copies are Ogg (iPhone can't play it) — use the original iPhone recording when we have it
+  const src = mediaSource(c['com.myinbox.playable'] || c.url);
   const dur = c.info?.duration || c['org.matrix.msc1767.audio']?.duration || 0;
   if (!src) return <Text style={{ color: t.soft }}>🎤 Voice message</Text>;
   return <VoicePlayer uri={src.uri} headers={src.headers} mine={mine} t={t} durMs={dur} />;

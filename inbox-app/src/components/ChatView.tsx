@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { S, Room, MEvent, NETS, roomName, netOf, botNetOf, isGroup, memberName, memberCount, mediaSource, markRead, sendText, sendImage,
   loadOlder, react, mdPlain, captionOf, stripReply, bodyPreview, hueFor, redact, editMessage, forward, isStarred, toggleStar,
-  visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, isUnread, sendRich, roomMembers, setupChips , isPrivateRoom, callSummary } from '@/lib/matrix';
+  visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, isUnread, sendRich, roomMembers, setupChips , isPrivateRoom, callSummary, others, presenceText } from '@/lib/matrix';
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
@@ -230,7 +230,11 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
 
   if (!r) return <View style={{ flex: 1, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator /></View>;
   const n = netOf(r) || botNetOf(r);
-  const sub = r.typing.length ? 'typing…' : isGroup(r) ? `${memberCount(r)} members${n ? ' · ' + NETS[n].label : ''}` : n ? NETS[n].label : '';
+  const peer = !isGroup(r) ? others(r)[0] : undefined;
+  const seen = peer ? presenceText(peer) : '';
+  const sub = r.typing.length ? (isGroup(r) ? `${memberName(r, r.typing[0]).split(' ')[0]} is typing…` : 'typing…')
+    : isGroup(r) ? `${memberCount(r)} members${n ? ' · ' + NETS[n].label : ''}`
+    : seen ? (n ? `${seen} · ${NETS[n].label}` : seen) : n ? NETS[n].label : isPrivateRoom(r) ? 'Private chat' : '';
   const showInfo = () => router.push({ pathname: '/info/[id]', params: { id: r.id } });
 
   function onLong(ev: MEvent) { if (ev.redacted || ev.pending) return; Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); setMenu(ev); }
@@ -394,7 +398,7 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
             <Avatar room={r} size={34} />
             <View style={{ flexShrink: 1, marginLeft: 9, marginRight: 6 }}>
               <Text numberOfLines={1} style={[styles.hName, { color: t.ink }]}>{roomName(r)}{S.muted.has(r.id) ? '  🔕' : ''}</Text>
-              {!!sub && <Text numberOfLines={1} style={[styles.hSub, { color: r.typing.length ? t.blue : t.soft }]}>{sub}</Text>}
+              {!!sub && <Text numberOfLines={1} style={[styles.hSub, { color: r.typing.length || seen === 'online' ? t.blue : t.soft }]}>{sub}</Text>}
             </View>
           </Pressable>
         </Glass>

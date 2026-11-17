@@ -7,7 +7,9 @@ import * as Updates from 'expo-updates';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { S, NETS, Net, visibleRooms, netOf, logout, setupRoom, setPref, changePassword, backupApi, familyApi, startPrivateChat, Person } from '@/lib/matrix';
+import { S, NETS, Net, visibleRooms, netOf, logout, setupRoom, setPref, changePassword, backupApi, familyApi, startPrivateChat, Person, getMyProfile, setMyName, setMyPhoto, mediaSource, hueFor } from '@/lib/matrix';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'expo-image';
 import { pushCapable, enableNativePush, disableNativePush, pushWanted, apnsApi, deviceToken } from '@/lib/push';
 import { Sheet } from '@/components/Sheet';
 import { fmtWhen } from '@/lib/time';
@@ -17,7 +19,7 @@ import { useWide, useStatusGutter } from '@/lib/layout';
 import { AppSwitcher, SWITCHER_SPACE } from '@/components/AppSwitcher';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 15;
+export const APP_BUILD = 17;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
@@ -26,6 +28,23 @@ export default function Accounts() {
   const [pw, setPw] = useState(false); const [pwOld, setPwOld] = useState(''); const [pwNew, setPwNew] = useState(''); const [pwNew2, setPwNew2] = useState('');
   const [pwErr, setPwErr] = useState(''); const [pwBusy, setPwBusy] = useState(false);
   const [bk, setBk] = useState<any>(null); const [bkOpen, setBkOpen] = useState(false); const [bkPaste, setBkPaste] = useState(''); const [bkErr, setBkErr] = useState(''); const [bkBusy, setBkBusy] = useState(false);
+  const [me, setMe] = useState<{ displayname?: string; avatar_url?: string }>({});
+  const [photoBusy, setPhotoBusy] = useState(false);
+  useEffect(() => { getMyProfile().then(setMe); }, []);
+  async function pickPhoto() {
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.85 });
+    if (res.canceled || !res.assets[0]) return;
+    setPhotoBusy(true);
+    try { const url = await setMyPhoto(res.assets[0].uri, res.assets[0].mimeType || 'image/jpeg'); setMe(m => ({ ...m, avatar_url: url })); }
+    catch (e: any) { Alert.alert('Could not update photo', e.message || ''); }
+    setPhotoBusy(false);
+  }
+  function editName() {
+    Alert.prompt('Your name', 'Shown to family in private chats', async (v?: string) => {
+      if (!v || !v.trim()) return;
+      try { await setMyName(v); setMe(m => ({ ...m, displayname: v.trim() })); } catch (e: any) { Alert.alert('Could not change name', e.message || ''); }
+    }, 'plain-text', me.displayname || '');
+  }
   const [fam, setFam] = useState<{ admin: boolean; people: Person[] } | null>(null);
   const [addOpen, setAddOpen] = useState(false); const [fName, setFName] = useState(''); const [fUser, setFUser] = useState(''); const [fPass, setFPass] = useState('');
   const [fErr, setFErr] = useState(''); const [fBusy, setFBusy] = useState(false); const [fDone, setFDone] = useState<{ user: string; pass: string } | null>(null);
@@ -108,6 +127,23 @@ export default function Accounts() {
           <View style={styles.titleRow}>
             <Text style={[styles.title, { color: t.ink }]}>Accounts</Text>
           </View>
+        </View>
+
+        <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 14 }]}>
+          <Pressable onPress={pickPhoto} accessibilityLabel="Change profile photo">
+            <View style={{ width: 68, height: 68, borderRadius: 34, overflow: 'hidden', backgroundColor: hueFor(S.userId || ''), alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#fff', fontSize: 28, fontWeight: '700' }}>{(me.displayname || S.userId || '?').replace(/^@/, '')[0].toUpperCase()}</Text>
+              {!!me.avatar_url && <Image source={mediaSource(me.avatar_url, 136)} style={StyleSheet.absoluteFill} contentFit="cover" />}
+              {photoBusy && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color="#fff" /></View>}
+            </View>
+            <View style={{ position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, backgroundColor: t.blue, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: t.bg }}>
+              <Ionicons name="camera" size={12} color="#fff" />
+            </View>
+          </Pressable>
+          <Pressable onPress={editName} style={{ flex: 1 }}>
+            <Text style={{ color: t.ink, fontSize: 20, fontWeight: '700' }} numberOfLines={1}>{me.displayname || S.userId?.split(':')[0].slice(1)}</Text>
+            <Text style={{ color: t.soft, fontSize: 14, marginTop: 2 }}>Tap to change your name or photo</Text>
+          </Pressable>
         </View>
 
         <Text style={[styles.h, { color: t.soft }]}>CONNECTED APPS</Text>

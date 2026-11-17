@@ -25,7 +25,7 @@ export type Room = {
   reactIdx: Map<string, { target: string; key: string; sender: string }>; pendingEdits: Map<string, any>;
   unread: number; net: Net | null; bridgeName: string | null; bridgeAvatar: string | null; channelId: string | null;
   isSpace: boolean; prevBatch: string | null | undefined; lastTs: number; tags: Record<string, unknown>; markedUnread: boolean;
-  readBy: Map<string, string>; typing: string[]; loadingOlder: boolean;
+  readBy: Map<string, string>; typing: string[]; loadingOlder: boolean; isDM?: boolean;
 };
 
 export type Starred = { room: string; event: string; ts: number; sender: string; body: string };
@@ -114,6 +114,7 @@ function applyState(r: Room, ev: MEvent) {
     case 'm.room.member': r.members.set(ev.state_key!, { name: c.displayname, avatar: c.avatar_url, membership: c.membership }); break;
     case 'm.bridge': case 'uk.half-shot.bridge':
       r.net = netFrom(c.protocol && c.protocol.id) || r.net;
+      if (c['com.beeper.room_type'] === 'dm') r.isDM = true;
       if (c.channel) { r.bridgeName = c.channel.displayname || r.bridgeName; r.bridgeAvatar = c.channel.avatar_url || r.bridgeAvatar; r.channelId = c.channel.id || r.channelId; }
       break;
   }
@@ -126,8 +127,12 @@ function allOthers(r: Room) {
 }
 export const others = (r: Room) => allOthers(r).filter(id => !isBot(id));
 export function memberCount(r: Room) {
+  if (r.isDM) return 2;
   const bots = allOthers(r).filter(isBot).length;
-  return r.joined ? Math.max(1, r.joined - bots) : others(r).length + 1;
+  const n = r.joined ? Math.max(1, r.joined - bots) : others(r).length + 1;
+  // A bridged chat with you, one person and the (unlisted) bridge bot is a 1-to-1 chat, not a group
+  if (n === 3 && bots === 0 && r.net && others(r).length <= 1) return 2;
+  return n;
 }
 export function netOf(r: Room): Net | null {
   if (r.net) return r.net;
@@ -165,6 +170,37 @@ export const isPinned = (r: Room) => !!(r.tags && r.tags['m.favourite']);
 export const isArchived = (r: Room) => !!(r.tags && r.tags['m.lowpriority']);
 export const isUnread = (r: Room) => r.unread > 0 || r.markedUnread;
 const isStatusRoom = (r: Room) => /status@broadcast/i.test(r.channelId || '') || /status broadcast/i.test(r.name || r.bridgeName || '');
+// ---- online / last seen (people on your server; WhatsApp/Instagram contacts when the bridge shares it) ----
+const presence = new Map<string, { p?: string; active: boolean; seen: number }>();
+export function presenceText(userId: string): string {
+  const x = presence.get(userId); if (!x) return '';
+  if (x.p === 'online' && (x.active || Date.now() - x.seen < 5 * 60e3)) return 'online';
+  if (!x.seen) return '';
+  const mins = Math.floor((Date.now() - x.seen) / 60e3);
+  if (mins < 1) return 'last seen just now';
+  if (mins < 60) return `last seen ${mins} min ago`;
+  const d = new Date(x.seen), today = new Date();
+  const t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (d.toDateString() === today.toDateString()) return `last seen today at ${t}`;
+  if (Date.now() - x.seen < 2 * 86400e3) return `last seen yesterday at ${t}`;
+  return `last seen ${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+}
+
+// ---- your profile ----
+export async function getMyProfile(): Promise<{ displayname?: string; avatar_url?: string }> {
+  try { return await api('GET', `/_matrix/client/v3/profile/${enc(S.userId!)}`); } catch { return {}; }
+}
+export async function setMyName(name: string) {
+  await api('PUT', `/_matrix/client/v3/profile/${enc(S.userId!)}/displayname`, { displayname: name.trim() });
+}
+export async function setMyPhoto(uri: string, mime = 'image/jpeg') {
+  const blob = await (await fetch(uri)).blob();
+  const up = await fetch(`${S.server}/_matrix/media/v3/upload?filename=avatar.jpg`, { method: 'POST', headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': mime }, body: blob });
+  const j = await up.json(); if (!up.ok || !j.content_uri) throw new Error(j.error || 'Upload failed');
+  await api('PUT', `/_matrix/client/v3/profile/${enc(S.userId!)}/avatar_url`, { avatar_url: j.content_uri });
+  return j.content_uri as string;
+}
+
 let callHook: ((r: Room, ev: MEvent) => void) | null = null;
 export function setCallHook(f: (r: Room, ev: MEvent) => void) { callHook = f; }
 export { allOthers };
@@ -314,6 +350,9 @@ function processSync(d: any, first: boolean) {
     }
     if (id === S.current) { r.unread = 0; markRead(r); }
   }
+  for (const ev of d.presence?.events || []) {
+    if (ev.type === 'm.presence' && ev.sender) presence.set(ev.sender, { p: ev.content?.presence, active: !!ev.content?.currently_active, seen: Date.now() - (ev.content?.last_active_ago ?? 0) });
+  }
   for (const id of Object.keys(rooms.leave || {})) S.rooms.delete(id);
   for (const ev of d.account_data?.events || []) {
     if (ev.type === 'inbox.starred') S.starred = ev.content?.items || [];
@@ -335,7 +374,7 @@ export async function startSync() {
     room: { timeline: { limit: 25 }, state: { lazy_load_members: true },
       account_data: { types: ['m.tag', 'm.marked_unread', 'com.famedly.marked_unread'] },
       ephemeral: { types: ['m.receipt', 'm.typing'] } },
-    presence: { types: [] },
+    presence: { types: ['m.presence'] },
     account_data: { types: ['m.push_rules', 'inbox.starred', 'inbox.reminders'] },
   }));
   let backoff = 1000;
@@ -571,11 +610,24 @@ export async function cancelScheduled(id: string) {
 }
 export async function sendVoice(r: Room, uri: string, durationMs: number) {
   const blob = await (await fetch(uri)).blob();
-  const mime = 'audio/mp4';
-  const up = await fetch(`${S.server}/_matrix/media/v3/upload?filename=voice.m4a`, { method: 'POST', headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': mime }, body: blob });
-  const j = await up.json(); if (!up.ok || !j.content_uri) throw new Error(j.error || 'Upload failed');
+  let mime = 'audio/mp4', url: string, size = blob.size, playable: string | undefined;
+  if (netOf(r) === 'whatsapp') {
+    // keep the original for playback inside Inbox (iPhone can't play the Ogg copy WhatsApp needs)
+    try {
+      const o = await fetch(`${S.server}/_matrix/media/v3/upload?filename=voice.m4a`, { method: 'POST', headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': 'audio/mp4' }, body: blob });
+      playable = (await o.json()).content_uri;
+    } catch {}
+    // WhatsApp voice notes must be Ogg Opus; your server converts the iPhone recording
+    const up = await fetch(`${S.server}/push/voice`, { method: 'POST', headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': 'audio/mp4' }, body: blob });
+    const j = await up.json().catch(() => ({})); if (!up.ok || !j.content_uri) throw new Error(j.error || 'Could not prepare the voice note');
+    mime = 'audio/ogg'; url = j.content_uri; size = j.size;
+  } else {
+    const up = await fetch(`${S.server}/_matrix/media/v3/upload?filename=voice.m4a`, { method: 'POST', headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': mime }, body: blob });
+    const j = await up.json(); if (!up.ok || !j.content_uri) throw new Error(j.error || 'Upload failed');
+    url = j.content_uri;
+  }
   await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/send/m.room.message/${newTxn()}`, {
-    msgtype: 'm.audio', body: 'Voice message', url: j.content_uri, info: { mimetype: mime, size: blob.size, duration: Math.round(durationMs) },
+    msgtype: 'm.audio', body: 'Voice message', url, info: { mimetype: mime, size, duration: Math.round(durationMs) }, ...(playable ? { 'com.myinbox.playable': playable } : {}),
     'org.matrix.msc3245.voice': {}, 'org.matrix.msc1767.audio': { duration: Math.round(durationMs) },
   });
 }
@@ -731,4 +783,36 @@ export async function startPrivateChat(userId: string): Promise<string> {
   } catch {}
   for (let i = 0; i < 40 && !S.rooms.has(room_id); i++) await new Promise(r => setTimeout(r, 250));
   return room_id;
+}
+
+// ---------------- media, links & docs for a chat (like WhatsApp's chat info) ----------------
+export type SharedItem = { ev: MEvent; kind: 'media' | 'link' | 'doc'; url?: string };
+const URL_RE = /https?:\/\/[^\s<>()\]]+/g;
+export function classifyShared(evs: MEvent[]): SharedItem[] {
+  const out: SharedItem[] = [];
+  for (const ev of evs) {
+    if (ev.redacted || ev.type !== 'm.room.message' && ev.type !== 'm.sticker') continue;
+    const c = ev.content || {};
+    if (c.msgtype === 'm.image' || c.msgtype === 'm.video' || ev.type === 'm.sticker') out.push({ ev, kind: 'media' });
+    else if (c.msgtype === 'm.file') out.push({ ev, kind: 'doc' });
+    const links = (c.body || '').match(URL_RE);
+    if (links) for (const u of [...new Set<string>(links)]) out.push({ ev, kind: 'link', url: u.replace(/[.,!?*]+$/, '') });
+  }
+  return out;
+}
+/** Pages back through the chat's history (up to `pages` × 100 messages) and returns everything shared. */
+export async function loadShared(r: Room, pages = 6): Promise<SharedItem[]> {
+  const seen = new Map<string, MEvent>();
+  for (const ev of r.events) seen.set(ev.event_id, ev);
+  let from: string | undefined;
+  const filter = enc(JSON.stringify({ types: ['m.room.message', 'm.sticker'], lazy_load_members: true }));
+  for (let i = 0; i < pages; i++) {
+    try {
+      const d = await api('GET', `/_matrix/client/v3/rooms/${enc(r.id)}/messages?dir=b&limit=100&filter=${filter}${from ? '&from=' + enc(from) : ''}`);
+      for (const ev of d.chunk || []) if (!seen.has(ev.event_id)) seen.set(ev.event_id, ev);
+      if (!d.end || !(d.chunk || []).length) break;
+      from = d.end;
+    } catch { break; }
+  }
+  return classifyShared([...seen.values()].sort((a, b) => b.origin_server_ts - a.origin_server_ts));
 }

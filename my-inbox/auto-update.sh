@@ -24,6 +24,12 @@ if grep -qE '^\s*enable_status_broadcast: true' data/whatsapp/config.yaml 2>/dev
   echo "$(date -u '+%F %T') WhatsApp Status bridging turned off"
   docker compose restart whatsapp >/dev/null 2>&1 || true
 fi
+# WhatsApp only sends "typing…" to devices it thinks are online — mark the bridge online while you type
+if grep -qE '^\s*send_presence_on_typing: false' data/whatsapp/config.yaml 2>/dev/null; then
+  sed -i -E 's/^(\s*)send_presence_on_typing: false/\1send_presence_on_typing: true/' data/whatsapp/config.yaml
+  echo "$(date -u '+%F %T') WhatsApp typing indicators turned on"
+  docker compose restart whatsapp >/dev/null 2>&1 || true
+fi
 # Synapse features for scheduled messages and link previews (added once; rolled back if Synapse won't start)
 HS=data/synapse/homeserver.yaml
 if [ -f "$HS" ] && ! grep -q '^# my-inbox: features v1' "$HS"; then
