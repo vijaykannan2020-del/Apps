@@ -80,6 +80,12 @@
         "projectId": "1e15ecfc-86cb-4e35-884f-f39c9db7969d"
       }
     },
-    "owner": "vijayakannankrishnans-team"
+    "owner": "vijayakannankrishnans-team",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/1e15ecfc-86cb-4e35-884f-f39c9db7969d"
+    }
   }
 }

@@ -5,7 +5,8 @@
   },
   "build": {
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
@@ -14,7 +15,8 @@
       },
       "android": {
         "buildType": "app-bundle"
-      }
+      },
+      "channel": "main"
     }
   },
   "submit": {

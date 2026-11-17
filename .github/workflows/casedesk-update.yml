@@ -1,0 +1,25 @@
+# Publishes CaseDesk (casedesk/app/) as an EAS Update so it opens in Expo Go (and updates installed builds over the air).
+# Open in Expo Go: exp://u.expo.dev/1e15ecfc-86cb-4e35-884f-f39c9db7969d?channel-name=main&runtime-version=exposdk:58.0.0
+name: CaseDesk app update
+on:
+  push:
+    branches: [main]
+    paths: ['casedesk/app/**', '.github/workflows/casedesk-update.yml', '!casedesk/app/ios-build.txt']
+  workflow_dispatch:
+concurrency: { group: casedesk-update, cancel-in-progress: true }
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: casedesk/app } }
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: casedesk/app/package-lock.json }
+      - run: npm ci
+      - run: npx -y eas-cli@latest init --non-interactive --force --id "$(jq -r '.expo.extra.eas.projectId' app.json)"
+      - name: Publish update
+        run: npx -y eas-cli@latest update --channel main --message "${{ github.event.head_commit.message || 'manual' }}" --non-interactive
+      - name: Expo Go link
+        run: echo "::notice::Open in Expo Go → exp://u.expo.dev/$(jq -r '.expo.extra.eas.projectId' app.json)?channel-name=main&runtime-version=exposdk:58.0.0"

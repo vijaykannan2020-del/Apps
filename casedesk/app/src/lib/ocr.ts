@@ -35,7 +35,11 @@ export async function readText(uri: string, mime: string): Promise<string | null
   }
 }
 
-export const ocrAvailable = () => Platform.OS !== 'web';
+// Not in Expo Go (its native modules aren't bundled there) or the web preview.
+export const ocrAvailable = () => {
+  if (Platform.OS === 'web') return false;
+  try { return require('expo-constants').default.executionEnvironment !== 'storeClient'; } catch { return true; }
+};
 
 // ---------- date parsing ----------
 const MONTHS: Record<string, number> = { JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6, JUL: 7, AUG: 8, SEP: 9, SEPT: 9, OCT: 10, NOV: 11, DEC: 12, JANUARY: 1, FEBRUARY: 2, MARCH: 3, APRIL: 4, JUNE: 6, JULY: 7, AUGUST: 8, SEPTEMBER: 9, OCTOBER: 10, NOVEMBER: 11, DECEMBER: 12 };

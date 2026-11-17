@@ -44,7 +44,7 @@ function AddSheet({ onDone }: { onDone: (msg?: string) => void }) {
     if (!f) return;
     setPicked(f); setErr(''); setFound(null); setReadNote('');
     if (!title) setTitle(f.name.replace(/\.[a-z0-9]+$/i, ''));
-    if (!ocrAvailable()) { setReadNote('Auto-read works in the phone app. Fill in the details below.'); return; }
+    if (!ocrAvailable()) { setReadNote('Auto-read works in the installed app (not Expo Go). Fill in the details below.'); return; }
     setReading(true);
     const text = await readText(f.uri, f.mime);
     setReading(false);
