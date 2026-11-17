@@ -126,7 +126,7 @@ export default function Status() {
         </Card>
       </Section>
 
-      <Section title="Get your official records">
+      <Section title="Official records">
         <Card style={{ paddingVertical: 4 }}>
           <Row icon="document-text-outline" title="Download my latest I-94" subtitle="CBP · Get Most Recent I-94 → passport details → print/save PDF" href="https://i94.cbp.dhs.gov/search/recent-search" />
           <Row icon="airplane-outline" title="My travel history" subtitle="CBP · past 10 years of entries and exits" href="https://i94.cbp.dhs.gov/search/history-search" />
@@ -135,21 +135,6 @@ export default function Status() {
         </Card>
       </Section>
 
-      <Section title="How to read your I-94">
-        <Card>
-          {[
-            ['Class of admission', 'Must match your current visa (e.g. H1B, L1A, H4).'],
-            ['Admit Until Date', 'Your stay ends on this date — not the visa stamp date.'],
-            ['Wrong date?', 'If it’s shorter than your approval and not due to your passport, ask CBP Deferred Inspection to correct it.'],
-            ['After every trip', 'You get a new I-94 on each entry. Download it and add it here.'],
-          ].map(([a, b], i) => (
-            <View key={a} style={{ paddingVertical: 9, borderTopWidth: i ? 0.5 : 0, borderTopColor: t.border }}>
-              <T v="h3" style={{ fontSize: 14 }}>{a}</T>
-              <T v="sub" style={{ marginTop: 2 }}>{b}</T>
-            </View>
-          ))}
-        </Card>
-      </Section>
       <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
         <T v="small" style={{ textAlign: 'center' }}>Checks are reminders based on your dates — not legal advice.</T>
       </View>

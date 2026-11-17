@@ -100,7 +100,7 @@ export default function Lottery() {
       <Section title="Official pages">
         <Card style={{ paddingVertical: 4 }}>
           <Row icon="globe-outline" tone="neutral" title="H-1B cap season" subtitle="uscis.gov" href="https://www.uscis.gov/working-in-the-united-states/temporary-workers/h-1b-specialty-occupations-and-fashion-models/h-1b-cap-season" />
-          <Row icon="bar-chart-outline" tone="neutral" title="H-1B Employer Data Hub" subtitle="Approvals by employer" onPress={() => router.push('/data')} last />
+          <Row icon="bar-chart-outline" tone="neutral" title="Employer H-1B data" subtitle="Approvals by company" onPress={() => router.push('/tools/employers')} last />
         </Card>
       </Section>
       <View style={{ paddingHorizontal: 20, marginTop: 16 }}><T v="small" style={{ textAlign: 'center' }}>Information only — not legal advice.</T></View>

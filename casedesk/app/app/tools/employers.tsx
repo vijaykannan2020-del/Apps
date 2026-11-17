@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { Screen, Section, Card, T, Segmented, Field, Note, Pill, IconBubble, Columns } from '../../src/components/ui';
+import { Section, Card, T, Segmented, Field, Note, Pill, IconBubble, Columns } from '../../src/components/ui';
 import { HBars } from '../../src/components/charts';
 import { useTheme } from '../../src/theme';
+import { DetailScreen } from '../../src/components/TopBar';
 import { TOP_INITIAL_FY25, TOP_CONTINUING_FY25, H1B_SOURCE } from '../../src/data/h1b';
 import { isLive, searchEmployers, EmployerResult } from '../../src/lib/api';
 
@@ -68,7 +69,7 @@ function EmployerCard({ e }: { e: EmployerResult }) {
   );
 }
 
-export default function Data() {
+export default function Employers() {
   const t = useTheme();
   const [q, setQ] = useState('');
   const [results, setResults] = useState<EmployerResult[] | null>(null);
@@ -85,7 +86,11 @@ export default function Data() {
   };
 
   return (
-    <Screen title="Employers" subtitle="H-1B · PERM · LCA by company">
+    <DetailScreen title="Employer H-1B data">
+      <View style={{ paddingHorizontal: 20 }}>
+        <T v="h1">Employer H-1B data</T>
+        <T v="sub" style={{ marginTop: 4 }}>Approvals and denials by company (USCIS Data Hub)</T>
+      </View>
       <Columns left={<>
       <Section>
         <Field placeholder="Search an employer, e.g. HCL America" value={q} onChangeText={search} autoCorrect={false} autoCapitalize="words" />
@@ -119,6 +124,6 @@ export default function Data() {
         </Card>
       </Section>
       </>} />
-    </Screen>
+    </DetailScreen>
   );
 }

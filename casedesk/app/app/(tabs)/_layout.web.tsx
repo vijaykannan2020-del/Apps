@@ -10,7 +10,6 @@ const icons: Record<string, [any, any]> = {
   cases: ['file-tray-full', 'file-tray-full-outline'],
   tools: ['calculator', 'calculator-outline'],
   status: ['shield-checkmark', 'shield-checkmark-outline'],
-  data: ['business', 'business-outline'],
 };
 
 export default function TabsLayout() {
@@ -51,7 +50,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="cases" options={{ title: 'Cases' }} />
       <Tabs.Screen name="status" options={{ title: 'My Status' }} />
       <Tabs.Screen name="tools" options={{ title: 'Tools' }} />
-      <Tabs.Screen name="data" options={{ title: 'Employers' }} />
     </Tabs>
   );
 }
