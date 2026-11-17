@@ -2,7 +2,7 @@
 import { useCallback } from 'react';
 import { View, Text } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { isCollapsed, showList, setCurrentChat } from '@/lib/layout';
+import { isCollapsed, showList, setCurrentChat, useLayout } from '@/lib/layout';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/theme';
 
@@ -10,6 +10,8 @@ export default function NoChat() {
   const t = useTheme();
   // One-column screens (iPhone, Duo folded): an empty right-hand column means "go back to the list".
   useFocusEffect(useCallback(() => { setCurrentChat(null); if (isCollapsed()) showList(); }, []));
+  const { collapsed } = useLayout();
+  if (collapsed) return <View style={{ flex: 1, backgroundColor: t.bg }} />; // never show "Pick a chat" on one-column screens
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: t.bg }}>
       <Ionicons name="chatbubbles-outline" size={56} color={t.soft} />

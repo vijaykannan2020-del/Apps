@@ -26,13 +26,15 @@ export default function DetailLayout() {
 
 function DetailStack() {
   const t = useTheme();
+  // Chat and Accounts: no stack swipe-back — on one-column screens Apple's split view does the swipe back to the list
+  // itself (our stack doing it too made the empty right-hand page flash); side by side there's nothing to go back to.
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: 'default' }}>
       <Stack.Screen name="index" options={{ animation: 'none' }} />
-      <Stack.Screen name="chat/[id]" options={{ animation: 'none', gestureResponseDistance: { start: 30 } as any }} />
+      <Stack.Screen name="chat/[id]" options={{ animation: 'none', gestureEnabled: false }} />
       <Stack.Screen name="info/[id]" />
       <Stack.Screen name="media/[id]" />
-      <Stack.Screen name="accounts" options={{ animation: 'none' }} />
+      <Stack.Screen name="accounts" options={{ animation: 'none', gestureEnabled: false }} />
       <Stack.Screen name="call" options={{ presentation: 'fullScreenModal', gestureEnabled: false, animation: 'fade' }} />
     </Stack>
   );
