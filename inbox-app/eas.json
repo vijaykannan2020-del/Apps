@@ -17,6 +17,9 @@
       "autoIncrement": true,
       "ios": {
         "image": "latest"
+      },
+      "env": {
+        "RNS_GAMMA_ENABLED": "1"
       }
     }
   },
