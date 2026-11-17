@@ -14,10 +14,10 @@ import { fmtWhen } from '@/lib/time';
 import { useTheme, useStore } from '@/lib/theme';
 import { useWindowDimensions } from 'react-native';
 import { useWide, useStatusGutter } from '@/lib/layout';
-import { AppSwitcher } from '@/components/AppSwitcher';
+import { AppSwitcher, SWITCHER_SPACE } from '@/components/AppSwitcher';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 9;
+export const APP_BUILD = 10;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
@@ -101,13 +101,13 @@ export default function Accounts() {
   );
   const nets = Object.keys(NETS) as Net[];
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: ins.top + 6, paddingBottom: ins.bottom + 40, alignItems: 'center' }}>
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
+    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: ins.top + 6, paddingBottom: ins.bottom + 40 + SWITCHER_SPACE, alignItems: 'center' }}>
       <View style={{ width: '100%', maxWidth: 640 }}>
         <View style={{ paddingRight: gut }}>
           <View style={styles.titleRow}>
             <Text style={[styles.title, { color: t.ink }]}>Accounts</Text>
           </View>
-          <AppSwitcher current="accounts" />
         </View>
 
         <Text style={[styles.h, { color: t.soft }]}>CONNECTED APPS</Text>
@@ -250,6 +250,8 @@ export default function Accounts() {
         </Pressable>
       </Sheet>
     </ScrollView>
+    <AppSwitcher current="accounts" />
+    </View>
   );
 }
 

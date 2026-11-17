@@ -4,15 +4,18 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Glass } from '@/components/Glass';
 import { useTheme } from '@/lib/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const APPS = [['all', '/inbox'], ['whatsapp', '/whatsapp'], ['instagram', '/instagram'], ['messenger', '/messenger'], ['accounts', '/accounts']] as const;
 type Key = typeof APPS[number][0];
 
-/** Glass row of app logos at the top — on iPhone Duo the system tab bar becomes a side strip that covers the chats. */
+/** Floating glass bar of app logos at the bottom, within thumb reach. (On iPhone Duo the system tab bar becomes a side strip that covers the chats.) */
+export const SWITCHER_SPACE = 76;
 export function AppSwitcher({ current, counts = {} }: { current: Key; counts?: Record<string, number> }) {
-  const t = useTheme();
+  const t = useTheme(); const ins = useSafeAreaInsets();
   return (
-    <Glass style={styles.bar}>
+    <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(ins.bottom, 10) + 4 }]}>
+    <Glass interactive style={[styles.bar, { shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } }]}>
       {APPS.map(([k, href]) => {
         const on = k === current; const c = k === 'accounts' ? 0 : counts[k] || 0; const col = on ? t.ink : t.soft;
         return (
@@ -28,12 +31,15 @@ export function AppSwitcher({ current, counts = {} }: { current: Key; counts?: R
         );
       })}
     </Glass>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', marginHorizontal: 16, marginTop: 10, borderRadius: 24, padding: 4, overflow: 'hidden', maxWidth: 420 },
-  btn: { flex: 1, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  wrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingHorizontal: 16 },
+  bar: { flexDirection: 'row', width: '100%', maxWidth: 420, borderRadius: 28, padding: 5, overflow: 'hidden' },
+
+  btn: { flex: 1, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   badge: { position: 'absolute', top: 1, right: 6, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   badgeTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
 });

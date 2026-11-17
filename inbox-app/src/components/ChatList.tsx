@@ -11,7 +11,7 @@ import { S, Room, MEvent, Net, NETS, visibleRooms, roomName, preview, fmtTime, i
   startWhatsAppChat, others } from '@/lib/matrix';
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
-import { AppSwitcher } from '@/components/AppSwitcher';
+import { AppSwitcher, SWITCHER_SPACE } from '@/components/AppSwitcher';
 import { useStatusGutter } from '@/lib/layout';
 import { ChatView } from '@/components/ChatView';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
@@ -124,7 +124,6 @@ export function ChatList({ tab }: { tab: Tab }) {
         {archived && <Pressable onPress={() => setArchived(false)} hitSlop={12}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>}
         <Text style={[styles.title, { color: t.ink }]}>{title}</Text>
       </View>
-      <AppSwitcher current={tab} counts={counts} />
       <View style={[styles.search, { backgroundColor: t.fill }]}>
         <Ionicons name="search" size={17} color={t.soft} />
         <TextInput value={q} onChangeText={setQ} placeholder="Search chats and messages" placeholderTextColor={t.soft} style={{ flex: 1, color: t.ink, fontSize: 17 }} autoCorrect={false} returnKeyType="search" />
@@ -173,7 +172,7 @@ export function ChatList({ tab }: { tab: Tab }) {
     <View style={{ width: paneW, flex: wide ? undefined : 1, borderRightWidth: wide ? StyleSheet.hairlineWidth : 0, borderRightColor: t.line }}>
       {starredView ? (
         <FlatList data={S.starred} keyExtractor={x => x.event} ListHeaderComponent={header} extraData={v}
-          contentContainerStyle={{ paddingBottom: ins.bottom + 16 }}
+          contentContainerStyle={{ paddingBottom: ins.bottom + 16 + SWITCHER_SPACE }}
           ListEmptyComponent={<Text style={[styles.emptyTxt, { color: t.soft, textAlign: 'center', paddingTop: 40, paddingHorizontal: 30 }]}>No starred messages yet. Long-press a message → Star.</Text>}
           renderItem={({ item: x }) => {
             const r = S.rooms.get(x.room); if (!r) return null;
@@ -198,10 +197,11 @@ export function ChatList({ tab }: { tab: Tab }) {
                 : <Text style={[styles.emptyTxt, { color: t.soft }]}>{kind === 'unread' ? 'All caught up ✓' : 'No chats yet'}</Text>}
             </View>
           )}
-          contentContainerStyle={{ paddingBottom: ins.bottom + 16 }}
+          contentContainerStyle={{ paddingBottom: ins.bottom + 16 + SWITCHER_SPACE }}
           keyboardDismissMode="on-drag" initialNumToRender={14} windowSize={11}
         />
       )}
+      <AppSwitcher current={tab} counts={counts} />
     </View>
   );
 
