@@ -39,7 +39,7 @@ export default function AddCase() {
         <Field label="Receipt number" placeholder="IOE0123456789" autoCapitalize="characters" autoCorrect={false} value={receipt} onChangeText={setReceipt} maxLength={16} style={{ fontSize: 20, letterSpacing: 1.5, fontWeight: '600' }} />
         {r.length >= 3 ? (
           <T v="small" style={{ marginTop: -6, marginBottom: 14, color: valid ? t.green : r.length >= 13 ? t.red : t.sub }}>
-            {valid ? `✓ ${center ?? 'USCIS'}` : r.length >= 13 ? 'That doesn’t look like a USCIS receipt number' : center ? center : 'Keep typing…'}
+            {valid ? `✓ ${center ?? 'USCIS'}` : r.length >= 13 ? 'That doesn’t look like a USCIS receipt number' : `${center ? center + ' · ' : ''}3 letters + 10 digits — ${Math.max(0, r.replace(/^[A-Z]+/, '').length)} of 10 digits entered`}
           </T>
         ) : null}
         <Field label="Nickname (optional)" placeholder="e.g. My H-1B extension" value={nickname} onChangeText={setNickname} />
@@ -49,7 +49,7 @@ export default function AddCase() {
         </View>
         <Card style={{ marginTop: 24, backgroundColor: t.surface2 }}>
           <T v="label">Privacy</T>
-          <T v="sub" style={{ marginTop: 6 }}>Only the receipt number is sent, to the official USCIS Case Status API. Cases are stored on this phone.</T>
+          <T v="sub" style={{ marginTop: 6 }}>The app checks the official USCIS Case Status page (egov.uscis.gov) from this phone. Only the receipt number goes to USCIS. Cases are stored on this phone.</T>
         </Card>
       </View>
     </DetailScreen>
