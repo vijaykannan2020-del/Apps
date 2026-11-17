@@ -80,7 +80,7 @@ if (wagesUrl) {
 
 // 2) Employers: H-1B Data Hub + PERM (+ LCA if enabled)
 const h1b = list(process.env.H1B_HUB_URLS).length ? list(process.env.H1B_HUB_URLS) : (await tryIt('find H-1B', findH1B)) || [];
-const perm = list(process.env.PERM_URLS).length ? list(process.env.PERM_URLS) : (await tryIt('find PERM', () => findDol('PERM', 3))) || [];
+const perm = process.env.INGEST_PERM !== '1' ? [] : list(process.env.PERM_URLS).length ? list(process.env.PERM_URLS) : (await tryIt('find PERM', () => findDol('PERM', 3))) || [];
 const lca = process.env.INGEST_LCA === '1' ? (list(process.env.LCA_URLS).length ? list(process.env.LCA_URLS) : (await tryIt('find LCA', () => findDol('LCA', 1))) || []) : [];
 for (const u of h1b) await tryIt('H-1B', () => download(u, 'data/raw/h1b'));
 for (const u of perm) await tryIt('PERM', () => download(u, 'data/raw/perm'));

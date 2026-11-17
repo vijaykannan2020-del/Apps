@@ -25,6 +25,7 @@ setenv .env INBOX_NET "$INBOX_NET"
 setenv .env PORT 8787
 setenv .env USCIS_EB_CHART "$(conf USCIS_EB_CHART)"
 setenv .env INGEST_LCA "$(conf INGEST_LCA)"
+setenv .env INGEST_PERM "$(conf INGEST_PERM)"
 DOMAIN=$(conf CASEDESK_DOMAIN)
 [ -n "$DOMAIN" ] && setenv .env ALLOWED_ORIGIN '*'
 mkdir -p data/content
