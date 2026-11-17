@@ -7,11 +7,11 @@ import { useTheme } from '@/lib/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const APPS = [['all', '/inbox'], ['whatsapp', '/whatsapp'], ['instagram', '/instagram'], ['messenger', '/messenger'], ['accounts', '/accounts']] as const;
-type Key = typeof APPS[number][0];
+export type Key = typeof APPS[number][0];
 
 /** Floating glass bar of app logos at the bottom, within thumb reach. (On iPhone Duo the system tab bar becomes a side strip that covers the chats.) */
 export const SWITCHER_SPACE = 76;
-export function AppSwitcher({ current, counts = {} }: { current: Key; counts?: Record<string, number> }) {
+export function AppSwitcher({ current, counts = {}, onSelect }: { current: Key; counts?: Record<string, number>; onSelect?: (k: Key) => void }) {
   const t = useTheme(); const ins = useSafeAreaInsets();
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(ins.bottom, 10) + 4 }]}>
@@ -19,7 +19,7 @@ export function AppSwitcher({ current, counts = {} }: { current: Key; counts?: R
       {APPS.map(([k, href]) => {
         const on = k === current; const c = k === 'accounts' ? 0 : counts[k] || 0; const col = on ? t.ink : t.soft;
         return (
-          <Pressable key={k} hitSlop={4} accessibilityLabel={k} onPress={() => { Haptics.selectionAsync().catch(() => {}); if (!on) router.navigate(href); }}
+          <Pressable key={k} hitSlop={4} accessibilityLabel={k} onPress={() => { Haptics.selectionAsync().catch(() => {}); if (!on) { if (onSelect) onSelect(k); else router.navigate(href); } }}
             style={[styles.btn, on && { backgroundColor: t.fill }]}>
             {k === 'all' ? <Ionicons name="file-tray" size={21} color={col} />
               : k === 'whatsapp' ? <Ionicons name="logo-whatsapp" size={22} color={col} />

@@ -18,7 +18,7 @@ export default function CallScreen() {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const iv = setInterval(() => { setNow(Date.now()); }, 1000); return () => clearInterval(iv); }, []);
   useEffect(() => {
-    if (!call) { const t = setTimeout(() => router.canGoBack() ? router.back() : router.replace('/inbox'), 200); return () => clearTimeout(t); }
+    if (!call) { const t = setTimeout(() => router.canGoBack() ? router.back() : router.replace('/'), 200); return () => clearTimeout(t); }
   }, [call]);
   if (!call) return <View style={styles.bg} />;
   const room = S.rooms.get(call.roomId);

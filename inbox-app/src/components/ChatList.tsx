@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, memo } from 'react';
 import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
-import { useWide, useSelected, setSelected as setSel, getSelected } from '@/lib/layout';
-import { router, Redirect, useIsFocused } from 'expo-router';
+import { openChat, openDetail, useLayout } from '@/lib/layout';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import ReanimatedSwipeable, { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -13,7 +13,6 @@ import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { AppSwitcher, SWITCHER_SPACE } from '@/components/AppSwitcher';
 import { useStatusGutter } from '@/lib/layout';
-import { ChatView } from '@/components/ChatView';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
 import { quickTimes, fmtWhen } from '@/lib/time';
 
@@ -74,10 +73,11 @@ const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact }: { r
   );
 });
 
-export function ChatList({ tab }: { tab: Tab }) {
+export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   const v = useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const { width, height: winH } = useWindowDimensions();
-  const wide = useWide(); const focused = useIsFocused(); const gut = useStatusGutter();
-  const selected = useSelected(); const setSelected = setSel;
+  const gut = useStatusGutter();
+  const { collapsed, current } = useLayout();
+  const selected = collapsed ? null : current;
   const [kind, setKind] = useState<Kind>('all');
   const [q, setQ] = useState(''); const [archived, setArchived] = useState(false);
   const [more, setMore] = useState<Room | null>(null); const [remind, setRemind] = useState<Room | null>(null);
@@ -111,19 +111,12 @@ export function ChatList({ tab }: { tab: Tab }) {
     return { list, counts, archCount: inTab.filter(isArchived).length };
   }, [v, tab, kind, q, archived]);
 
-  useEffect(() => {
-    if (!wide && focused) { const id = getSelected(); if (id) { setSelected(null); router.push({ pathname: '/chat/[id]', params: { id } }); } }
-  }, [wide, focused]);
 
-  if (!S.token) return <Redirect href="/login" />;
-  const open = (id: string) => { if (wide) setSelected(id); else router.push({ pathname: '/chat/[id]', params: { id } }); };
+  if (!S.token) return null;
+  const open = (id: string) => openChat(id);
   const title = archived ? 'Archived' : tab === 'all' ? 'Inbox' : NETS[tab].label;
   const starredView = kind === 'starred' && !archived && !q;
-  // iPhone Duo open (inner screen, held either way): split like a book — list on the left page, chat on the right,
-  // divider exactly on the fold in the centre. Normal iPhones stay one column; bigger screens use a sidebar.
-  const book = wide && width < 1100 && Math.min(width, winH) >= 560;
-  const paneW = !wide ? width : book ? Math.round(width / 2) : Math.round(Math.min(420, Math.max(190, width * 0.38)));
-  const compact = wide && paneW < 300;
+  const compact = false;
 
   const header = (
     <View style={{ paddingTop: ins.top + 6 }}>
@@ -177,7 +170,7 @@ export function ChatList({ tab }: { tab: Tab }) {
   ) : undefined;
 
   const listPane = (
-    <View style={{ width: paneW, flex: wide ? undefined : 1, borderRightWidth: wide ? StyleSheet.hairlineWidth : 0, borderRightColor: t.line }}>
+    <View style={{ flex: 1 }}>
       {starredView ? (
         <FlatList data={S.starred} keyExtractor={x => x.event} ListHeaderComponent={header} extraData={v}
           contentContainerStyle={{ paddingBottom: ins.bottom + 16 + SWITCHER_SPACE }}
@@ -197,7 +190,7 @@ export function ChatList({ tab }: { tab: Tab }) {
       ) : (
         <FlatList
           data={list} keyExtractor={r => r.id} extraData={[v, selected]}
-          renderItem={({ item }) => <Row r={item} t={t} open={open} onMore={setMore} selected={wide && item.id === selected} fs={fs} v={v} compact={compact} />}
+          renderItem={({ item }) => <Row r={item} t={t} open={open} onMore={setMore} selected={item.id === selected} fs={fs} v={v} compact={compact} />}
           ListHeaderComponent={header} ListFooterComponent={searchFooter}
           ListEmptyComponent={q ? undefined : (
             <View style={styles.empty}>
@@ -209,23 +202,13 @@ export function ChatList({ tab }: { tab: Tab }) {
           keyboardDismissMode="on-drag" initialNumToRender={14} windowSize={11}
         />
       )}
-      <AppSwitcher current={tab} counts={counts} />
+      <AppSwitcher current={tab} counts={counts} onSelect={k => k === 'accounts' ? openDetail('/accounts') : onTab(k)} />
     </View>
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, flexDirection: 'row' }}>
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
       {listPane}
-      {wide && (
-        <View style={{ flex: 1 }}>
-          {selected && S.rooms.get(selected) ? <ChatView key={selected} id={selected} embedded /> : (
-            <View style={[styles.empty, { flex: 1, justifyContent: 'center' }]}>
-              <Ionicons name="chatbubbles-outline" size={56} color={t.soft} />
-              <Text style={[styles.emptyTxt, { color: t.soft }]}>Pick a chat</Text>
-            </View>
-          )}
-        </View>
-      )}
 
       {/* chat actions */}
       <Sheet visible={!!more} onClose={() => setMore(null)} title={more ? roomName(more) : ''}>

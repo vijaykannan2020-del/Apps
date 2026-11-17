@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { startPush } from '@/lib/push';
 import { startCalls } from '@/lib/calls';
-import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { login, DEFAULT_SERVER } from '@/lib/matrix';
 import { useTheme } from '@/lib/theme';
 
-export default function Login() {
+export function LoginScreen() {
   const t = useTheme(); const ins = useSafeAreaInsets();
   const [user, setUser] = useState(''); const [pass, setPass] = useState('');
   const [server, setServer] = useState(DEFAULT_SERVER); const [showServer, setShowServer] = useState(false);
@@ -16,7 +15,7 @@ export default function Login() {
   async function go() {
     if (!user || !pass) return;
     setBusy(true); setErr('');
-    try { await login(server, user, pass); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); router.replace('/inbox'); startPush(); startCalls(); }
+    try { await login(server, user, pass); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); startPush(); startCalls(); }
     catch (e: any) { setErr(e.status === 403 ? 'Wrong username or password' : e.message || 'Could not sign in'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {}); }
     setBusy(false);
   }
