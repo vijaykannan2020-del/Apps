@@ -45,6 +45,8 @@ if os.path.exists(ENC):
     if open(f'{OUT}/version').read().strip() == VERSION and os.path.exists(f'{OUT}/profile.mobileprovision'):
         write_credentials_json(open(f'{OUT}/p12pass').read().strip()); print('Reusing saved CaseDesk signing ✓'); sys.exit(0)
 
+MANUAL = 'signing/CaseDesk_App_Store.mobileprovision'  # made by hand in the developer portal when Apple's API is down
+
 # 1. Certificate: Inbox's distribution certificate
 if not os.path.exists(f'{OUT}/dist.p12'):
     if not os.path.exists(INBOX_ENC): print('No Inbox certificate found to reuse', file=sys.stderr); sys.exit(1)
@@ -56,6 +58,9 @@ for extra in (['-legacy'], []):
     r = subprocess.run(['openssl', 'pkcs12', '-in', f'{OUT}/dist.p12', '-nokeys', '-clcerts', '-passin', f'pass:{pw}', *extra], capture_output=True)
     if r.returncode == 0 and b'BEGIN CERTIFICATE' in r.stdout:
         der = subprocess.run(['openssl', 'x509', '-outform', 'DER'], input=r.stdout, capture_output=True, check=True).stdout; break
+if os.path.exists(MANUAL):
+    run('cp', MANUAL, f'{OUT}/profile.mobileprovision')
+    write_credentials_json(pw); print('Using hand-made provisioning profile + Inbox certificate ✓'); sys.exit(0)
 serial = subprocess.run(['openssl', 'x509', '-inform', 'DER', '-noout', '-serial'], input=der, capture_output=True, check=True).stdout.decode().strip().split('=')[1].upper().lstrip('0')
 def same(c): return (c.get('attributes', {}).get('serialNumber') or '').upper().lstrip('0') == serial or (der and base64.b64decode(c.get('attributes', {}).get('certificateContent') or '') == der)
 cert_id = None
