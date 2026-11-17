@@ -20,6 +20,7 @@ export function NewsCard({ n, onPress }: { n: NewsItem; onPress: () => void }) {
       <T v="sub" style={{ marginTop: 6 }}>{n.summary}</T>
       <View style={{ flexDirection: 'row', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
         {n.tags.slice(0, 3).map((tg) => <Pill key={tg} label={tg} small />)}
+        {n.sources && n.sources.length > 1 ? <Pill label={`${n.sources.length} sources`} tone="accent" small /> : null}
       </View>
     </Card>
   );

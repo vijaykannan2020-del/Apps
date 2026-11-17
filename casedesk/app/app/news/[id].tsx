@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Linking } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { DetailScreen } from '../../src/components/TopBar';
-import { Card, T, Section, Pill, Button } from '../../src/components/ui';
+import { Card, T, Section, Pill, Button, Row } from '../../src/components/ui';
 import { fmtDate } from '../../src/components/NewsCard';
 import { useTheme } from '../../src/theme';
 import { getNews } from '../../src/lib/newsCache';
@@ -39,6 +39,13 @@ export default function NewsDetail() {
           ))}
         </Card>
       </Section>
+      {n.sources && n.sources.length > 1 ? (
+        <Section title={`Reported by ${n.sources.length} ${n.kind === 'news' ? 'outlets' : 'notices'}`}>
+          <Card style={{ paddingVertical: 4 }}>
+            {n.sources.map((s, i) => <Row key={s.url + i} icon="newspaper-outline" tone="neutral" title={s.name} href={s.url} last={i === n.sources!.length - 1} />)}
+          </Card>
+        </Section>
+      ) : null}
       <Section title="Applies to">
         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>{n.tags.map((tg) => <Pill key={tg} label={tg} />)}</View>
       </Section>

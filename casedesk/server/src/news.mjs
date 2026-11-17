@@ -89,6 +89,27 @@ async function fromWebNews(q) {
   });
 }
 
+// ---- Same story from several outlets → one card ----
+const STOP = new Set('a an the of to in on for and or with by at from as is are be its it this that after over new says say said will may can us u.s. amid how what why who more than into about'.split(' '));
+const words = (t) => new Set(t.toLowerCase().replace(/[^a-z0-9$ -]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)));
+const similar = (a, b) => {
+  const A = words(a), B = words(b);
+  if (!A.size || !B.size) return 0;
+  let n = 0; for (const w of A) if (B.has(w)) n++;
+  return n / Math.min(A.size, B.size);
+};
+const daysApart = (a, b) => Math.abs(new Date(a) - new Date(b)) / 864e5;
+// Groups items about the same event (similar headline, within 3 days). Keeps the newest as the card.
+export function clusterStories(list, threshold = 0.6) {
+  const groups = [];
+  for (const it of [...list].sort((a, b) => b.date.localeCompare(a.date))) {
+    const g = groups.find((x) => daysApart(x.lead.date, it.date) <= 3 && similar(x.lead.title, it.title) >= threshold);
+    if (g) { if (!g.sources.some((s) => s.name === it.agency)) g.sources.push({ name: it.agency, url: it.url }); g.tags = [...new Set([...g.tags, ...it.tags])]; }
+    else groups.push({ lead: it, sources: [{ name: it.agency, url: it.url }], tags: it.tags });
+  }
+  return groups;
+}
+
 async function summarize(item) {
   if (summaries[item.id]) return summaries[item.id];
   const fallback = { summary: trim(item.abstract || item.title, 180), points: [], impact: /final rule|interim final|fee/i.test(`${item.docType} ${item.title}`) ? 'high' : 'info' };
@@ -126,21 +147,21 @@ export async function refreshNews() {
     .filter((i) => i.date >= cutoff)
     .filter((i) => i.agency === 'USCIS' || i.tags.length) // DHS/DOL items only if they touch our visa topics
     .filter((i) => !/^(agency information collection|privacy act of 1974)/i.test(i.title)); // drop paperwork notices
-  const seen = new Set();
   const items = [];
-  for (const i of raw.sort((a, b) => b.date.localeCompare(a.date))) {
-    if (seen.has(i.title)) continue;
-    seen.add(i.title);
+  for (const { lead: i, sources } of clusterStories(raw, 0.85)) {
+    i.sources = sources;
     const s = await summarize(i);
-    items.push({ id: i.id, date: i.date, agency: i.agency, title: i.title, summary: s.summary, points: s.points, impact: s.impact, tags: i.tags.length ? i.tags : ['Fees'].filter(() => /fee/i.test(i.title)), url: i.url });
+    items.push({ id: i.id, date: i.date, agency: i.agency, title: i.title, summary: s.summary, points: s.points, impact: s.impact, tags: i.tags, url: i.url, sources: i.sources.length > 1 ? i.sources : undefined });
     if (items.length >= 40) break;
   }
-  // Web news: keep the newest 30, de-duplicated, with the headline as the summary
-  const webSeen = new Set();
-  const web = webBatches.flatMap((b) => (b.status === 'fulfilled' ? b.value : []))
-    .filter((i) => i.tags.length && !webSeen.has(i.title) && webSeen.add(i.title))
-    .sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30)
-    .map((i) => ({ id: i.id, kind: 'news', date: i.date, agency: i.agency, title: i.title, summary: `Reported by ${i.agency}. Open the article for details.`, points: [], impact: 'info', tags: i.tags, url: i.url }));
+  // Web news: the same story from several outlets becomes ONE card listing every source
+  const web = clusterStories(webBatches.flatMap((b) => (b.status === 'fulfilled' ? b.value : [])).filter((i) => i.tags.length))
+    .slice(0, 30)
+    .map(({ lead: i, sources, tags }) => ({
+      id: i.id, kind: 'news', date: i.date, agency: i.agency, title: i.title,
+      summary: sources.length > 1 ? `Reported by ${sources.length} outlets: ${sources.slice(0, 3).map((x) => x.name).join(', ')}${sources.length > 3 ? '…' : ''}.` : `Reported by ${i.agency}. Open the article for details.`,
+      points: [], impact: sources.length >= 3 ? 'medium' : 'info', tags, url: i.url, sources,
+    }));
   saveSummaries();
   if (items.length || web.length) state = { items: [...items.map((i) => ({ ...i, kind: 'official' })), ...web], at: Date.now() };
   return state;

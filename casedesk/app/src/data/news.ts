@@ -13,6 +13,7 @@ export type NewsItem = {
   impact: 'high' | 'medium' | 'info';
   tags: Tag[];
   url: string;
+  sources?: { name: string; url: string }[]; // same story from several outlets, merged into one card
 };
 
 export const STARTER_NEWS: NewsItem[] = [
