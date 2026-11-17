@@ -18,7 +18,8 @@ const fmtDate = (ts: number) => new Date(ts).toLocaleDateString([], { day: 'nume
 export default function SharedScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const r = S.rooms.get(id!);
-  const t = useTheme(); const ins = useSafeAreaInsets(); const { width } = useWindowDimensions();
+  const t = useTheme(); const ins = useSafeAreaInsets(); const { width: winW } = useWindowDimensions();
+  const [width, setW] = useState(0); // the column's real width (not the whole screen) — the grid fits the page it's in
   const [tab, setTab] = useState<Tab>('media');
   const [items, setItems] = useState<SharedItem[]>(() => (r ? classifyShared([...r.events].reverse()) : []));
   const [loading, setLoading] = useState(true);
@@ -28,7 +29,8 @@ export default function SharedScreen() {
   const list = useMemo(() => items.filter(x => x.kind === tab), [items, tab]);
   const counts = useMemo(() => ({ media: items.filter(x => x.kind === 'media').length, link: items.filter(x => x.kind === 'link').length, doc: items.filter(x => x.kind === 'doc').length }), [items]);
   if (!r) return <View style={{ flex: 1, backgroundColor: t.bg }} />;
-  const cols = width > 600 ? 5 : 3; const cell = Math.floor((Math.min(width, 900) - 4 * (cols - 1)) / cols);
+  const w = width || winW;
+  const cols = w > 900 ? 6 : w > 600 ? 5 : w > 420 ? 4 : 3; const cell = Math.floor((w - 4 * (cols - 1)) / cols);
 
   async function openDoc(c: any) {
     const src = mediaSource(c.url); if (!src) return;
@@ -41,7 +43,7 @@ export default function SharedScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: ins.top + 4 }}>
+    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: ins.top + 4 }} onLayout={e => setW(Math.round(e.nativeEvent.layout.width))}>
       <View style={styles.head}>
         <Pressable onPress={() => router.back()} hitSlop={12}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>
         <View style={{ flex: 1 }}>
@@ -94,7 +96,7 @@ export default function SharedScreen() {
       <PhotoViewer mxc={photo} onClose={() => setPhoto(null)} />
       <Modal visible={!!video} animationType="fade" onRequestClose={() => setVideo(null)} presentationStyle="fullScreen">
         <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-          {video && (() => { const src = mediaSource(video.url); return src ? <VideoPlayer uri={src.uri} headers={src.headers} w={width} h={width * 16 / 9 > 800 ? 700 : width * 16 / 9} /> : null; })()}
+          {video && (() => { const src = mediaSource(video.url); return src ? <VideoPlayer uri={src.uri} headers={src.headers} w={w} h={w * 16 / 9 > 800 ? 700 : w * 16 / 9} /> : null; })()}
           <Pressable onPress={() => setVideo(null)} style={[styles.close, { top: ins.top + 10 }]} hitSlop={10}><Ionicons name="close" size={26} color="#fff" /></Pressable>
         </View>
       </Modal>
