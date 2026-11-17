@@ -19,11 +19,11 @@ import { useWindowDimensions } from 'react-native';
 import { useStatusGutter, useLayout, showList } from '@/lib/layout';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 30;
+export const APP_BUILD = 31;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
-  useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const dim = useWindowDimensions(); const { collapsed } = useLayout(); const wideNow = !collapsed; const gut = useStatusGutter();
+  useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const dim = useWindowDimensions(); const { collapsed, target } = useLayout(); const wideNow = !collapsed; const gut = useStatusGutter();
   const rooms = visibleRooms();
   const [pw, setPw] = useState(false); const [pwOld, setPwOld] = useState(''); const [pwNew, setPwNew] = useState(''); const [pwNew2, setPwNew2] = useState('');
   const [pwErr, setPwErr] = useState(''); const [pwBusy, setPwBusy] = useState(false);
@@ -119,6 +119,7 @@ export default function Accounts() {
     </Pressable>
   );
   const nets = Object.keys(NETS) as Net[];
+  if (collapsed && target !== 'accounts') return <View style={{ flex: 1, backgroundColor: t.bg }} />; // see layout.ts target
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <DuoBar />

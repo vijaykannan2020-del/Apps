@@ -17,6 +17,11 @@ let collapsed = true;
 let current: string | null = null; // chat open in the right-hand column
 export type ListTab = 'all' | 'whatsapp' | 'instagram' | 'messenger';
 let tab: ListTab = 'all'; // which apps the chat list shows
+// The screen the user just asked for in the right-hand page. On one-column screens iOS only updates that page once it
+// slides into view, so the previous screen (an old chat, Accounts) would flash first — screens that aren't the target
+// stay blank instead.
+let target: string | null = null;
+function setTarget(t: string) { if (t !== target) { target = t; ver++; emit(); } }
 const subs = new Set<() => void>();
 const emit = () => subs.forEach(f => f());
 let ver = 0;
@@ -27,7 +32,7 @@ export function setListTab(t: ListTab) { if (t !== tab) { tab = t; ver++; emit()
 export const currentChat = () => current;
 export function useLayout() {
   useSyncExternalStore(f => { subs.add(f); return () => { subs.delete(f); }; }, () => ver, () => ver);
-  return { collapsed, current, tab };
+  return { collapsed, current, tab, target };
 }
 
 // Right edge of the list column in window coordinates — the detail column keeps its content clear of it
@@ -58,12 +63,14 @@ function showWhenReady() {
 /** Called by the right-hand stack when a screen becomes the top one. */
 export function flushShow() { if (pendingShow) { clearTimeout(pendingShow); pendingShow = null; requestAnimationFrame(showDetail); } }
 export function openChat(id: string) {
+  setTarget('chat:' + id);
   setCurrentChat(id);
   router.navigate({ pathname: '/chat/[id]', params: { id } });
   showWhenReady();
 }
 /** Open another screen in the detail column (Accounts etc.). */
 export function openDetail(href: any) {
+  setTarget(href === '/accounts' ? 'accounts' : JSON.stringify(href));
   router.navigate(href);
   showWhenReady();
 }

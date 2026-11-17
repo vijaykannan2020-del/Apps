@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { Alert } from 'react-native';
+import { Alert, View } from 'react-native';
+import { useTheme } from '@/lib/theme';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { ChatView } from '@/components/ChatView';
 import { DuoBar } from '@/components/DuoBar';
@@ -9,13 +10,14 @@ import { startCall, callsAvailable } from '@/lib/calls';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { collapsed } = useLayout();
+  const { collapsed, target } = useLayout(); const t = useTheme();
   // Duo front screen: iOS shows its own back button under the clock, so don't add a second one.
   const sysBack = useStatusGutter() > 0;
   useEffect(() => { setCurrentChat(id!); }, [id]);
   const r = S.rooms.get(id!);
   const canCall = !!r && isPrivateRoom(r) && callsAvailable;
   const call = (video: boolean) => r && startCall(r, video).catch((e: any) => Alert.alert('Can’t call', e.message || ''));
+  if (collapsed && target && target !== 'chat:' + id) return <View style={{ flex: 1, backgroundColor: t.bg }} />;
   return (
     <>
       {/* Duo open: chat actions as Apple's native header buttons → iOS puts them in the Duo's side bar (like WhatsApp). */}
