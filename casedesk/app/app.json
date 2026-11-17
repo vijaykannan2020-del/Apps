@@ -49,7 +49,7 @@
       ]
     ],
     "extra": {
-      "apiBase": ""
+      "apiBase": "https://casedeskapp.duckdns.org"
     }
   }
 }

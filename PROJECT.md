@@ -151,6 +151,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-17, Claude: CaseDesk domain set to casedeskapp.duckdns.org (deploy.conf) and app apiBase points to it.
+
 - 2026-11-17, Claude: Added `casedesk/` (app + server). My Inbox changes so CaseDesk can share the server: Caddyfile has a `{$CASEDESK_SITE}` site that reverse-proxies to `casedesk-api:8787` (default `http://casedesk.localhost` placeholder, validated with caddy 2.10); docker-compose passes `CASEDESK_SITE` to Caddy; `auto-update.sh` installs `casedesk/server` into /opt/casedesk once (then it self-updates via /etc/cron.d/casedesk-auto). Domain not set yet (`casedesk/server/deploy.conf`).
 
 - 2026-11-16, Claude: inbox-app build 3. Snapshot cache (AsyncStorage inbox.snapshot.v1: rooms, last 20 events, members subset, reacts, since) loaded before sync → instant open; PhotoViewer (ScrollView zoom, double-tap, drag-down close, Share via expo-file-system File.downloadFileAsync w/ auth headers + expo-sharing, Save via expo-media-library/legacy); multi-select photos + camera via attach sheet; @mentions (sendRich: formatted_body pills + m.mentions); setup-room option chips (setupChips, same parsing as web) + no autocaps there; in-app Banner for new messages in other chats (S.banner set in processSync); theme pref auto/light/dark; Accounts: Change password (UIA m.login.password), Backup status/connect/run/password via /push/backup; reels open instagram://media?id=. Verified tsc, iOS+web export, Playwright (instant open with /sync blocked, mentions, password wrong/right, backup row, setup chips).
