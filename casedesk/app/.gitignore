@@ -43,3 +43,4 @@ credentials/*
 !credentials/ios.enc
 credentials.json
 asc.p8
+__pycache__/
