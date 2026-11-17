@@ -215,6 +215,10 @@ export function UscisLookupHost() {
         onMessage={onMessage}
         onError={() => finish(() => job.reject(new Error('Could not open the USCIS website. Check your connection.')))}
         onHttpError={(e: any) => { if (e?.nativeEvent?.statusCode >= 500) setShow(true); }}
+        // Same identity as Safari on this iPhone (the in-app browser is Safari's engine); without the
+        // "Safari" part some security checks keep spinning.
+        applicationNameForUserAgent={Platform.OS === 'ios' ? 'Version/26.0 Mobile/15E148 Safari/604.1' : undefined}
+        setSupportMultipleWindows={false}
         sharedCookiesEnabled
         thirdPartyCookiesEnabled
         javaScriptEnabled
