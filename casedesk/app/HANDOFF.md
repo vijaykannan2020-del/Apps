@@ -56,3 +56,10 @@ See `../server/README.md` and `../README.md`.
 - `parseDocument()` recognises I-94 (Admit Until, class), I-797A/B approval (Valid from … to …, receipt), I-797C receipt (receipt number, Received Date), EAD (Card Expires, category), passport (MRZ expiry), visa stamp (Expiration Date), LCA (period). Tested against sample texts.
 - Vault "Add or scan a document": camera / Photos / PDF → reads it → pre-fills type, receipt, valid-until, shows "Found on the document", and (toggle) updates My Status dates. My Status edit has "Scan a document to fill dates".
 - Scanned PDFs without a text layer can't be read — the app asks for a clear photo instead.
+
+## Native look (same approach as the Inbox app)
+- Tabs: `app/(tabs)/_layout.tsx` uses expo-router **NativeTabs** → iOS system tab bar (Liquid Glass on iOS 26+, shrinks on scroll, can become a sidebar on iPad/large screens) and Android Material 3 bottom navigation. SF Symbols on iOS, Material icons on Android. The web preview uses `_layout.web.tsx` (JS tabs).
+- Detail pages (`DetailScreen`) use the system navigation bar on iOS/Android (Liquid Glass back button, swipe-back, Material top bar); web draws its own.
+- `src/components/Glass.tsx` = `expo-glass-effect` GlassView on iOS 26+, blur on older iOS, tonal surface on Android/web. Header buttons use `GlassButton`.
+- Colours are Apple system colours (`src/theme.ts`), same palette as Inbox; light and dark follow the phone.
+- iOS scroll views use `contentInsetAdjustmentBehavior="automatic"`, so safe areas and the tab bar are handled by iOS (no manual top/bottom padding on iOS).

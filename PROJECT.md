@@ -151,6 +151,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-17, Claude: CaseDesk native look like Inbox: NativeTabs (iOS Liquid Glass tab bar / sidebar, Android Material 3 nav), system nav bars on detail pages, expo-glass-effect Glass buttons, Apple system colours. Web preview keeps JS tabs (_layout.web.tsx). Not yet verified on a device.
+
 - 2026-11-17, Claude: CaseDesk document scanning: on-device OCR (Vision / ML Kit) and PDF text read I-94, I-797, EAD, passport, visa and LCA dates and fill My Status automatically. New deps expo-image-picker, expo-text-extractor 2.0.0, expo-pdf-text-extract 1.1.0 (no network code).
 
 - 2026-11-17, Claude: CaseDesk unfolded/tablet layout redesigned: left sidebar navigation and two-pane pages instead of stretched phone cards.

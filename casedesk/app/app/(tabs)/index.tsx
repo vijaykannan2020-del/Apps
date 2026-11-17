@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, RefreshControl } from 'react-native';
+import { Platform, View, Text, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Section, Card, T, Pill, IconBubble, Chips, Segmented, Note, Grid, Columns, tap } from '../../src/components/ui';
+import { Screen, Section, Card, T, Pill, IconBubble, Chips, Segmented, Note, Grid, Columns, GlassButton, tap } from '../../src/components/ui';
 import { useLayout, tileWidth } from '../../src/lib/layout';
 import { useProfile } from '../../src/lib/profile';
 import { runChecks } from '../../src/lib/compliance';
@@ -43,6 +43,7 @@ export default function Today() {
 
   return (
     <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
       style={{ flex: 1, backgroundColor: t.bg }}
       refreshControl={<RefreshControl refreshing={refreshing} tintColor={t.sub} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
       showsVerticalScrollIndicator={false}
@@ -51,9 +52,7 @@ export default function Today() {
         title="Today"
         subtitle={today}
         right={
-          <Pressable onPress={() => { tap(); router.push('/about'); }} hitSlop={10} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: t.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-            <Ionicons name="person-circle-outline" size={22} color={t.text} />
-          </Pressable>
+          <GlassButton icon="person-circle-outline" label="Settings" onPress={() => router.push('/about')} />
         }
         scroll={false}
       >
@@ -151,7 +150,7 @@ export default function Today() {
           {shown.length === 0 ? <T v="sub" style={{ textAlign: 'center', marginTop: 20 }}>No updates for this filter yet.</T> : null}
         </View>
         </>} />
-        <View style={{ height: L.wide ? 30 : 110 }} />
+        <View style={{ height: Platform.OS !== 'web' ? 24 : L.wide ? 30 : 110 }} />
       </Screen>
     </ScrollView>
   );

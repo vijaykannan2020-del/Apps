@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Section, Card, T, Pill, IconBubble, Row, Button, Grid, Columns, tap } from '../../src/components/ui';
+import { Screen, Section, Card, T, Pill, IconBubble, Row, Button, Grid, Columns, GlassButton, tap } from '../../src/components/ui';
 import { useLayout, tileWidth } from '../../src/lib/layout';
 import { useTheme } from '../../src/theme';
 import { useProfile, usesEAD } from '../../src/lib/profile';
@@ -36,9 +36,7 @@ export default function Status() {
       title="My Status"
       subtitle={p ? `${p.visa}${p.employer ? ' · ' + p.employer : ''}` : 'Your own compliance'}
       right={p ? (
-        <Pressable onPress={() => { tap(); router.push('/status/edit'); }} hitSlop={10} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: t.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-          <Ionicons name="create-outline" size={19} color={t.text} />
-        </Pressable>
+        <GlassButton icon="create-outline" label="Edit my status" onPress={() => router.push('/status/edit')} />
       ) : undefined}
     >
       <Columns left={<>

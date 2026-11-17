@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme, radius } from '../theme';
 import { useLayout } from '../lib/layout';
+import { Glass, hasLiquidGlass } from './Glass';
 
 export const tap = () => {
   if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
@@ -29,7 +30,7 @@ export function Screen({ title, subtitle, children, right, scroll = true }: {
   const insets = useSafeAreaInsets();
   const L = useLayout();
   const header = title ? (
-    <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 10, paddingLeft: 20 + insets.left }}>
+    <View style={{ paddingHorizontal: 20, paddingTop: (Platform.OS === 'ios' ? 0 : insets.top) + 14, paddingBottom: 10, paddingLeft: 20 + insets.left }}>
       {subtitle ? <Text style={{ color: t.sub, fontSize: 13, fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 4 }}>{subtitle}</Text> : null}
       {/* Action sits right after the title, not in the far top-right corner (camera / status pill on foldables) */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -46,7 +47,7 @@ export function Screen({ title, subtitle, children, right, scroll = true }: {
   );
   if (!scroll) return <View style={{ flex: 1, backgroundColor: t.bg }}>{body}</View>;
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingBottom: L.wide ? insets.bottom + 40 : insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: Platform.OS !== 'web' ? 32 : L.wide ? insets.bottom + 40 : insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
       {body}
     </ScrollView>
   );
@@ -134,6 +135,18 @@ export function Pill({ label, tone = 'neutral', small }: { label: string; tone?:
     <View style={{ backgroundColor: c[0], paddingHorizontal: small ? 7 : 10, paddingVertical: small ? 2 : 4, borderRadius: 99, alignSelf: 'flex-start' }}>
       <Text style={{ color: c[1], fontSize: small ? 11 : 12, fontWeight: '600' }}>{label}</Text>
     </View>
+  );
+}
+
+// Round header button: Liquid Glass on iOS 26+, tonal elsewhere
+export function GlassButton({ icon, onPress, label, primary }: { icon: IconName; onPress: () => void; label: string; primary?: boolean }) {
+  const t = useTheme();
+  return (
+    <Pressable onPress={() => { tap(); onPress(); }} accessibilityLabel={label} hitSlop={8}>
+      <Glass interactive style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: primary && !hasLiquidGlass ? t.accent : undefined }}>
+        <Ionicons name={icon} size={20} color={primary && !hasLiquidGlass ? '#fff' : primary ? t.accent : t.text} />
+      </Glass>
+    </Pressable>
   );
 }
 

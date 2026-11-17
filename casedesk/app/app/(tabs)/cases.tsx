@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Pressable, RefreshControl, ScrollView } from 'react-native';
+import { Platform, View, Pressable, RefreshControl, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Section, Card, T, Pill, IconBubble, Note, Row, Columns, tap } from '../../src/components/ui';
+import { Screen, Section, Card, T, Pill, IconBubble, Note, Row, Columns, GlassButton, tap } from '../../src/components/ui';
 import { useLayout } from '../../src/lib/layout';
 import { useTheme } from '../../src/theme';
 import { useCases, upsertCase } from '../../src/lib/store';
@@ -28,15 +28,13 @@ export default function Cases() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshAll} tintColor={t.sub} />} showsVerticalScrollIndicator={false}>
+    <ScrollView contentInsetAdjustmentBehavior="automatic" style={{ flex: 1, backgroundColor: t.bg }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshAll} tintColor={t.sub} />} showsVerticalScrollIndicator={false}>
       <Screen
         title="Cases"
         subtitle={cases.length ? `${cases.length} tracked` : 'Case status'}
         scroll={false}
         right={
-          <Pressable onPress={() => { tap(); router.push('/case/add'); }} hitSlop={10} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: t.text, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-            <Ionicons name="add" size={22} color={t.bg} />
-          </Pressable>
+          <GlassButton icon="add" label="Add a case" primary onPress={() => router.push('/case/add')} />
         }
       >
         <Columns left={<>
@@ -109,7 +107,7 @@ export default function Cases() {
           </Card>
         </Section>
         </>} />
-        <View style={{ height: L.wide ? 30 : 110 }} />
+        <View style={{ height: Platform.OS !== 'web' ? 24 : L.wide ? 30 : 110 }} />
       </Screen>
     </ScrollView>
   );
