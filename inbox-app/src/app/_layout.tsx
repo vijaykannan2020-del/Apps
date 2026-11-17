@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { SplitView } from 'expo-router/unstable-split-view';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { restore, S } from '@/lib/matrix';
 import { useTheme, useStore } from '@/lib/theme';
@@ -15,7 +15,7 @@ import { startCalls } from '@/lib/calls';
 import { CallPill } from '@/components/CallPill';
 import { Sidebar } from '@/components/Sidebar';
 import { LoginScreen } from '@/components/LoginScreen';
-import { setSplitRef, setCollapsed, useLayout } from '@/lib/layout';
+import { setSplitRef, setCollapsed, useLayout, setRootTop } from '@/lib/layout';
 
 export default function RootLayout() {
   const t = useTheme(); useStore();
@@ -41,6 +41,8 @@ export default function RootLayout() {
 
 function Shell() {
   const { current } = useLayout();
+  const rootIns = useSafeAreaInsets();
+  useEffect(() => { setRootTop(rootIns.top); }, [rootIns.top]);
   const ref = useRef<any>(null);
   useEffect(() => { setSplitRef(ref.current); return () => setSplitRef(null); }, [ref.current]);
   return (

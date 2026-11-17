@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, memo } from 'react';
 import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
-import { openChat, openDetail, useLayout } from '@/lib/layout';
+import { openChat, openDetail, useLayout, getRootTop } from '@/lib/layout';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -77,6 +77,7 @@ export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) 
   const v = useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const { width, height: winH } = useWindowDimensions();
   const gut = useStatusGutter();
   const { collapsed, current } = useLayout();
+  const topIns = getRootTop() >= 0 ? Math.min(ins.top, getRootTop()) : ins.top;
   const selected = collapsed ? null : current;
   const [kind, setKind] = useState<Kind>('all');
   const [q, setQ] = useState(''); const [archived, setArchived] = useState(false);
@@ -119,7 +120,7 @@ export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) 
   const compact = false;
 
   const header = (
-    <View style={{ paddingTop: ins.top + 6 }}>
+    <View style={{ paddingTop: topIns + 6 }}>
       <View style={{ paddingRight: gut }}>
       <View style={styles.titleRow}>
         {archived && <Pressable onPress={() => setArchived(false)} hitSlop={12}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>}

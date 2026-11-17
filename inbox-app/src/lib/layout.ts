@@ -33,6 +33,11 @@ let sidebarRight = 0;
 export function setSidebarRight(x: number) { if (Math.abs(x - sidebarRight) > 0.5) { sidebarRight = x; ver++; emit(); } }
 export const getSidebarRight = () => sidebarRight;
 
+// The real top inset of the screen (the list column adds room for a title bar Inbox doesn't use).
+let rootTop = -1;
+export function setRootTop(n: number) { if (n !== rootTop) { rootTop = n; ver++; emit(); } }
+export const getRootTop = () => rootTop;
+
 /** Show the detail column (on iPhone this slides it in; on the open Duo it's already beside the list). */
 export function showDetail() { try { split?.show('secondary'); } catch {} }
 /** Back to the list (one-column layouts only). */
