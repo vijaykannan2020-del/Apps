@@ -8,7 +8,9 @@ const TARGET = 'NotificationService';
 const FILES = ['NotificationService.m', 'Info.plist', 'NotificationService.entitlements'];
 
 module.exports = function withNotificationService(config) {
-  config = withEntitlementsPlist(config, c => { c.modResults['com.apple.developer.usernotifications.communication'] = true; return c; });
+  // Only when the capability is ticked for the App ID (the build workflow checks and sets INBOX_COMM), otherwise
+  // signing would fail; without it the extension still runs and shows normal notifications.
+  if (process.env.INBOX_COMM === '1') config = withEntitlementsPlist(config, c => { c.modResults['com.apple.developer.usernotifications.communication'] = true; return c; });
   config = withInfoPlist(config, c => {
     const t = new Set(c.modResults.NSUserActivityTypes || []); t.add('INSendMessageIntent');
     c.modResults.NSUserActivityTypes = [...t]; return c;

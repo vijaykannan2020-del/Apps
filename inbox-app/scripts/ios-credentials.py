@@ -27,7 +27,6 @@ def api(method, path, body=None):
 
 NSE = BUNDLE + '.NotificationService'   # notification extension (profile photos in notifications)
 TARGETS = {'Inbox': ('profile.mobileprovision', BUNDLE), 'NotificationService': ('nse.mobileprovision', NSE)}
-VERSION = 'v2'  # bump when the set of targets/capabilities changes → new provisioning profiles, same certificate
 
 def write_credentials_json(pw):
     cert = {'path': f'{OUT}/dist.p12', 'password': pw}
@@ -53,6 +52,20 @@ def save(pw):
     write_credentials_json(pw)
     print('NEW_CREDENTIALS=1')
 
+# Communication Notifications (photos in notifications) can't be switched on through Apple's API — it's a tick box on
+# developer.apple.com → Identifiers → Inbox. If it's on, profiles include it and the app gets the entitlement.
+def has_comm():
+    bid = [b for b in api('GET', f'/v1/bundleIds?filter[identifier]={BUNDLE}&limit=20')['data'] if b['attributes']['identifier'] == BUNDLE]
+    if not bid: return False
+    caps = api('GET', f"/v1/bundleIds/{bid[0]['id']}/bundleIdCapabilities?limit=200").get('data', [])
+    kinds = [c['attributes'].get('capabilityType') or '' for c in caps]
+    print('Capabilities on Inbox App ID:', ', '.join(kinds) or 'none')
+    return any('COMMUNICATION' in k for k in kinds)
+COMM = has_comm()
+print(f"INBOX_COMM={'1' if COMM else '0'}")
+print('Communication Notifications:', 'on ✓' if COMM else 'off (tick it on developer.apple.com → Identifiers → Inbox to get photos in notifications)')
+VERSION = 'v3-comm' if COMM else 'v3'  # changes when targets/capabilities change → new profiles, same certificate
+
 cert_id = pw = None
 if os.path.exists(ENC):
     run('openssl', 'enc', '-d', '-aes-256-cbc', '-pbkdf2', '-iter', '200000', '-in', ENC, '-out', '/tmp/ios.tar', '-pass', 'env:CRED_PASS', env={**os.environ, 'CRED_PASS': PASS})
@@ -77,7 +90,6 @@ if os.path.exists(ENC):
 main_id = bundle_id(BUNDLE, 'Inbox')
 nse_id = bundle_id(NSE, 'Inbox Notifications')
 capability(main_id, 'PUSH_NOTIFICATIONS')
-capability(main_id, 'USERNOTIFICATIONS_COMMUNICATION')
 
 # 2. Distribution certificate (only when there's no usable saved one)
 if not cert_id:
