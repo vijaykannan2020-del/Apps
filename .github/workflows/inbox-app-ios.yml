@@ -54,6 +54,7 @@ jobs:
       - name: Signing certificate (made once with Apple's API, then reused)
         run: |
           pip install --quiet pyjwt cryptography
+          set -o pipefail
           python3 scripts/ios-credentials.py | tee /tmp/cred.log
           C=$(grep -oE 'INBOX_COMM=[01]' /tmp/cred.log | tail -1 | cut -d= -f2)
           jq --arg c "${C:-0}" '.build.production.ios.credentialsSource = "local" | .build.production.env.INBOX_COMM = $c' eas.json > e.json && mv e.json eas.json

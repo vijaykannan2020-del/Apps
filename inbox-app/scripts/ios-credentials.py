@@ -57,7 +57,7 @@ def save(pw):
 def has_comm():
     bid = [b for b in api('GET', f'/v1/bundleIds?filter[identifier]={BUNDLE}&limit=20')['data'] if b['attributes']['identifier'] == BUNDLE]
     if not bid: return False
-    caps = api('GET', f"/v1/bundleIds/{bid[0]['id']}/bundleIdCapabilities?limit=200").get('data', [])
+    caps = api('GET', f"/v1/bundleIds/{bid[0]['id']}/bundleIdCapabilities").get('data', [])
     kinds = [c['attributes'].get('capabilityType') or '' for c in caps]
     print('Capabilities on Inbox App ID:', ', '.join(kinds) or 'none')
     return any('COMMUNICATION' in k for k in kinds)
