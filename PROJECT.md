@@ -408,3 +408,4 @@ Newest first. Add one line per change: date, who, version, what.
 - 2026-11-16 · inbox-app v24 (runtime 4 OTA): folded back handled by the native split view only (stack swipe off for chat/accounts); empty detail page never shown in one-column mode.
 - 2026-11-16 · inbox-app v25 (runtime 4 OTA): media grid sized to its column width.
 - 2026-11-16 · inbox-app v26 (runtime 4 OTA): Duo open → app tabs as native bottom toolbar (Stack.Toolbar, logo images) and chat call/video/info as native header items, so iOS puts them in the Duo's vertical side bar; one-column screens keep the glass bar and left-side chat buttons.
+- 2026-11-16 · inbox-app v27 (runtime 4 OTA): reverted native toolbar side bar (buttons, not a real tab bar; info item stayed in header; scroll offset) — back to glass bar in list column + chat header buttons.

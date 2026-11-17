@@ -6,6 +6,7 @@ import { useImage } from 'expo-image';
 import { useLayout, setListTab, openDetail, ListTab } from '@/lib/layout';
 import { usePathname } from 'expo-router';
 
+const ENABLED = false;
 export function DuoBar() {
   const { collapsed, tab } = useLayout();
   const path = usePathname();
@@ -14,7 +15,8 @@ export function DuoBar() {
   const ig = useImage(require('../../assets/bar/instagram.png'));
   const fb = useImage(require('../../assets/bar/messenger.png'));
   const me = useImage(require('../../assets/bar/accounts.png'));
-  if (collapsed) return null;
+  // Off for now: Apple's toolbar buttons don't behave like a real tab bar (no sliding across, odd selection look).
+  if (collapsed || !ENABLED) return null;
   const onAccounts = path === '/accounts';
   const pick = (k: ListTab) => setListTab(k);
   return (

@@ -17,7 +17,7 @@ export default function ChatScreen() {
   return (
     <>
       {/* Duo open: chat actions as Apple's native header buttons → iOS puts them in the Duo's side bar (like WhatsApp). */}
-      {!collapsed && (
+      {false && !collapsed && (
         <Stack.Toolbar placement="right">
           {canCall && <Stack.Toolbar.Button icon="video" accessibilityLabel="Video call" onPress={() => call(true)} />}
           {canCall && <Stack.Toolbar.Button icon="phone" accessibilityLabel="Voice call" onPress={() => call(false)} />}
@@ -26,7 +26,7 @@ export default function ChatScreen() {
       )}
       <DuoBar />
       {/* One column: a back button returns to the list; call buttons stay in the chat's own header (never top-right). */}
-      <ChatView key={id} id={id!} nativeActions={!collapsed} onBack={collapsed ? () => { setCurrentChat(null); showList(); } : undefined} />
+      <ChatView key={id} id={id!} nativeActions={false} onBack={collapsed ? () => { setCurrentChat(null); showList(); } : undefined} />
     </>
   );
 }
