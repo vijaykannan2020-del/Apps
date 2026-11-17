@@ -175,7 +175,7 @@ const Bubble = memo(function Bubble({ r, ev, first, last, recent, t, onLong, onR
   );
 });
 
-export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => void; embedded?: boolean }) {
+export function ChatView({ id, onBack, embedded, nativeActions }: { id: string; onBack?: () => void; embedded?: boolean; nativeActions?: boolean }) {
   const v = useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const { width: winW, height } = useWindowDimensions(); const gut = useStatusGutter();
   const r = S.rooms.get(id);
   const [text, setText] = useState(S.drafts[id] || '');
@@ -402,7 +402,7 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
             </View>
           </Pressable>
         </Glass>
-        {isPrivateRoom(r) && callsAvailable && <>
+        {isPrivateRoom(r) && callsAvailable && !nativeActions && <>
           <Glass interactive style={styles.backBtn}><Pressable onPress={() => startCall(r, false).catch((e: any) => Alert.alert('Can’t call', e.message || ''))} hitSlop={6} style={styles.backHit} accessibilityLabel="Voice call"><Ionicons name="call" size={20} color={t.ink} /></Pressable></Glass>
           <Glass interactive style={styles.backBtn}><Pressable onPress={() => startCall(r, true).catch((e: any) => Alert.alert('Can’t call', e.message || ''))} hitSlop={6} style={styles.backHit} accessibilityLabel="Video call"><Ionicons name="videocam" size={22} color={t.ink} /></Pressable></Glass>
         </>}

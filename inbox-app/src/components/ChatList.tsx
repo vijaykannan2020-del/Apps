@@ -174,7 +174,7 @@ export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) 
     <View style={{ flex: 1 }}>
       {starredView ? (
         <FlatList data={S.starred} keyExtractor={x => x.event} ListHeaderComponent={header} extraData={v}
-          contentContainerStyle={{ paddingBottom: ins.bottom + 16 + SWITCHER_SPACE }}
+          contentContainerStyle={{ paddingBottom: ins.bottom + 16 + (collapsed ? SWITCHER_SPACE : 0) }}
           ListEmptyComponent={<Text style={[styles.emptyTxt, { color: t.soft, textAlign: 'center', paddingTop: 40, paddingHorizontal: 30 }]}>No starred messages yet. Long-press a message → Star.</Text>}
           renderItem={({ item: x }) => {
             const r = S.rooms.get(x.room); if (!r) return null;
@@ -199,11 +199,12 @@ export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) 
                 : <Text style={[styles.emptyTxt, { color: t.soft }]}>{kind === 'unread' ? 'All caught up ✓' : 'No chats yet'}</Text>}
             </View>
           )}
-          contentContainerStyle={{ paddingBottom: ins.bottom + 16 + SWITCHER_SPACE }}
+          contentContainerStyle={{ paddingBottom: ins.bottom + 16 + (collapsed ? SWITCHER_SPACE : 0) }}
           keyboardDismissMode="on-drag" initialNumToRender={14} windowSize={11}
         />
       )}
-      <AppSwitcher current={tab} counts={counts} onSelect={k => k === 'accounts' ? openDetail('/accounts') : onTab(k)} />
+      {/* Duo open: these live in iOS's native side bar instead (DuoBar). */}
+      {collapsed && <AppSwitcher current={tab} counts={counts} onSelect={k => k === 'accounts' ? openDetail('/accounts') : onTab(k)} />}
     </View>
   );
 

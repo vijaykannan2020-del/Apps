@@ -13,12 +13,13 @@ import { Image } from 'expo-image';
 import { pushCapable, enableNativePush, disableNativePush, pushWanted, apnsApi, deviceToken } from '@/lib/push';
 import { Sheet } from '@/components/Sheet';
 import { fmtWhen } from '@/lib/time';
+import { DuoBar } from '@/components/DuoBar';
 import { useTheme, useStore } from '@/lib/theme';
 import { useWindowDimensions } from 'react-native';
 import { useStatusGutter, useLayout, showList } from '@/lib/layout';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 25;
+export const APP_BUILD = 26;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
@@ -120,6 +121,7 @@ export default function Accounts() {
   const nets = Object.keys(NETS) as Net[];
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
+      <DuoBar />
     <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: ins.top + 6, paddingBottom: ins.bottom + 40, alignItems: 'center' }}>
       <View style={{ width: '100%', maxWidth: 640 }}>
         <View style={{ paddingRight: gut }}>

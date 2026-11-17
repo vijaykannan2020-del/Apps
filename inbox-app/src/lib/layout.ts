@@ -15,16 +15,19 @@ export function setSplitRef(r: SplitRef) { split = r; }
 // Whether the split view currently shows one column (iPhone / Duo closed) — reported by iOS via onCollapse/onExpand.
 let collapsed = true;
 let current: string | null = null; // chat open in the right-hand column
+export type ListTab = 'all' | 'whatsapp' | 'instagram' | 'messenger';
+let tab: ListTab = 'all'; // which apps the chat list shows
 const subs = new Set<() => void>();
 const emit = () => subs.forEach(f => f());
 let ver = 0;
 export function setCollapsed(c: boolean) { if (c !== collapsed) { collapsed = c; ver++; emit(); } }
 export function setCurrentChat(id: string | null) { if (id !== current) { current = id; ver++; emit(); } }
 export const isCollapsed = () => collapsed;
+export function setListTab(t: ListTab) { if (t !== tab) { tab = t; ver++; emit(); } }
 export const currentChat = () => current;
 export function useLayout() {
   useSyncExternalStore(f => { subs.add(f); return () => { subs.delete(f); }; }, () => ver, () => ver);
-  return { collapsed, current };
+  return { collapsed, current, tab };
 }
 
 // Right edge of the list column in window coordinates — the detail column keeps its content clear of it

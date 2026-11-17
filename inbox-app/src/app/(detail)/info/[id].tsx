@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { S, NETS, roomName, netOf, isGroup, memberCount, isPinned, isArchived, setTag, setMuted, mediaSource, roomMembers, listScheduled,
   cancelScheduled, setReminder, hueFor } from '@/lib/matrix';
+import { DuoBar } from '@/components/DuoBar';
 import { useTheme, useStore } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
@@ -34,6 +35,7 @@ export default function Info() {
   );
   return (
     <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: ins.top + 6, paddingBottom: ins.bottom + 40, alignItems: 'center' }}>
+      <DuoBar />
       <View style={{ width: '100%', maxWidth: 600 }}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={{ paddingHorizontal: 12, alignSelf: 'flex-start' }}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>
         <View style={{ alignItems: 'center', gap: 6, marginTop: 4 }}>

@@ -31,7 +31,7 @@ function DetailStack() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: 'default' }}>
       <Stack.Screen name="index" options={{ animation: 'none' }} />
-      <Stack.Screen name="chat/[id]" options={{ animation: 'none', gestureEnabled: false }} />
+      <Stack.Screen name="chat/[id]" options={{ animation: 'none', gestureEnabled: false, headerTransparent: true, title: '', headerBackVisible: false, headerShadowVisible: false }} />
       <Stack.Screen name="info/[id]" />
       <Stack.Screen name="media/[id]" />
       <Stack.Screen name="accounts" options={{ animation: 'none', gestureEnabled: false }} />

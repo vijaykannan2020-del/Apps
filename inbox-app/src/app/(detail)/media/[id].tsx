@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system';
 import { S, roomName, mediaSource, loadShared, classifyShared, SharedItem, memberName } from '@/lib/matrix';
+import { DuoBar } from '@/components/DuoBar';
 import { useTheme } from '@/lib/theme';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { VideoPlayer } from '@/components/Media';
@@ -44,6 +45,7 @@ export default function SharedScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: ins.top + 4 }} onLayout={e => setW(Math.round(e.nativeEvent.layout.width))}>
+      <DuoBar />
       <View style={styles.head}>
         <Pressable onPress={() => router.back()} hitSlop={12}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>
         <View style={{ flex: 1 }}>
