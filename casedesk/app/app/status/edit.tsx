@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Switch } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { DetailScreen } from '../../src/components/TopBar';
 import { Field, Button, T, Chips, DateField, Note, Divider } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
@@ -11,7 +11,8 @@ export default function EditStatus() {
   const router = useRouter();
   const [p, setP] = useState<Profile>({ visa: 'H-1B' });
   const [existing, setExisting] = useState(false);
-  useEffect(() => { loadProfile().then((v) => { if (v) { setP(v); setExisting(true); } }); }, []);
+  // Reload when coming back (e.g. after scanning a document that filled some dates)
+  useFocusEffect(useCallback(() => { loadProfile().then((v) => { if (v) { setP(v); setExisting(true); } }); }, []));
   const set = (k: keyof Profile) => (v: any) => setP({ ...p, [k]: v });
   const ok = (s?: string) => !s || /^\d{4}-\d{2}-\d{2}$/.test(s);
   const valid = [p.i94Expiry, p.petitionEnd, p.passportExpiry, p.visaStampExpiry, p.eadExpiry, p.statusStart, p.extFiled].every(ok);
@@ -19,7 +20,8 @@ export default function EditStatus() {
   return (
     <DetailScreen title={existing ? 'Edit my status' : 'Set up my status'}>
       <View style={{ paddingHorizontal: 20 }}>
-        <T v="sub" style={{ marginBottom: 14 }}>Copy the dates from your I-94, approval notice (I-797), passport and EAD. Everything stays on this phone.</T>
+        <T v="sub" style={{ marginBottom: 14 }}>Copy the dates from your I-94, approval notice (I-797), passport and EAD — or scan them. Everything stays on this phone.</T>
+        <View style={{ marginBottom: 16 }}><Button label="Scan a document to fill dates" icon="scan" kind="secondary" onPress={() => router.push('/status/vault?add=1')} /></View>
         <T v="label" style={{ marginBottom: 8 }}>Current status</T>
       </View>
       <Chips options={VISA_TYPES.map((v) => ({ label: v, value: v }))} value={p.visa} onChange={(v) => set('visa')(v as VisaType)} />

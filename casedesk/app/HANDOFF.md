@@ -50,3 +50,9 @@ See `../server/README.md` and `../README.md`.
 - `src/lib/layout.ts` `useLayout()`: width ≥ 700 = wide (unfolded foldable, tablet, landscape). Wide screens get their own layout, not stretched phone boxes: a left sidebar instead of the bottom tab bar, and two-pane pages via `<Columns>` (Today: status/cases/tools | updates; My Status: checks | dates, documents, records; Cases: list | other case types; Employers: search | sponsors; Tools: 3-column grid). Detail pages are centered at max 760. Unfolding re-flows live.
 - Header actions sit next to the title / Back button (left), never the top-right corner (camera + status pill on the iPhone Duo and Android foldables).
 - `app.json`: orientation "default" (rotates), iOS `supportsTablet: true`, `requireFullScreen: false` (iPad split view). Android activities are resizable by default.
+
+## Document scanning (on-device OCR)
+- `src/lib/ocr.ts`: photos → Apple Vision / Google ML Kit on-device (`expo-text-extractor`), PDFs → the PDF's own text (`expo-pdf-text-extract`, PDFKit / PDFBox). No network. Needs the real app build (not Expo Go / web preview).
+- `parseDocument()` recognises I-94 (Admit Until, class), I-797A/B approval (Valid from … to …, receipt), I-797C receipt (receipt number, Received Date), EAD (Card Expires, category), passport (MRZ expiry), visa stamp (Expiration Date), LCA (period). Tested against sample texts.
+- Vault "Add or scan a document": camera / Photos / PDF → reads it → pre-fills type, receipt, valid-until, shows "Found on the document", and (toggle) updates My Status dates. My Status edit has "Scan a document to fill dates".
+- Scanned PDFs without a text layer can't be read — the app asks for a clear photo instead.

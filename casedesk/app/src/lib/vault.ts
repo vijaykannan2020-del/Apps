@@ -2,6 +2,7 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { File, Directory, Paths } from 'expo-file-system';
 import { useCallback, useEffect, useState } from 'react';
@@ -51,6 +52,19 @@ export async function pickFile(): Promise<{ name: string; mime: string; size: nu
   if (r.canceled || !r.assets?.[0]) return null;
   const a = r.assets[0] as any;
   return { name: a.name, mime: a.mimeType ?? 'application/octet-stream', size: a.size ?? 0, uri: a.uri, webFile: a.file };
+}
+
+// Take a photo of a document (or choose one from Photos)
+export async function pickPhoto(camera: boolean): Promise<{ name: string; mime: string; size: number; uri: string; webFile?: Blob } | null> {
+  if (camera) {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) throw new Error('Allow camera access in Settings to scan documents.');
+  }
+  const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.9, allowsEditing: false };
+  const r = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+  if (r.canceled || !r.assets?.[0]) return null;
+  const a = r.assets[0] as any;
+  return { name: a.fileName ?? `scan-${Date.now()}.jpg`, mime: a.mimeType ?? 'image/jpeg', size: a.fileSize ?? 0, uri: a.uri, webFile: a.file };
 }
 
 const toDataUrl = (b: Blob) => new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = rej; fr.readAsDataURL(b); });

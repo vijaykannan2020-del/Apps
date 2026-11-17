@@ -47,6 +47,14 @@
         {
           "faceIDPermission": "Allow CaseDesk to use Face ID to unlock your immigration documents."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "CaseDesk uses the camera to scan your immigration documents. Text is read on your phone and never uploaded.",
+          "photosPermission": "CaseDesk lets you pick photos of your immigration documents to store them on this phone.",
+          "microphonePermission": false
+        }
       ]
     ],
     "extra": {

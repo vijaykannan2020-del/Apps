@@ -151,6 +151,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-17, Claude: CaseDesk document scanning: on-device OCR (Vision / ML Kit) and PDF text read I-94, I-797, EAD, passport, visa and LCA dates and fill My Status automatically. New deps expo-image-picker, expo-text-extractor 2.0.0, expo-pdf-text-extract 1.1.0 (no network code).
+
 - 2026-11-17, Claude: CaseDesk unfolded/tablet layout redesigned: left sidebar navigation and two-pane pages instead of stretched phone cards.
 
 - 2026-11-17, Claude: CaseDesk app adapts to every screen: phones, foldables folded/unfolded (iPhone Duo, Android), tablets; grids 1/2/3 columns, centered content, header actions kept left (away from the top-right camera/status area), all orientations.
