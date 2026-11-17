@@ -25,7 +25,7 @@ jobs:
       EXPO_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       EXPO_APPLE_TEAM_TYPE: INDIVIDUAL
       INBOX_CRED: ${{ github.workspace }}/inbox-app/credentials/ios.enc
-      ASC_APP_ID: ${{ vars.CASEDESK_ASC_APP_ID }}
+      ASC_APP_ID: ${{ vars.CASEDESK_ASC_APP_ID || '6836097003' }}
     steps:
       - uses: actions/checkout@v4
       - name: Check secrets
