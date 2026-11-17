@@ -1,31 +1,41 @@
-// iPhone Duo open: All / WhatsApp / Instagram / Messenger / Accounts as Apple's native toolbar — iOS places it in
-// the Duo's vertical side bar, like WhatsApp. On one-column screens (normal iPhones, Duo folded) it isn't shown;
-// the glass bar at the bottom of the chat list is used there instead.
-import { Stack } from 'expo-router';
+// iPhone Duo open: All / WhatsApp / Instagram / Messenger / Accounts, plus call / video / info when a chat is open, as
+// Apple's native glass toolbar — iOS places it in the Duo's side strip. Icons are see-through glyphs tinted by iOS
+// (before, the logos were drawn in their original black, which looked broken on the glass).
+// One-column screens (normal iPhones, Duo folded) use the glass bar at the bottom of the chat list instead.
+import { Stack, usePathname } from 'expo-router';
 import { useImage } from 'expo-image';
 import { useLayout, setListTab, openDetail, ListTab } from '@/lib/layout';
-import { usePathname } from 'expo-router';
+import { useTheme } from '@/lib/theme';
 
-const ENABLED = false;
-export function DuoBar() {
+export type DuoActions = { onVideo?: () => void; onCall?: () => void; onInfo?: () => void };
+
+export function DuoBar({ actions }: { actions?: DuoActions }) {
   const { collapsed, tab } = useLayout();
+  const t = useTheme();
   const path = usePathname();
   const all = useImage(require('../../assets/bar/all.png'));
   const wa = useImage(require('../../assets/bar/whatsapp.png'));
   const ig = useImage(require('../../assets/bar/instagram.png'));
   const fb = useImage(require('../../assets/bar/messenger.png'));
   const me = useImage(require('../../assets/bar/accounts.png'));
-  // Off for now: Apple's toolbar buttons don't behave like a real tab bar (no sliding across, odd selection look).
-  if (collapsed || !ENABLED) return null;
+  if (collapsed) return null;
   const onAccounts = path === '/accounts';
-  const pick = (k: ListTab) => setListTab(k);
+  const on = '#0A84FF', off = t.ink;
+  const tabBtn = (img: any, label: string, k: ListTab) => {
+    const sel = !onAccounts && tab === k;
+    return <Stack.Toolbar.Button image={img} iconRenderingMode="template" tintColor={sel ? on : off} accessibilityLabel={label} selected={sel} onPress={() => setListTab(k)} />;
+  };
   return (
     <Stack.Toolbar>
-      <Stack.Toolbar.Button image={all} accessibilityLabel="All chats" selected={!onAccounts && tab === 'all'} onPress={() => pick('all')} />
-      <Stack.Toolbar.Button image={wa} accessibilityLabel="WhatsApp" selected={!onAccounts && tab === 'whatsapp'} onPress={() => pick('whatsapp')} />
-      <Stack.Toolbar.Button image={ig} accessibilityLabel="Instagram" selected={!onAccounts && tab === 'instagram'} onPress={() => pick('instagram')} />
-      <Stack.Toolbar.Button image={fb} accessibilityLabel="Messenger" selected={!onAccounts && tab === 'messenger'} onPress={() => pick('messenger')} />
-      <Stack.Toolbar.Button image={me} accessibilityLabel="Accounts" selected={onAccounts} onPress={() => openDetail('/accounts')} />
+      {tabBtn(all, 'All chats', 'all')}
+      {tabBtn(wa, 'WhatsApp', 'whatsapp')}
+      {tabBtn(ig, 'Instagram', 'instagram')}
+      {tabBtn(fb, 'Messenger', 'messenger')}
+      <Stack.Toolbar.Button image={me} iconRenderingMode="template" tintColor={onAccounts ? on : off} accessibilityLabel="Accounts" selected={onAccounts} onPress={() => openDetail('/accounts')} />
+      {actions && <Stack.Toolbar.Spacer />}
+      {actions?.onVideo && <Stack.Toolbar.Button icon="video" tintColor={off} accessibilityLabel="Video call" onPress={actions.onVideo} />}
+      {actions?.onCall && <Stack.Toolbar.Button icon="phone" tintColor={off} accessibilityLabel="Voice call" onPress={actions.onCall} />}
+      {actions?.onInfo && <Stack.Toolbar.Button icon="info.circle" tintColor={off} accessibilityLabel="Chat info" onPress={actions.onInfo} />}
     </Stack.Toolbar>
   );
 }
