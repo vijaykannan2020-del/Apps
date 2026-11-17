@@ -21,7 +21,7 @@ const limited = (ip) => {
 };
 
 const routes = {
-  '/api/health': () => ({ ok: true, uscis: !!process.env.USCIS_CLIENT_ID, wages: wageStatus(), employers: h1bStatus(), lastDataUpdate: (() => { try { return JSON.parse(fs.readFileSync('data/update-status.json', 'utf8')).at; } catch { return null; } })(), time: new Date().toISOString() }),
+  '/api/health': () => ({ ok: true, uscis: !!process.env.USCIS_CLIENT_ID, wages: wageStatus(), employers: h1bStatus(), data: (() => { try { const d = JSON.parse(fs.readFileSync('data/update-status.json', 'utf8')); return { at: d.at, h1bFiles: d.h1b?.length || 0, permFiles: d.perm?.length || 0, errors: d.errors || [] }; } catch { return null; } })(), time: new Date().toISOString() }),
   '/api/news': () => getNews(),
   '/api/wage': (q) => wage(q.get('soc') || '', q.get('area') || ''),
   '/api/wage/soc': (q) => searchSoc(q.get('q') || ''),

@@ -38,7 +38,7 @@ echo "0 3 * * 0 root cd $PWD && docker compose exec -T api node scripts/update-d
 chmod 644 /etc/cron.d/casedesk-auto /etc/cron.d/casedesk-data
 
 # First data load (runs in the background, ~5–15 min)
-if [ ! -f data/wages.json ] && ! pgrep -f update-data.mjs >/dev/null; then
+if { [ ! -f data/wages.json ] || [ ! -f data/employers.json ]; } && ! pgrep -f update-data.mjs >/dev/null; then
   log "first data load started (see /var/log/casedesk-data.log)"
   (sleep 20; docker compose exec -T api node scripts/update-data.mjs >> /var/log/casedesk-data.log 2>&1) &
 fi

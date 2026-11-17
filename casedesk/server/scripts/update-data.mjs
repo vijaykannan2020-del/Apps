@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process';
 
 const UA = { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' };
 const list = (v) => (v || '').split(',').map((s) => s.trim()).filter(Boolean);
+const errors = [];
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
 
 const PAGES = {
@@ -60,7 +61,7 @@ async function download(url, dir) {
   return dest;
 }
 const run = (script, args = []) => execFileSync(process.execPath, [script, ...args], { stdio: 'inherit' });
-const tryIt = async (label, fn) => { try { return await fn(); } catch (e) { log(`${label}: ${e.message}`); return null; } };
+const tryIt = async (label, fn) => { try { return await fn(); } catch (e) { log(`${label}: ${e.message}`); errors.push(`${label}: ${e.message}`.slice(0, 200)); return null; } };
 
 // 1) Prevailing wages
 const wagesUrl = process.env.OFLC_WAGES_URL || (await tryIt('find wages', findWages));
@@ -84,5 +85,5 @@ if (h1b.length || perm.length || lca.length) await tryIt('employers', () => run(
 else log('employers: no download links found');
 
 // Status file for /api/health
-fs.writeFileSync('data/update-status.json', JSON.stringify({ at: new Date().toISOString(), wagesUrl, h1b, perm, lca }, null, 2));
+fs.writeFileSync('data/update-status.json', JSON.stringify({ at: new Date().toISOString(), wagesUrl, h1b, perm, lca, errors }, null, 2));
 log('done');
