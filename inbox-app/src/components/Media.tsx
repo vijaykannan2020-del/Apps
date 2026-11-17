@@ -1,6 +1,7 @@
 // Video, voice note and reel bubbles. Your server needs your login to send media, so headers go with every request.
-import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Linking, ActivityIndicator } from 'react-native';
+import { File, Directory, Paths } from 'expo-file-system';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
@@ -8,9 +9,34 @@ import { Ionicons } from '@expo/vector-icons';
 import { mediaSource, igMediaId } from '@/lib/matrix';
 import { Theme } from '@/lib/theme';
 
-export function VideoPlayer({ uri, headers, w, h }: { uri: string; headers: Record<string, string>; w: number; h: number }) {
-  const player = useVideoPlayer({ uri, headers }, p => { p.play(); });
+// iPhone's player streams in byte ranges, which the media server doesn't serve reliably — so download the
+// whole video once (cached on the phone), then play the local file. This is what the web app effectively did.
+const vidDir = () => { const d = new Directory(Paths.cache, 'videos'); if (!d.exists) d.create({ intermediates: true }); return d; };
+const keyOf = (uri: string) => { let h = 0; for (const ch of uri) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h.toString(36); };
+const inflight = new Map<string, Promise<string>>();
+export function cachedVideo(uri: string, headers: Record<string, string>): Promise<string> {
+  const f = new File(vidDir(), keyOf(uri) + '.mp4');
+  if (f.exists && (f.size || 0) > 0) return Promise.resolve(f.uri);
+  if (inflight.has(f.uri)) return inflight.get(f.uri)!;
+  const p = File.downloadFileAsync(uri, f, { headers, idempotent: true }).then(out => out.uri).finally(() => inflight.delete(f.uri));
+  inflight.set(f.uri, p);
+  return p;
+}
+function LocalPlayer({ uri, w, h }: { uri: string; w: number; h: number }) {
+  const player = useVideoPlayer(uri, p => { p.play(); });
   return <VideoView player={player} style={{ width: w, height: h, borderRadius: 16, backgroundColor: '#000' }} nativeControls contentFit="contain" fullscreenOptions={{ enable: true }} allowsPictureInPicture />;
+}
+export function VideoPlayer({ uri, headers, w, h }: { uri: string; headers: Record<string, string>; w: number; h: number }) {
+  const [local, setLocal] = useState<string | null>(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => { let on = true; cachedVideo(uri, headers).then(u => on && setLocal(u)).catch(() => on && setErr(true)); return () => { on = false; }; }, [uri]);
+  if (local) return <LocalPlayer uri={local} w={w} h={h} />;
+  return (
+    <View style={{ width: w, height: h, borderRadius: 16, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+      {err ? <><Ionicons name="alert-circle" size={30} color="#fff" /><Text style={{ color: '#fff' }}>Couldn’t load the video</Text></>
+        : <><ActivityIndicator color="#fff" /><Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>Loading video…</Text></>}
+    </View>
+  );
 }
 
 export function VideoBubble({ c, maxW, t }: { c: any; maxW: number; t: Theme }) {
