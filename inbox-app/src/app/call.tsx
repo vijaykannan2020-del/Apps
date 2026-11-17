@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { RTCView } from 'react-native-webrtc';
-import { useCall, hangup, answer, toggleMute, toggleSpeaker, toggleCamera, flipCamera } from '@/lib/calls';
+import { callStats, useCall, hangup, answer, toggleMute, toggleSpeaker, toggleCamera, flipCamera } from '@/lib/calls';
 import { S } from '@/lib/matrix';
 import { Avatar } from '@/components/Avatar';
 import { Glass } from '@/components/Glass';
@@ -16,7 +16,8 @@ export default function CallScreen() {
   const call = useCall();
   const ins = useSafeAreaInsets();
   const [now, setNow] = useState(Date.now());
-  useEffect(() => { const iv = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(iv); }, []);
+  const [diag, setDiag] = useState('');
+  useEffect(() => { const iv = setInterval(() => { setNow(Date.now()); callStats().then(setDiag); }, 1000); return () => clearInterval(iv); }, []);
   useEffect(() => {
     if (!call) { const t = setTimeout(() => router.canGoBack() ? router.back() : router.replace('/inbox'), 200); return () => clearTimeout(t); }
   }, [call]);
@@ -40,9 +41,10 @@ export default function CallScreen() {
       <View style={[styles.top, { paddingTop: ins.top + 10 }]} pointerEvents="none">
         <Text style={styles.name} numberOfLines={1}>{call.name}</Text>
         <Text style={styles.status}>{status}</Text>
+        {!!diag && <Text selectable style={styles.diag}>{diag}</Text>}
       </View>
       {call.video && call.local && !call.camOff && (
-        <View style={[styles.pip, { top: ins.top + 80 }]}>
+        <View style={[styles.pip, { top: ins.top + 150 }]}>
           <RTCView streamURL={(call.local as any).toURL()} style={{ flex: 1 }} objectFit="cover" mirror={call.frontCam} zOrder={1} />
         </View>
       )}
@@ -95,6 +97,7 @@ const styles = StyleSheet.create({
   top: { position: 'absolute', left: 20, right: 90 },
   name: { color: '#fff', fontSize: 30, fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 8 },
   status: { color: 'rgba(255,255,255,0.85)', fontSize: 17, marginTop: 4, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 6 },
+  diag: { color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 6, fontFamily: 'Menlo', textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 4 },
   pip: { position: 'absolute', left: 16, width: 110, height: 160, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', backgroundColor: '#222' },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', gap: 14 },
   row: { flexDirection: 'row', gap: 80 },

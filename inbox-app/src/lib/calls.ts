@@ -31,6 +31,7 @@ let remoteParty: string | null = null;
 let outCands: any[] = []; let candTimer: any = null;
 let inCands: any[] = []; let remoteSet = false;
 let answerWanted = false; let inviteTimer: any = null;
+let audioActive = false;
 let signalled = false; // invite (caller) or answer (callee) has been sent — candidates must not go out before it
 const earlyCands = new Map<string, any[]>(); // candidates that arrived before their invite
 const subs = new Set<() => void>();
@@ -88,6 +89,7 @@ async function makePeer(video: boolean) {
     const st = conn === 'connected' || ice === 'connected' || ice === 'completed' ? 'connected' : conn === 'failed' || ice === 'failed' ? 'failed' : '';
     if (st === 'connected' && cur && cur.state !== 'connected') {
       set({ state: 'connected', startedAt: Date.now() });
+      if (audioActive) { try { RTCAudioSession.audioSessionDidActivate(); } catch {} }
       if (cur.dir === 'out') RNCallKeep.reportConnectedOutgoingCallWithUUID(cur.uuid);
     }
     if (st === 'failed') end('Call failed — check your connection', true);
@@ -266,6 +268,23 @@ export async function toggleSpeaker() {
   set({ speaker: on });
 }
 
+// ---------- diagnostics (shown small on the call screen) ----------
+export async function callStats(): Promise<string> {
+  if (!pc) return '';
+  try {
+    const ice = (pc as any).iceConnectionState, conn = (pc as any).connectionState;
+    const rep: any = await (pc as any).getStats();
+    const all: any[] = []; rep.forEach((v: any) => all.push(v));
+    const pair = all.find(x => x.type === 'candidate-pair' && (x.selected || x.nominated) && x.state === 'succeeded');
+    const lc = pair && all.find(x => x.id === pair.localCandidateId), rc = pair && all.find(x => x.id === pair.remoteCandidateId);
+    const kb = (n: number) => (n > 2048 ? Math.round(n / 1024) + 'k' : String(n || 0));
+    const by = (type: string, kind: string) => all.filter(x => x.type === type && (x.kind || x.mediaType) === kind).reduce((a, x) => a + (x.bytesReceived || x.bytesSent || 0), 0);
+    const lt = cur?.local?.getTracks().map(t => t.kind[0] + (t.enabled ? '' : '-')).join('') || '–';
+    const rt = cur?.remote?.getTracks().map(t => t.kind[0]).join('') || '–';
+    return `ice ${ice}/${conn} · ${lc ? lc.candidateType : '?'}→${rc ? rc.candidateType : '?'} · audio ↑${kb(by('outbound-rtp', 'audio'))} ↓${kb(by('inbound-rtp', 'audio'))} · video ↑${kb(by('outbound-rtp', 'video'))} ↓${kb(by('inbound-rtp', 'video'))} · tracks ${lt}/${rt} · audio session ${audioActive ? 'on' : 'off'}`;
+  } catch (e: any) { return 'stats: ' + (e?.message || 'n/a'); }
+}
+
 // ---------- start-up ----------
 let started = false;
 export function startCalls() {
@@ -277,13 +296,16 @@ export function startCalls() {
   } as any).catch(() => {});
   RNCallKeep.addEventListener('answerCall', ({ callUUID }) => { if (cur && cur.uuid === callUUID) doAnswer(); else answerWanted = true; });
   RNCallKeep.addEventListener('endCall', ({ callUUID }) => { if (cur && cur.uuid === callUUID && cur.state !== 'ended') hangup(); });
-  RNCallKeep.addEventListener('didActivateAudioSession', () => { try { RTCAudioSession.audioSessionDidActivate(); } catch {} });
-  RNCallKeep.addEventListener('didDeactivateAudioSession', () => { try { RTCAudioSession.audioSessionDidDeactivate(); } catch {} });
+  RNCallKeep.addEventListener('didActivateAudioSession', () => { audioActive = true; try { RTCAudioSession.audioSessionDidActivate(); } catch {} });
+  RNCallKeep.addEventListener('didDeactivateAudioSession', () => { audioActive = false; try { RTCAudioSession.audioSessionDidDeactivate(); } catch {} });
   RNCallKeep.addEventListener('didPerformSetMutedCallAction', ({ muted, callUUID }) => {
     if (cur && cur.uuid === callUUID && cur.muted !== muted) { cur.local?.getAudioTracks().forEach(t => { t.enabled = !muted; }); set({ muted }); }
   });
   RNCallKeep.addEventListener('didLoadWithEvents', (events: any[]) => {
-    for (const e of events || []) if (e.name === 'RNCallKeepPerformAnswerCallAction') answerWanted = true;
+    for (const e of events || []) {
+      if (e.name === 'RNCallKeepPerformAnswerCallAction') answerWanted = true;
+      if (e.name === 'RNCallKeepDidActivateAudioSession') { audioActive = true; try { RTCAudioSession.audioSessionDidActivate(); } catch {} }
+    }
   });
   // VoIP push token → Matrix pusher, so a locked/closed iPhone rings
   const registerVoip = (token: string) => {
