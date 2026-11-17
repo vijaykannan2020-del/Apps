@@ -47,13 +47,23 @@ export function showDetail() { try { split?.show('secondary'); } catch {} }
 export function showList() { try { split?.show('primary'); } catch {} }
 
 /** Open a chat from anywhere: list taps, notifications, banners, family. */
+// One column: reveal the right-hand page only once the new screen is on top of it, otherwise the previous
+// chat slides in first and is then swapped (seen when opening Accounts on the folded Duo).
+let pendingShow: ReturnType<typeof setTimeout> | null = null;
+function showWhenReady() {
+  if (!collapsed) { showDetail(); return; }
+  if (pendingShow) clearTimeout(pendingShow);
+  pendingShow = setTimeout(flushShow, 400); // fallback, e.g. the same screen was already on top
+}
+/** Called by the right-hand stack when a screen becomes the top one. */
+export function flushShow() { if (pendingShow) { clearTimeout(pendingShow); pendingShow = null; requestAnimationFrame(showDetail); } }
 export function openChat(id: string) {
   setCurrentChat(id);
   router.navigate({ pathname: '/chat/[id]', params: { id } });
-  setTimeout(showDetail, 0);
+  showWhenReady();
 }
 /** Open another screen in the detail column (Accounts etc.). */
 export function openDetail(href: any) {
   router.navigate(href);
-  setTimeout(showDetail, 0);
+  showWhenReady();
 }

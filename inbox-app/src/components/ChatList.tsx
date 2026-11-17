@@ -25,7 +25,7 @@ function lastIsMissed(r: Room) {
   return !!ev && ev.type === 'm.call.invite' && callSummary(ev).missed;
 }
 
-const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact }: { r: Room; t: Theme; open: (id: string) => void; onMore: (r: Room) => void; selected: boolean; fs: number; v: number; compact?: boolean }) {
+const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact, edge = 0 }: { edge?: number; r: Room; t: Theme; open: (id: string) => void; onMore: (r: Room) => void; selected: boolean; fs: number; v: number; compact?: boolean }) {
   const sw = useRef<SwipeableMethods>(null);
   const unread = isUnread(r);
   const tick = lastMine(r);
@@ -52,7 +52,7 @@ const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact }: { r
       <Pressable onPress={() => open(r.id)} onLongPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); onMore(r); }}
         style={({ pressed }) => [styles.row, { backgroundColor: selected || pressed ? (t.dark ? '#2C2C2E' : '#E5E5EA') : t.bg }]}>
         <Avatar room={r} size={compact ? 42 : undefined} />
-        <View style={[styles.meta, { borderBottomColor: t.line }, compact && { minHeight: 64, paddingRight: 10 }]}>
+        <View style={[styles.meta, { borderBottomColor: t.line }, compact && { minHeight: 64, paddingRight: 10 }, edge > 0 && { paddingRight: 16 + edge }]}>
           <View style={styles.l1}>
             <Text numberOfLines={1} style={[styles.name, { color: t.ink, fontWeight: unread ? '700' : '600', fontSize: 17 * fs }]}>{roomName(r)}</Text>
             <Text style={[styles.time, { color: unread ? t.ink : t.soft, fontWeight: unread ? '600' : '400' }, compact && { fontSize: 12 }]}>{fmtTime(r.lastTs)}</Text>
@@ -189,9 +189,9 @@ export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) 
             );
           }} />
       ) : (
-        <FlatList
+        <FlatList automaticallyAdjustsScrollIndicatorInsets={false} 
           data={list} keyExtractor={r => r.id} extraData={[v, selected]}
-          renderItem={({ item }) => <Row r={item} t={t} open={open} onMore={setMore} selected={item.id === selected} fs={fs} v={v} compact={compact} />}
+          renderItem={({ item, index }) => <Row edge={index === 0 ? gut : 0} r={item} t={t} open={open} onMore={setMore} selected={item.id === selected} fs={fs} v={v} compact={compact} />}
           ListHeaderComponent={header} ListFooterComponent={searchFooter}
           ListEmptyComponent={q ? undefined : (
             <View style={styles.empty}>

@@ -34,7 +34,7 @@ export default function Info() {
     </Pressable>
   );
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: ins.top + 6, paddingBottom: ins.bottom + 40, alignItems: 'center' }}>
+    <ScrollView automaticallyAdjustsScrollIndicatorInsets={false} style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: ins.top + 6, paddingBottom: ins.bottom + 40, alignItems: 'center' }}>
       <DuoBar />
       <View style={{ width: '100%', maxWidth: 600 }}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={{ paddingHorizontal: 12, alignSelf: 'flex-start' }}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>

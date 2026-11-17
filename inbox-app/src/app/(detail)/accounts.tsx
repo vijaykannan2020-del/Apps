@@ -19,7 +19,7 @@ import { useWindowDimensions } from 'react-native';
 import { useStatusGutter, useLayout, showList } from '@/lib/layout';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 28;
+export const APP_BUILD = 29;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
@@ -122,7 +122,7 @@ export default function Accounts() {
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <DuoBar />
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: ins.top + 6, paddingBottom: ins.bottom + 40, alignItems: 'center' }}>
+    <ScrollView automaticallyAdjustsScrollIndicatorInsets={false} style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: ins.top + 6, paddingBottom: ins.bottom + 40, alignItems: 'center' }}>
       <View style={{ width: '100%', maxWidth: 640 }}>
         <View style={{ paddingRight: gut }}>
           <View style={styles.titleRow}>

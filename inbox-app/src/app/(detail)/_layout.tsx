@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLayout, getSidebarRight } from '@/lib/layout';
+import { useLayout, getSidebarRight, flushShow } from '@/lib/layout';
 import { useTheme } from '@/lib/theme';
 
 // Keeps the right-hand column's content clear of the floating list panel when they're side by side.
@@ -29,7 +29,7 @@ function DetailStack() {
   // Chat and Accounts: no stack swipe-back — on one-column screens Apple's split view does the swipe back to the list
   // itself (our stack doing it too made the empty right-hand page flash); side by side there's nothing to go back to.
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: 'default' }}>
+    <Stack screenListeners={({ route }: any) => ({ focus: () => { if (route.name !== 'index') flushShow(); } })} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: 'default' }}>
       <Stack.Screen name="index" options={{ animation: 'none' }} />
       <Stack.Screen name="chat/[id]" options={{ animation: 'none', gestureEnabled: false, headerTransparent: true, title: '', headerBackVisible: false, headerShadowVisible: false }} />
       <Stack.Screen name="info/[id]" />

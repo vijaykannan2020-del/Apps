@@ -62,7 +62,7 @@ export default function SharedScreen() {
         ))}
       </View>
       {tab === 'media' ? (
-        <FlatList key={'g' + cols} data={list} numColumns={cols} keyExtractor={x => x.ev.event_id} columnWrapperStyle={{ gap: 4 }}
+        <FlatList automaticallyAdjustsScrollIndicatorInsets={false} key={'g' + cols} data={list} numColumns={cols} keyExtractor={x => x.ev.event_id} columnWrapperStyle={{ gap: 4 }}
           contentContainerStyle={{ gap: 4, paddingBottom: ins.bottom + 20 }}
           ListEmptyComponent={!loading ? <Text style={[styles.empty, { color: t.soft }]}>No photos or videos yet</Text> : undefined}
           renderItem={({ item }) => {
@@ -76,7 +76,7 @@ export default function SharedScreen() {
             );
           }} />
       ) : (
-        <FlatList data={list} keyExtractor={(x, i) => x.ev.event_id + i}
+        <FlatList automaticallyAdjustsScrollIndicatorInsets={false} data={list} keyExtractor={(x, i) => x.ev.event_id + i}
           contentContainerStyle={{ paddingBottom: ins.bottom + 20 }}
           ListEmptyComponent={!loading ? <Text style={[styles.empty, { color: t.soft }]}>{tab === 'link' ? 'No links yet' : 'No documents yet'}</Text> : undefined}
           renderItem={({ item }) => {

@@ -300,6 +300,7 @@ export function ChatView({ id, onBack, embedded, nativeActions }: { id: string; 
     <View style={{ flex: 1, backgroundColor: t.bg }} onLayout={e => setWidth(e.nativeEvent.layout.width)}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
+          automaticallyAdjustsScrollIndicatorInsets={false} 
           ref={listRef}
           data={items}
           inverted
