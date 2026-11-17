@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme, radius } from '../theme';
+import { useLayout } from '../lib/layout';
 
 export const tap = () => {
   if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {});
@@ -26,21 +27,43 @@ export function Screen({ title, subtitle, children, right, scroll = true }: {
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const L = useLayout();
   const header = title ? (
-    <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 10, flexDirection: 'row', alignItems: 'flex-end' }}>
-      <View style={{ flex: 1 }}>
-        {subtitle ? <Text style={{ color: t.sub, fontSize: 13, fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 4 }}>{subtitle}</Text> : null}
+    <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 10, paddingLeft: 20 + insets.left }}>
+      {subtitle ? <Text style={{ color: t.sub, fontSize: 13, fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 4 }}>{subtitle}</Text> : null}
+      {/* Action sits right after the title, not in the far top-right corner (camera / status pill on foldables) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <Text style={{ color: t.text, fontSize: 32, fontWeight: '700', letterSpacing: -0.8 }}>{title}</Text>
+        {right}
       </View>
-      {right}
     </View>
   ) : null;
-  if (!scroll) return <View style={{ flex: 1, backgroundColor: t.bg }}>{header}{children}</View>;
-  return (
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
+  const body = (
+    <View style={{ width: '100%', maxWidth: L.maxContent, alignSelf: 'center', paddingRight: insets.right }}>
       {header}
       {children}
+    </View>
+  );
+  if (!scroll) return <View style={{ flex: 1, backgroundColor: t.bg }}>{body}</View>;
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
+      {body}
     </ScrollView>
+  );
+}
+
+// Lays children out in 1 column on phones, 2 on unfolded foldables / tablets, 3 on large tablets
+export function Grid({ children, cols, gap = 10 }: { children: React.ReactNode; cols?: number; gap?: number }) {
+  const L = useLayout();
+  const n = cols ?? L.cols;
+  const items = React.Children.toArray(children).filter(Boolean);
+  if (n === 1) return <View>{items}</View>;
+  const columns: React.ReactNode[][] = Array.from({ length: n }, () => []);
+  items.forEach((c, i) => columns[i % n].push(c));
+  return (
+    <View style={{ flexDirection: 'row', gap, alignItems: 'flex-start' }}>
+      {columns.map((c, i) => <View key={i} style={{ flex: 1, minWidth: 0 }}>{c}</View>)}
+    </View>
   );
 }
 

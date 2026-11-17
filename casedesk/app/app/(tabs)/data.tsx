@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { Screen, Section, Card, T, Segmented, Field, Note, Pill, IconBubble } from '../../src/components/ui';
+import { Screen, Section, Card, T, Segmented, Field, Note, Pill, IconBubble, Grid } from '../../src/components/ui';
 import { HBars } from '../../src/components/charts';
 import { useTheme } from '../../src/theme';
 import { TOP_INITIAL_FY25, TOP_CONTINUING_FY25, H1B_SOURCE } from '../../src/data/h1b';
@@ -91,7 +91,7 @@ export default function Data() {
         {busy ? <ActivityIndicator color={t.sub} /> : null}
         {results === null ? (
           <T v="sub">See how many H-1B petitions an employer got approved (USCIS Data Hub), plus PERM green card certifications and LCAs (DOL).</T>
-        ) : results.length ? results.map((e, i) => <EmployerCard key={e.name + i} e={e} />) : (
+        ) : results.length ? <Grid>{results.map((e, i) => <EmployerCard key={e.name + i} e={e} />)}</Grid> : (
           <Card style={{ alignItems: 'center', paddingVertical: 22 }}>
             <T v="h3">No employer found for “{q}”</T>
             <T v="sub" style={{ textAlign: 'center', marginTop: 6, maxWidth: 280 }}>

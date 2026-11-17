@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen, Section, Card, Row, T } from '../../src/components/ui';
+import { Screen, Section, Card, Row, T, Grid } from '../../src/components/ui';
 import { useI9 } from '../../src/lib/store';
 import { BULLETIN } from '../../src/data/bulletin';
 
@@ -10,6 +10,7 @@ export default function Tools() {
   const [records] = useI9();
   return (
     <Screen title="Tools" subtitle="Calculators, trackers & guides">
+      <Grid gap={0}>
       <Section title="Timelines">
         <Card style={{ paddingVertical: 4 }}>
           <Row icon="calendar-number-outline" tone="amber" title="Visa Bulletin" subtitle={`Green card dates by country · ${BULLETIN.month}`} onPress={() => router.push('/tools/bulletin')} />
@@ -41,6 +42,7 @@ export default function Tools() {
           <Row icon="book-outline" tone="neutral" title="I-9 handbook (M-274)" subtitle="uscis.gov/i-9-central" href="https://www.uscis.gov/i-9-central/form-i-9-resources/handbook-for-employers-m-274" last />
         </Card>
       </Section>
+      </Grid>
       <View style={{ paddingHorizontal: 20, marginTop: 18 }}>
         <T v="small" style={{ textAlign: 'center' }}>Information only — not legal advice.</T>
       </View>

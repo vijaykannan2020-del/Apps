@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Section, Card, T, Pill, IconBubble, Chips, Segmented, Note, tap } from '../../src/components/ui';
+import { Screen, Section, Card, T, Pill, IconBubble, Chips, Segmented, Note, Grid, tap } from '../../src/components/ui';
+import { useLayout, tileWidth } from '../../src/lib/layout';
 import { useProfile } from '../../src/lib/profile';
 import { runChecks } from '../../src/lib/compliance';
 import { useTheme } from '../../src/theme';
@@ -28,6 +29,7 @@ export default function Today() {
   const top = checks.find((c) => c.tone === 'red') ?? checks.find((c) => c.tone === 'amber');
   const [refreshing, setRefreshing] = useState(false);
   const [cases] = useCases();
+  const L = useLayout();
 
   const load = async () => {
     const r = await fetchNews();
@@ -122,7 +124,7 @@ export default function Today() {
               { icon: 'calendar-number-outline', label: 'Visa Bulletin', sub: 'By country', to: '/tools/bulletin', tone: 'amber' },
               { icon: 'time-outline', label: 'Processing times', sub: 'USCIS published', to: '/tools/times', tone: 'neutral' },
             ].map((q) => (
-              <Card key={q.label} onPress={() => router.push(q.to as any)} style={{ width: '48.4%', paddingVertical: 14 }}>
+              <Card key={q.label} onPress={() => router.push(q.to as any)} style={{ width: tileWidth(L.wide ? 4 : 2), paddingVertical: 14 }}>
                 <IconBubble name={q.icon as any} tone={q.tone as any} />
                 <T v="h3" style={{ marginTop: 12 }}>{q.label}</T>
                 <T v="small" style={{ marginTop: 2 }}>{q.sub}</T>
@@ -144,7 +146,7 @@ export default function Today() {
           <Chips options={FILTERS.map((f) => ({ label: f, value: f }))} value={filter} onChange={setFilter} />
         </View>
         <View style={{ paddingHorizontal: 20 }}>
-          {shown.map((n) => <NewsCard key={n.id} n={n} onPress={() => router.push(`/news/${n.id}`)} />)}
+          <Grid>{shown.map((n) => <NewsCard key={n.id} n={n} onPress={() => router.push(`/news/${n.id}`)} />)}</Grid>
           {shown.length === 0 ? <T v="sub" style={{ textAlign: 'center', marginTop: 20 }}>No updates for this filter yet.</T> : null}
         </View>
         <View style={{ height: 110 }} />

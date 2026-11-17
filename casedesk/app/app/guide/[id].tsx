@@ -4,10 +4,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { DetailScreen } from '../../src/components/TopBar';
 import { Card, T, Section, Note, Pill, Button } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
+import { useLayout, tileWidth } from '../../src/lib/layout';
 import { useGuides } from '../../src/lib/content';
 
 export default function Guide() {
   const t = useTheme();
+  const L = useLayout();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { items, reviewed } = useGuides();
@@ -28,7 +30,7 @@ export default function Guide() {
       <Section>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {v.facts.map((f) => (
-            <Card key={f.label} style={{ width: '48.4%', paddingVertical: 14 }}>
+            <Card key={f.label} style={{ width: tileWidth(L.wide ? 4 : 2), paddingVertical: 14 }}>
               <T v="label">{f.label}</T>
               <T v="h3" style={{ marginTop: 6, lineHeight: 20 }}>{f.value}</T>
             </Card>

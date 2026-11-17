@@ -151,6 +151,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-17, Claude: CaseDesk app adapts to every screen: phones, foldables folded/unfolded (iPhone Duo, Android), tablets; grids 1/2/3 columns, centered content, header actions kept left (away from the top-right camera/status area), all orientations.
+
 - 2026-11-17, Claude: CaseDesk domain set to casedeskapp.duckdns.org (deploy.conf) and app apiBase points to it.
 
 - 2026-11-17, Claude: Added `casedesk/` (app + server). My Inbox changes so CaseDesk can share the server: Caddyfile has a `{$CASEDESK_SITE}` site that reverse-proxies to `casedesk-api:8787` (default `http://casedesk.localhost` placeholder, validated with caddy 2.10); docker-compose passes `CASEDESK_SITE` to Caddy; `auto-update.sh` installs `casedesk/server` into /opt/casedesk once (then it self-updates via /etc/cron.d/casedesk-auto). Domain not set yet (`casedesk/server/deploy.conf`).

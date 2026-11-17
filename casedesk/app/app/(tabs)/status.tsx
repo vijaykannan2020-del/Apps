@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Section, Card, T, Pill, IconBubble, Row, Button, tap } from '../../src/components/ui';
+import { Screen, Section, Card, T, Pill, IconBubble, Row, Button, Grid, tap } from '../../src/components/ui';
+import { useLayout, tileWidth } from '../../src/lib/layout';
 import { useTheme } from '../../src/theme';
 import { useProfile, usesEAD } from '../../src/lib/profile';
 import { runChecks, fmt, daysTo } from '../../src/lib/compliance';
@@ -10,10 +11,11 @@ import { useVault } from '../../src/lib/vault';
 
 function DateTile({ label, value }: { label: string; value?: string }) {
   const t = useTheme();
+  const L = useLayout();
   const d = daysTo(value);
   const color = d === null ? t.faint : d < 0 ? t.red : d <= 90 ? t.amber : t.text;
   return (
-    <Card style={{ width: '48.4%', paddingVertical: 14 }}>
+    <Card style={{ width: tileWidth(L.tiles), paddingVertical: 14 }}>
       <T v="label">{label}</T>
       <T v="h3" style={{ marginTop: 6, color: value ? t.text : t.faint }}>{value ? fmt(value) : 'Not added'}</T>
       {d !== null ? <T v="small" style={{ marginTop: 2, color }}>{d < 0 ? `${-d} days ago` : `${d} days left`}</T> : null}
@@ -64,7 +66,7 @@ export default function Status() {
           </Section>
 
           <Section title="Checks">
-            {checks.map((c) => (
+            <Grid>{checks.map((c) => (
               <Card key={c.id} style={{ marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <IconBubble name={c.icon as any} tone={c.tone === 'neutral' ? 'neutral' : c.tone} size={34} />
@@ -74,7 +76,7 @@ export default function Status() {
                   </View>
                 </View>
               </Card>
-            ))}
+            ))}</Grid>
           </Section>
 
           <Section title="Key dates" action="Edit" onAction={() => router.push('/status/edit')}>

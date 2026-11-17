@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Pressable, RefreshControl, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Section, Card, T, Pill, IconBubble, Note, Row, tap } from '../../src/components/ui';
+import { Screen, Section, Card, T, Pill, IconBubble, Note, Row, Grid, tap } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
 import { useCases, upsertCase } from '../../src/lib/store';
 import { stageOf, STAGES } from '../../src/lib/caseStatus';
@@ -56,7 +56,7 @@ export default function Cases() {
           </Section>
         ) : (
           <Section>
-            {cases.map((c) => {
+            <Grid>{cases.map((c) => {
               const st = stageOf(c.status);
               const color = st.tone === 'red' ? t.red : st.tone === 'amber' ? t.amber : st.tone === 'green' ? t.green : t.accent;
               return (
@@ -79,7 +79,7 @@ export default function Cases() {
                   </View>
                 </Card>
               );
-            })}
+            })}</Grid>
           </Section>
         )}
 

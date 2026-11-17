@@ -2,7 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Section, Card, T, IconBubble } from '../src/components/ui';
+import { Section, Card, T, IconBubble, Grid } from '../src/components/ui';
 import { DetailScreen } from '../src/components/TopBar';
 import { useTheme } from '../src/theme';
 import { useGuides } from '../src/lib/content';
@@ -26,7 +26,7 @@ export default function Guides() {
       </View>
       {GROUPS.map((g) => (
         <Section key={g.title} title={g.title}>
-          {g.ids.map((id) => {
+          <Grid>{g.ids.map((id) => {
             const v = VISAS.find((x) => x.id === id)!;
             return (
               <Card key={id} onPress={() => router.push(`/guide/${id}`)} style={{ marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
@@ -38,7 +38,7 @@ export default function Guides() {
                 <Ionicons name="chevron-forward" size={18} color={t.faint} />
               </Card>
             );
-          })}
+          })}</Grid>
         </Section>
       ))}
     </DetailScreen>

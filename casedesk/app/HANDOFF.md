@@ -45,3 +45,8 @@ See `../server/README.md` and `../README.md`.
 - Facts come only from USCIS, DHS, DOL, State Department or Federal Register sources; every guide and news card links its source.
 - Keep text short: a one-line summary plus 2–4 points.
 - Fee amounts live in `src/data/fees.ts` (last checked Nov 2026). Recheck against G-1055 whenever USCIS announces a fee change.
+
+## Screen sizes (all iPhones, Android phones, foldables, tablets)
+- `src/lib/layout.ts` `useLayout()`: width ≥ 700 = wide (unfolded foldable, tablet, landscape). Lists use `<Grid>` (1 / 2 / 3 columns), tiles use `tileWidth()`; content is centered (max 1100 for tabs, 760 for detail pages). Unfolding re-flows live.
+- Header actions sit next to the title / Back button (left), never the top-right corner (camera + status pill on the iPhone Duo and Android foldables).
+- `app.json`: orientation "default" (rotates), iOS `supportsTablet: true`, `requireFullScreen: false` (iPad split view). Android activities are resizable by default.
