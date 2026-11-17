@@ -54,10 +54,28 @@
         }
       ],
       "@config-plugins/react-native-callkeep",
-      "./plugins/withInboxVoip"
+      "./plugins/withInboxVoip",
+      "./plugins/withNotificationService"
     ],
     "experiments": {
       "typedRoutes": false
+    },
+    "extra": {
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "NotificationService",
+                  "bundleIdentifier": "com.vijaykannan.myinbox.NotificationService",
+                  "entitlements": {}
+                }
+              ]
+            }
+          }
+        }
+      }
     }
   }
 }

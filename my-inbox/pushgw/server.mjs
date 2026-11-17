@@ -79,6 +79,53 @@ function apnsSend(token, payload, { voip = false, sandbox = false, collapse } = 
   });
 }
 
+// ---- Profile pictures for notifications (shown by the iPhone app like WhatsApp/iMessage) ----
+// Photos live in Synapse behind a login, so the push links to /push/avatar (signed, so it can't be used to fetch
+// anything else), which fetches the thumbnail with a bridge's appservice token.
+function asToken(net) {
+  try {
+    const y = fs.readFileSync(`/bridges/${net}/config.yaml`, 'utf8');
+    const m = y.match(/\nappservice:[\s\S]*?\n\s+as_token:\s*["']?([^"'\s#]+)/);
+    return m ? m[1] : null;
+  } catch { return null; }
+}
+const anyAs = () => asToken('whatsapp') || asToken('instagram') || asToken('messenger');
+const netKey = sender => { const l = String(sender || '').slice(1); return l.startsWith('whatsapp_') ? 'whatsapp' : l.startsWith('instagram_') ? 'instagram' : l.startsWith('messenger_') ? 'messenger' : null; };
+const avKeyFile = `${DATA}/avatar-key`;
+if (!fs.existsSync(avKeyFile)) fs.writeFileSync(avKeyFile, crypto.randomBytes(32).toString('hex'), { mode: 0o600 });
+const avKey = fs.readFileSync(avKeyFile, 'utf8').trim();
+const avSig = mxc => crypto.createHmac('sha256', avKey).update(mxc).digest('hex').slice(0, 32);
+const avatarUrl = mxc => /^mxc:\/\/[^/\s]+\/[A-Za-z0-9_-]+$/.test(mxc || '') ? `https://${DOMAIN}/push/avatar?m=${encodeURIComponent(mxc)}&s=${avSig(mxc)}` : null;
+const avCache = new Map();
+async function cachedLookup(key, fn) {
+  const c = avCache.get(key); if (c && Date.now() - c.at < 6 * 3600e3) return c.v;
+  let v = null; try { v = await fn(); } catch {}
+  avCache.set(key, { v, at: Date.now() }); if (avCache.size > 2000) avCache.delete(avCache.keys().next().value);
+  return v;
+}
+async function mxGet(path, token, as) {
+  if (!token) return null;
+  const q = as ? (path.includes('?') ? '&' : '?') + 'user_id=' + encodeURIComponent(as) : '';
+  const r = await fetch(SYNAPSE + path + q, { headers: { Authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(2500) });
+  return r.ok ? r.json() : null;
+}
+async function senderAvatar(sender, roomId) {
+  return cachedLookup('u|' + roomId + '|' + sender, async () => {
+    const net = netKey(sender); const tok = net ? asToken(net) : anyAs();
+    let mxc = null;
+    if (net) { const m = await mxGet(`/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.member/${encodeURIComponent(sender)}`, tok, sender).catch(() => null); mxc = m && m.avatar_url; }
+    if (!mxc) { const p = await mxGet(`/_matrix/client/v3/profile/${encodeURIComponent(sender)}/avatar_url`, tok, net ? sender : null).catch(() => null); mxc = p && p.avatar_url; }
+    return avatarUrl(mxc);
+  });
+}
+async function roomAvatar(sender, roomId) {
+  return cachedLookup('r|' + roomId, async () => {
+    const net = netKey(sender); if (!net) return null;
+    const a = await mxGet(`/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.avatar`, asToken(net), sender).catch(() => null);
+    return avatarUrl(a && a.url);
+  });
+}
+
 // Same UUID the app computes for a call (FNV-1a ×4) — CallKit matches the push to the call with it.
 function uuidFor(callId) {
   let out = '';
@@ -177,7 +224,10 @@ async function notify(body) {
       } else {
         if (callEnd) return;
         const alert = isCall ? { title: name, body: '📞 Incoming call — tap to answer' } : { title: (isGroup ? n.room_name : name) + (net ? ` · ${net}` : ''), body: (isGroup ? name + ': ' : '') + preview(n) };
-        p = { aps: { alert, sound: 'default', badge: (n.counts && n.counts.unread) || 0, 'thread-id': n.room_id, 'mutable-content': 1, 'interruption-level': isCall ? 'time-sensitive' : 'active' }, room_id: n.room_id, event_id: n.event_id, body: { room_id: n.room_id, event_id: n.event_id } };
+        // "who": lets the app's notification extension show it as a message from a person, with their photo
+        const [avatar, groupAvatar] = await Promise.all([senderAvatar(n.sender, n.room_id), isGroup ? roomAvatar(n.sender, n.room_id) : null]);
+        const who = isCall ? undefined : { id: n.sender, name, text: preview(n), net: net || '', group: isGroup ? n.room_name : undefined, avatar: avatar || undefined, group_avatar: groupAvatar || undefined };
+        p = { aps: { alert, sound: 'default', badge: (n.counts && n.counts.unread) || 0, 'thread-id': n.room_id, 'mutable-content': 1, 'interruption-level': isCall ? 'time-sensitive' : 'active' }, room_id: n.room_id, event_id: n.event_id, who, body: { room_id: n.room_id, event_id: n.event_id } };
       }
       const r = await apnsSend(d.pushkey, p, { voip, sandbox, collapse: voip ? undefined : n.event_id });
       if (r.status === 410 || r.reason === 'BadDeviceToken' || r.reason === 'Unregistered' || r.reason === 'DeviceTokenNotForTopic') rejected.push(d.pushkey);
@@ -313,6 +363,19 @@ http.createServer(async (req, res) => {
         if (!up.ok || !j.content_uri) return send(res, 502, { error: 'Upload failed' });
         return send(res, 200, { content_uri: j.content_uri, size: ogg.length, mimetype: 'audio/ogg' });
       } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+    }
+    if (req.method === 'GET' && url.pathname === '/push/avatar') {
+      const m = url.searchParams.get('m') || '', sig = url.searchParams.get('s') || '';
+      const ok = /^mxc:\/\/([^/\s]+)\/([A-Za-z0-9_-]+)$/.exec(m);
+      if (!ok || sig.length !== 32 || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(avSig(m)))) return send(res, 403, { error: 'bad link' });
+      const tok = anyAs(); if (!tok) return send(res, 503, { error: 'not ready' });
+      const q = `${encodeURIComponent(ok[1])}/${encodeURIComponent(ok[2])}?width=200&height=200&method=crop`;
+      let r = await fetch(`${SYNAPSE}/_matrix/client/v1/media/thumbnail/${q}`, { headers: { Authorization: 'Bearer ' + tok }, signal: AbortSignal.timeout(8000) }).catch(() => null);
+      if (!r || !r.ok) r = await fetch(`${SYNAPSE}/_matrix/media/v3/thumbnail/${q}`, { headers: { Authorization: 'Bearer ' + tok }, signal: AbortSignal.timeout(8000) }).catch(() => null);
+      if (!r || !r.ok) return send(res, 404, { error: 'no photo' });
+      const buf = Buffer.from(await r.arrayBuffer());
+      res.writeHead(200, { 'Content-Type': r.headers.get('content-type') || 'image/jpeg', 'Cache-Control': 'public, max-age=86400', 'Content-Length': buf.length });
+      return res.end(buf);
     }
     if (req.method === 'GET' && url.pathname === '/push/bridges') {
       const userId = await whoami(req.headers.authorization);

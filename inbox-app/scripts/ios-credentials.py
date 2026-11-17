@@ -25,45 +25,79 @@ def api(method, path, body=None):
         if e.code == 409 and 'capabil' in path.lower(): return {}
         raise SystemExit(1)
 
-def write_credentials_json(pw):
-    json.dump({'ios': {'provisioningProfilePath': f'{OUT}/profile.mobileprovision',
-                       'distributionCertificate': {'path': f'{OUT}/dist.p12', 'password': pw}}}, open('credentials.json', 'w'), indent=2)
+NSE = BUNDLE + '.NotificationService'   # notification extension (profile photos in notifications)
+TARGETS = {'Inbox': ('profile.mobileprovision', BUNDLE), 'NotificationService': ('nse.mobileprovision', NSE)}
+VERSION = 'v2'  # bump when the set of targets/capabilities changes → new provisioning profiles, same certificate
 
+def write_credentials_json(pw):
+    cert = {'path': f'{OUT}/dist.p12', 'password': pw}
+    json.dump({'ios': {t: {'provisioningProfilePath': f'{OUT}/{f}', 'distributionCertificate': cert} for t, (f, _) in TARGETS.items()}},
+              open('credentials.json', 'w'), indent=2)
+
+def bundle_id(identifier, name):
+    found = [b for b in api('GET', f'/v1/bundleIds?filter[identifier]={identifier}&limit=20')['data'] if b['attributes']['identifier'] == identifier]
+    if found: print(f'App ID {identifier} exists ✓'); return found[0]['id']
+    bid = api('POST', '/v1/bundleIds', {'data': {'type': 'bundleIds', 'attributes': {'identifier': identifier, 'name': name, 'platform': 'IOS'}}})['data']['id']
+    print(f'Registered App ID {identifier} ✓'); return bid
+
+def capability(bid, kind):
+    api('POST', '/v1/bundleIdCapabilities', {'data': {'type': 'bundleIdCapabilities', 'attributes': {'capabilityType': kind},
+        'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}}}})
+    print(f'Capability {kind} on ✓')
+
+def save(pw):
+    open(f'{OUT}/version', 'w').write(VERSION)
+    with tarfile.open('/tmp/ios.tar', 'w') as t:
+        for f in ['dist.p12', 'p12pass', 'version'] + [f for f, _ in TARGETS.values()]: t.add(f'{OUT}/{f}', arcname=f)
+    run('openssl', 'enc', '-aes-256-cbc', '-pbkdf2', '-iter', '200000', '-salt', '-in', '/tmp/ios.tar', '-out', ENC, '-pass', 'env:CRED_PASS', env={**os.environ, 'CRED_PASS': PASS})
+    write_credentials_json(pw)
+    print('NEW_CREDENTIALS=1')
+
+cert_id = pw = None
 if os.path.exists(ENC):
     run('openssl', 'enc', '-d', '-aes-256-cbc', '-pbkdf2', '-iter', '200000', '-in', ENC, '-out', '/tmp/ios.tar', '-pass', 'env:CRED_PASS', env={**os.environ, 'CRED_PASS': PASS})
     with tarfile.open('/tmp/ios.tar') as t: t.extractall(OUT)
-    write_credentials_json(open(f'{OUT}/p12pass').read().strip())
-    print('Reusing saved signing certificate ✓'); sys.exit(0)
+    pw = open(f'{OUT}/p12pass').read().strip()
+    have = open(f'{OUT}/version').read().strip() if os.path.exists(f'{OUT}/version') else 'v1'
+    if have == VERSION and all(os.path.exists(f'{OUT}/{f}') for f, _ in TARGETS.values()):
+        write_credentials_json(pw); print('Reusing saved signing certificate and profiles ✓'); sys.exit(0)
+    # Older set: keep the certificate, make new profiles for every target
+    der = None
+    for extra in (['-legacy'], []):
+        r = subprocess.run(['openssl', 'pkcs12', '-in', f'{OUT}/dist.p12', '-nokeys', '-clcerts', '-passin', f'pass:{pw}', *extra], capture_output=True)
+        if r.returncode == 0 and b'BEGIN CERTIFICATE' in r.stdout:
+            der = subprocess.run(['openssl', 'x509', '-outform', 'DER'], input=r.stdout, capture_output=True, check=True).stdout; break
+    certs = api('GET', '/v1/certificates?limit=200')['data']
+    for c in certs:
+        if der and base64.b64decode(c['attributes'].get('certificateContent') or '') == der: cert_id = c['id']
+    if cert_id: print('Found saved certificate at Apple ✓')
+    else: print('Saved certificate not found at Apple — making a new one')
 
-# 1. App ID (bundle identifier) + push capability for later
-found = api('GET', f'/v1/bundleIds?filter[identifier]={BUNDLE}&limit=5')['data']
-found = [b for b in found if b['attributes']['identifier'] == BUNDLE]
-if found: bid = found[0]['id']; print('App ID exists ✓')
-else:
-    bid = api('POST', '/v1/bundleIds', {'data': {'type': 'bundleIds', 'attributes': {'identifier': BUNDLE, 'name': 'Inbox', 'platform': 'IOS'}}})['data']['id']; print('Registered App ID ✓')
-api('POST', '/v1/bundleIdCapabilities', {'data': {'type': 'bundleIdCapabilities', 'attributes': {'capabilityType': 'PUSH_NOTIFICATIONS'},
-    'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}}}})
+# 1. App IDs + capabilities
+main_id = bundle_id(BUNDLE, 'Inbox')
+nse_id = bundle_id(NSE, 'Inbox Notifications')
+capability(main_id, 'PUSH_NOTIFICATIONS')
+capability(main_id, 'USERNOTIFICATIONS_COMMUNICATION')
 
-# 2. Distribution certificate
-run('openssl', 'req', '-new', '-newkey', 'rsa:2048', '-nodes', '-keyout', '/tmp/dist.key', '-out', '/tmp/dist.csr', '-subj', '/CN=Inbox Distribution/O=Vijayakannan Krishnan/C=US')
-csr = open('/tmp/dist.csr').read()
-cert = api('POST', '/v1/certificates', {'data': {'type': 'certificates', 'attributes': {'certificateType': 'DISTRIBUTION', 'csrContent': csr}}})['data']
-open('/tmp/dist.cer', 'wb').write(base64.b64decode(cert['attributes']['certificateContent']))
-run('openssl', 'x509', '-inform', 'DER', '-in', '/tmp/dist.cer', '-out', '/tmp/dist.pem')
-pw = secrets.token_hex(16)
-run('openssl', 'pkcs12', '-export', '-legacy', '-inkey', '/tmp/dist.key', '-in', '/tmp/dist.pem', '-out', f'{OUT}/dist.p12', '-passout', f'pass:{pw}', '-name', 'Inbox Distribution')
-print('Created distribution certificate ✓')
+# 2. Distribution certificate (only when there's no usable saved one)
+if not cert_id:
+    run('openssl', 'req', '-new', '-newkey', 'rsa:2048', '-nodes', '-keyout', '/tmp/dist.key', '-out', '/tmp/dist.csr', '-subj', '/CN=Inbox Distribution/O=Vijayakannan Krishnan/C=US')
+    cert = api('POST', '/v1/certificates', {'data': {'type': 'certificates', 'attributes': {'certificateType': 'DISTRIBUTION', 'csrContent': open('/tmp/dist.csr').read()}}})['data']
+    cert_id = cert['id']
+    open('/tmp/dist.cer', 'wb').write(base64.b64decode(cert['attributes']['certificateContent']))
+    run('openssl', 'x509', '-inform', 'DER', '-in', '/tmp/dist.cer', '-out', '/tmp/dist.pem')
+    pw = secrets.token_hex(16)
+    run('openssl', 'pkcs12', '-export', '-legacy', '-inkey', '/tmp/dist.key', '-in', '/tmp/dist.pem', '-out', f'{OUT}/dist.p12', '-passout', f'pass:{pw}', '-name', 'Inbox Distribution')
+    open(f'{OUT}/p12pass', 'w').write(pw)
+    print('Created distribution certificate ✓')
 
-# 3. App Store provisioning profile
-prof = api('POST', '/v1/profiles', {'data': {'type': 'profiles', 'attributes': {'name': f'Inbox App Store {int(time.time())}', 'profileType': 'IOS_APP_STORE'},
-    'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}, 'certificates': {'data': [{'type': 'certificates', 'id': cert['id']}]}}}})['data']
-open(f'{OUT}/profile.mobileprovision', 'wb').write(base64.b64decode(prof['attributes']['profileContent']))
-open(f'{OUT}/p12pass', 'w').write(pw)
-print('Created provisioning profile ✓')
+# 3. App Store provisioning profiles (one per target; made after the capabilities so they include them)
+for target, (fname, ident) in TARGETS.items():
+    bid = main_id if ident == BUNDLE else nse_id
+    prof = api('POST', '/v1/profiles', {'data': {'type': 'profiles', 'attributes': {'name': f'{target} App Store {int(time.time())}', 'profileType': 'IOS_APP_STORE'},
+        'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}, 'certificates': {'data': [{'type': 'certificates', 'id': cert_id}]}}}})['data']
+    open(f'{OUT}/{fname}', 'wb').write(base64.b64decode(prof['attributes']['profileContent']))
+    print(f'Created provisioning profile for {target} ✓')
 
 # 4. Save encrypted for next builds
-with tarfile.open('/tmp/ios.tar', 'w') as t:
-    for f in ('dist.p12', 'profile.mobileprovision', 'p12pass'): t.add(f'{OUT}/{f}', arcname=f)
-run('openssl', 'enc', '-aes-256-cbc', '-pbkdf2', '-iter', '200000', '-salt', '-in', '/tmp/ios.tar', '-out', ENC, '-pass', 'env:CRED_PASS', env={**os.environ, 'CRED_PASS': PASS})
-write_credentials_json(pw)
-print('NEW_CREDENTIALS=1')
+save(pw)
