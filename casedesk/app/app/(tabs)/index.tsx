@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Section, Card, T, Pill, IconBubble, Chips, Segmented, Note, Grid, tap } from '../../src/components/ui';
+import { Screen, Section, Card, T, Pill, IconBubble, Chips, Segmented, Note, Grid, Columns, tap } from '../../src/components/ui';
 import { useLayout, tileWidth } from '../../src/lib/layout';
 import { useProfile } from '../../src/lib/profile';
 import { runChecks } from '../../src/lib/compliance';
@@ -57,6 +57,7 @@ export default function Today() {
         }
         scroll={false}
       >
+        <Columns ratio={1.25} left={<>
         {/* My status */}
         <Section title="My status" action={profile ? 'Open' : undefined} onAction={() => router.push('/status')}>
           {profile ? (
@@ -92,11 +93,11 @@ export default function Today() {
               <Ionicons name="chevron-forward" size={18} color={t.faint} />
             </Card>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+            <ScrollView horizontal={!L.wide} scrollEnabled={!L.wide} showsHorizontalScrollIndicator={false} style={{ marginHorizontal: L.wide ? 0 : -20 }} contentContainerStyle={{ paddingHorizontal: L.wide ? 0 : 20, gap: 10 }}>
               {cases.map((c) => {
                 const st = stageOf(c.status);
                 return (
-                  <Card key={c.receipt} onPress={() => router.push(`/case/${c.receipt}`)} style={{ width: 230 }}>
+                  <Card key={c.receipt} onPress={() => router.push(`/case/${c.receipt}`)} style={{ width: L.wide ? undefined : 230 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                       <T v="label">{c.form ?? 'Case'}</T>
                       <Pill label={st.short} tone={st.tone === 'neutral' ? 'neutral' : st.tone} small />
@@ -124,7 +125,7 @@ export default function Today() {
               { icon: 'calendar-number-outline', label: 'Visa Bulletin', sub: 'By country', to: '/tools/bulletin', tone: 'amber' },
               { icon: 'time-outline', label: 'Processing times', sub: 'USCIS published', to: '/tools/times', tone: 'neutral' },
             ].map((q) => (
-              <Card key={q.label} onPress={() => router.push(q.to as any)} style={{ width: tileWidth(L.wide ? 4 : 2), paddingVertical: 14 }}>
+              <Card key={q.label} onPress={() => router.push(q.to as any)} style={{ width: tileWidth(2), paddingVertical: 14 }}>
                 <IconBubble name={q.icon as any} tone={q.tone as any} />
                 <T v="h3" style={{ marginTop: 12 }}>{q.label}</T>
                 <T v="small" style={{ marginTop: 2 }}>{q.sub}</T>
@@ -132,7 +133,7 @@ export default function Today() {
             ))}
           </View>
         </Section>
-
+        </>} right={<>
         {/* Updates */}
         <View style={{ marginTop: 26, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ flex: 1, color: t.text, fontSize: 19, fontWeight: '700', letterSpacing: -0.3 }}>Updates</Text>
@@ -146,10 +147,11 @@ export default function Today() {
           <Chips options={FILTERS.map((f) => ({ label: f, value: f }))} value={filter} onChange={setFilter} />
         </View>
         <View style={{ paddingHorizontal: 20 }}>
-          <Grid>{shown.map((n) => <NewsCard key={n.id} n={n} onPress={() => router.push(`/news/${n.id}`)} />)}</Grid>
+          {shown.map((n) => <NewsCard key={n.id} n={n} onPress={() => router.push(`/news/${n.id}`)} />)}
           {shown.length === 0 ? <T v="sub" style={{ textAlign: 'center', marginTop: 20 }}>No updates for this filter yet.</T> : null}
         </View>
-        <View style={{ height: 110 }} />
+        </>} />
+        <View style={{ height: L.wide ? 30 : 110 }} />
       </Screen>
     </ScrollView>
   );

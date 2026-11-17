@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Pressable, RefreshControl, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Section, Card, T, Pill, IconBubble, Note, Row, Grid, tap } from '../../src/components/ui';
+import { Screen, Section, Card, T, Pill, IconBubble, Note, Row, Columns, tap } from '../../src/components/ui';
+import { useLayout } from '../../src/lib/layout';
 import { useTheme } from '../../src/theme';
 import { useCases, upsertCase } from '../../src/lib/store';
 import { stageOf, STAGES } from '../../src/lib/caseStatus';
@@ -13,6 +14,7 @@ export default function Cases() {
   const router = useRouter();
   const [cases, , ready] = useCases();
   const [refreshing, setRefreshing] = useState(false);
+  const L = useLayout();
 
   const refreshAll = async () => {
     setRefreshing(true);
@@ -37,6 +39,7 @@ export default function Cases() {
           </Pressable>
         }
       >
+        <Columns left={<>
         {!isLive() ? (
           <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
             <Note tone="amber">Demo mode — statuses are samples until the CaseDesk server is connected.</Note>
@@ -56,7 +59,7 @@ export default function Cases() {
           </Section>
         ) : (
           <Section>
-            <Grid>{cases.map((c) => {
+            <View>{cases.map((c) => {
               const st = stageOf(c.status);
               const color = st.tone === 'red' ? t.red : st.tone === 'amber' ? t.amber : st.tone === 'green' ? t.green : t.accent;
               return (
@@ -79,10 +82,10 @@ export default function Cases() {
                   </View>
                 </Card>
               );
-            })}</Grid>
+            })}</View>
           </Section>
         )}
-
+        </>} right={<>
         <Section title="Other case types">
           <Card style={{ paddingVertical: 4 }}>
             <Row icon="briefcase-outline" tone="amber" title="LCA, PERM & PWD (DOL)" subtitle="Check Department of Labor case status" onPress={() => router.push('/tools/dol-status')} />
@@ -105,7 +108,8 @@ export default function Cases() {
             ))}
           </Card>
         </Section>
-        <View style={{ height: 110 }} />
+        </>} />
+        <View style={{ height: L.wide ? 30 : 110 }} />
       </Screen>
     </ScrollView>
   );

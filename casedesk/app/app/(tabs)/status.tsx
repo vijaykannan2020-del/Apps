@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Section, Card, T, Pill, IconBubble, Row, Button, Grid, tap } from '../../src/components/ui';
+import { Screen, Section, Card, T, Pill, IconBubble, Row, Button, Grid, Columns, tap } from '../../src/components/ui';
 import { useLayout, tileWidth } from '../../src/lib/layout';
 import { useTheme } from '../../src/theme';
 import { useProfile, usesEAD } from '../../src/lib/profile';
@@ -15,7 +15,7 @@ function DateTile({ label, value }: { label: string; value?: string }) {
   const d = daysTo(value);
   const color = d === null ? t.faint : d < 0 ? t.red : d <= 90 ? t.amber : t.text;
   return (
-    <Card style={{ width: tileWidth(L.tiles), paddingVertical: 14 }}>
+    <Card style={{ width: tileWidth(2), paddingVertical: 14 }}>
       <T v="label">{label}</T>
       <T v="h3" style={{ marginTop: 6, color: value ? t.text : t.faint }}>{value ? fmt(value) : 'Not added'}</T>
       {d !== null ? <T v="small" style={{ marginTop: 2, color }}>{d < 0 ? `${-d} days ago` : `${d} days left`}</T> : null}
@@ -41,6 +41,7 @@ export default function Status() {
         </Pressable>
       ) : undefined}
     >
+      <Columns left={<>
       {ready && !p ? (
         <Section>
           <Card style={{ alignItems: 'center', paddingVertical: 30 }}>
@@ -52,9 +53,8 @@ export default function Status() {
           </Card>
         </Section>
       ) : null}
-
       {p ? (
-        <>
+ <>
           <Section>
             <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <IconBubble name={issues ? 'alert-circle' : 'shield-checkmark'} tone={checks.some((c) => c.tone === 'red') ? 'red' : issues ? 'amber' : 'green'} size={46} />
@@ -66,7 +66,7 @@ export default function Status() {
           </Section>
 
           <Section title="Checks">
-            <Grid>{checks.map((c) => (
+            <View>{checks.map((c) => (
               <Card key={c.id} style={{ marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <IconBubble name={c.icon as any} tone={c.tone === 'neutral' ? 'neutral' : c.tone} size={34} />
@@ -76,9 +76,12 @@ export default function Status() {
                   </View>
                 </View>
               </Card>
-            ))}</Grid>
+            ))}</View>
           </Section>
-
+        </>
+      ) : null}
+      </>} right={<>
+      {p ? (
           <Section title="Key dates" action="Edit" onAction={() => router.push('/status/edit')}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
               <DateTile label="I-94 admit until" value={p.i94Expiry} />
@@ -89,9 +92,7 @@ export default function Status() {
               {p.extFiled ? <DateTile label="Extension filed" value={p.extFiled} /> : null}
             </View>
           </Section>
-        </>
       ) : null}
-
       <Section title="My documents" action={docs.length ? 'Open' : undefined} onAction={() => router.push('/status/vault')}>
         <Card onPress={() => router.push('/status/vault')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           <IconBubble name="folder-open-outline" tone="amber" size={42} />
@@ -130,6 +131,7 @@ export default function Status() {
       <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
         <T v="small" style={{ textAlign: 'center' }}>Checks are reminders based on your dates — not legal advice.</T>
       </View>
+      </>} />
     </Screen>
   );
 }

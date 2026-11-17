@@ -11,4 +11,4 @@ export function useLayout() {
 }
 
 // Width for one tile when `n` fit per row with a 10px gap
-export const tileWidth = (n: number) => `${Math.floor(((100 - (n - 1) * 3) / n) * 10) / 10}%` as const;
+export const tileWidth = (n: number) => `${Math.floor(((100 - (n - 1) * 4) / n) * 10) / 10}%` as const;

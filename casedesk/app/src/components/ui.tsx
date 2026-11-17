@@ -46,9 +46,21 @@ export function Screen({ title, subtitle, children, right, scroll = true }: {
   );
   if (!scroll) return <View style={{ flex: 1, backgroundColor: t.bg }}>{body}</View>;
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingBottom: L.wide ? insets.bottom + 40 : insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
       {body}
     </ScrollView>
+  );
+}
+
+// Two-pane page: side by side on unfolded foldables / tablets, stacked on phones.
+export function Columns({ left, right, ratio = 1 }: { left: React.ReactNode; right: React.ReactNode; ratio?: number }) {
+  const L = useLayout();
+  if (!L.wide) return <View>{left}{right}</View>;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+      <View style={{ flex: 1, minWidth: 0 }}>{left}</View>
+      <View style={{ flex: ratio, minWidth: 0 }}>{right}</View>
+    </View>
   );
 }
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { Screen, Section, Card, T, Segmented, Field, Note, Pill, IconBubble, Grid } from '../../src/components/ui';
+import { Screen, Section, Card, T, Segmented, Field, Note, Pill, IconBubble, Columns } from '../../src/components/ui';
 import { HBars } from '../../src/components/charts';
 import { useTheme } from '../../src/theme';
 import { TOP_INITIAL_FY25, TOP_CONTINUING_FY25, H1B_SOURCE } from '../../src/data/h1b';
@@ -86,12 +86,13 @@ export default function Data() {
 
   return (
     <Screen title="Employers" subtitle="H-1B · PERM · LCA by company">
+      <Columns left={<>
       <Section>
         <Field placeholder="Search an employer, e.g. HCL America" value={q} onChangeText={search} autoCorrect={false} autoCapitalize="words" />
         {busy ? <ActivityIndicator color={t.sub} /> : null}
         {results === null ? (
           <T v="sub">See how many H-1B petitions an employer got approved (USCIS Data Hub), plus PERM green card certifications and LCAs (DOL).</T>
-        ) : results.length ? <Grid>{results.map((e, i) => <EmployerCard key={e.name + i} e={e} />)}</Grid> : (
+        ) : results.length ? results.map((e, i) => <EmployerCard key={e.name + i} e={e} />) : (
           <Card style={{ alignItems: 'center', paddingVertical: 22 }}>
             <T v="h3">No employer found for “{q}”</T>
             <T v="sub" style={{ textAlign: 'center', marginTop: 6, maxWidth: 280 }}>
@@ -101,7 +102,7 @@ export default function Data() {
         )}
         {!isLive() && results !== null ? <View style={{ marginTop: 6 }}><Note>Built-in data: FY 2025 for the largest sponsors only.</Note></View> : null}
       </Section>
-
+      </>} right={<>
       <Section title="Largest sponsors · FY 2025">
         <Card>
           <Segmented options={[{ label: 'New hires', value: 'initial' }, { label: 'Extensions', value: 'continuing' }]} value={view} onChange={setView} />
@@ -117,6 +118,7 @@ export default function Data() {
           <T v="h3" style={{ color: t.accent, fontSize: 14 }}>Open the USCIS H-1B Employer Data Hub ↗</T>
         </Card>
       </Section>
+      </>} />
     </Screen>
   );
 }
