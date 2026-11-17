@@ -18,7 +18,8 @@ os.makedirs(OUT, exist_ok=True)
 
 def run(*a, **k): return subprocess.run(a, check=True, **k)
 
-def api(method, path, body=None, ok409=False):
+def api(method, path, body=None, ok409=False, tries=5):
+  for n in range(tries):
     tok = jwt.encode({'iss': ISSUER, 'iat': int(time.time()), 'exp': int(time.time()) + 900, 'aud': 'appstoreconnect-v1'}, PRIV, algorithm='ES256', headers={'kid': KEY_ID, 'typ': 'JWT'})
     req = urllib.request.Request('https://api.appstoreconnect.apple.com' + path, method=method, data=json.dumps(body).encode() if body else None,
                                  headers={'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json'})
@@ -27,6 +28,7 @@ def api(method, path, body=None, ok409=False):
     except urllib.error.HTTPError as e:
         msg = e.read().decode()
         if e.code == 409 and ok409: return {}
+        if e.code >= 500 and n < tries - 1: print(f'Apple busy ({e.code}), retrying…'); time.sleep(10 * (n + 1)); continue
         print(f'Apple API {method} {path} -> {e.code}: {msg}', file=sys.stderr); raise SystemExit(1)
 
 def write_credentials_json(pw):
@@ -54,7 +56,11 @@ for extra in (['-legacy'], []):
     r = subprocess.run(['openssl', 'pkcs12', '-in', f'{OUT}/dist.p12', '-nokeys', '-clcerts', '-passin', f'pass:{pw}', *extra], capture_output=True)
     if r.returncode == 0 and b'BEGIN CERTIFICATE' in r.stdout:
         der = subprocess.run(['openssl', 'x509', '-outform', 'DER'], input=r.stdout, capture_output=True, check=True).stdout; break
-cert_id = next((c['id'] for c in api('GET', '/v1/certificates?limit=200')['data'] if der and base64.b64decode(c['attributes'].get('certificateContent') or '') == der), None)
+serial = subprocess.run(['openssl', 'x509', '-inform', 'DER', '-noout', '-serial'], input=der, capture_output=True, check=True).stdout.decode().strip().split('=')[1].upper().lstrip('0')
+cands = api('GET', f'/v1/certificates?filter[serialNumber]={serial}&fields[certificates]=serialNumber,certificateType')['data']
+cert_id = next((c['id'] for c in cands if (c['attributes'].get('serialNumber') or '').upper().lstrip('0') == serial), None)
+if not cert_id:
+    cert_id = next((c['id'] for c in api('GET', '/v1/certificates?limit=200')['data'] if base64.b64decode(c['attributes'].get('certificateContent') or '') == der), None)
 if not cert_id: print('Inbox certificate not found at Apple', file=sys.stderr); sys.exit(1)
 print('Using Inbox distribution certificate ✓')
 
