@@ -3,13 +3,15 @@ import { Alert } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { ChatView } from '@/components/ChatView';
 import { DuoBar } from '@/components/DuoBar';
-import { setCurrentChat, showList, useLayout } from '@/lib/layout';
+import { setCurrentChat, showList, useLayout, useStatusGutter } from '@/lib/layout';
 import { S, isPrivateRoom } from '@/lib/matrix';
 import { startCall, callsAvailable } from '@/lib/calls';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { collapsed } = useLayout();
+  // Duo front screen: iOS shows its own back button under the clock, so don't add a second one.
+  const sysBack = useStatusGutter() > 0;
   useEffect(() => { setCurrentChat(id!); }, [id]);
   const r = S.rooms.get(id!);
   const canCall = !!r && isPrivateRoom(r) && callsAvailable;
@@ -26,7 +28,7 @@ export default function ChatScreen() {
       )}
       <DuoBar />
       {/* One column: a back button returns to the list; call buttons stay in the chat's own header (never top-right). */}
-      <ChatView key={id} id={id!} nativeActions={false} onBack={collapsed ? () => { setCurrentChat(null); showList(); } : undefined} />
+      <ChatView key={id} id={id!} nativeActions={false} onBack={collapsed && !sysBack ? () => { setCurrentChat(null); showList(); } : undefined} />
     </>
   );
 }

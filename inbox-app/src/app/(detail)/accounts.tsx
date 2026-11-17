@@ -19,7 +19,7 @@ import { useWindowDimensions } from 'react-native';
 import { useStatusGutter, useLayout, showList } from '@/lib/layout';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 29;
+export const APP_BUILD = 30;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
@@ -126,7 +126,7 @@ export default function Accounts() {
       <View style={{ width: '100%', maxWidth: 640 }}>
         <View style={{ paddingRight: gut }}>
           <View style={styles.titleRow}>
-            {collapsed && <Pressable onPress={showList} hitSlop={12} accessibilityLabel="Back to chats"><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>}
+            {collapsed && !gut && <Pressable onPress={showList} hitSlop={12} accessibilityLabel="Back to chats"><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>}
             <Text style={[styles.title, { color: t.ink }]}>Accounts</Text>
           </View>
         </View>
