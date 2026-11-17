@@ -75,7 +75,7 @@ const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact }: { r
 });
 
 export function ChatList({ tab }: { tab: Tab }) {
-  const v = useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const { width } = useWindowDimensions();
+  const v = useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const { width, height: winH } = useWindowDimensions();
   const wide = useWide(); const focused = useIsFocused(); const gut = useStatusGutter();
   const selected = useSelected(); const setSelected = setSel;
   const [kind, setKind] = useState<Kind>('all');
@@ -119,7 +119,9 @@ export function ChatList({ tab }: { tab: Tab }) {
   const open = (id: string) => { if (wide) setSelected(id); else router.push({ pathname: '/chat/[id]', params: { id } }); };
   const title = archived ? 'Archived' : tab === 'all' ? 'Inbox' : NETS[tab].label;
   const starredView = kind === 'starred' && !archived && !q;
-  const paneW = wide ? Math.round(Math.min(420, Math.max(190, width * (width < 700 ? 0.44 : 0.38)))) : width;
+  // iPhone Duo open in portrait: split like a book — list on the left page, chat on the right, divider on the fold (centre).
+  const book = wide && winH > width && width < 900;
+  const paneW = !wide ? width : book ? Math.round(width / 2) : Math.round(Math.min(420, Math.max(190, width * 0.38)));
   const compact = wide && paneW < 300;
 
   const header = (

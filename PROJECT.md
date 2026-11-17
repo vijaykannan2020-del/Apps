@@ -400,3 +400,4 @@ Newest first. Add one line per change: date, who, version, what.
 - 2026-11-16 · inbox-app v15 (OTA): call history in chats (incoming/outgoing with duration, missed in red, declined/no answer; tap to call back), missed calls red in chat list + unread; call diagnostics removed.
 - 2026-11-16 · inbox-app v17 (OTA) + server: Instagram/bridged 1:1 chats no longer shown as 3-member groups; typing names + online/last seen (presence); profile photo & name in Accounts; WhatsApp voice notes converted to Ogg Opus on server (pushgw ffmpeg, original kept for in-app playback); Media/Links/Docs screen from chat info; reels play in-app when the bridge sends the video; WhatsApp send_presence_on_typing on.
 - 2026-11-16 · inbox-app v18 (OTA): videos/reels download to a phone cache before playing (media server byte-range issue broke AVPlayer).
+- 2026-11-16 · inbox-app v19 (OTA): Duo open in portrait splits like a book — divider on the fold (50/50).

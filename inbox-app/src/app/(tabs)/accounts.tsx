@@ -19,7 +19,7 @@ import { useWide, useStatusGutter } from '@/lib/layout';
 import { AppSwitcher, SWITCHER_SPACE } from '@/components/AppSwitcher';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 18;
+export const APP_BUILD = 19;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
