@@ -10,11 +10,11 @@ def get(path):
     try:
         with urllib.request.urlopen(req) as r: return json.loads(r.read())
     except urllib.error.HTTPError as e: return {'error': e.code, 'body': e.read().decode()[:500]}
-b = get(f'/v1/builds?filter[app]={APP}&sort=-uploadedDate&limit=10&include=buildBetaDetail,preReleaseVersion&fields[builds]=version,processingState,uploadedDate,expired,usesNonExemptEncryption,minOsVersion')
+b = get(f'/v1/builds?filter[app]={APP}&sort=-uploadedDate&limit=10')
 inc = {(i['type'], i['id']): i for i in b.get('included', [])}
 for d in b.get('data', []):
-    a = d['attributes']; bd = d['relationships'].get('buildBetaDetail', {}).get('data')
-    det = inc.get(('buildBetaDetails', bd['id']), {}).get('attributes', {}) if bd else {}
+    a = d['attributes']
+    det = get(f"/v1/builds/{d['id']}/buildBetaDetail").get('data', {}).get('attributes', {})
     print(f"build {a['version']}: processing={a['processingState']} uploaded={a['uploadedDate']} expired={a['expired']} encryption={a.get('usesNonExemptEncryption')} internal={det.get('internalBuildState')} external={det.get('externalBuildState')}")
     g = get(f"/v1/builds/{d['id']}/betaGroups")
     print('   groups:', [x['attributes']['name'] for x in g.get('data', [])] or g)
