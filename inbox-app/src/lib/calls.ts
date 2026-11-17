@@ -41,6 +41,8 @@ export function useCall() {
   useSyncExternalStore(f => { subs.add(f); return () => { subs.delete(f); }; }, () => ver, () => ver);
   return cur;
 }
+/** CallKit reports call ids in lowercase; ours are uppercase — always compare this way. */
+const same = (a?: string | null, b?: string | null) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
 const set = (patch: Partial<Call>) => { if (cur) { cur = { ...cur, ...patch }; emit(); } };
 
 // ---------- helpers ----------
@@ -153,7 +155,9 @@ function onInvite(r: Room, ev: MEvent) {
     return;
   }
   const video = /m=video/.test(c.offer?.sdp || '');
+  const wanted = answerWanted; // answered on the lock screen before this invite synced
   reset();
+  answerWanted = wanted;
   offer = c.offer; remoteParty = c.party_id || null;
   inCands = earlyCands.get(c.call_id) || []; earlyCands.delete(c.call_id);
   cur = { callId: c.call_id, uuid: uuidFor(c.call_id), roomId: r.id, name: roomName(r), video, dir: 'in', state: 'ringing', startedAt: null,
@@ -294,12 +298,12 @@ export function startCalls() {
     ios: { appName: 'Inbox', supportsVideo: true, maximumCallGroups: '1', maximumCallsPerCallGroup: '1', includesCallsInRecents: false },
     android: { alertTitle: 'Permissions', alertDescription: 'Inbox needs access to make calls', cancelButton: 'Cancel', okButton: 'OK', additionalPermissions: [] },
   } as any).catch(() => {});
-  RNCallKeep.addEventListener('answerCall', ({ callUUID }) => { if (cur && cur.uuid === callUUID) doAnswer(); else answerWanted = true; });
-  RNCallKeep.addEventListener('endCall', ({ callUUID }) => { if (cur && cur.uuid === callUUID && cur.state !== 'ended') hangup(); });
+  RNCallKeep.addEventListener('answerCall', ({ callUUID }) => { if (cur && same(cur.uuid, callUUID)) doAnswer(); else answerWanted = true; });
+  RNCallKeep.addEventListener('endCall', ({ callUUID }) => { if (cur && same(cur.uuid, callUUID) && cur.state !== 'ended') hangup(); });
   RNCallKeep.addEventListener('didActivateAudioSession', () => { audioActive = true; try { RTCAudioSession.audioSessionDidActivate(); } catch {} });
   RNCallKeep.addEventListener('didDeactivateAudioSession', () => { audioActive = false; try { RTCAudioSession.audioSessionDidDeactivate(); } catch {} });
   RNCallKeep.addEventListener('didPerformSetMutedCallAction', ({ muted, callUUID }) => {
-    if (cur && cur.uuid === callUUID && cur.muted !== muted) { cur.local?.getAudioTracks().forEach(t => { t.enabled = !muted; }); set({ muted }); }
+    if (cur && same(cur.uuid, callUUID) && cur.muted !== muted) { cur.local?.getAudioTracks().forEach(t => { t.enabled = !muted; }); set({ muted }); }
   });
   RNCallKeep.addEventListener('didLoadWithEvents', (events: any[]) => {
     for (const e of events || []) {

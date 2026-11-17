@@ -396,3 +396,4 @@ Newest first. Add one line per change: date, who, version, what.
 - 2026-11-16 · inbox-app v11 (OTA) + pushgw: tapping a notification opens that chat (reads room id from data/body/trigger payload; waits for screens on cold start).
 - 2026-11-16 · calls fix (v12 OTA): never send ICE candidates before invite/answer; callee keeps early candidates; connected via ICE state too. Server: coturn allowed-peer-ip for private IP; /push/health status endpoint.
 - 2026-11-16 · calls v13 (OTA): replay CallKit audio activation missed before JS loaded; live call diagnostics line (ICE/candidate types/bytes per media).
+- 2026-11-16 · calls v14 (OTA): CallKit lowercases call UUIDs — compare case-insensitively (answer/end/mute were ignored); keep a lock-screen answer that arrives before the invite.
