@@ -91,6 +91,17 @@ export default function Status() {
             </View>
           </Section>
       ) : null}
+      <Section>
+        <Card onPress={() => router.push('/alerts')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <IconBubble name="notifications-outline" size={42} />
+          <View style={{ flex: 1 }}>
+            <T v="h3">Alerts</T>
+            <T v="sub" style={{ marginTop: 2 }}>Choose when to be reminded before your dates</T>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={t.faint} />
+        </Card>
+      </Section>
+
       <Section title="My documents" action={docs.length ? 'Open' : undefined} onAction={() => router.push('/status/vault')}>
         <Card onPress={() => router.push('/status/vault')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           <IconBubble name="folder-open-outline" tone="amber" size={42} />

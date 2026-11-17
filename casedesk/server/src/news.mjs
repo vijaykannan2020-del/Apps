@@ -3,6 +3,7 @@
 // one-line summary and 2–3 "what it means" points; otherwise the official abstract is trimmed.
 import fs from 'node:fs';
 import path from 'node:path';
+import { notifyNews } from './push.mjs';
 
 const DATA = path.resolve('data');
 const SUMMARY_FILE = path.join(DATA, 'summaries.json');
@@ -163,7 +164,10 @@ export async function refreshNews() {
       points: [], impact: sources.length >= 3 ? 'medium' : 'info', tags, url: i.url, sources,
     }));
   saveSummaries();
-  if (items.length || web.length) state = { items: [...items.map((i) => ({ ...i, kind: 'official' })), ...web], at: Date.now() };
+  if (items.length || web.length) {
+    state = { items: [...items.map((i) => ({ ...i, kind: 'official' })), ...web], at: Date.now() };
+    notifyNews(state.items).catch((e) => console.error('notify news', e.message));
+  }
   return state;
 }
 

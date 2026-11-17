@@ -52,7 +52,10 @@ export default function Today() {
         title="Today"
         subtitle={today}
         right={
-          <GlassButton icon="person-circle-outline" label="Settings" onPress={() => router.push('/about')} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <GlassButton icon="notifications-outline" label="Alerts" onPress={() => router.push('/alerts')} />
+            <GlassButton icon="person-circle-outline" label="Settings" onPress={() => router.push('/about')} />
+          </View>
         }
         scroll={false}
       >

@@ -2,6 +2,7 @@
 // If parsing fails (page layout changed), the last good copy or data/content/bulletin.json is served.
 import fs from 'node:fs';
 import path from 'node:path';
+import { notifyBulletin } from './push.mjs';
 
 const INDEX = 'https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html';
 const FILE = path.resolve('data/content/bulletin.json');
@@ -51,6 +52,7 @@ export async function refreshBulletin() {
   const filing = parseTable(html, /DATES FOR FILING OF EMPLOYMENT-BASED/i);
   if (!final) throw new Error('Could not parse Final Action table');
   const month = url.match(/visa-bulletin-for-([a-z]+)-(\d{4})/i);
+  const prev = state;
   const rows = CATS.filter(([, k]) => final[k]).map(([, cat, label]) => ({ cat, label, final: final[cat], filing: filing?.[cat] ?? Object.fromEntries(COLS.map((c) => [c, null])) }));
   state = {
     month: `${month[1][0].toUpperCase()}${month[1].slice(1)} ${month[2]}`,
@@ -60,6 +62,7 @@ export async function refreshBulletin() {
   };
   fs.mkdirSync(path.dirname(FILE), { recursive: true });
   fs.writeFileSync(FILE, JSON.stringify(state, null, 2));
+  notifyBulletin(prev, state).catch((e) => console.error('notify bulletin', e.message));
   return state;
 }
 

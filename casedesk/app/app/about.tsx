@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Linking } from 'react-native';
 import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
 import { DetailScreen } from '../src/components/TopBar';
 import { Card, T, Section, Row, Pill } from '../src/components/ui';
 import { isLive, API_BASE } from '../src/lib/api';
 import { useCases, useI9 } from '../src/lib/store';
 
 export default function About() {
+  const router = useRouter();
   const [cases] = useCases();
   const [i9] = useI9();
   return (
@@ -15,6 +17,11 @@ export default function About() {
         <T v="h1">CaseDesk</T>
         <T v="sub" style={{ marginTop: 4 }}>Tracker & toolkit for USCIS · v{Constants.expoConfig?.version}</T>
       </View>
+      <Section title="Notifications">
+        <Card style={{ paddingVertical: 4 }}>
+          <Row icon="notifications-outline" tone="accent" title="Alerts" subtitle="Reminders, case updates, news and Visa Bulletin" onPress={() => router.push('/alerts')} last />
+        </Card>
+      </Section>
       <Section title="Connection">
         <Card style={{ paddingVertical: 4 }}>
           <Row icon="cloud-outline" tone={isLive() ? 'green' : 'amber'} title="CaseDesk server" subtitle={isLive() ? API_BASE : 'Not connected — demo mode'} right={<Pill label={isLive() ? 'Live' : 'Demo'} tone={isLive() ? 'green' : 'amber'} small />} />

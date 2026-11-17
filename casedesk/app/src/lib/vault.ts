@@ -31,7 +31,7 @@ const emit = () => listeners.forEach((l) => l());
 async function list(): Promise<VaultDoc[]> {
   try { const r = await AsyncStorage.getItem(KEY); return r ? JSON.parse(r) : []; } catch { return []; }
 }
-async function write(docs: VaultDoc[]) { try { await AsyncStorage.setItem(KEY, JSON.stringify(docs)); } catch {} emit(); }
+async function write(docs: VaultDoc[]) { try { await AsyncStorage.setItem(KEY, JSON.stringify(docs)); } catch {} emit(); import('./alerts').then((a) => a.scheduleReminders()).catch(() => {}); }
 
 export function useVault(): [VaultDoc[], boolean] {
   const [docs, setDocs] = useState<VaultDoc[]>([]);

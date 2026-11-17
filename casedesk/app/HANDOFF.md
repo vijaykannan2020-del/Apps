@@ -63,3 +63,10 @@ See `../server/README.md` and `../README.md`.
 - `src/components/Glass.tsx` = `expo-glass-effect` GlassView on iOS 26+, blur on older iOS, tonal surface on Android/web. Header buttons use `GlassButton`.
 - Colours are Apple system colours (`src/theme.ts`), same palette as Inbox; light and dark follow the phone.
 - iOS scroll views use `contentInsetAdjustmentBehavior="automatic"`, so safe areas and the tab bar are handled by iOS (no manual top/bottom padding on iOS).
+
+## Alerts (app/alerts.tsx, src/lib/alerts.ts, src/lib/background.ts, server/src/push.mjs)
+- User chooses everything on the Alerts screen (bell on Today, Settings, My Status).
+- Date reminders = LOCAL notifications on the phone (expo-notifications): I-94 / approval / EAD / passport / visa from My Status at chosen days-before and hour; saved-document expiry; team I-9 reverification. Rescheduled whenever dates, documents or I-9 records change and on every launch (iOS keeps max 64 → next 60).
+- Case status changes: background task (expo-background-task, ~every 4 h, OS decides) looks up tracked cases and notifies on change. Receipts stay on the phone.
+- News + Visa Bulletin: Expo push from the server. App POST /api/alerts {token, platform, news:{enabled,tags,importantOnly,webNews}, bulletin:{enabled,country,categories}} — no personal data. Server sends on new official items matching topics (first run only records, no blast) and on a new monthly bulletin (per country/category change). Big web stories (3+ outlets) only if chosen.
+- Push tokens need the EAS project id (set when the TestFlight build is created) and APNs/FCM keys via EAS.

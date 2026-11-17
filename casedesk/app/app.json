@@ -55,7 +55,14 @@
           "photosPermission": "CaseDesk lets you pick photos of your immigration documents to store them on this phone.",
           "microphonePermission": false
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#0A84FF"
+        }
+      ],
+      "expo-background-task"
     ],
     "extra": {
       "apiBase": "https://casedeskapp.duckdns.org"

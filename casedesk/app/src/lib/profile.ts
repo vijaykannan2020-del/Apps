@@ -31,6 +31,8 @@ export async function saveProfile(p: Profile | null) {
     else await AsyncStorage.removeItem(KEY);
   } catch {}
   listeners.forEach((l) => l());
+  // keep date reminders in step with the saved dates
+  import('./alerts').then((a) => a.applyAlerts()).catch(() => {});
 }
 export function useProfile(): [Profile | null, boolean] {
   const [p, setP] = useState<Profile | null>(null);

@@ -37,6 +37,7 @@ async function read<T>(key: string, fallback: T): Promise<T> {
 async function write<T>(key: string, value: T) {
   try { await AsyncStorage.setItem(key, JSON.stringify(value)); } catch {}
   emit();
+  if (key === KEYS.i9) import('./alerts').then((a) => a.scheduleReminders()).catch(() => {});
 }
 
 function useStored<T>(key: string, fallback: T): [T, (v: T) => Promise<void>, boolean] {
