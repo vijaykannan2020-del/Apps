@@ -3,32 +3,55 @@ import { View, Pressable, ActivityIndicator, Linking, Alert, Platform } from 're
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { DetailScreen } from '../../src/components/TopBar';
-import { Card, T, Pill, Section, Note, Row, Button } from '../../src/components/ui';
+import { Card, T, Pill, Section, Note, Row, Button, tap } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
 import { useCases, upsertCase, removeCase } from '../../src/lib/store';
 import { stageOf, STAGES, CENTERS } from '../../src/lib/caseStatus';
-import { fetchCase } from '../../src/lib/api';
+import { checkInSafari, parseCaseText, toCaseResult } from '../../src/lib/uscisSafari';
+import { TextInput } from 'react-native';
 import { timesForForm, fmtMonths, PT_AS_OF } from '../../src/data/processing';
 
 export default function CaseDetail() {
   const t = useTheme();
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, check } = useLocalSearchParams<{ id: string; check?: string }>();
   const [cases] = useCases();
   const c = cases.find((x) => x.receipt === id);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
+  const [paste, setPaste] = useState('');
+  const [showPaste, setShowPaste] = useState(false);
+  const [ok, setOk] = useState('');
+
+  const apply = async (p: ReturnType<typeof parseCaseText>) => {
+    if (!id || !p) return false;
+    const r = await toCaseResult(id, p);
+    await upsertCase({ receipt: id, form: r.form || c?.form, status: r.status, detail: r.detail, updated: r.updated, history: r.history, demo: false });
+    tap(); setOk(`Updated · ${r.status}`); setShowPaste(false); setPaste(''); setErr('');
+    return true;
+  };
+
   const refresh = async () => {
     if (!id) return;
-    setBusy(true); setErr('');
+    setBusy(true); setErr(''); setOk('');
     try {
-      const r = await fetchCase(id);
-      await upsertCase({ receipt: id, form: r.form, status: r.status, detail: r.detail, updated: r.updated, history: r.history, demo: r.demo });
+      const p = await checkInSafari(id);
+      if (!(await apply(p))) {
+        setShowPaste(true);
+        setErr('Copy the status on the USCIS page (press and hold the text → Select All → Copy), then tap “Paste result”.');
+      }
     } catch (e: any) { setErr(e.message); }
     setBusy(false);
   };
-  useEffect(() => { if (c && !c.status) refresh(); }, [c?.receipt]);
+
+  const pasteFromClipboard = async () => {
+    let text = paste;
+    if (!text && Platform.OS !== 'web') { try { text = await require('expo-clipboard').getStringAsync(); } catch {} }
+    if (!(await apply(parseCaseText(text, id)))) setErr('That doesn’t look like a USCIS status. Copy the heading and the sentence under it, then try again.');
+  };
+
+  useEffect(() => { if (check === '1' && c && !c.status) refresh(); }, [c?.receipt]);
 
   if (!c) return <DetailScreen title="Case"><T v="sub" style={{ padding: 20 }}>Case not found.</T></DetailScreen>;
   const st = stageOf(c.status);
@@ -47,12 +70,43 @@ export default function CaseDetail() {
     >
       <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
         <T v="label">{c.receipt}{c.demo ? ' · Sample data' : ''}</T>
-        <T v="h1" style={{ marginTop: 8 }}>{c.status ?? 'Checking…'}</T>
+        <T v="h1" style={{ marginTop: 8 }}>{c.status ?? 'Not checked yet'}</T>
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
           <Pill label={st.short} tone={st.tone === 'neutral' ? 'neutral' : st.tone} />
           {c.updated ? <Pill label={`Updated ${c.updated}`} /> : null}
         </View>
       </View>
+
+      <Section>
+        <Card>
+          <T v="h3">Check on USCIS</T>
+          <T v="sub" style={{ marginTop: 4 }}>
+            Opens USCIS Case Status in Safari with {c.receipt} copied — paste it, tap Check Status, then copy the result and come back.
+          </T>
+          <View style={{ marginTop: 12 }}>
+            {busy ? <ActivityIndicator color={t.sub} style={{ paddingVertical: 14 }} /> : <Button label={c.status ? 'Check again' : 'Check status on USCIS'} icon="open-outline" onPress={refresh} />}
+          </View>
+          {ok ? <View style={{ marginTop: 10 }}><Note tone="accent">{ok}</Note></View> : null}
+          {err ? <View style={{ marginTop: 10 }}><Note tone="amber">{err}</Note></View> : null}
+          {showPaste ? (
+            <View style={{ marginTop: 12 }}>
+              <TextInput
+                value={paste}
+                onChangeText={setPaste}
+                multiline
+                placeholder="Or paste the USCIS result here"
+                placeholderTextColor={t.faint}
+                style={{ minHeight: 84, backgroundColor: t.surface2, color: t.text, borderRadius: 12, padding: 12, fontSize: 15, textAlignVertical: 'top' }}
+              />
+              <View style={{ marginTop: 10 }}><Button label="Paste result" kind="secondary" icon="clipboard-outline" onPress={pasteFromClipboard} /></View>
+            </View>
+          ) : (
+            <Pressable onPress={() => setShowPaste(true)} hitSlop={8} style={{ marginTop: 10, alignSelf: 'center' }}>
+              <T v="small" style={{ color: t.accent }}>Already copied it? Paste result</T>
+            </Pressable>
+          )}
+        </Card>
+      </Section>
 
       {/* Progress */}
       <Section>
@@ -75,7 +129,6 @@ export default function CaseDetail() {
         </Card>
       </Section>
 
-      {err ? <View style={{ paddingHorizontal: 20, marginTop: 14 }}><Note tone="red">{err}</Note></View> : null}
 
       {c.detail ? (
         <Section title="What USCIS says">

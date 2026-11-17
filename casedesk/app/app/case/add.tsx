@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { DetailScreen } from '../../src/components/TopBar';
 import { Field, Button, T, Note, Card } from '../../src/components/ui';
 import { RECEIPT_RE, normalizeReceipt, CENTERS } from '../../src/lib/caseStatus';
-import { fetchCase } from '../../src/lib/api';
 import { upsertCase } from '../../src/lib/store';
 import { useTheme } from '../../src/theme';
 
@@ -22,13 +21,10 @@ export default function AddCase() {
   const save = async () => {
     setBusy(true); setError('');
     try {
-      const res = await fetchCase(r);
-      await upsertCase({ receipt: r, nickname: nickname.trim() || undefined, form: res.form, status: res.status, detail: res.detail, updated: res.updated, history: res.history, demo: res.demo });
-      router.replace(`/case/${r}`);
-    } catch (e: any) {
-      setError(e.message || 'Could not reach USCIS. Saved — try again later.');
       await upsertCase({ receipt: r, nickname: nickname.trim() || undefined, history: [] });
-    } finally { setBusy(false); }
+      router.replace({ pathname: '/case/[id]', params: { id: r, check: '1' } });
+    } catch (e: any) { setError(e.message || 'Could not save.'); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -45,11 +41,11 @@ export default function AddCase() {
         <Field label="Nickname (optional)" placeholder="e.g. My H-1B extension" value={nickname} onChangeText={setNickname} />
         {error ? <View style={{ marginBottom: 12 }}><Note tone="red">{error}</Note></View> : null}
         <View style={{ marginTop: 8 }}>
-          {busy ? <ActivityIndicator color={t.text} style={{ paddingVertical: 14 }} /> : <Button label="Check status" icon="search" onPress={save} disabled={!valid} />}
+          {busy ? <ActivityIndicator color={t.text} style={{ paddingVertical: 14 }} /> : <Button label="Add & check on USCIS" icon="search" onPress={save} disabled={!valid} />}
         </View>
         <Card style={{ marginTop: 24, backgroundColor: t.surface2 }}>
           <T v="label">Privacy</T>
-          <T v="sub" style={{ marginTop: 6 }}>The app checks the official USCIS Case Status page (egov.uscis.gov) from this phone. Only the receipt number goes to USCIS. Cases are stored on this phone.</T>
+          <T v="sub" style={{ marginTop: 6 }}>USCIS Case Status opens in Safari with your receipt number ready to paste. Copy the result and CaseDesk fills in the case. Nothing is sent to CaseDesk servers; cases stay on this phone.</T>
         </Card>
       </View>
     </DetailScreen>

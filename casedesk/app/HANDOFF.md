@@ -72,7 +72,6 @@ See `../server/README.md` and `../README.md`.
 - Push tokens need the EAS project id (set when the TestFlight build is created) and APNs/FCM keys via EAS.
 
 ## Case status (Nov 17 2026)
-- USCIS's site (egov.uscis.gov) sits behind Cloudflare and returns 403 to servers, so the server can't scrape it.
-- The phone does the lookup instead: `src/components/UscisLookup.tsx` opens egov.uscis.gov in a hidden in-app browser (react-native-webview), fills the receipt number, presses Check Status and reads the result card. If USCIS shows a "verify you are human" check, the page slides up so the person can complete it.
-- `fetchCase()` uses this on the phone; background checks use the server (works only once USCIS Torch API keys are set). Web preview stays on sample data.
-- Selectors are heuristic (input name/id containing "receipt", button "Check Status", the paragraph that contains the receipt number). If USCIS redesigns the page, adjust `script()`.
+- USCIS Case Status Online (egov.uscis.gov) is behind Cloudflare: servers get 403 and the in-app WebView stalls on "Verifying…". We do not try to get around it.
+- Flow now (`src/lib/uscisSafari.ts`): the case page's "Check status on USCIS" copies the receipt, opens egov.uscis.gov in Safari (SFSafariViewController via expo-web-browser), the person pastes + checks + copies the result; on return the clipboard is parsed (`parseCaseText`: heading + "On <date>, we …" sentence, form, date). Fallback: paste box.
+- Automatic checks/push for case changes need the official USCIS Case Status API (server already supports it; needs a US-incorporated org, affidavit and demo).

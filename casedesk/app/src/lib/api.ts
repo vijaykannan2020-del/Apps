@@ -1,8 +1,6 @@
 import Constants from 'expo-constants';
 import { STARTER_NEWS, STARTER_WEB_NEWS, NewsItem } from '../data/news';
 import { stripHtml } from './caseStatus';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { lookupOnPhone, phoneLookupAvailable } from '../components/UscisLookup';
 
 // Set "extra.apiBase" in app.json to your Oracle server, e.g. https://api.casedesk.app
 export const API_BASE: string = (Constants.expoConfig?.extra as any)?.apiBase || '';
@@ -19,21 +17,9 @@ async function get<T>(path: string): Promise<T> {
 
 export type CaseResult = { receipt: string; form?: string; status: string; detail: string; updated?: string; history: { date: string; status: string }[]; demo?: boolean };
 
-// Case status: on the phone, read straight from USCIS Case Status Online (egov.uscis.gov) in an
-// in-app browser — USCIS blocks servers, and this keeps the receipt number between the phone and USCIS.
-// Background checks (no screen) use the server, which only works once USCIS API keys are set there.
-export async function fetchCase(receipt: string, opts: { background?: boolean } = {}): Promise<CaseResult> {
-  if (!opts.background && phoneLookupAvailable()) {
-    const w = await lookupOnPhone(receipt);
-    let history: CaseResult['history'] = [];
-    try {
-      const all = JSON.parse((await AsyncStorage.getItem('cd.cases.v1')) || '[]');
-      history = all.find((c: any) => c.receipt === receipt)?.history || [];
-    } catch {}
-    const date = w.date || new Date().toISOString().slice(0, 10);
-    if (!history.length || history[0].status !== w.status) history = [{ date, status: w.status }, ...history];
-    return { receipt, form: w.form, status: w.status, detail: w.detail, updated: w.date || history[0]?.date, history };
-  }
+// Case status from the server (needs USCIS Case Status API keys there). Without them the app uses
+// the Safari check in src/lib/uscisSafari.ts.
+export async function fetchCase(receipt: string, _opts: { background?: boolean } = {}): Promise<CaseResult> {
   if (!API_BASE) return demoCase(receipt);
   const d = await get<any>(`/api/case/${receipt}`);
   return { ...d, detail: stripHtml(d.detail) };
