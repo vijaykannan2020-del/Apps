@@ -403,3 +403,4 @@ Newest first. Add one line per change: date, who, version, what.
 - 2026-11-16 · inbox-app v19 (OTA): Duo open in portrait splits like a book — divider on the fold (50/50).
 - 2026-11-16 · inbox-app v20 (OTA): book split 50/50 on the Duo inner screen in any orientation (inner screen is landscape).
 - 2026-11-16 · inbox-app v21 (runtime 4, needs build with RNS_GAMMA_ENABLED): app shell rebuilt on Apple's split view (expo-router SplitView → UISplitViewController); list = sidebar column, chat/info/media/accounts/call in a detail Stack; iOS handles iPhone/Duo poses natively; hand-made two-pane/50-50 and NativeTabs removed.
+- 2026-11-16 · inbox-app v22 (runtime 4 OTA): detail column keeps content clear of the floating split-view sidebar (measured overlap + safe area).

@@ -1,8 +1,30 @@
 // The right-hand column: chat, chat info, media, Accounts and calls, with normal back navigation between them.
+import { useRef, useState } from 'react';
+import { View } from 'react-native';
 import { Stack } from 'expo-router';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLayout, getSidebarRight } from '@/lib/layout';
 import { useTheme } from '@/lib/theme';
 
+// Keeps the right-hand column's content clear of the floating list panel when they're side by side.
+function ClearOfSidebar({ children }: { children: React.ReactNode }) {
+  const ins = useSafeAreaInsets(); const { collapsed } = useLayout();
+  const ref = useRef<any>(null); const [x, setX] = useState(0);
+  const measure = () => ref.current?.measureInWindow((px: number) => setX(px));
+  const overlap = collapsed ? 0 : Math.max(0, getSidebarRight() - x);
+  const left = Math.max(ins.left, overlap);
+  return (
+    <View ref={ref} onLayout={measure} style={{ flex: 1 }}>
+      <View style={{ flex: 1, marginLeft: left, marginRight: collapsed ? 0 : ins.right }}>{children}</View>
+    </View>
+  );
+}
+
 export default function DetailLayout() {
+  return <SafeAreaProvider><ClearOfSidebar><DetailStack /></ClearOfSidebar></SafeAreaProvider>;
+}
+
+function DetailStack() {
   const t = useTheme();
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: 'default' }}>

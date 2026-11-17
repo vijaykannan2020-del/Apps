@@ -27,6 +27,12 @@ export function useLayout() {
   return { collapsed, current };
 }
 
+// Right edge of the list column in window coordinates — the detail column keeps its content clear of it
+// (on iOS 26+ the sidebar floats over the detail column, which extends underneath it).
+let sidebarRight = 0;
+export function setSidebarRight(x: number) { if (Math.abs(x - sidebarRight) > 0.5) { sidebarRight = x; ver++; emit(); } }
+export const getSidebarRight = () => sidebarRight;
+
 /** Show the detail column (on iPhone this slides it in; on the open Duo it's already beside the list). */
 export function showDetail() { try { split?.show('secondary'); } catch {} }
 /** Back to the list (one-column layouts only). */
