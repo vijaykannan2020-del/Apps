@@ -57,10 +57,20 @@ for extra in (['-legacy'], []):
     if r.returncode == 0 and b'BEGIN CERTIFICATE' in r.stdout:
         der = subprocess.run(['openssl', 'x509', '-outform', 'DER'], input=r.stdout, capture_output=True, check=True).stdout; break
 serial = subprocess.run(['openssl', 'x509', '-inform', 'DER', '-noout', '-serial'], input=der, capture_output=True, check=True).stdout.decode().strip().split('=')[1].upper().lstrip('0')
-cands = api('GET', f'/v1/certificates?filter[serialNumber]={serial}&fields[certificates]=serialNumber,certificateType')['data']
-cert_id = next((c['id'] for c in cands if (c['attributes'].get('serialNumber') or '').upper().lstrip('0') == serial), None)
-if not cert_id:
-    cert_id = next((c['id'] for c in api('GET', '/v1/certificates?limit=200')['data'] if base64.b64decode(c['attributes'].get('certificateContent') or '') == der), None)
+def same(c): return (c.get('attributes', {}).get('serialNumber') or '').upper().lstrip('0') == serial or (der and base64.b64decode(c.get('attributes', {}).get('certificateContent') or '') == der)
+cert_id = None
+lookups = [
+    '/v1/certificates?filter[certificateType]=DISTRIBUTION&limit=50',
+    '/v1/certificates?filter[certificateType]=IOS_DISTRIBUTION&limit=50',
+    '/v1/profiles?filter[profileType]=IOS_APP_STORE&include=certificates&limit=50',
+    '/v1/certificates?limit=200',
+]
+for path in lookups:
+    try: res = api('GET', path, tries=2)
+    except SystemExit: print(f'  lookup failed: {path.split("?")[0]}'); continue
+    pool = res.get('included', []) + [c for c in res.get('data', []) if c.get('type') == 'certificates']
+    cert_id = next((c['id'] for c in pool if c.get('type') == 'certificates' and same(c)), None)
+    if cert_id: break
 if not cert_id: print('Inbox certificate not found at Apple', file=sys.stderr); sys.exit(1)
 print('Using Inbox distribution certificate ✓')
 
