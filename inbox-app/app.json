@@ -20,7 +20,8 @@
           "audio"
         ],
         "NSMicrophoneUsageDescription": "Inbox uses the microphone for voice messages and calls.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocalNetworkUsageDescription": "Inbox uses your local network to connect calls directly when you and the other person are on the same Wi-Fi, for the best call quality."
       }
     },
     "android": {
