@@ -27,7 +27,7 @@ export default function RootLayout() {
             <Stack.Screen name="index" />
             <Stack.Screen name="login" options={{ animation: 'fade' }} />
             <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-            <Stack.Screen name="chat/[id]" />
+            <Stack.Screen name="chat/[id]" options={{ fullScreenGestureEnabled: false, gestureResponseDistance: { start: 30 } as any }} />
             <Stack.Screen name="call" options={{ presentation: 'fullScreenModal', gestureEnabled: false, animation: 'fade' }} />
             <Stack.Screen name="info/[id]" />
           </Stack>

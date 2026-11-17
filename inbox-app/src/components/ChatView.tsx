@@ -117,6 +117,7 @@ const Bubble = memo(function Bubble({ r, ev, first, last, recent, t, onLong, onR
   const meta = `${isStarred(ev) ? '⭐ ' : ''}${ev.edited ? 'edited · ' : ''}${time}${ev.failed ? ' · not sent' : ''}`;
   return (
     <ReanimatedSwipeable ref={sw} friction={2} leftThreshold={60} overshootLeft={false} enabled={!ev.redacted && !ev.pending}
+      hitSlop={{ left: -32 }} dragOffsetFromLeft={16}
       renderLeftActions={() => <View style={styles.swipeReply}><Ionicons name="arrow-undo" size={20} color={t.soft} /></View>}
       onSwipeableOpen={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); onReply(ev); sw.current?.close(); }}>
       <View style={[styles.msgRow, { justifyContent: mine ? 'flex-end' : 'flex-start', paddingTop: first ? 8 : 2, backgroundColor: t.bg }]}>

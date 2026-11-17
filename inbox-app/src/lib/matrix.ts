@@ -288,8 +288,11 @@ function processSync(d: any, first: boolean) {
     if (ev.type === 'inbox.starred') S.starred = ev.content?.items || [];
     else if (ev.type === 'inbox.reminders') S.reminders = ev.content?.reminders || {};
     else if (ev.type === 'm.push_rules') {
-      const rules = ev.content?.global?.room || [];
-      S.muted = new Set(rules.filter((x: any) => x.enabled !== false && (!x.actions || !x.actions.length || x.actions.includes('dont_notify'))).map((x: any) => x.rule_id));
+      const quiet = (x: any) => x.enabled !== false && (!x.actions || !x.actions.length || x.actions.includes('dont_notify'));
+      const roomMuted = new Set<string>((ev.content?.global?.room || []).filter(quiet).map((x: any) => x.rule_id));
+      const ovr = (ev.content?.global?.override || []).filter((x: any) => String(x.rule_id).startsWith(MUTE_PREFIX));
+      S.muted = new Set([...roomMuted, ...ovr.filter(quiet).map((x: any) => x.rule_id.slice(MUTE_PREFIX.length))]);
+      syncMuteOverrides(roomMuted, new Set(ovr.map((x: any) => x.rule_id.slice(MUTE_PREFIX.length))));
     }
   }
   for (const id of Object.keys(rooms.invite || {})) api('POST', `/_matrix/client/v3/join/${enc(id)}`, {}).catch(() => {});
@@ -441,12 +444,30 @@ export async function forward(ev: MEvent, to: Room) {
   if (c.msgtype === 'm.text') c.body = mdPlain(stripReply(c.body || ''));
   await api('PUT', `/_matrix/client/v3/rooms/${enc(to.id)}/send/${ev.type === 'm.sticker' ? 'm.sticker' : 'm.room.message'}/${newTxn()}`, c);
 }
+// Mute = silent but still unread. A "room" rule alone lets @mentions and your name still ring (those rules rank higher),
+// so each muted chat also gets a top-priority "override" rule. WhatsApp-side mutes (room rules from the bridge) are mirrored too.
+const MUTE_PREFIX = 'inbox.mute.';
+const muteOverride = (id: string) => ({ conditions: [{ kind: 'event_match', key: 'room_id', pattern: id }], actions: [] });
+let muteSyncing = false;
+async function syncMuteOverrides(roomMuted: Set<string>, overrides: Set<string>) {
+  if (muteSyncing || !S.token) return; muteSyncing = true;
+  try {
+    for (const id of roomMuted) if (!overrides.has(id))
+      await api('PUT', `/_matrix/client/v3/pushrules/global/override/${enc(MUTE_PREFIX + id)}`, muteOverride(id)).catch(() => {});
+    for (const id of overrides) if (!roomMuted.has(id))
+      await api('DELETE', `/_matrix/client/v3/pushrules/global/override/${enc(MUTE_PREFIX + id)}`).catch(() => {});
+  } finally { muteSyncing = false; }
+}
 export async function setMuted(r: Room, on: boolean) {
   if (on) S.muted.add(r.id); else S.muted.delete(r.id); changed();
-  try {
-    if (on) await api('PUT', `/_matrix/client/v3/pushrules/global/room/${enc(r.id)}`, { actions: [] });
-    else await api('DELETE', `/_matrix/client/v3/pushrules/global/room/${enc(r.id)}`);
-  } catch (e: any) { if (!(e.status === 404 && !on)) throw e; }
+  const ign404 = (e: any) => { if (!(e.status === 404 && !on)) throw e; };
+  if (on) {
+    await api('PUT', `/_matrix/client/v3/pushrules/global/room/${enc(r.id)}`, { actions: [] });
+    await api('PUT', `/_matrix/client/v3/pushrules/global/override/${enc(MUTE_PREFIX + r.id)}`, muteOverride(r.id));
+  } else {
+    await api('DELETE', `/_matrix/client/v3/pushrules/global/room/${enc(r.id)}`).catch(ign404);
+    await api('DELETE', `/_matrix/client/v3/pushrules/global/override/${enc(MUTE_PREFIX + r.id)}`).catch(ign404);
+  }
 }
 export const isStarred = (ev: MEvent) => S.starred.some(x => x.event === ev.event_id);
 export async function toggleStar(r: Room, ev: MEvent) {
