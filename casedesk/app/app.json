@@ -66,6 +66,7 @@
     ],
     "extra": {
       "apiBase": "https://casedeskapp.duckdns.org"
-    }
+    },
+    "owner": "vijayakannankrishnans-team"
   }
 }
