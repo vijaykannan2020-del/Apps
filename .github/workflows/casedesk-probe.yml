@@ -6,3 +6,4 @@ jobs:
     steps:
       - run: |
           for p in /api/visa-bulletin /api/visa-waits /api/health; do echo "== $p"; curl -s -m 60 "https://casedeskapp.duckdns.org$p" | head -c 2500; echo; done
+          echo "== flag"; curl -s -o /tmp/f.html -w '%{http_code} %{size_download}\n' -A 'CaseDesk/1.0' https://flag.dol.gov/wage-data/wage-data-downloads; grep -oiE 'href="[^"]*OFLC_Wages_[^"]*\.zip"' /tmp/f.html | head -3
