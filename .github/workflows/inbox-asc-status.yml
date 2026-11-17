@@ -1,0 +1,26 @@
+# Read-only check of what App Store Connect says about Inbox builds. Change inbox-app/asc-check.txt to run.
+name: Inbox TestFlight status
+on:
+  push:
+    branches: [main]
+    paths: ['inbox-app/asc-check.txt']
+  workflow_dispatch:
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: inbox-app } }
+    env:
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      EXPO_ASC_API_KEY_PATH: ${{ github.workspace }}/inbox-app/asc.p8
+      EXPO_ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      EXPO_ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 - <<'PY'
+          import os, re
+          body = re.sub(r'\s+', '', re.sub(r'-----(BEGIN|END) PRIVATE KEY-----', '', os.environ['ASC_KEY_P8']))
+          open('asc.p8', 'w').write('-----BEGIN PRIVATE KEY-----\n' + '\n'.join(body[i:i+64] for i in range(0, len(body), 64)) + '\n-----END PRIVATE KEY-----\n')
+          PY
+          pip install --quiet pyjwt cryptography
+          python3 scripts/asc-status.py
