@@ -9,6 +9,8 @@ import { useCases, upsertCase, removeCase } from '../../src/lib/store';
 import { stageOf, STAGES, CENTERS } from '../../src/lib/caseStatus';
 import { checkInSafari, parseCaseText, toCaseResult } from '../../src/lib/uscisSafari';
 import { TextInput } from 'react-native';
+import { ShareCardButton } from '../../src/components/ShareCard';
+import { CaseCommunity } from '../../src/components/CaseCommunity';
 import { timesForForm, fmtMonths, PT_AS_OF } from '../../src/data/processing';
 
 export default function CaseDetail() {
@@ -107,6 +109,22 @@ export default function CaseDetail() {
           )}
         </Card>
       </Section>
+
+      {c.status ? (() => {
+        const first = c.history?.[c.history.length - 1]?.date, last = c.history?.[0]?.date;
+        const took = first && last && first !== last ? Math.round((new Date(last).getTime() - new Date(first).getTime()) / 864e5) : null;
+        const win = /approved|card|delivered|oath/i.test(c.status);
+        return (
+          <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
+            <ShareCardButton label={win ? 'Share the good news' : 'Share my progress'} kind={win ? 'primary' : 'secondary'} card={{
+              kind: 'case', title: c.status, subtitle: `${c.form ? 'Form ' + c.form + ' · ' : ''}${CENTERS[c.receipt.slice(0, 3)] ?? 'USCIS'}`,
+              stat: win ? (took ? `${took} days` : 'Approved! 🎉') : st.short, statLabel: win && took ? 'from receipt to approval' : undefined,
+            }} />
+          </View>
+        );
+      })() : null}
+
+      <CaseCommunity receipt={c.receipt} form={c.form} history={c.history} status={c.status} />
 
       {/* Progress */}
       <Section>

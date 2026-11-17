@@ -17,6 +17,9 @@ const CATS = [
 ];
 
 let state = null;
+let lastError = null;
+const UA = { headers: { 'User-Agent': 'CaseDesk/1.0 (immigration info app; +https://casedeskapp.duckdns.org)', Accept: 'text/html' } };
+export const bulletinStatus = () => ({ loaded: !!state, month: state?.month || null, error: lastError });
 try { state = JSON.parse(fs.readFileSync(FILE, 'utf8')); } catch {}
 
 const cell = (s) => {
@@ -43,11 +46,13 @@ function parseTable(html, heading) {
 }
 
 export async function refreshBulletin() {
-  const idx = await (await fetch(INDEX)).text();
+  const r0 = await fetch(INDEX, UA);
+  if (!r0.ok) throw new Error(`HTTP ${r0.status}`);
+  const idx = await r0.text();
   const link = idx.match(/href="([^"]*visa-bulletin-for-[a-z]+-\d{4}\.html)"/i)?.[1];
   if (!link) throw new Error('Visa Bulletin link not found');
   const url = link.startsWith('http') ? link : `https://travel.state.gov${link}`;
-  const html = await (await fetch(url)).text();
+  const html = await (await fetch(url, UA)).text();
   const final = parseTable(html, /FINAL ACTION DATES FOR EMPLOYMENT-BASED/i);
   const filing = parseTable(html, /DATES FOR FILING OF EMPLOYMENT-BASED/i);
   if (!final) throw new Error('Could not parse Final Action table');
@@ -68,7 +73,7 @@ export async function refreshBulletin() {
 
 export async function getBulletin() {
   if (!state || Date.now() - (fs.existsSync(FILE) ? fs.statSync(FILE).mtimeMs : 0) > 24 * 3600e3) {
-    try { await refreshBulletin(); } catch (e) { console.error('bulletin:', e.message); }
+    try { await refreshBulletin(); lastError = null; } catch (e) { lastError = e.message; console.error('bulletin:', e.message); }
   }
   if (!state) throw Object.assign(new Error('Visa Bulletin not loaded yet'), { status: 503 });
   return state;

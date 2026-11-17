@@ -1,32 +1,54 @@
 import React, { useCallback, useState } from 'react';
 import { View, Switch } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { DetailScreen } from '../../src/components/TopBar';
 import { Field, Button, T, Chips, DateField, Note, Divider } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
 import { VISA_TYPES, VisaType, Profile, loadProfile, saveProfile, usesEAD, hasPetition } from '../../src/lib/profile';
+import { loadFamily, saveMember, removeMember, RELATIONS } from '../../src/lib/family';
 
 export default function EditStatus() {
   const t = useTheme();
   const router = useRouter();
   const [p, setP] = useState<Profile>({ visa: 'H-1B' });
   const [existing, setExisting] = useState(false);
+  const { member } = useLocalSearchParams<{ member?: string }>();
+  const isMember = !!member;
+  const [name, setName] = useState('');
+  const [relation, setRelation] = useState('Spouse');
+  const [memberId] = useState(() => (member && member !== 'new' ? member : String(Date.now())));
   // Reload when coming back (e.g. after scanning a document that filled some dates)
-  useFocusEffect(useCallback(() => { loadProfile().then((v) => { if (v) { setP(v); setExisting(true); } }); }, []));
+  useFocusEffect(useCallback(() => {
+    if (isMember) {
+      loadFamily().then((all) => { const m = all.find((x) => x.id === memberId); if (m) { setP(m.profile); setName(m.name); setRelation(m.relation); setExisting(true); } });
+    } else loadProfile().then((v) => { if (v) { setP(v); setExisting(true); } });
+  }, [isMember, memberId]));
+  const save = async () => {
+    if (isMember) await saveMember({ id: memberId, name: name.trim() || relation, relation, profile: p });
+    else await saveProfile(p);
+    router.back();
+  };
+  const clear = async () => { if (isMember) await removeMember(memberId); else await saveProfile(null); router.back(); };
   const set = (k: keyof Profile) => (v: any) => setP({ ...p, [k]: v });
   const ok = (s?: string) => !s || /^\d{4}-\d{2}-\d{2}$/.test(s);
   const valid = [p.i94Expiry, p.petitionEnd, p.passportExpiry, p.visaStampExpiry, p.eadExpiry, p.statusStart, p.extFiled].every(ok);
 
   return (
-    <DetailScreen title={existing ? 'Edit my status' : 'Set up my status'}>
+    <DetailScreen title={isMember ? (existing ? `Edit ${name || 'family member'}` : 'Add family member') : existing ? 'Edit my status' : 'Set up my status'}>
       <View style={{ paddingHorizontal: 20 }}>
         <T v="sub" style={{ marginBottom: 14 }}>Copy the dates from your I-94, approval notice (I-797), passport and EAD — or scan them. Everything stays on this phone.</T>
-        <View style={{ marginBottom: 16 }}><Button label="Scan a document to fill dates" icon="scan" kind="secondary" onPress={() => router.push('/status/vault?add=1')} /></View>
+        {isMember ? (
+          <>
+            <Field label="Name" placeholder="e.g. Priya" value={name} onChangeText={setName} />
+            <T v="label" style={{ marginBottom: 8 }}>Relation</T>
+            <View style={{ marginHorizontal: -20, marginBottom: 14 }}><Chips options={RELATIONS.map((r) => ({ label: r, value: r }))} value={relation} onChange={setRelation} /></View>
+          </>
+        ) : <View style={{ marginBottom: 16 }}><Button label="Scan a document to fill dates" icon="scan" kind="secondary" onPress={() => router.push('/status/vault?add=1')} /></View>}
         <T v="label" style={{ marginBottom: 8 }}>Current status</T>
       </View>
       <Chips options={VISA_TYPES.map((v) => ({ label: v, value: v }))} value={p.visa} onChange={(v) => set('visa')(v as VisaType)} />
       <View style={{ padding: 20 }}>
-        <Field label="Employer" placeholder="e.g. HCL America Inc." value={p.employer ?? ''} onChangeText={set('employer')} />
+        {!isMember || hasPetition(p.visa) ? <Field label="Employer" placeholder="e.g. HCL America Inc." value={p.employer ?? ''} onChangeText={set('employer')} /> : null}
         <DateField label="I-94 “Admit Until” date" value={p.i94Expiry} onChange={set('i94Expiry')} hint="From i94.cbp.dhs.gov — the date that controls your stay." />
         {hasPetition(p.visa) || p.visa === 'H-4' || p.visa === 'H-4 EAD' || p.visa === 'L-2S' ? <DateField label="Approval notice valid to (I-797)" value={p.petitionEnd} onChange={set('petitionEnd')} /> : null}
         <DateField label="Passport expires" value={p.passportExpiry} onChange={set('passportExpiry')} />
@@ -45,8 +67,8 @@ export default function EditStatus() {
         <DateField label="Date filed (receipt date)" value={p.extFiled} onChange={set('extFiled')} />
         <Field label="Receipt number" placeholder="e.g. WAC2690012345" autoCapitalize="characters" value={p.extReceipt ?? ''} onChangeText={set('extReceipt')} />
         {!valid ? <View style={{ marginBottom: 12 }}><Note tone="red">Check the dates — use YYYY-MM-DD.</Note></View> : null}
-        <Button label="Save" onPress={async () => { await saveProfile(p); router.back(); }} disabled={!valid} />
-        {existing ? <View style={{ marginTop: 10 }}><Button label="Clear my status" kind="secondary" icon="trash-outline" onPress={async () => { await saveProfile(null); router.back(); }} /></View> : null}
+        <Button label="Save" onPress={save} disabled={!valid} />
+        {existing ? <View style={{ marginTop: 10 }}><Button label={isMember ? 'Remove family member' : 'Clear my status'} kind="secondary" icon="trash-outline" onPress={clear} /></View> : null}
       </View>
     </DetailScreen>
   );

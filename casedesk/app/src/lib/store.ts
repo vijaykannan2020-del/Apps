@@ -18,15 +18,21 @@ export type I9Record = {
   name: string;
   visa: string;
   doc: string;
-  expires: string; // YYYY-MM-DD
+  expires: string; // YYYY-MM-DD — work authorization end (I-9 reverification)
   notes?: string;
+  // Employer mode (optional)
+  i94?: string;
+  petitionEnd?: string;
+  passport?: string;
+  ead?: string;
+  team?: string;
 };
 
 const KEYS = { cases: 'cd.cases.v1', i9: 'cd.i9.v1' };
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
-async function read<T>(key: string, fallback: T): Promise<T> {
+export async function read<T>(key: string, fallback: T): Promise<T> {
   try {
     const raw = await AsyncStorage.getItem(key);
     return raw ? (JSON.parse(raw) as T) : fallback;
@@ -34,13 +40,13 @@ async function read<T>(key: string, fallback: T): Promise<T> {
     return fallback;
   }
 }
-async function write<T>(key: string, value: T) {
+export async function write<T>(key: string, value: T) {
   try { await AsyncStorage.setItem(key, JSON.stringify(value)); } catch {}
   emit();
-  if (key === KEYS.i9) import('./alerts').then((a) => a.scheduleReminders()).catch(() => {});
+  if (key === KEYS.i9 || key === 'cd.family.v1' || key === 'cd.pd.v1') import('./alerts').then((a) => a.scheduleReminders()).catch(() => {});
 }
 
-function useStored<T>(key: string, fallback: T): [T, (v: T) => Promise<void>, boolean] {
+export function useStored<T>(key: string, fallback: T): [T, (v: T) => Promise<void>, boolean] {
   const [val, setVal] = useState<T>(fallback);
   const [ready, setReady] = useState(false);
   const load = useCallback(() => { read(key, fallback).then((v) => { setVal(v); setReady(true); }); }, [key]);
@@ -70,4 +76,12 @@ export async function saveI9(r: I9Record) {
 export async function removeI9(id: string) {
   const all = await read<I9Record[]>(KEYS.i9, []);
   await write(KEYS.i9, all.filter((x) => x.id !== id));
+}
+export async function importI9(recs: I9Record[]) {
+  const all = await read<I9Record[]>(KEYS.i9, []);
+  for (const r of recs) {
+    const i = all.findIndex((x) => x.name.toLowerCase() === r.name.toLowerCase());
+    if (i >= 0) all[i] = { ...all[i], ...r, id: all[i].id }; else all.push(r);
+  }
+  await write(KEYS.i9, all);
 }

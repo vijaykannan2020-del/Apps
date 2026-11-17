@@ -106,6 +106,17 @@ export async function buildReminders(p: AlertPrefs): Promise<Reminder[]> {
       for (const d of [...p.reminderDays, 0]) out.push({ id: `${f.k}-${d}`, date: at(v, d, p.hour).toISOString(), title: `${f.label} ends ${when(d)}`, body: d >= 150 && f.k === 'i94Expiry' ? 'Your extension window is open — talk to your employer about filing.' : 'Open CaseDesk to check what to do next.', url: '/status' });
     }
   }
+  if (p.statusReminders) {
+    try {
+      const fam = JSON.parse((await AsyncStorage.getItem('cd.family.v1')) || '[]') as { id: string; name: string; profile: any }[];
+      for (const m of fam) for (const f of DATE_FIELDS) {
+        const v = m.profile?.[f.k] as string | undefined;
+        if (!v || f.k === 'visaStampExpiry') continue;
+        const label = f.label.replace(/^Your /, `${m.name}'s `);
+        for (const d of p.reminderDays) out.push({ id: `fam-${m.id}-${f.k}-${d}`, date: at(v, d, p.hour).toISOString(), title: `${label} ends ${when(d)}`, body: 'Open CaseDesk to check what to do next.', url: '/status' });
+      }
+    } catch {}
+  }
   if (p.i9Reminders) {
     try {
       const recs = JSON.parse((await AsyncStorage.getItem('cd.i9.v1')) || '[]') as { id: string; name: string; expires: string }[];

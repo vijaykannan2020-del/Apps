@@ -75,3 +75,13 @@ See `../server/README.md` and `../README.md`.
 - USCIS Case Status Online (egov.uscis.gov) is behind Cloudflare: servers get 403 and the in-app WebView stalls on "Verifying…". We do not try to get around it.
 - Flow now (`src/lib/uscisSafari.ts`): the case page's "Check status on USCIS" copies the receipt, opens egov.uscis.gov in Safari (SFSafariViewController via expo-web-browser), the person pastes + checks + copies the result; on return the clipboard is parsed (`parseCaseText`: heading + "On <date>, we …" sentence, form, date). Fallback: paste box.
 - Automatic checks/push for case changes need the official USCIS Case Status API (server already supports it; needs a US-incorporated org, affidavit and demo).
+
+## Growth features (Nov 17 2026)
+- Tools → Plan ahead: Can I travel? (`src/lib/travel.ts`), Green card planner (`app/tools/gc-planner.tsx`), My priority date (`src/lib/pd.ts`, background + launch check, local notification once per bulletin month), H-1B lottery hub (`src/data/lottery.ts` — update NEXT_SEASON when USCIS announces FY 2028), Visa appointment waits (server `/api/visa-waits`, built-in India snapshot in `src/data/waits.ts`).
+- Citizenship test practice: `src/data/civics.ts` = official 128 questions parsed from USCIS M-1778 (09/25) PDF; flashcards, 20/12 mock test, 65/20 mode.
+- Family mode: `src/lib/family.ts` (cd.family.v1); My Status chips; `/status/edit?member=<id|new>`; reminders include family dates.
+- Shareable cards: `src/components/ShareCard.tsx` (react-native-view-shot + expo-sharing) on case, bulletin, priority date, civics.
+- Employer dashboard: `app/tools/employer.tsx`, `src/lib/employer.ts` (deadlines, CSV export/import); I9Record has optional i94/petitionEnd/ead/passport/team.
+- Cases like mine: server `src/community.mjs` (POST/DELETE /api/community, GET /api/community/stats), app `src/components/CaseCommunity.tsx` (opt-in per case; no receipt numbers sent).
+- Not done yet: lock-screen widgets (expo-widgets needs an App Group + widget extension App ID/profile in the Apple portal).
+- `.github/workflows/casedesk-probe.yml` (Run workflow) prints the server's /api/health from GitHub.

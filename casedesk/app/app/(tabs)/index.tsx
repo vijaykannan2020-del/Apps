@@ -122,10 +122,12 @@ export default function Today() {
         <Section title="Quick tools">
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
             {[
+              { icon: 'airplane-outline', label: 'Can I travel?', sub: 'Trip check', to: '/tools/travel', tone: 'accent' },
+              { icon: 'calendar-outline', label: 'Priority date', sub: 'Alerts when current', to: '/tools/priority-date', tone: 'amber' },
               { icon: 'trending-up', label: 'Wage level', sub: 'DOL Level I–IV', to: '/tools/wage', tone: 'accent' },
-              { icon: 'cash-outline', label: 'Fee calculator', sub: 'USCIS + employer', to: '/tools/fees', tone: 'green' },
               { icon: 'calendar-number-outline', label: 'Visa Bulletin', sub: 'By country', to: '/tools/bulletin', tone: 'amber' },
-              { icon: 'time-outline', label: 'Processing times', sub: 'USCIS published', to: '/tools/times', tone: 'neutral' },
+              { icon: 'hourglass-outline', label: 'Visa waits', sub: 'By consulate', to: '/tools/visa-waits', tone: 'neutral' },
+              { icon: 'ribbon-outline', label: 'Civics test', sub: 'Citizenship practice', to: '/tools/civics', tone: 'green' },
             ].map((q) => (
               <Card key={q.label} onPress={() => router.push(q.to as any)} style={{ width: tileWidth(2), paddingVertical: 14 }}>
                 <IconBubble name={q.icon as any} tone={q.tone as any} />

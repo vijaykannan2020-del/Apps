@@ -38,6 +38,7 @@ if (Platform.OS !== 'web') {
       try {
         await checkCasesNow(true);
         await scheduleReminders();
+        await require('./pd').checkPriorityDate(true);
       } catch {}
       return require('expo-background-task').BackgroundTaskResult.Success;
     });

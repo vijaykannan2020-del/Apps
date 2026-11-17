@@ -5,6 +5,8 @@ import { Card, T, Section, Segmented, Chips, Pill, Note, Button, DateField } fro
 import { useTheme } from '../../src/theme';
 import { BULLETIN, Bulletin, COUNTRIES, Country, fmtCell, isCurrent } from '../../src/data/bulletin';
 import { fetchOr } from '../../src/lib/api';
+import { ShareCardButton } from '../../src/components/ShareCard';
+import { useRouter } from 'expo-router';
 
 export default function VisaBulletin() {
   const t = useTheme();
@@ -13,6 +15,7 @@ export default function VisaBulletin() {
   const [country, setCountry] = useState<Country>('india');
   const [chart, setChart] = useState<'final' | 'filing'>(BULLETIN.uscisChart);
   const [pd, setPd] = useState('');
+  const router = useRouter();
   useEffect(() => { fetchOr('/api/visa-bulletin', BULLETIN).then((r) => { setB(r.data); setLive(r.live); setChart(r.data.uscisChart); }); }, []);
   const pdOk = /^\d{4}-\d{2}-\d{2}$/.test(pd);
 
@@ -59,8 +62,13 @@ export default function VisaBulletin() {
         <Card>
           <DateField label="My priority date" value={pd} onChange={setPd} hint="On your I-140 approval notice (the PERM filing date)." />
           <T v="sub">Your date is “current” when it is earlier than the date shown. When USCIS uses Dates for Filing, you can file the I-485 once that chart is current.</T>
+          <View style={{ marginTop: 12 }}><Button label="Track my date & get alerts" icon="notifications-outline" onPress={() => router.push('/tools/priority-date')} /></View>
         </Card>
       </Section>
+
+      <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
+        <ShareCardButton card={{ kind: 'bulletin', title: `${COUNTRIES.find((c) => c.value === country)?.label} · ${b.month} Visa Bulletin`, subtitle: b.rows.slice(0, 3).map((r) => `${r.cat} ${fmtCell(r.final[country])}`).join(' · '), stat: fmtCell(b.rows.find((r) => r.cat === 'EB-2')?.final[country] ?? null), statLabel: 'EB-2 final action' }} />
+      </View>
 
       <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
         <Button label="Full bulletin on travel.state.gov" icon="open-outline" kind="secondary" href={b.source} />

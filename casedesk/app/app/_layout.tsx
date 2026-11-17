@@ -13,6 +13,7 @@ export default function Root() {
     setupNotificationHandling();
     registerBackground();
     applyAlerts(); // refresh reminders on every launch
+    import('../src/lib/pd').then((m) => m.checkPriorityDate(true)).catch(() => {});
     if (Platform.OS === 'web') return;
     const N = require('expo-notifications');
     const open = (r: any) => { const url = r?.notification?.request?.content?.data?.url; if (url) router.push(url); };

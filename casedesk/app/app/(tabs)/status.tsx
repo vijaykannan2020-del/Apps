@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Section, Card, T, Pill, IconBubble, Row, Button, Grid, Columns, GlassButton, tap } from '../../src/components/ui';
+import { Screen, Section, Card, T, Pill, IconBubble, Row, Button, Grid, Columns, GlassButton, Chips, tap } from '../../src/components/ui';
+import { useFamily } from '../../src/lib/family';
 import { useLayout, tileWidth } from '../../src/lib/layout';
 import { useTheme } from '../../src/theme';
 import { useProfile, usesEAD } from '../../src/lib/profile';
@@ -26,7 +27,12 @@ function DateTile({ label, value }: { label: string; value?: string }) {
 export default function Status() {
   const t = useTheme();
   const router = useRouter();
-  const [p, ready] = useProfile();
+  const [me, ready] = useProfile();
+  const [family] = useFamily();
+  const [who, setWho] = useState('me');
+  const member = family.find((f) => f.id === who);
+  const p = who === 'me' ? me : member?.profile ?? null;
+  const editPath = who === 'me' ? '/status/edit' : `/status/edit?member=${who}`;
   const [docs] = useVault();
   const checks = p ? runChecks(p) : [];
   const issues = checks.filter((c) => c.tone === 'red' || c.tone === 'amber').length;
@@ -34,19 +40,26 @@ export default function Status() {
   return (
     <Screen
       title="My Status"
-      subtitle={p ? `${p.visa}${p.employer ? ' · ' + p.employer : ''}` : 'Your own compliance'}
+      subtitle={p ? `${member ? member.name + ' · ' : ''}${p.visa}${p.employer ? ' · ' + p.employer : ''}` : 'Your own compliance'}
       right={p ? (
-        <GlassButton icon="create-outline" label="Edit my status" onPress={() => router.push('/status/edit')} />
+        <GlassButton icon="create-outline" label={member ? `Edit ${member.name}` : 'Edit my status'} onPress={() => router.push(editPath as any)} />
       ) : undefined}
     >
+      {ready && (me || family.length) ? (
+        <View style={{ marginBottom: 4 }}>
+          <Chips options={[{ label: 'Me', value: 'me' }, ...family.map((f) => ({ label: f.name, value: f.id })), { label: '+ Family', value: '__add' }]} value={who}
+            onChange={(v) => (v === '__add' ? router.push('/status/edit?member=new' as any) : setWho(v))} />
+        </View>
+      ) : null}
       <Columns left={<>
-      {ready && !p ? (
+      {ready && !p && who === 'me' ? (
         <Section>
           <Card style={{ alignItems: 'center', paddingVertical: 30 }}>
             <IconBubble name="shield-checkmark-outline" size={56} />
             <T v="h2" style={{ marginTop: 16 }}>Track your own status</T>
             <T v="sub" style={{ textAlign: 'center', marginTop: 6, maxWidth: 280 }}>Add your visa type and key dates (I-94, approval, passport, EAD). CaseDesk checks them and warns you before anything lapses.</T>
             <View style={{ marginTop: 18, alignSelf: 'stretch' }}><Button label="Set up my status" onPress={() => router.push('/status/edit')} /></View>
+            <View style={{ marginTop: 10, alignSelf: 'stretch' }}><Button label="Add a family member" kind="secondary" icon="people-outline" onPress={() => router.push('/status/edit?member=new' as any)} /></View>
             <T v="small" style={{ marginTop: 12 }}>Saved only on this phone.</T>
           </Card>
         </Section>
@@ -80,7 +93,7 @@ export default function Status() {
       ) : null}
       </>} right={<>
       {p ? (
-          <Section title="Key dates" action="Edit" onAction={() => router.push('/status/edit')}>
+          <Section title="Key dates" action="Edit" onAction={() => router.push(editPath as any)}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
               <DateTile label="I-94 admit until" value={p.i94Expiry} />
               <DateTile label="Approval valid to" value={p.petitionEnd} />
