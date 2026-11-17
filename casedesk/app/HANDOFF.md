@@ -70,3 +70,9 @@ See `../server/README.md` and `../README.md`.
 - Case status changes: background task (expo-background-task, ~every 4 h, OS decides) looks up tracked cases and notifies on change. Receipts stay on the phone.
 - News + Visa Bulletin: Expo push from the server. App POST /api/alerts {token, platform, news:{enabled,tags,importantOnly,webNews}, bulletin:{enabled,country,categories}} — no personal data. Server sends on new official items matching topics (first run only records, no blast) and on a new monthly bulletin (per country/category change). Big web stories (3+ outlets) only if chosen.
 - Push tokens need the EAS project id (set when the TestFlight build is created) and APNs/FCM keys via EAS.
+
+## Case status (Nov 17 2026)
+- USCIS's site (egov.uscis.gov) sits behind Cloudflare and returns 403 to servers, so the server can't scrape it.
+- The phone does the lookup instead: `src/components/UscisLookup.tsx` opens egov.uscis.gov in a hidden in-app browser (react-native-webview), fills the receipt number, presses Check Status and reads the result card. If USCIS shows a "verify you are human" check, the page slides up so the person can complete it.
+- `fetchCase()` uses this on the phone; background checks use the server (works only once USCIS Torch API keys are set). Web preview stays on sample data.
+- Selectors are heuristic (input name/id containing "receipt", button "Check Status", the paragraph that contains the receipt number). If USCIS redesigns the page, adjust `script()`.

@@ -38,7 +38,7 @@ export default function Cases() {
         }
       >
         <Columns left={<>
-        {!isLive() ? (
+        {!isLive() && Platform.OS === 'web' ? (
           <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
             <Note tone="amber">Demo mode — statuses are samples until the CaseDesk server is connected.</Note>
           </View>

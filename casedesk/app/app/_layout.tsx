@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTheme } from '../src/theme';
+import { UscisLookupHost } from '../src/components/UscisLookup';
 
 export default function Root() {
   const t = useTheme();
@@ -29,6 +30,7 @@ export default function Root() {
         <Stack.Screen name="tools/i9-record" options={{ presentation: 'modal' }} />
         <Stack.Screen name="alerts" />
       </Stack>
+      <UscisLookupHost />
     </SafeAreaProvider>
   );
 }

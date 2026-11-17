@@ -16,7 +16,7 @@ export async function checkCasesNow(notify = true): Promise<number> {
   let changed = 0;
   for (const c of cases) {
     try {
-      const r = await fetchCase(c.receipt);
+      const r = await fetchCase(c.receipt, { background: true });
       if (r.status && r.status !== c.status) {
         changed++;
         Object.assign(c, { form: r.form, status: r.status, detail: r.detail, updated: r.updated, history: r.history });
