@@ -4,3 +4,4 @@
 - v30: Duo front screen uses iOS's own back button (under the clock); Inbox's extra back arrow removed there (kept on normal iPhones).
 - v31: folded: screens other than the one just opened stay blank in the right-hand page (iOS updates it only after it slides in), so no old chat/Accounts flash.
 - v32: Duo open: native glass side strip back — 5 tabs (see-through glyphs tinted by iOS) + call/video/info in chats; bottom bar only on one-column screens.
+- v33: connection status (dots next to the list title + banner when an app is disconnected/reconnecting/syncing; server watcher pushes "X disconnected"/"X reconnected" alerts via /push/bridges + bridge provisioning API); folded bottom bar supports press-and-slide with a lifted lens; folded opens show the tapped screen immediately (no black frame); Duo strip: chat actions top, tabs bottom; picking a tab from Accounts returns to the list view.

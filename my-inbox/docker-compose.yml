@@ -61,6 +61,10 @@ services:
       DOMAIN: ${DOMAIN}
     volumes:
       - ./data/pushgw:/data
+      # read-only: lets the push service check whether WhatsApp/Instagram/Messenger are still logged in
+      - ./data/whatsapp:/bridges/whatsapp:ro
+      - ./data/instagram:/bridges/instagram:ro
+      - ./data/messenger:/bridges/messenger:ro
 
   # Relay for voice/video calls (TURN). Config is written by auto-update.sh into data/turn/
   coturn:

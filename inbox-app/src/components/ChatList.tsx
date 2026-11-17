@@ -12,6 +12,7 @@ import { S, Room, MEvent, Net, NETS, visibleRooms, roomName, preview, fmtTime, i
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { AppSwitcher, SWITCHER_SPACE } from '@/components/AppSwitcher';
+import { ConnDots, ConnBanner } from '@/components/ConnStatus';
 import { useStatusGutter } from '@/lib/layout';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
 import { quickTimes, fmtWhen } from '@/lib/time';
@@ -125,7 +126,9 @@ export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) 
       <View style={styles.titleRow}>
         {archived && <Pressable onPress={() => setArchived(false)} hitSlop={12}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>}
         <Text style={[styles.title, { color: t.ink }]}>{title}</Text>
+        {!archived && <ConnDots />}
       </View>
+      {!archived && <ConnBanner />}
       <View style={[styles.search, { backgroundColor: t.fill }]}>
         <Ionicons name="search" size={17} color={t.soft} />
         <TextInput value={q} onChangeText={setQ} placeholder="Search chats and messages" placeholderTextColor={t.soft} style={{ flex: 1, color: t.ink, fontSize: 17 }} autoCorrect={false} returnKeyType="search" />

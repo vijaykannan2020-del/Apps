@@ -2,7 +2,7 @@
 // Apple's native glass toolbar — iOS places it in the Duo's side strip. Icons are see-through glyphs tinted by iOS
 // (before, the logos were drawn in their original black, which looked broken on the glass).
 // One-column screens (normal iPhones, Duo folded) use the glass bar at the bottom of the chat list instead.
-import { Stack, usePathname } from 'expo-router';
+import { Stack, usePathname, router } from 'expo-router';
 import { useImage } from 'expo-image';
 import { useLayout, setListTab, openDetail, ListTab } from '@/lib/layout';
 import { useTheme } from '@/lib/theme';
@@ -23,19 +23,20 @@ export function DuoBar({ actions }: { actions?: DuoActions }) {
   const on = '#0A84FF', off = t.ink;
   const tabBtn = (img: any, label: string, k: ListTab) => {
     const sel = !onAccounts && tab === k;
-    return <Stack.Toolbar.Button image={img} iconRenderingMode="template" tintColor={sel ? on : off} accessibilityLabel={label} selected={sel} onPress={() => setListTab(k)} />;
+    return <Stack.Toolbar.Button image={img} iconRenderingMode="template" tintColor={sel ? on : off} accessibilityLabel={label} selected={sel} onPress={() => { setListTab(k); if (onAccounts) { try { router.dismissTo('/'); } catch { router.navigate('/'); } } }} />;
   };
   return (
     <Stack.Toolbar>
+      {/* chat actions first (top of the side strip), app tabs last (bottom) */}
+      {actions?.onVideo && <Stack.Toolbar.Button icon="video" tintColor={off} accessibilityLabel="Video call" onPress={actions.onVideo} />}
+      {actions?.onCall && <Stack.Toolbar.Button icon="phone" tintColor={off} accessibilityLabel="Voice call" onPress={actions.onCall} />}
+      {actions?.onInfo && <Stack.Toolbar.Button icon="info.circle" tintColor={off} accessibilityLabel="Chat info" onPress={actions.onInfo} />}
+      {actions && <Stack.Toolbar.Spacer />}
       {tabBtn(all, 'All chats', 'all')}
       {tabBtn(wa, 'WhatsApp', 'whatsapp')}
       {tabBtn(ig, 'Instagram', 'instagram')}
       {tabBtn(fb, 'Messenger', 'messenger')}
       <Stack.Toolbar.Button image={me} iconRenderingMode="template" tintColor={onAccounts ? on : off} accessibilityLabel="Accounts" selected={onAccounts} onPress={() => openDetail('/accounts')} />
-      {actions && <Stack.Toolbar.Spacer />}
-      {actions?.onVideo && <Stack.Toolbar.Button icon="video" tintColor={off} accessibilityLabel="Video call" onPress={actions.onVideo} />}
-      {actions?.onCall && <Stack.Toolbar.Button icon="phone" tintColor={off} accessibilityLabel="Voice call" onPress={actions.onCall} />}
-      {actions?.onInfo && <Stack.Toolbar.Button icon="info.circle" tintColor={off} accessibilityLabel="Chat info" onPress={actions.onInfo} />}
     </Stack.Toolbar>
   );
 }

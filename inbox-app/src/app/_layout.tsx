@@ -12,6 +12,7 @@ import { useTheme, useStore } from '@/lib/theme';
 import { Banner } from '@/components/Banner';
 import { startPush } from '@/lib/push';
 import { startCalls } from '@/lib/calls';
+import { startConns } from '@/lib/conn';
 import { CallPill } from '@/components/CallPill';
 import { Sidebar } from '@/components/Sidebar';
 import { LoginScreen } from '@/components/LoginScreen';
@@ -20,7 +21,7 @@ import { setSplitRef, setCollapsed, useLayout, setRootTop } from '@/lib/layout';
 export default function RootLayout() {
   const t = useTheme(); useStore();
   const [loaded, setLoaded] = useState(false);
-  useEffect(() => { restore().finally(() => { setLoaded(true); if (S.token) { startPush(); startCalls(); } }); }, []);
+  useEffect(() => { restore().finally(() => { setLoaded(true); if (S.token) { startPush(); startCalls(); startConns(); } }); }, []);
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.bg }}>
       <SafeAreaProvider>

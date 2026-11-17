@@ -4,7 +4,7 @@ import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { S, api, visibleRooms, isUnread, isArchived } from '@/lib/matrix';
+import { S, api, visibleRooms, isUnread, isArchived, setupRoom, Net } from '@/lib/matrix';
 import { openChat } from '@/lib/layout';
 
 export const IOS_APP = 'com.vijaykannan.myinbox';
@@ -76,8 +76,11 @@ export function startPush() {
   };
   let lastHandled = '';
   const go = (r: Notifications.NotificationResponse | null, coldStart = false) => {
-    const room = roomOf(r);
     const key = r?.notification.request.identifier || '';
+    // "Instagram disconnected" alert: open that app's login chat.
+    const req: any = r?.notification.request; const extra: any = req?.content?.data?.body || req?.trigger?.payload?.body || {};
+    const conn = extra.screen === 'connections' && extra.net ? setupRoom(extra.net as Net) : null;
+    const room = roomOf(r) || conn?.id;
     if (!room || key === lastHandled) return;
     lastHandled = key;
     // On a cold start the screens mount a moment after this runs — wait, then open (and wait for sync if needed).

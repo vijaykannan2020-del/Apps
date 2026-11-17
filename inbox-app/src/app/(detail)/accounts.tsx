@@ -14,12 +14,13 @@ import { pushCapable, enableNativePush, disableNativePush, pushWanted, apnsApi, 
 import { Sheet } from '@/components/Sheet';
 import { fmtWhen } from '@/lib/time';
 import { DuoBar } from '@/components/DuoBar';
+import { TargetScreen } from '@/components/TargetScreen';
 import { useTheme, useStore } from '@/lib/theme';
 import { useWindowDimensions } from 'react-native';
 import { useStatusGutter, useLayout, showList } from '@/lib/layout';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 32;
+export const APP_BUILD = 33;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
@@ -119,7 +120,7 @@ export default function Accounts() {
     </Pressable>
   );
   const nets = Object.keys(NETS) as Net[];
-  if (collapsed && target !== 'accounts') return <View style={{ flex: 1, backgroundColor: t.bg }} />; // see layout.ts target
+  if (collapsed && target && target !== 'accounts') return <TargetScreen />; // see layout.ts target
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <DuoBar />

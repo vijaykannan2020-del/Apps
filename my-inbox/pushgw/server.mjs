@@ -197,6 +197,82 @@ async function notify(body) {
   return rejected;
 }
 
+// ---- Are WhatsApp / Instagram / Messenger still linked? (each bridge's provisioning API) ----
+// The app shows this at the top of the chat list; a watcher alerts the phone when a link drops (e.g. Instagram logged
+// out while its own app's notifications are off) and again when it's back and syncing.
+const BRIDGES = [['whatsapp', 29318, 'WhatsApp'], ['instagram', 29319, 'Instagram'], ['messenger', 29320, 'Messenger']];
+const BAD_STATES = new Set(['BAD_CREDENTIALS', 'LOGGED_OUT', 'UNKNOWN_ERROR']);
+function bridgeSecret(net) {
+  try {
+    const y = fs.readFileSync(`/bridges/${net}/config.yaml`, 'utf8');
+    const m = y.match(/\nprovisioning:[\s\S]*?\n\s+shared_secret:\s*["']?([^"'\s#]+)/);
+    return m && m[1].length >= 16 && m[1] !== 'generate' && m[1] !== 'disable' ? m[1] : null;
+  } catch { return null; }
+}
+async function bridgeStatus(userId, auth) {
+  const out = {};
+  await Promise.all(BRIDGES.map(async ([net, port]) => {
+    const tok = bridgeSecret(net) || String(auth || '').replace(/^Bearer\s+/i, '');
+    if (!tok) { out[net] = { state: 'UNKNOWN' }; return; }
+    try {
+      const r = await fetch(`http://${net}:${port}/_matrix/provision/v3/whoami?user_id=${encodeURIComponent(userId)}`,
+        { headers: { Authorization: 'Bearer ' + tok }, signal: AbortSignal.timeout(6000) });
+      if (!r.ok) { out[net] = { state: 'UNKNOWN', code: r.status }; return; }
+      const j = await r.json();
+      const logins = (j.logins || []).map(l => {
+        const st = l.state || {};
+        return { name: l.name || '', state: st.state_event || l.state_event || 'UNKNOWN', error: st.error || '', message: st.message || l.state_reason || '', ts: st.timestamp || l.state_ts || 0 };
+      });
+      const pick = ['CONNECTED', 'BACKFILLING', 'CONNECTING', 'TRANSIENT_DISCONNECT'].map(k => logins.find(l => l.state === k)).find(Boolean) || logins[0];
+      out[net] = { state: pick ? pick.state : 'NOT_LOGGED_IN', message: pick ? pick.message : '', since: pick ? pick.ts : 0, logins };
+    } catch { out[net] = { state: 'UNREACHABLE' }; }
+  }));
+  return out;
+}
+const watchFile = `${DATA}/bridge-watch.json`;
+let watch = { devices: {}, last: {} }; // devices: apns token -> {user, sandbox, at}; last: user -> net -> state info
+try { watch = { devices: {}, last: {}, ...JSON.parse(fs.readFileSync(watchFile, 'utf8')) }; } catch {}
+function saveWatch() { try { fs.writeFileSync(watchFile, JSON.stringify(watch), { mode: 0o600 }); } catch {} }
+async function alertUser(user, title, body, net, openLogin = false) {
+  for (const [tok, d] of Object.entries(watch.devices)) {
+    if (d.user !== user) continue;
+    const r = await apnsSend(tok, { aps: { alert: { title, body }, sound: 'default' }, body: { screen: 'connections', net: openLogin ? net : undefined } }, { sandbox: !!d.sandbox, collapse: 'conn-' + net });
+    if (r.status === 410 || r.reason === 'BadDeviceToken' || r.reason === 'Unregistered') delete watch.devices[tok];
+  }
+}
+let monitoring = false;
+async function bridgeMonitor() {
+  if (monitoring || !apns) return; monitoring = true;
+  try {
+    const users = [...new Set(Object.values(watch.devices).map(d => d.user))];
+    for (const u of users) {
+      const st = await bridgeStatus(u, null);
+      const last = (watch.last[u] ||= {});
+      for (const [net, , label] of BRIDGES) {
+        const s = st[net] && st[net].state; if (!s || s === 'UNKNOWN' || s === 'UNREACHABLE') continue;
+        const p = (last[net] ||= { ever: false, badRuns: 0, alerted: false });
+        const ok = s === 'CONNECTED' || s === 'BACKFILLING';
+        const bad = BAD_STATES.has(s) || (s === 'NOT_LOGGED_IN' && p.ever);
+        if (ok) {
+          if (p.alerted) await alertUser(u, `✅ ${label} reconnected`, 'Syncing your chats now — new messages will appear in Inbox again.', net);
+          p.ever = true; p.badRuns = 0; p.alerted = false;
+        } else if (bad) {
+          p.badRuns++;
+          if (p.badRuns >= 2 && !p.alerted) {
+            await alertUser(u, `⚠️ ${label} disconnected`, `Inbox isn't receiving ${label} messages. Open Inbox → tap ${label} at the top to log in again.`, net, true);
+            p.alerted = true;
+          }
+        }
+        p.state = s; p.at = Date.now();
+      }
+    }
+    saveWatch();
+  } catch (e) { console.error('bridge monitor', e.message); }
+  monitoring = false;
+}
+setTimeout(bridgeMonitor, 30e3);
+setInterval(bridgeMonitor, 3 * 60e3);
+
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
@@ -237,6 +313,13 @@ http.createServer(async (req, res) => {
         if (!up.ok || !j.content_uri) return send(res, 502, { error: 'Upload failed' });
         return send(res, 200, { content_uri: j.content_uri, size: ogg.length, mimetype: 'audio/ogg' });
       } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+    }
+    if (req.method === 'GET' && url.pathname === '/push/bridges') {
+      const userId = await whoami(req.headers.authorization);
+      if (!userId) return send(res, 401, { error: 'not logged in' });
+      const dev = url.searchParams.get('device') || '';
+      if (/^[0-9a-f]{32,200}$/i.test(dev)) { watch.devices[dev] = { user: userId, sandbox: url.searchParams.get('sandbox') === '1', at: Date.now() }; saveWatch(); }
+      return send(res, 200, { nets: await bridgeStatus(userId, req.headers.authorization), at: Date.now() });
     }
     if (req.method === 'GET' && url.pathname === '/push/health') {
       let h = {}; try { h = JSON.parse(fs.readFileSync(`${DATA}/health.json`, 'utf8')); } catch {}
