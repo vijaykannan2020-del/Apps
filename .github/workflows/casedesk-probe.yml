@@ -5,4 +5,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          for p in /api/health /api/visa-bulletin /api/diag/dos; do echo "== $p"; curl -s -m 60 "https://casedeskapp.duckdns.org$p" | head -c 2500; echo; done
+          for p in /api/visa-bulletin /api/visa-waits /api/health; do echo "== $p"; curl -s -m 60 "https://casedeskapp.duckdns.org$p" | head -c 2500; echo; done
