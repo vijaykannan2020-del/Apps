@@ -119,8 +119,9 @@ export function ChatList({ tab }: { tab: Tab }) {
   const open = (id: string) => { if (wide) setSelected(id); else router.push({ pathname: '/chat/[id]', params: { id } }); };
   const title = archived ? 'Archived' : tab === 'all' ? 'Inbox' : NETS[tab].label;
   const starredView = kind === 'starred' && !archived && !q;
-  // iPhone Duo open in portrait: split like a book — list on the left page, chat on the right, divider on the fold (centre).
-  const book = wide && winH > width && width < 900;
+  // iPhone Duo open (inner screen, held either way): split like a book — list on the left page, chat on the right,
+  // divider exactly on the fold in the centre. Normal iPhones stay one column; bigger screens use a sidebar.
+  const book = wide && width < 1100 && Math.min(width, winH) >= 560;
   const paneW = !wide ? width : book ? Math.round(width / 2) : Math.round(Math.min(420, Math.max(190, width * 0.38)));
   const compact = wide && paneW < 300;
 
