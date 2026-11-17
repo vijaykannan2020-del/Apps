@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useRef } from 'react';
 import { View, Text, Pressable, ScrollView, Platform } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,27 +18,32 @@ export function DetailScreen({ title, children, right, modal }: { title?: string
   const back = () => { tap(); router.canGoBack() ? router.back() : router.replace('/'); };
   const content = <View style={{ width: '100%', maxWidth: L.maxDetail, alignSelf: 'center', paddingLeft: insets.left, paddingRight: insets.right }}>{children}</View>;
 
+  // Options must stay the same object between renders: changing them on every keystroke makes iOS
+  // rebuild the header and drop focus from the text field being typed in.
+  const ios = Platform.OS === 'ios';
+  const backRef = useRef(back); backRef.current = back;
+  const rightRef = useRef(right); rightRef.current = right;
+  const hasRight = !!right;
+  const options = useMemo(() => ({
+    headerShown: true,
+    title: title ?? '',
+    headerTransparent: ios,
+    headerBlurEffect: ios ? (t.dark ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight') : undefined,
+    headerShadowVisible: false,
+    headerTintColor: t.text,
+    headerTitleStyle: { color: t.text },
+    headerStyle: ios ? undefined : { backgroundColor: t.bg },
+    headerBackButtonDisplayMode: 'minimal',
+    headerLeft: modal ? () => (
+      <Pressable onPress={() => backRef.current()} hitSlop={10} accessibilityLabel="Close"><Ionicons name="close" size={24} color={t.text} /></Pressable>
+    ) : undefined,
+    headerRight: hasRight ? () => rightRef.current : undefined,
+  }) as any, [title, t.dark, t.text, t.bg, modal, hasRight, ios]);
+
   if (Platform.OS !== 'web') {
-    const ios = Platform.OS === 'ios';
     return (
       <>
-        <Stack.Screen
-          options={{
-            headerShown: true,
-            title: title ?? '',
-            headerTransparent: ios,
-            headerBlurEffect: ios ? (t.dark ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight') : undefined,
-            headerShadowVisible: false,
-            headerTintColor: t.text,
-            headerTitleStyle: { color: t.text },
-            headerStyle: ios ? undefined : { backgroundColor: t.bg },
-            headerBackButtonDisplayMode: 'minimal',
-            headerLeft: modal ? () => (
-              <Pressable onPress={back} hitSlop={10} accessibilityLabel="Close"><Ionicons name="close" size={24} color={t.text} /></Pressable>
-            ) : undefined,
-            headerRight: right ? () => right : undefined,
-          }}
-        />
+        <Stack.Screen options={options} />
         <ScrollView
           style={{ flex: 1, backgroundColor: t.bg }}
           contentInsetAdjustmentBehavior="automatic"
