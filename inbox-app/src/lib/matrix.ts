@@ -452,6 +452,21 @@ export async function react(r: Room, ev: MEvent, key: string) {
   await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/send/m.reaction/${newTxn()}`,
     { 'm.relates_to': { rel_type: 'm.annotation', event_id: ev.event_id, key } }).catch(() => {});
 }
+/** Photo or video: upload, then post as m.image / m.video (the bridges pass both to WhatsApp/Instagram/Messenger). */
+export async function sendMedia(r: Room, m: { uri: string; mime: string; kind: 'image' | 'video'; name?: string; width?: number; height?: number; durationMs?: number }) {
+  if (m.kind === 'image') return sendImage(r, m.uri, m.mime, m.width, m.height, m.name || 'photo.jpg');
+  const name = m.name || 'video.mp4';
+  const blob = await (await fetch(m.uri)).blob();
+  const up = await fetch(`${S.server}/_matrix/media/v3/upload?filename=${enc(name)}`, {
+    method: 'POST', headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': m.mime }, body: blob,
+  });
+  const j = await up.json().catch(() => ({}));
+  if (!up.ok || !j.content_uri) throw new Error(up.status === 413 ? 'Video is too large' : j.error || 'Upload failed');
+  await api('PUT', `/_matrix/client/v3/rooms/${enc(r.id)}/send/m.room.message/${newTxn()}`, {
+    msgtype: 'm.video', body: name, url: j.content_uri,
+    info: { mimetype: m.mime, size: blob.size, ...(m.width ? { w: Math.round(m.width) } : {}), ...(m.height ? { h: Math.round(m.height) } : {}), ...(m.durationMs ? { duration: Math.round(m.durationMs) } : {}) },
+  });
+}
 export async function sendImage(r: Room, uri: string, mime: string, w?: number, h?: number, name = 'photo.jpg') {
   const blob = await (await fetch(uri)).blob();
   const up = await fetch(`${S.server}/_matrix/media/v3/upload?filename=${enc(name)}`, {

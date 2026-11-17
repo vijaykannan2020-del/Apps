@@ -13,9 +13,10 @@ import { useAudioRecorder, useAudioRecorderState, RecordingPresets, requestRecor
 import ReanimatedSwipeable, { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { S, Room, MEvent, NETS, roomName, netOf, botNetOf, isGroup, memberName, memberCount, mediaSource, markRead, sendText, sendImage,
+import { S, Room, MEvent, NETS, roomName, netOf, botNetOf, isGroup, memberName, memberCount, mediaSource, markRead, sendText, sendImage, sendMedia,
   loadOlder, react, mdPlain, captionOf, stripReply, bodyPreview, hueFor, redact, editMessage, forward, isStarred, toggleStar,
   visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, isUnread, sendRich, roomMembers, setupChips , isPrivateRoom, callSummary, others, presenceText } from '@/lib/matrix';
+import { DropZone, DroppedFile } from '@/components/DropZone';
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
@@ -261,15 +262,27 @@ export function ChatView({ id, onBack, embedded, nativeActions }: { id: string; 
   async function attach(camera = false) {
     const res = camera
       ? await ImagePicker.requestCameraPermissionsAsync().then(p => p.granted ? ImagePicker.launchCameraAsync({ quality: 0.85 }) : null)
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85, allowsMultipleSelection: true, selectionLimit: 10, orderedSelection: true });
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 0.85, allowsMultipleSelection: true, selectionLimit: 10, orderedSelection: true, videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720 });
     if (!res || res.canceled || !res.assets?.length) return;
+    await sendFiles(res.assets.map(a => a.type === 'video'
+      ? { uri: a.uri, mime: a.mimeType || 'video/mp4', kind: 'video' as const, name: a.fileName || 'video.mp4', width: a.width, height: a.height, durationMs: a.duration || undefined }
+      : { uri: a.uri, mime: a.mimeType || 'image/jpeg', kind: 'image' as const, name: a.fileName || 'photo.jpg', width: a.width, height: a.height }));
+  }
+  async function sendFiles(files: DroppedFile[]) {
     setSending(true);
-    let failed = 0;
-    for (const a of res.assets) {
-      try { await sendImage(r!, a.uri, a.mimeType || 'image/jpeg', a.width, a.height, a.fileName || 'photo.jpg'); } catch { failed++; }
+    let failed = 0, why = '';
+    for (const f of files) {
+      try { await sendMedia(r!, f); } catch (e: any) { failed++; why = e?.message || why; }
     }
-    if (failed) Alert.alert('Some photos didn’t send', `${failed} of ${res.assets.length} failed. Try again.`);
+    if (failed) Alert.alert(files.length === 1 ? 'Didn’t send' : 'Some didn’t send', `${failed} of ${files.length} failed${why ? ` (${why})` : ''}. Try again.`);
     setSending(false);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }
+  function dropped(files: DroppedFile[]) {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    const photos = files.filter(f => f.kind === 'image').length, videos = files.length - photos;
+    const what = [photos && `${photos} photo${photos > 1 ? 's' : ''}`, videos && `${videos} video${videos > 1 ? 's' : ''}`].filter(Boolean).join(' and ');
+    Alert.alert(`Send ${what}?`, `To ${roomName(r!)}`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Send', onPress: () => sendFiles(files) }]);
   }
   async function startRec() {
     const p = await requestRecordingPermissionsAsync();
@@ -297,7 +310,7 @@ export function ChatView({ id, onBack, embedded, nativeActions }: { id: string; 
   const fmtRec = (ms: number) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg }} onLayout={e => setWidth(e.nativeEvent.layout.width)}>
+    <DropZone style={{ flex: 1, backgroundColor: t.bg }} onLayout={e => setWidth(e.nativeEvent.layout.width)} onFiles={dropped} label={`Drop to send to ${roomName(r)}`}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
           automaticallyAdjustsScrollIndicatorInsets={false} 
@@ -472,7 +485,7 @@ export function ChatView({ id, onBack, embedded, nativeActions }: { id: string; 
 
       {/* full-screen photo */}
       <PhotoViewer mxc={photo} onClose={() => setPhoto(null)} />
-    </View>
+    </DropZone>
   );
 }
 
