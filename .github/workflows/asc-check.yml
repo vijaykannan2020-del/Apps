@@ -1,0 +1,22 @@
+# Quick check of which App Store Connect API endpoints answer for our key.
+name: Apple API check
+on: { workflow_dispatch: {}, push: { branches: [main], paths: ['.github/workflows/asc-check.yml'] } }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env: { K: '${{ secrets.ASC_KEY_ID }}', I: '${{ secrets.ASC_ISSUER_ID }}', P8: '${{ secrets.ASC_KEY_P8 }}' }
+    steps:
+      - run: |
+          pip install --quiet pyjwt cryptography
+          python3 - <<'PY'
+          import os, re, time, jwt, urllib.request, urllib.error
+          body = re.sub(r'\s+', '', re.sub(r'-----(BEGIN|END) PRIVATE KEY-----', '', os.environ['P8']))
+          pem = '-----BEGIN PRIVATE KEY-----\n' + '\n'.join(body[i:i+64] for i in range(0, len(body), 64)) + '\n-----END PRIVATE KEY-----\n'
+          for path in ['/v1/apps?limit=5&fields[apps]=bundleId,name', '/v1/bundleIds?limit=1', '/v1/certificates?limit=1', '/v1/profiles?limit=1', '/v1/devices?limit=1', '/v1/users?limit=1']:
+              tok = jwt.encode({'iss': os.environ['I'], 'iat': int(time.time()), 'exp': int(time.time()) + 600, 'aud': 'appstoreconnect-v1'}, pem, algorithm='ES256', headers={'kid': os.environ['K'], 'typ': 'JWT'})
+              try:
+                  with urllib.request.urlopen(urllib.request.Request('https://api.appstoreconnect.apple.com' + path, headers={'Authorization': 'Bearer ' + tok})) as r:
+                      print(r.status, path, r.read()[:300].decode())
+              except urllib.error.HTTPError as e:
+                  print(e.code, path, e.read()[:300].decode().replace('\n', ' '))
+          PY
