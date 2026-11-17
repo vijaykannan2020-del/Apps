@@ -19,7 +19,8 @@
           "voip",
           "audio"
         ],
-        "NSMicrophoneUsageDescription": "Inbox uses the microphone for voice messages and calls."
+        "NSMicrophoneUsageDescription": "Inbox uses the microphone for voice messages and calls.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
