@@ -397,3 +397,4 @@ Newest first. Add one line per change: date, who, version, what.
 - 2026-11-16 · calls fix (v12 OTA): never send ICE candidates before invite/answer; callee keeps early candidates; connected via ICE state too. Server: coturn allowed-peer-ip for private IP; /push/health status endpoint.
 - 2026-11-16 · calls v13 (OTA): replay CallKit audio activation missed before JS loaded; live call diagnostics line (ICE/candidate types/bytes per media).
 - 2026-11-16 · calls v14 (OTA): CallKit lowercases call UUIDs — compare case-insensitively (answer/end/mute were ignored); keep a lock-screen answer that arrives before the invite.
+- 2026-11-16 · inbox-app v15 (OTA): call history in chats (incoming/outgoing with duration, missed in red, declined/no answer; tap to call back), missed calls red in chat list + unread; call diagnostics removed.

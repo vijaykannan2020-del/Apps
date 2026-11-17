@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { RTCView } from 'react-native-webrtc';
-import { callStats, useCall, hangup, answer, toggleMute, toggleSpeaker, toggleCamera, flipCamera } from '@/lib/calls';
+import { useCall, hangup, answer, toggleMute, toggleSpeaker, toggleCamera, flipCamera } from '@/lib/calls';
 import { S } from '@/lib/matrix';
 import { Avatar } from '@/components/Avatar';
 import { Glass } from '@/components/Glass';
@@ -16,8 +16,7 @@ export default function CallScreen() {
   const call = useCall();
   const ins = useSafeAreaInsets();
   const [now, setNow] = useState(Date.now());
-  const [diag, setDiag] = useState('');
-  useEffect(() => { const iv = setInterval(() => { setNow(Date.now()); callStats().then(setDiag); }, 1000); return () => clearInterval(iv); }, []);
+  useEffect(() => { const iv = setInterval(() => { setNow(Date.now()); }, 1000); return () => clearInterval(iv); }, []);
   useEffect(() => {
     if (!call) { const t = setTimeout(() => router.canGoBack() ? router.back() : router.replace('/inbox'), 200); return () => clearTimeout(t); }
   }, [call]);
@@ -41,10 +40,9 @@ export default function CallScreen() {
       <View style={[styles.top, { paddingTop: ins.top + 10 }]} pointerEvents="none">
         <Text style={styles.name} numberOfLines={1}>{call.name}</Text>
         <Text style={styles.status}>{status}</Text>
-        {!!diag && <Text selectable style={styles.diag}>{diag}</Text>}
       </View>
       {call.video && call.local && !call.camOff && (
-        <View style={[styles.pip, { top: ins.top + 150 }]}>
+        <View style={[styles.pip, { top: ins.top + 90 }]}>
           <RTCView streamURL={(call.local as any).toURL()} style={{ flex: 1 }} objectFit="cover" mirror={call.frontCam} zOrder={1} />
         </View>
       )}

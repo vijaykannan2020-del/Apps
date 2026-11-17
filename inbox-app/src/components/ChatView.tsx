@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { S, Room, MEvent, NETS, roomName, netOf, botNetOf, isGroup, memberName, memberCount, mediaSource, markRead, sendText, sendImage,
   loadOlder, react, mdPlain, captionOf, stripReply, bodyPreview, hueFor, redact, editMessage, forward, isStarred, toggleStar,
-  visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, isUnread, sendRich, roomMembers, setupChips , isPrivateRoom } from '@/lib/matrix';
+  visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, isUnread, sendRich, roomMembers, setupChips , isPrivateRoom, callSummary } from '@/lib/matrix';
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
@@ -60,6 +60,28 @@ function Preview({ url, t, mine }: { url: string; t: Theme; mine: boolean }) {
         <Text numberOfLines={1} style={{ color: mine ? t.bubbleOutText : t.soft, opacity: 0.7, fontSize: 12 }}>{d['og:site_name'] || host}</Text>
       </View>
     </Pressable>
+  );
+}
+
+function CallRow({ r, ev, t }: { r: Room; ev: MEvent; t: Theme; v: number }) {
+  const k = callSummary(ev);
+  const time = new Date(ev.origin_server_ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const icon = k.video ? 'videocam' : k.missed ? 'call' : k.mine ? 'arrow-up-right' : 'arrow-down-left';
+  const color = k.missed ? t.red : t.ink;
+  return (
+    <View style={{ alignItems: 'center', paddingVertical: 6 }}>
+      <Pressable disabled={!callsAvailable || k.live} onPress={() => startCall(r, k.video).catch((e: any) => Alert.alert('Can’t call', e.message || ''))}
+        style={({ pressed }) => [styles.callRow, { backgroundColor: pressed ? t.line : t.fill }]} accessibilityLabel={k.text + ', tap to call back'}>
+        <View style={[styles.callIcon, { backgroundColor: k.missed ? 'rgba(255,59,48,0.15)' : t.bg }]}>
+          <Ionicons name={k.video ? 'videocam' : 'call'} size={16} color={color} />
+        </View>
+        <View>
+          <Text style={{ color, fontWeight: '600', fontSize: 15 }}>{k.text}</Text>
+          <Text style={{ color: t.soft, fontSize: 12, marginTop: 1 }}>{time}{!k.live && callsAvailable ? ' · tap to call back' : ''}</Text>
+        </View>
+        {!k.missed && !k.video && <Ionicons name={icon as any} size={14} color={t.soft} style={{ marginLeft: 4 }} />}
+      </Pressable>
+    </View>
   );
 }
 
@@ -285,6 +307,7 @@ export function ChatView({ id, onBack, embedded }: { id: string; onBack?: () => 
             ? <View style={styles.dayWrap}><Text style={[styles.day, { color: t.soft, backgroundColor: t.fill }]}>{item.label}</Text></View>
             : item.kind === 'unread'
               ? <View style={styles.unreadLine}><View style={[styles.ul, { backgroundColor: t.line }]} /><Text style={{ color: t.soft, fontSize: 12, fontWeight: '600' }}>Unread messages</Text><View style={[styles.ul, { backgroundColor: t.line }]} /></View>
+              : item.ev.type === 'm.call.invite' ? <CallRow r={r} ev={item.ev} t={t} v={v} />
               : <Bubble r={r} ev={item.ev} first={item.first} last={item.last} recent={item.recent} t={t} onLong={onLong} onReply={setReplyTo} onPhoto={setPhoto} width={width} fs={fs} v={v} />}
           contentContainerStyle={{ paddingTop: 8, paddingBottom: ins.top + 70, paddingHorizontal: 10 }}
           onEndReached={() => loadOlder(r)}
@@ -462,6 +485,8 @@ const styles = StyleSheet.create({
   unreadLine: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 10 },
   ul: { flex: 1, height: StyleSheet.hairlineWidth },
   msgRow: { flexDirection: 'row' },
+  callRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingLeft: 8, paddingRight: 14, borderRadius: 20 },
+  callIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   swipeReply: { width: 50, alignItems: 'center', justifyContent: 'center' },
   who: { fontSize: 12, fontWeight: '600', marginLeft: 12, marginBottom: 2 },
   bubble: { borderRadius: 20, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 6 },

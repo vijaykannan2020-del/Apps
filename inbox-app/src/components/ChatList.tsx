@@ -8,7 +8,7 @@ import ReanimatedSwipeable, { SwipeableMethods } from 'react-native-gesture-hand
 import { Ionicons } from '@expo/vector-icons';
 import { S, Room, MEvent, Net, NETS, visibleRooms, roomName, preview, fmtTime, isUnread, isGroup, isPinned, isArchived, netOf,
   lastMine, setTag, setMarkedUnread, markRead, setMuted, setReminder, dueReminders, searchMessages, bodyPreview, memberName,
-  startWhatsAppChat, others } from '@/lib/matrix';
+  startWhatsAppChat, others , callSummary } from '@/lib/matrix';
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { AppSwitcher, SWITCHER_SPACE } from '@/components/AppSwitcher';
@@ -20,6 +20,11 @@ import { quickTimes, fmtWhen } from '@/lib/time';
 type Tab = 'all' | Net;
 type Kind = 'all' | 'unread' | 'groups' | 'starred';
 const KINDS: [Kind, string][] = [['all', 'All'], ['unread', 'Unread'], ['groups', 'Groups'], ['starred', '★ Starred']];
+
+function lastIsMissed(r: Room) {
+  const ev = r.events[r.events.length - 1];
+  return !!ev && ev.type === 'm.call.invite' && callSummary(ev).missed;
+}
 
 const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact }: { r: Room; t: Theme; open: (id: string) => void; onMore: (r: Room) => void; selected: boolean; fs: number; v: number; compact?: boolean }) {
   const sw = useRef<SwipeableMethods>(null);
@@ -56,7 +61,7 @@ const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact }: { r
           <View style={styles.l2}>
             {tick && !draft && <Text style={[styles.tick, { color: tick === 'read' ? t.blue : t.soft }]}>{tick === 'pending' ? '◷' : tick === 'read' ? '✓✓' : '✓'}</Text>}
             <Text numberOfLines={compact ? 1 : 2} style={[styles.prev, { color: unread ? t.ink : t.soft, fontSize: 15 * fs, lineHeight: 20 * fs }]}>
-              {r.typing.length ? <Text style={{ color: t.blue }}>typing…</Text> : draft ? <><Text style={{ color: t.red }}>Draft: </Text>{draft}</> : preview(r)}
+              {r.typing.length ? <Text style={{ color: t.blue }}>typing…</Text> : draft ? <><Text style={{ color: t.red }}>Draft: </Text>{draft}</> : lastIsMissed(r) ? <Text style={{ color: t.red }}>{preview(r)}</Text> : preview(r)}
             </Text>
             {S.reminders[r.id] ? <Ionicons name="alarm" size={14} color={t.soft} /> : null}
             {S.muted.has(r.id) ? <Ionicons name="notifications-off" size={14} color={t.soft} /> : null}

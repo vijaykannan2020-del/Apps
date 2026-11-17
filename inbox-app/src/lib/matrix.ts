@@ -174,7 +174,35 @@ export function visibleRooms() {
 }
 
 // ---------------- events ----------------
-const SHOWN = new Set(['m.room.message', 'm.sticker']);
+const SHOWN = new Set(['m.room.message', 'm.sticker', 'm.call.invite']);
+
+// ---- call history: the invite shows in the chat; answer/hangup/reject decide what it says ----
+type CallInfo = { answeredAt?: number; endedAt?: number; rejected?: boolean; reason?: string };
+const callInfo = new Map<string, CallInfo>();
+function noteCall(ev: MEvent) {
+  const id = ev.content?.call_id; if (!id) return;
+  const i = callInfo.get(id) || {};
+  if (ev.type === 'm.call.answer' && !i.answeredAt) i.answeredAt = ev.origin_server_ts;
+  if (ev.type === 'm.call.hangup' && !i.endedAt) { i.endedAt = ev.origin_server_ts; i.reason = ev.content?.reason; }
+  if (ev.type === 'm.call.reject') { i.rejected = true; i.endedAt = i.endedAt || ev.origin_server_ts; }
+  callInfo.set(id, i);
+}
+export type CallSummary = { text: string; missed: boolean; video: boolean; mine: boolean; live: boolean };
+export function callSummary(ev: MEvent): CallSummary {
+  const c = ev.content || {}; const i = callInfo.get(c.call_id) || {};
+  const video = /m=video/.test(c.offer?.sdp || ''); const mine = ev.sender === S.userId;
+  const kind = video ? 'video call' : 'voice call';
+  const dur = (ms: number) => { const s = Math.max(1, Math.round(ms / 1000)); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+  const expired = Date.now() - ev.origin_server_ts > (c.lifetime || 60000) + 5000;
+  if (i.answeredAt) {
+    const live = !i.endedAt && Date.now() - i.answeredAt < 4 * 3600e3;
+    return { text: `${mine ? 'Outgoing' : 'Incoming'} ${kind}${i.endedAt ? ' · ' + dur(i.endedAt - i.answeredAt) : live ? ' · in progress' : ''}`, missed: false, video, mine, live };
+  }
+  if (i.rejected) return { text: mine ? `${cap(kind)} declined` : `Declined ${kind}`, missed: false, video, mine, live: false };
+  if (i.endedAt || expired) return mine ? { text: `${cap(kind)} · no answer`, missed: false, video, mine, live: false } : { text: `Missed ${kind}`, missed: true, video, mine, live: false };
+  return { text: mine ? `Calling… (${kind})` : `Incoming ${kind}…`, missed: false, video, mine, live: true };
+}
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 function addEvent(r: Room, ev: MEvent, prepend = false) {
   if (ev.state_key !== undefined) { applyState(r, ev); return; }
   const c = ev.content || {};
@@ -195,6 +223,7 @@ function addEvent(r: Room, ev: MEvent, prepend = false) {
     r.reactIdx.set(ev.event_id, { target: rel.event_id, key: rel.key, sender: ev.sender });
     return;
   }
+  if (ev.type.startsWith('m.call.') && ev.type !== 'm.call.invite') { noteCall(ev); return; }
   if (!SHOWN.has(ev.type)) return;
   const rel = c['m.relates_to'];
   if (rel && rel.rel_type === 'm.replace') {
@@ -222,6 +251,7 @@ export function stripReply(b: string) {
 export function bodyPreview(ev: MEvent) {
   const c = ev.content || {};
   if (ev.type === 'm.sticker') return 'Sticker';
+  if (ev.type === 'm.call.invite') { const k = callSummary(ev); return (k.video ? '📹 ' : '📞 ') + k.text; }
   const capt = mdPlain(captionOf(c)).replace(/\s+/g, ' ').trim();
   if (/instagram\.com\/(reel|reels)\//.test(c.body || '') && (c.msgtype === 'm.video' || !capt)) return '🎬 Reel';
   switch (c.msgtype) {
@@ -236,6 +266,7 @@ export function bodyPreview(ev: MEvent) {
 export function preview(r: Room) {
   for (let i = r.events.length - 1; i >= 0; i--) {
     const ev = r.events[i]; if (ev.redacted) continue;
+    if (ev.type === 'm.call.invite') return bodyPreview(ev);
     const who = ev.sender === S.userId ? 'You: ' : (isGroup(r) ? memberName(r, ev.sender).split(' ')[0] + ': ' : '');
     return who + bodyPreview(ev);
   }
@@ -593,7 +624,7 @@ export function saveSnapshot() {
       events: r.events.filter(e => !e.pending && !e.failed).slice(-20),
       reacts: [...r.reacts.entries()].filter(([eid]) => r.events.slice(-20).some(e => e.event_id === eid)).map(([eid, m]) => [eid, [...m.entries()].map(([k, set]) => [k, [...set]])]),
     }));
-    try { await AsyncStorage.setItem(SNAP, JSON.stringify({ uid: S.userId, since: S.since, muted: [...S.muted], starred: S.starred, reminders: S.reminders, rooms })); } catch {}
+    try { await AsyncStorage.setItem(SNAP, JSON.stringify({ uid: S.userId, since: S.since, muted: [...S.muted], starred: S.starred, reminders: S.reminders, rooms, calls: [...callInfo].slice(-300) })); } catch {}
   }, 3000);
 }
 async function loadSnapshot() {
@@ -601,6 +632,7 @@ async function loadSnapshot() {
     const raw = await AsyncStorage.getItem(SNAP); if (!raw) return;
     const snap = JSON.parse(raw); if (snap.uid !== S.userId) return;
     S.muted = new Set(snap.muted || []); S.starred = snap.starred || []; S.reminders = snap.reminders || {};
+    for (const [k, v] of snap.calls || []) callInfo.set(k, v);
     for (const x of snap.rooms || []) {
       const r = room(x.id);
       Object.assign(r, { name: x.name, avatar: x.avatar, heroes: x.heroes || [], joined: x.joined, unread: x.unread, net: x.net,
