@@ -1,0 +1,11 @@
+name: USCIS probe
+on: { workflow_dispatch: {}, push: { branches: [main], paths: ['.github/workflows/uscis-probe.yml'] } }
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          UA='Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1'
+          for u in https://egov.uscis.gov/ https://egov.uscis.gov/casestatus/landing.do https://egov.uscis.gov/csol-api/ui-auth https://egov.uscis.gov/csol-api/case-statuses/IOE9773625740; do
+            echo "== $u"; curl -s -A "$UA" -o /tmp/b -w '%{http_code} %{content_type}\n' -D /tmp/h "$u"; grep -iE '^(server|cf-mitigated|location):' /tmp/h; head -c 300 /tmp/b | tr '\n' ' '; echo
+          done
