@@ -10,6 +10,7 @@ import { useVault, pickFile, addDoc, deleteDoc, openDoc, shareDoc, webData, DOC_
 import { DateField } from '../../src/components/ui';
 import { fmt, daysTo } from '../../src/lib/compliance';
 
+const BIO = Platform.OS === 'ios' ? 'Face ID' : 'fingerprint';
 const ICON: Record<string, any> = { 'Receipt (I-797C)': 'receipt-outline', 'Approval (I-797A/B)': 'ribbon-outline', 'I-94': 'document-text-outline', 'Visa stamp': 'card-outline', Passport: 'airplane-outline', 'EAD card': 'id-card-outline', LCA: 'briefcase-outline', 'Green card': 'card-outline', 'Pay stub / W-2': 'cash-outline', Other: 'document-outline' };
 
 function AddSheet({ onDone }: { onDone: () => void }) {
@@ -115,7 +116,7 @@ export default function Vault() {
       <View style={{ alignItems: 'center', padding: 40 }}>
         <Ionicons name="lock-closed" size={44} color={t.sub} />
         <T v="h2" style={{ marginTop: 14 }}>Locked</T>
-        <View style={{ marginTop: 18, alignSelf: 'stretch' }}><Button label="Unlock with Face ID" onPress={async () => { const r = await LocalAuthentication.authenticateAsync({ promptMessage: 'Unlock your documents' }); setLocked(!r.success); }} /></View>
+        <View style={{ marginTop: 18, alignSelf: 'stretch' }}><Button label={`Unlock with ${BIO}`} onPress={async () => { const r = await LocalAuthentication.authenticateAsync({ promptMessage: 'Unlock your documents' }); setLocked(!r.success); }} /></View>
       </View>
     </DetailScreen>
   );
@@ -146,12 +147,12 @@ export default function Vault() {
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ flex: 1 }}>
-              <T v="h3" style={{ fontSize: 15 }}>Lock with Face ID</T>
-              <T v="small" style={{ marginTop: 2 }}>Ask for Face ID / passcode before opening</T>
+              <T v="h3" style={{ fontSize: 15 }}>{`Lock with ${BIO}`}</T>
+              <T v="small" style={{ marginTop: 2 }}>{`Ask for ${BIO} or your phone passcode before opening`}</T>
             </View>
             <Switch value={lockOn} onValueChange={toggleLock} trackColor={{ true: t.green, false: t.surface2 }} thumbColor="#fff" />
           </View>
-          <View style={{ marginTop: 12 }}><Note>Files live only on this phone (included in your encrypted iPhone backup). Deleting the app deletes them — keep originals too.</Note></View>
+          <View style={{ marginTop: 12 }}><Note>{`Files live only on this phone (included in your encrypted ${Platform.OS === 'ios' ? 'iPhone' : 'Google'} backup). Deleting the app deletes them — keep originals too.`}</Note></View>
         </Card>
       </Section>
     </DetailScreen>
