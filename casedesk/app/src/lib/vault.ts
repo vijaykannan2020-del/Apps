@@ -108,6 +108,13 @@ export async function updateDoc(doc: VaultDoc) {
   await write(docs.map((d) => (d.id === doc.id ? doc : d)));
 }
 
+// Change many documents at once (e.g. move them to another person).
+export async function mapDocs(fn: (d: VaultDoc) => VaultDoc) {
+  const docs = await list();
+  await write(docs.map(fn));
+}
+export const allDocs = () => list();
+
 export async function deleteDoc(doc: VaultDoc) {
   try {
     if (doc.uri.startsWith('web:')) await AsyncStorage.removeItem(`cd.vaultfile.${doc.id}`);

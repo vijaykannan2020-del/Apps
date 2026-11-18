@@ -15,6 +15,19 @@ export default function Root() {
     applyAlerts(); // refresh reminders on every launch
     import('../src/lib/pd').then((m) => m.checkPriorityDate(true)).catch(() => {});
     if (Platform.OS === 'web') return;
+    // Apply app updates straight away: if a newer version downloads within a few seconds of opening,
+    // restart into it (otherwise it's used next time the app opens).
+    (async () => {
+      try {
+        const U = require('expo-updates');
+        if (__DEV__ || !U.isEnabled) return;
+        const started = Date.now();
+        const r = await U.checkForUpdateAsync();
+        if (!r.isAvailable) return;
+        await U.fetchUpdateAsync();
+        if (Date.now() - started < 12000) await U.reloadAsync();
+      } catch {}
+    })();
     const N = require('expo-notifications');
     const open = (r: any) => { const url = r?.notification?.request?.content?.data?.url; if (url) router.push(url); };
     N.getLastNotificationResponseAsync?.().then(open).catch(() => {});

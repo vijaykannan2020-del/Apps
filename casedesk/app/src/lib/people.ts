@@ -19,18 +19,22 @@ export const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/).filter((x) => x.length > 1);
 
-// Best person for a name printed on a document: a first-name match wins; otherwise any shared name part.
+// Best person for a name printed on a document. The first (given) name must match, or at least two name
+// parts. A single shared part isn't enough: in many Indian families the child's surname is the father's
+// given name ("Maya Thushara Vijayakannan" is not "Vijayakannan Krishnan").
+const RELATION_WORDS = ['me', 'spouse', 'child', 'parent', 'other', 'son', 'daughter', 'wife', 'husband'];
 export function matchOwner(docName: string | undefined, list: Person[], fallback = 'me'): string {
   if (!docName) return fallback;
   const parts = norm(docName);
+  if (!parts.length) return fallback;
   let best = { id: fallback, score: 0 };
   for (const p of list) {
-    const pn = norm(p.id === 'me' ? p.profile?.name || '' : p.name);
+    const pn = norm(p.id === 'me' ? p.profile?.name || '' : p.name).filter((x) => !RELATION_WORDS.includes(x));
     if (!pn.length) continue;
-    let score = 0;
-    if (parts[0] && pn[0] === parts[0]) score += 3;
-    score += pn.filter((x) => parts.includes(x)).length;
-    if (score > best.score) best = { id: p.id, score };
+    const shared = pn.filter((x) => parts.includes(x)).length;
+    const firstMatch = pn[0] === parts[0];
+    const score = (firstMatch ? 3 : 0) + shared;
+    if ((firstMatch || shared >= 2) && score > best.score) best = { id: p.id, score };
   }
-  return best.score >= 2 || (best.score >= 1 && list.length > 1) ? best.id : fallback;
+  return best.id;
 }

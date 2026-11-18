@@ -1,6 +1,6 @@
 // My Status — one person at a time (me or a family member): what needs attention, the next deadline,
 // their key dates, documents and cases. Adding documents is the main action: they fill everything else.
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Pressable, ScrollView, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import { useCases } from '../../src/lib/store';
 import { stageOf } from '../../src/lib/caseStatus';
 import { people, initials } from '../../src/lib/people';
 import { DOC_ICON } from '../../src/components/DocIcon';
+import { mergeDuplicateSpouse, backfillNames } from '../../src/lib/tidy';
 
 const SHORT: Partial<Record<keyof Profile, string>> = { i94Expiry: 'Until your I-94 ends', petitionEnd: 'Until your approval ends', eadExpiry: 'Until your EAD ends', passportExpiry: 'Until your passport expires' };
 
@@ -56,6 +57,8 @@ export default function Status() {
   const [cases] = useCases();
   const [who, setWho] = useState('me');
   const [allChecks, setAllChecks] = useState(false);
+  // Tidy up quietly: merge a leftover unnamed spouse, read names from passports saved before names were read.
+  useEffect(() => { mergeDuplicateSpouse().catch(() => {}).finally(() => { backfillNames().catch(() => {}); }); }, [docs.length, family.length]);
   const list = useMemo(() => people(me, family), [me, family]);
   const person = list.find((x) => x.id === who) ?? list[0];
   const p = person.profile;
@@ -73,7 +76,7 @@ export default function Status() {
   const docFor = (r: DateRow): VaultDoc | undefined => myDocs.find((d) => r.doc.includes(d.type));
 
   return (
-    <Screen title="My Documents" subtitle={p ? `${person.name} · ${p.visa}${p.employer && person.id === 'me' ? ' · ' + p.employer : ''}` : 'Status, dates and documents for you and your family'}>
+    <Screen title="Documents" subtitle={p ? `${person.name} · ${p.visa}${p.employer && person.id === 'me' ? ' · ' + p.employer : ''}` : 'Status, dates and documents for you and your family'}>
       {/* People */}
       {ready ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingVertical: 4 }}>

@@ -15,6 +15,7 @@ export type Found = {
   passportExpiry?: string;
   receivedDate?: string; // on receipt notices
   form?: string; // form on a USCIS notice, e.g. I-129, I-539, I-765
+  birthDate?: string; // passports/visas: tells a child's document from a parent's
   name?: string; // person's name as printed (passport/visa MRZ, I-94, EAD, I-797 beneficiary)
   lines: number;
 };
@@ -67,8 +68,14 @@ export async function readText(uri: string, mime: string): Promise<string | null
         const pdf = require('expo-pdf-text-extract');
         if (pdf.isAvailable?.()) text = (await pdf.extractText(uri)) || '';
       } catch {}
-      if (text.replace(/\s/g, '').length >= 40) return text;
-      // No text layer: a scanned PDF. Render the first pages and read them as images.
+      // A good text layer (e-filed notices) is enough. Scanner apps (Adobe Scan, CamScanner) add their own,
+      // often poor, OCR layer — if it doesn't give us the type, a date and (for IDs) a name, read the page images too.
+      if (text.replace(/\s/g, '').length >= 40) {
+        const f = parseDocument(text);
+        const idDoc = f.type === 'Passport' || f.type === 'Visa stamp' || f.type === 'EAD card';
+        if (f.type && f.validTo && (!idDoc || f.name)) return text;
+      }
+      // Scanned PDF: render the first pages and read them as images (on-device text recognition).
       try {
         const Thumb = require('react-native-pdf-thumbnail').default;
         const pages: string[] = [];
@@ -78,7 +85,9 @@ export async function readText(uri: string, mime: string): Promise<string | null
             pages.push(await readImageBest(r.uri, r.width));
           } catch { break; }
         }
-        text = pages.join('\n');
+        const img = pages.join('\n');
+        // Image text first (it wins where both have a value), then the PDF's own layer for anything it missed.
+        text = img.replace(/\s/g, '').length >= 20 ? `${img}\n${text}` : text;
       } catch {}
       return text || null;
     }
@@ -102,6 +111,8 @@ const iso = (y: number, m: number, d: number) => {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 };
 
+// Indian and most non-US documents write DD/MM/YYYY; US forms write MM/DD/YYYY. parseDocument sets this per document.
+let DAY_FIRST = false;
 // All dates in a piece of text, in order, as YYYY-MM-DD
 export function datesIn(s: string): string[] {
   const out: { i: number; v: string }[] = [];
@@ -113,7 +124,11 @@ export function datesIn(s: string): string[] {
       return MONTHS[fixed] ? `${d} ${fixed} ${y}` : all;
     })
     .replace(/(\d)\s*([\/\-.])\s*(\d)/g, '$1$2$3');
-  for (const m of T.matchAll(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\b/g)) add(m.index!, iso(+m[3], +m[1], +m[2])); // MM/DD/YYYY (US forms)
+  for (const m of T.matchAll(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\b/g)) {
+    const a = +m[1], b = +m[2];
+    const dayFirst = a > 12 || (DAY_FIRST && b <= 12);
+    add(m.index!, dayFirst ? iso(+m[3], b, a) : iso(+m[3], a, b)); // DD/MM/YYYY or MM/DD/YYYY (US forms)
+  }
   for (const m of T.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) add(m.index!, iso(+m[1], +m[2], +m[3]));
   for (const m of T.matchAll(/\b(\d{1,2})\s?([A-Z]{3,9})\.?\s?(\d{4}|\d{2})\b/g)) if (MONTHS[m[2]]) add(m.index!, iso(+m[3], MONTHS[m[2]], +m[1])); // 12 MAR 2027, 12MAR2027
   for (const m of T.matchAll(/\b([A-Z]{3,9})\.?\s(\d{1,2}),?\s(\d{4})\b/g)) if (MONTHS[m[1]]) add(m.index!, iso(+m[3], MONTHS[m[1]], +m[2])); // SEPTEMBER 30, 2029
@@ -136,7 +151,7 @@ function dateAfter(text: string, label: RegExp): string | undefined {
 // Machine-readable zone (passport "P<…" or US visa "V<…"/"VN…"): expiry is YYMMDD at positions 22–27
 // of line 2 (same place on passports and visa foils). OCR often reads 0 as O, 1 as I, 5 as S, 8 as B.
 const DIG: Record<string, string> = { O: '0', Q: '0', D: '0', I: '1', L: '1', Z: '2', S: '5', B: '8', G: '6' };
-function mrz(text: string): { kind: 'P' | 'V'; expiry?: string } | null {
+function mrz(text: string): { kind: 'P' | 'V'; expiry?: string; birth?: string } | null {
   const lines = text.toUpperCase().replace(/ /g, '').replace(/«/g, '<').split(/\n/).filter((l) => /^[A-Z0-9<]{30,46}$/.test(l) && l.includes('<'));
   const i = lines.findIndex((l) => /^[PV][A-Z<]/.test(l));
   if (i < 0) return null;
@@ -145,7 +160,10 @@ function mrz(text: string): { kind: 'P' | 'V'; expiry?: string } | null {
   if (!l2) return { kind };
   const e = l2.slice(21, 27).split('').map((c) => DIG[c] ?? c).join('');
   const expiry = /^\d{6}$/.test(e) ? iso(2000 + +e.slice(0, 2), +e.slice(2, 4), +e.slice(4, 6)) : undefined;
-  return { kind, expiry };
+  const b = l2.slice(13, 19).split('').map((c) => DIG[c] ?? c).join('');
+  const yy = new Date().getFullYear() % 100;
+  const birth = /^\d{6}$/.test(b) ? iso((+b.slice(0, 2) > yy ? 1900 : 2000) + +b.slice(0, 2), +b.slice(2, 4), +b.slice(4, 6)) : undefined;
+  return { kind, expiry, birth };
 }
 const latest = (text: string) => datesIn(text).sort().pop();
 
@@ -159,7 +177,12 @@ function mrzName(text: string): string | undefined {
   const lines = text.split(/\n/).map(mrzLine);
   const l = lines.find((x) => /^[PV][A-Z<0]?[A-Z]{3}[A-Z<]{6,}$/.test(x.replace(/<+$/, '')) && x.length >= 20 && x.includes('<'));
   if (!l) return undefined;
-  const body = l.slice(5).replace(/[^A-Z<]/g, '');
+  // OCR often reads the '<' filler as 'K': "VIJAYAKANNAN<K<MAYA<KTHUSHARA". A lone K between fillers is a
+  // filler; a K glued to the front of a name is too when no name starts that way (KT, KM…) or when the
+  // name without it is printed elsewhere on the page (the visual zone above the MRZ).
+  const words = new Set(text.toUpperCase().split(/[^A-Z]+/).filter((w) => w.length >= 2));
+  const body = l.slice(5).replace(/[^A-Z<]/g, '').replace(/<K(?=<)/g, '<<')
+    .replace(/(^|<)K([A-Z]+)/g, (all, pre, rest) => (/^[^AEIOUHRYLWS]/.test(rest) || (words.has(rest) && !words.has('K' + rest)) ? `${pre}<${rest}` : all));
   let sur = '', giv = '';
   const cut = body.indexOf('<<');
   if (cut >= 0) { sur = body.slice(0, cut); giv = body.slice(cut + 2); } else giv = body;
@@ -205,6 +228,7 @@ export function parseDocument(text: string): Found {
   const T = text.replace(/\r/g, '');
   const U = T.toUpperCase();
   const found: Found = { lines: T.split('\n').length };
+  DAY_FIRST = /REPUBLIC OF INDIA|P<IND|<IND|BHARAT|GOVERNMENT OF INDIA|UNITED KINGDOM|CANADA|MEXICO|PHILIPPINES|NEPAL|SRI LANKA/.test(U) && !/I-797|I-94|USCIS|DEPARTMENT OF HOMELAND/.test(U);
 
   found.receipt = U.match(/\b(EAC|WAC|LIN|SRC|NBC|MSC|IOE|YSC|NSC|TSC|VSC|CSC)\s?-?(\d{10})\b/)?.slice(1, 3).join('');
   const cls = U.match(/CLASS(?: OF ADMISSION)?\s*[:\-]?\s*(H-?1B1?|H-?4|L-?1A|L-?1B|L-?2S?|TN|TD|F-?1|E-?3|O-?1)\b/);
@@ -248,6 +272,8 @@ export function parseDocument(text: string): Found {
     // MRZ first; otherwise the latest date (birth and issue dates are always earlier than expiry).
     found.validTo = mrz(T)?.expiry ?? dateAfter(T, /date of expiry|expiry date|date d'expiration/i) ?? latest(T);
     found.passportExpiry = found.validTo;
+    // Birth date: MRZ, a "Date of Birth" label, or the earliest date on the page.
+    found.birthDate = mrz(T)?.birth ?? dateAfter(T, /date of birth|birth date/i) ?? datesIn(T).sort()[0];
   } else if (/LABOR CONDITION APPLICATION|ETA[- ]9035/.test(U)) {
     found.type = 'LCA';
     const m = T.match(/(?:period of employment|begin date)[\s\S]{0,80}?((?:\d{1,2}\/\d{1,2}\/\d{4}))[\s\S]{0,60}?((?:\d{1,2}\/\d{1,2}\/\d{4}))/i);

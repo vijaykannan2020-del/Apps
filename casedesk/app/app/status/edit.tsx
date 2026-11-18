@@ -27,6 +27,8 @@ export default function EditStatus() {
       loadFamily().then((all) => { const m = all.find((x) => x.id === memberId); if (m) { setP(m.profile); setName(m.name === m.relation ? '' : m.name); setRelationRaw(m.relation); setExisting(true); } });
     } else loadProfile().then((v) => { if (v) { setP(v); setExisting(true); } });
   }, [isMember, memberId]));
+  const [otherSpouse, setOtherSpouse] = useState<{ id: string; name: string } | null>(null);
+  useFocusEffect(useCallback(() => { if (isMember) loadFamily().then((all) => { const s = all.find((x) => x.relation === 'Spouse' && x.id !== memberId); setOtherSpouse(s ? { id: s.id, name: s.name === s.relation ? 'your spouse' : s.name } : null); }); }, [isMember, memberId]));
   const needName = isMember && !name.trim();
   const save = async () => {
     if (isMember) await saveMember({ id: memberId, name: name.trim() || relation, relation, profile: p });
@@ -52,6 +54,12 @@ export default function EditStatus() {
             <Field label="Name" placeholder="e.g. Priya — or scan their passport to fill it" value={name} onChangeText={setName} />
             <T v="label" style={{ marginBottom: 8 }}>Relation</T>
             <View style={{ marginHorizontal: -20, marginBottom: 14 }}><Chips options={RELATIONS.map((r) => ({ label: r, value: r }))} value={relation} onChange={setRelation} /></View>
+            {relation === 'Spouse' && otherSpouse && !existing ? (
+              <View style={{ marginBottom: 14, gap: 8 }}>
+                <Note tone="amber">{`You’ve already added ${otherSpouse.name} as your spouse. Add their documents there instead of creating a second spouse.`}</Note>
+                <Button label={`Open ${otherSpouse.name}`} kind="secondary" icon="person-outline" onPress={() => router.replace(`/status/edit?member=${otherSpouse.id}` as any)} />
+              </View>
+            ) : null}
           </>
         ) : <Field label="Your name (optional)" placeholder="As on your passport — matches scanned documents to you" value={p.name ?? ''} onChangeText={set('name')} />}
         <View style={{ marginBottom: 16 }}><Button label={isMember ? `Scan ${name.trim() || 'their'}${name.trim() ? '’s' : ''} document` : 'Scan a document to fill dates'} icon="scan" kind="secondary" onPress={scan} /></View>

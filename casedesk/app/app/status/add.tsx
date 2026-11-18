@@ -70,14 +70,22 @@ export default function AddDocuments() {
         const text = await readText(it.file.uri, it.file.mime);
         if (!text || text.replace(/\s/g, '').length < 20) { patch(it.key, { state: 'unread', open: true }); return; }
         const f = parseDocument(text);
-        // Whose is it? A name match wins; a name that matches nobody (while "me" already has a different
-        // name) is probably a family member who isn't in the app yet.
+        // Whose is it?
+        // 1. Opened from someone's page → theirs, unless the name clearly belongs to someone else.
+        // 2. A clear name match.  3. A child's passport (born < 16 years ago) never goes to "me".
+        // 4. A name that matches nobody → the one family member still without a name, or a new person.
         const hit = matchOwner(f.name, list, '__none');
+        const minor = !!f.birthDate && Date.now() - new Date(f.birthDate).getTime() < 16 * 365.25 * 864e5;
+        const unnamed = list.filter((x) => x.id !== 'me' && !(x as any).named && (!minor || x.relation === 'Child'));
         const meNamed = !!list.find((x) => x.id === 'me')?.profile?.name;
-        const owner = hit !== '__none' ? hit : member ? member : f.name && meNamed ? NEW : fallbackOwner;
+        let owner = fallbackOwner;
+        if (hit !== '__none') owner = hit;
+        else if (member) owner = member;
+        else if (f.name && (meNamed || minor)) owner = unnamed.length === 1 ? unnamed[0].id : NEW;
+        const newRelation = minor ? 'Child' : 'Spouse';
         patch(it.key, {
           state: 'done', found: f, type: f.type ?? 'Other', validTo: f.validTo ?? '', receipt: f.receipt ?? '',
-          owner, name: f.name ?? '', open: !f.type && !f.validTo,
+          owner, newRelation, name: f.name ?? '', open: !f.type && !f.validTo,
         });
       });
     }
