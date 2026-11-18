@@ -6,7 +6,7 @@ import { DetailScreen } from '../../src/components/TopBar';
 import { Card, T, Button, Field, DateField, Chips, Note, tap } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
 import { useVault, updateDoc, deleteDoc, openDoc, shareDoc, DOC_TYPES, DocType } from '../../src/lib/vault';
-import { statusUpdates } from '../../src/lib/ocr';
+import { statusUpdates, readText, parseDocument, ocrAvailable } from '../../src/lib/ocr';
 import { useProfile, loadProfile, saveProfile } from '../../src/lib/profile';
 import { useFamily, loadFamily, saveMember } from '../../src/lib/family';
 import { people } from '../../src/lib/people';
@@ -29,21 +29,40 @@ export default function DocDetail() {
   const [expires, setExpires] = useState('');
   const [receipt, setReceipt] = useState('');
   const [msg, setMsg] = useState('');
+  const [name, setName] = useState('');
+  const [reading, setReading] = useState(false);
 
   useEffect(() => {
     if (!doc) return;
-    setTitle(doc.title); setType(doc.type); setOwner(doc.owner || 'me'); setExpires(doc.expires || ''); setReceipt(doc.receipt || '');
+    setTitle(doc.title); setType(doc.type); setOwner(doc.owner || 'me'); setExpires(doc.expires || ''); setReceipt(doc.receipt || ''); setName(doc.name || '');
   }, [doc?.id]);
+
+  // Documents saved before names were read (or where the name wasn't found): read it again from the file.
+  const reread = async (silent = false) => {
+    if (!doc || !uri || !ocrAvailable()) return;
+    setReading(true);
+    try {
+      const text = await readText(uri, doc.mime);
+      const f = text ? parseDocument(text) : null;
+      if (f?.name) setName((n) => n || f.name!);
+      if (f?.validTo) setExpires((e) => e || f.validTo!);
+      if (!silent) setMsg(f?.name ? `Reads “${f.name}”` : 'No name found — type it in.');
+    } catch { if (!silent) setMsg('Couldn’t read this document — type the name in.'); }
+    setReading(false);
+  };
+  useEffect(() => {
+    if (doc && uri && !doc.name && ['Passport', 'Visa stamp', 'I-94', 'EAD card'].includes(doc.type)) reread(true);
+  }, [doc?.id, uri]);
 
   if (ready && !doc) return <DetailScreen title="Document"><View style={{ padding: 20 }}><T v="sub">This document was removed.</T></View></DetailScreen>;
   if (!doc) return <DetailScreen title="Document"><View /></DetailScreen>;
 
   const who = plist.find((x) => x.id === owner);
   const ups = statusUpdates({ lines: 0, type, validTo: expires || undefined, receipt: receipt || undefined });
-  const dirty = title !== doc.title || type !== doc.type || owner !== (doc.owner || 'me') || expires !== (doc.expires || '') || receipt !== (doc.receipt || '');
+  const dirty = name !== (doc.name || '') || title !== doc.title || type !== doc.type || owner !== (doc.owner || 'me') || expires !== (doc.expires || '') || receipt !== (doc.receipt || '');
 
   const save = async () => {
-    await updateDoc({ ...doc, title: title.trim() || doc.title, type, owner, expires: expires || undefined, receipt: receipt.trim().toUpperCase() || undefined });
+    await updateDoc({ ...doc, name: name.trim() || undefined, title: title.trim() || doc.title, type, owner, expires: expires || undefined, receipt: receipt.trim().toUpperCase() || undefined });
     tap(); setMsg('Saved');
   };
   const apply = async () => {
@@ -64,6 +83,15 @@ export default function DocDetail() {
     }
     tap(); setMsg(`Updated ${owner === 'me' ? 'your' : (who?.short ?? '') + '’s'} ${ups.map((u) => u.label.toLowerCase()).join(', ')}`);
   };
+  const ownerName = owner === 'me' ? me?.name?.trim() || '' : family.find((x) => x.id === owner)?.name?.trim() || '';
+  const nameDiffers = !!name.trim() && name.trim().toLowerCase() !== ownerName.toLowerCase();
+  const useName = async () => {
+    const n = name.trim().replace(/\s+/g, ' ');
+    await save();
+    if (owner === 'me') { const p = (await loadProfile()) ?? { visa: 'H-1B' as const }; p.name = n; await saveProfile(p); }
+    else { const m = (await loadFamily()).find((x) => x.id === owner); if (m) { m.name = n; await saveMember(m); } }
+    tap(); setMsg(`Name set to ${n}`);
+  };
   const remove = () => {
     const go = async () => { await deleteDoc(doc); router.back(); };
     if (Platform.OS === 'web') go();
@@ -78,6 +106,9 @@ export default function DocDetail() {
 
         <Card style={{ marginTop: 16 }}>
           <Field label="Title" value={title} onChangeText={setTitle} />
+          <Field label="Name on document" value={name} onChangeText={setName} placeholder={reading ? 'Reading…' : 'Type the name as printed'} autoCapitalize="words" />
+          {nameDiffers ? <View style={{ marginTop: -4, marginBottom: 14 }}><Button label={`Use as ${owner === 'me' ? 'my' : 'this person’s'} name${ownerName ? ` (now “${ownerName}”)` : ''}`} kind="secondary" icon="person-outline" onPress={useName} /></View> : null}
+          {!name && !reading && ocrAvailable() ? <View style={{ marginTop: -4, marginBottom: 14 }}><Button label="Read name from document" kind="secondary" icon="scan-outline" onPress={() => reread()} /></View> : null}
           <T v="label" style={{ marginBottom: 8 }}>Whose document</T>
           <View style={{ marginHorizontal: -36, marginBottom: 14 }}><Chips options={plist.map((x) => ({ label: x.short, value: x.id }))} value={owner} onChange={setOwner} /></View>
           <T v="label" style={{ marginBottom: 8 }}>Type</T>

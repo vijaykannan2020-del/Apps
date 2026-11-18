@@ -16,6 +16,7 @@ export type VaultDoc = {
   type: DocType;
   expires?: string;
   receipt?: string;
+  name?: string; // person's name as printed on the document
   fileName: string;
   mime: string;
   size: number;

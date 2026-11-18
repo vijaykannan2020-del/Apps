@@ -9,8 +9,8 @@ import { Card, T, Button, Note, Chips, DateField, Pill, tap } from '../../src/co
 import { useTheme } from '../../src/theme';
 import { pickFiles, pickPhotos, pickPhoto, addDoc, DOC_TYPES, DocType, Picked } from '../../src/lib/vault';
 import { readText, parseDocument, statusUpdates, ocrAvailable, Found } from '../../src/lib/ocr';
-import { loadProfile, saveProfile, Profile, useProfile, VisaType } from '../../src/lib/profile';
-import { useFamily, loadFamily, saveMember } from '../../src/lib/family';
+import { loadProfile, saveProfile, Profile, useProfile, VisaType, visasFor } from '../../src/lib/profile';
+import { useFamily, loadFamily, saveMember, Member } from '../../src/lib/family';
 import { people, matchOwner, initials, Person } from '../../src/lib/people';
 import { upsertCase, read as readStore } from '../../src/lib/store';
 import { fmt } from '../../src/lib/compliance';
@@ -22,7 +22,10 @@ type Item = {
   key: string; file: Picked; state: 'reading' | 'done' | 'unread';
   found?: Found; type: DocType; owner: string; validTo: string; receipt: string;
   applyDates: boolean; addCase: boolean; open: boolean;
+  name: string; newRelation: string; // name printed on it (editable); relation if it's a new person
 };
+const NEW = '__new';
+const RELATION_WORDS = ['Spouse', 'Child', 'Parent', 'Other', 'Son', 'Daughter', 'Wife', 'Husband', 'Kid'];
 const CLASS_TO_VISA: Record<string, VisaType> = { H1B: 'H-1B', L1A: 'L-1A', L1B: 'L-1B', TN: 'TN', H4: 'H-4', L2S: 'L-2S', L2: 'L-2', TD: 'TD', F1: 'F-1 OPT', F2: 'F-2' };
 
 function Avatar({ p, on, onPress }: { p: Person; on: boolean; onPress: () => void }) {
@@ -57,7 +60,7 @@ export default function AddDocuments() {
     if (!files.length) return;
     const fresh: Item[] = files.map((f, i) => ({
       key: `${Date.now()}-${i}-${f.name}`, file: f, state: canRead ? 'reading' : 'unread',
-      type: 'Other', owner: fallbackOwner, validTo: '', receipt: '', applyDates: true, addCase: true, open: !canRead,
+      type: 'Other', owner: fallbackOwner, validTo: '', receipt: '', applyDates: true, addCase: true, open: !canRead, name: '', newRelation: 'Child',
     }));
     setItems((xs) => [...xs, ...fresh]);
     if (!canRead) return;
@@ -67,9 +70,14 @@ export default function AddDocuments() {
         const text = await readText(it.file.uri, it.file.mime);
         if (!text || text.replace(/\s/g, '').length < 20) { patch(it.key, { state: 'unread', open: true }); return; }
         const f = parseDocument(text);
+        // Whose is it? A name match wins; a name that matches nobody (while "me" already has a different
+        // name) is probably a family member who isn't in the app yet.
+        const hit = matchOwner(f.name, list, '__none');
+        const meNamed = !!list.find((x) => x.id === 'me')?.profile?.name;
+        const owner = hit !== '__none' ? hit : member ? member : f.name && meNamed ? NEW : fallbackOwner;
         patch(it.key, {
           state: 'done', found: f, type: f.type ?? 'Other', validTo: f.validTo ?? '', receipt: f.receipt ?? '',
-          owner: matchOwner(f.name, list, fallbackOwner), open: !f.type && !f.validTo,
+          owner, name: f.name ?? '', open: !f.type && !f.validTo,
         });
       });
     }
@@ -92,10 +100,22 @@ export default function AddDocuments() {
       const fam = await loadFamily();
       let mine: Profile | null = await loadProfile();
       const existing = new Set((await readStore<{ receipt: string }[]>('cd.cases.v1', [])).map((c) => c.receipt));
+      const plist: Person[] = [...list];
+      const created: Record<string, string> = {}; // new person's name → member id (passport + visa of the same child)
       for (const it of items) {
-        const who = list.find((p) => p.id === it.owner);
+        const name = it.name.trim().replace(/\s+/g, ' ');
+        if (it.owner === NEW) {
+          const k = (name || it.newRelation).toLowerCase();
+          if (!created[k]) {
+            const m: Member = { id: `${Date.now()}${Math.floor(Math.random() * 1000)}`, name: name || it.newRelation, relation: it.newRelation, profile: { visa: visasFor(it.newRelation)[0] } };
+            fam.push(m); created[k] = m.id;
+          }
+          it.owner = created[k];
+          plist.push({ id: created[k], name: name || it.newRelation, relation: it.newRelation } as any);
+        }
+        const who = plist.find((p) => p.id === it.owner);
         const title = `${it.owner !== 'me' && who ? who.name + ' · ' : ''}${it.type}${it.validTo ? ' · ' + fmt(it.validTo) : ''}`;
-        await addDoc({ title, type: it.type, expires: it.validTo || undefined, receipt: it.receipt || undefined, fileName: it.file.name, mime: it.file.mime, size: it.file.size, owner: it.owner }, it.file);
+        await addDoc({ title, type: it.type, expires: it.validTo || undefined, receipt: it.receipt || undefined, name: name || undefined, fileName: it.file.name, mime: it.file.mime, size: it.file.size, owner: it.owner }, it.file);
         const f: Found = { ...(it.found || { lines: 0 }), type: it.type, validTo: it.validTo || undefined, receipt: it.receipt || undefined };
         const ups = it.applyDates ? statusUpdates(f) : [];
         if (ups.length) {
@@ -103,14 +123,20 @@ export default function AddDocuments() {
             mine = mine ?? { visa: CLASS_TO_VISA[f.classOfAdmission ?? ''] ?? 'H-1B' };
             for (const u of ups) (mine as any)[u.field] = u.value;
             if (it.type === 'I-129S (blanket L)') mine.blanket = true;
-            if (f.name && !mine.name) mine.name = f.name;
           } else {
             const m = fam.find((x) => x.id === it.owner);
             if (m) {
               for (const u of ups) (m.profile as any)[u.field] = u.value;
               if (it.type === 'I-129S (blanket L)') m.profile.blanket = true;
-              if (f.name && (!m.name || m.name === m.relation)) m.name = f.name.split(' ')[0];
             }
+          }
+        }
+        // The name on the document fills in the person's name if they don't have one yet.
+        if (name) {
+          if (it.owner === 'me') { if (mine && !mine.name) mine.name = name; }
+          else {
+            const m = fam.find((x) => x.id === it.owner);
+            if (m && (!m.name?.trim() || m.name === m.relation || RELATION_WORDS.includes(m.name.trim()))) m.name = name;
           }
         }
         if (it.addCase && it.receipt && /^[A-Z]{3}\d{10}$/.test(it.receipt) && !existing.has(it.receipt)) {
@@ -170,10 +196,20 @@ export default function AddDocuments() {
               {it.state !== 'reading' ? (
                 <>
                   {it.state === 'unread' && canRead ? <View style={{ marginTop: 10 }}><Note tone="amber">Couldn’t read this one — choose the type and date below.</Note></View> : null}
-                  <T v="label" style={{ marginTop: 14, marginBottom: 8 }}>Whose document{it.found?.name ? ` · reads “${it.found.name}”` : ''}</T>
+                  <View style={{ marginTop: 14 }}>
+                    <Field label="Name on document" value={it.name} onChangeText={(v) => patch(it.key, { name: v })} placeholder={it.state === 'done' ? 'Not found — type the name' : 'Type the name'} autoCapitalize="words" />
+                  </View>
+                  <T v="label" style={{ marginBottom: 8 }}>Whose document</T>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
                     {list.map((p) => <Avatar key={p.id} p={p} on={it.owner === p.id} onPress={() => patch(it.key, { owner: p.id })} />)}
+                    <Avatar p={{ id: NEW, name: 'New', relation: '+', short: 'New person', named: false } as any} on={it.owner === NEW} onPress={() => patch(it.key, { owner: NEW })} />
                   </View>
+                  {it.owner === NEW ? (
+                    <View style={{ marginTop: 10 }}>
+                      <T v="small" style={{ marginBottom: 8 }}>Adds {it.name.trim() || 'this person'} to your family as</T>
+                      <View style={{ marginHorizontal: -36 }}><Chips options={['Spouse', 'Child', 'Parent', 'Other'].map((r) => ({ label: r, value: r }))} value={it.newRelation} onChange={(v) => patch(it.key, { newRelation: v })} /></View>
+                    </View>
+                  ) : null}
 
                   <View style={{ marginTop: 12, gap: 8 }}>
                     {it.validTo ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Ionicons name="calendar-outline" size={16} color={t.sub} /><T v="body">Valid to <T v="h3" style={{ fontSize: 15 }}>{fmt(it.validTo)}</T></T></View> : null}
@@ -182,7 +218,7 @@ export default function AddDocuments() {
 
                   {ups.length ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-                      <T v="body" style={{ flex: 1, fontSize: 14 }}>Update {it.owner === 'me' ? 'my' : `${(who as any)?.short ?? who?.name}’s`} {ups.map((u) => u.label.toLowerCase()).join(', ')}</T>
+                      <T v="body" style={{ flex: 1, fontSize: 14 }}>Update {it.owner === 'me' ? 'my' : it.owner === NEW ? `${it.name.trim().split(' ')[0] || 'their'}’s` : `${(who as any)?.short ?? who?.name}’s`} {ups.map((u) => u.label.toLowerCase()).join(', ')}</T>
                       <Switch value={it.applyDates} onValueChange={(v) => patch(it.key, { applyDates: v })} trackColor={{ true: t.green, false: t.surface2 }} thumbColor="#fff" />
                     </View>
                   ) : null}

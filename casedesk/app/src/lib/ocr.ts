@@ -150,22 +150,51 @@ function mrz(text: string): { kind: 'P' | 'V'; expiry?: string } | null {
 const latest = (text: string) => datesIn(text).sort().pop();
 
 const title = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase()).replace(/\s+/g, ' ').trim();
-// Name from the MRZ line 1: P<INDKRISHNAN<<THARA<DHIYANA<<< or VNUSAKRISHNAN<<THARA<<<
-function mrzName(text: string): string | undefined {
-  const l = text.toUpperCase().replace(/ /g, '').replace(/«/g, '<').split(/\n/).find((x) => /^[PV][A-Z<][A-Z<]{3}[A-Z<]+<<[A-Z<]+$/.test(x) && x.length >= 30);
-  if (!l) return undefined;
-  const body = l.slice(5);
-  const [sur, giv] = body.split('<<');
-  const given = (giv || '').replace(/<+/g, ' ').trim(), surname = sur.replace(/<+/g, ' ').trim();
-  if (!surname) return undefined;
-  return title(`${given} ${surname}`);
+// Name from the MRZ line 1: P<INDKRISHNAN<<THARA<DHIYANA<<< or VNUSAKRISHNAN<<THARA<<<.
+// Tolerates OCR slips («, (, {, K for <) and passports with no surname (P<IND<<THARA<DHIYANA<<<).
+function mrzLine(raw: string) {
+  return raw.toUpperCase().replace(/\s/g, '').replace(/[«‹(){}\[\]|]/g, '<').replace(/[<K]{4,}/g, (m) => (m.includes('<') || m.length >= 5 ? '<<<<' : m));
 }
-// Labelled names: "First (Given) Name: THARA" / "Given Name(s)" / "Surname" / "Beneficiary: KRISHNAN, THARA"
+function mrzName(text: string): string | undefined {
+  const lines = text.split(/\n/).map(mrzLine);
+  const l = lines.find((x) => /^[PV][A-Z<0]?[A-Z]{3}[A-Z<]{6,}$/.test(x.replace(/<+$/, '')) && x.length >= 20 && x.includes('<'));
+  if (!l) return undefined;
+  const body = l.slice(5).replace(/[^A-Z<]/g, '');
+  let sur = '', giv = '';
+  const cut = body.indexOf('<<');
+  if (cut >= 0) { sur = body.slice(0, cut); giv = body.slice(cut + 2); } else giv = body;
+  const clean = (x: string) => x.replace(/<+/g, ' ').replace(/\b[KC]\b/g, ' ').trim();
+  const given = clean(giv), surname = clean(sur);
+  const full = [given, surname].filter(Boolean).join(' ');
+  if (full.length < 2 || full.split(' ').some((w) => w.length > 20)) return undefined; // OCR noise, not a name
+  return title(full);
+}
+// Labelled names. Value on the same line ("Given Name(s): THARA") or on the next line, as on Indian and US
+// passports ("Given Name(s) / दिए गए नाम" then "THARA DHIYANA"). Also "Beneficiary: KRISHNAN, THARA".
+const NOT_NAME = /\b(NATIONALITY|SEX|DATE|BIRTH|PLACE|ISSUE|EXPIRY|PASSPORT|REPUBLIC|INDIA|UNITED|STATES|TYPE|CODE|COUNTRY|AUTHORITY|SIGNATURE|NAME|SURNAME|GIVEN)\b/;
+function valueAfter(lines: string[], label: RegExp): string | undefined {
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(label);
+    if (!m) continue;
+    const rest = lines[i].slice((m.index ?? 0) + m[0].length).split('/')[0].replace(/^[\s:\-()s]*/, '').trim();
+    if (/^[A-Z][A-Z' -]{1,40}$/.test(rest) && !NOT_NAME.test(rest)) return rest;
+    for (const next of lines.slice(i + 1, i + 3)) {
+      const v = next.trim();
+      if (!v) continue;
+      if (NOT_NAME.test(v.toUpperCase())) break; // next label reached — this field is blank (e.g. no surname)
+      if (/^[A-Z][A-Z' -]{1,40}$/.test(v)) return v;
+    }
+  }
+  return undefined;
+}
 function labelledName(text: string): string | undefined {
-  const get = (re: RegExp) => { const m = text.match(re); return m ? m[1].replace(/[^A-Za-z' -]/g, '').trim() : undefined; };
-  const given = get(/(?:first\s*\(given\)\s*name|given\s*names?)\s*[:\-]?\s*([A-Za-z][A-Za-z' -]{1,40})/i);
-  const sur = get(/(?:last\s*\(surname\)(?:\s*name)?|last\s*name|surname)\s*[:\-]?\s*([A-Za-z][A-Za-z' -]{1,40})/i);
-  if (given && sur) return title(`${given.split(/\s{2,}/)[0]} ${sur.split(/\s{2,}/)[0]}`);
+  const lines = text.split(/\n/);
+  const given = valueAfter(lines, /(?:first\s*\(given\)\s*name|given\s*names?(?:\s*\(s\))?|first\s*name)/i);
+  const sur = valueAfter(lines, /(?:last\s*\(surname\)(?:\s*name)?|last\s*name|surname)/i);
+  if (given || sur) {
+    const full = [given, sur].filter(Boolean).map((x) => x!.split(/\s{2,}/)[0]).join(' ');
+    if (full.length >= 2) return title(full);
+  }
   const ben = text.match(/beneficiary\s*[:\-]?\s*([A-Z][A-Z' -]+),\s*([A-Z][A-Z' -]+)/i);
   if (ben) return title(`${ben[2]} ${ben[1]}`);
   return undefined;
