@@ -50,22 +50,19 @@ export function parseCaseText(raw: string, receipt?: string): Parsed | null {
   return { status, detail: detailLine, form, date };
 }
 
-// Opens USCIS with the receipt number on the clipboard; returns what was copied on the way back (if any).
-export async function checkInSafari(receipt: string): Promise<Parsed | null> {
-  if (Platform.OS === 'web') { window.open(USCIS_CASE_URL, '_blank'); return null; }
-  const Clipboard = require('expo-clipboard');
-  const WebBrowser = require('expo-web-browser');
-  await Clipboard.setStringAsync(receipt);
-  await WebBrowser.openBrowserAsync(USCIS_CASE_URL, {
-    presentationStyle: WebBrowser.WebBrowserPresentationStyle?.PAGE_SHEET ?? 'pageSheet',
-    dismissButtonStyle: 'done',
-    readerMode: false,
-    enableBarCollapsing: true,
-  });
-  try {
-    const copied: string = await Clipboard.getStringAsync();
-    return parseCaseText(copied, receipt);
-  } catch { return null; }
+// Opens USCIS Case Status in the Safari app with the receipt number already copied. When the person
+// comes back to CaseDesk, readCopiedResult() picks up whatever they copied there.
+// (Safari itself rather than an in-app sheet: it always opens, and it passes USCIS's security check.)
+export async function openUscis(receipt: string) {
+  if (Platform.OS === 'web') { window.open(USCIS_CASE_URL, '_blank'); return; }
+  try { await require('expo-clipboard').setStringAsync(receipt); } catch {}
+  const { Linking } = require('react-native');
+  await Linking.openURL(USCIS_CASE_URL);
+}
+
+export async function readCopiedResult(receipt: string): Promise<Parsed | null> {
+  if (Platform.OS === 'web') return null;
+  try { return parseCaseText(await require('expo-clipboard').getStringAsync(), receipt); } catch { return null; }
 }
 
 // Turns a parsed result into the stored case shape, keeping earlier history.

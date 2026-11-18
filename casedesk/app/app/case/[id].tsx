@@ -7,7 +7,8 @@ import { Card, T, Pill, Section, Note, Row, Button, tap } from '../../src/compon
 import { useTheme } from '../../src/theme';
 import { useCases, upsertCase, removeCase } from '../../src/lib/store';
 import { stageOf, STAGES, CENTERS } from '../../src/lib/caseStatus';
-import { checkInSafari, parseCaseText, toCaseResult } from '../../src/lib/uscisSafari';
+import { openUscis, readCopiedResult, parseCaseText, toCaseResult } from '../../src/lib/uscisSafari';
+import { AppState } from 'react-native';
 import { TextInput } from 'react-native';
 import { ShareCardButton } from '../../src/components/ShareCard';
 import { CaseCommunity } from '../../src/components/CaseCommunity';
@@ -34,18 +35,29 @@ export default function CaseDetail() {
     return true;
   };
 
+  // Waiting for the person to come back from Safari with the result copied.
+  const [waiting, setWaiting] = useState(false);
   const refresh = async () => {
     if (!id) return;
-    setBusy(true); setErr(''); setOk('');
-    try {
-      const p = await checkInSafari(id);
+    setErr(''); setOk('');
+    setWaiting(true);
+    try { await openUscis(id); } catch (e: any) { setWaiting(false); setErr(e.message || 'Could not open Safari.'); }
+  };
+  // Coming straight from "Add & check on USCIS": open Safari once the screen has settled.
+  useEffect(() => { if (check === '1' && c && !c.status) { const tm = setTimeout(refresh, 500); return () => clearTimeout(tm); } }, [c?.receipt]);
+  useEffect(() => {
+    if (!waiting) return;
+    const sub = AppState.addEventListener('change', async (st) => {
+      if (st !== 'active') return;
+      const p = await readCopiedResult(id!);
+      setWaiting(false);
       if (!(await apply(p))) {
         setShowPaste(true);
-        setErr('Copy the status on the USCIS page (press and hold the text → Select All → Copy), then tap “Paste result”.');
+        setErr('Didn’t find a status on the clipboard. On the USCIS result, press and hold the text → Select All → Copy, then tap “Paste result”.');
       }
-    } catch (e: any) { setErr(e.message); }
-    setBusy(false);
-  };
+    });
+    return () => sub.remove();
+  }, [waiting, id]);
 
   const pasteFromClipboard = async () => {
     let text = paste;
@@ -53,7 +65,6 @@ export default function CaseDetail() {
     if (!(await apply(parseCaseText(text, id)))) setErr('That doesn’t look like a USCIS status. Copy the heading and the sentence under it, then try again.');
   };
 
-  useEffect(() => { if (check === '1' && c && !c.status) refresh(); }, [c?.receipt]);
 
   if (!c) return <DetailScreen title="Case"><T v="sub" style={{ padding: 20 }}>Case not found.</T></DetailScreen>;
   const st = stageOf(c.status);
@@ -83,10 +94,11 @@ export default function CaseDetail() {
         <Card>
           <T v="h3">Check on USCIS</T>
           <T v="sub" style={{ marginTop: 4 }}>
-            Opens USCIS Case Status in Safari with {c.receipt} copied — paste it, tap Check Status, then copy the result and come back.
+            Opens USCIS in Safari with {c.receipt} copied. Paste it, tap Check Status, copy the result and come back — CaseDesk fills it in.
           </T>
           <View style={{ marginTop: 12 }}>
-            {busy ? <ActivityIndicator color={t.sub} style={{ paddingVertical: 14 }} /> : <Button label={c.status ? 'Check again' : 'Check status on USCIS'} icon="open-outline" onPress={refresh} />}
+            <Button label={c.status ? 'Check again on USCIS' : 'Check status on USCIS'} icon="open-outline" onPress={refresh} />
+            {waiting ? <T v="small" style={{ marginTop: 8, textAlign: 'center' }}>In Safari: paste the number, tap Check Status, copy the result, then come back here.</T> : null}
           </View>
           {ok ? <View style={{ marginTop: 10 }}><Note tone="accent">{ok}</Note></View> : null}
           {err ? <View style={{ marginTop: 10 }}><Note tone="amber">{err}</Note></View> : null}
