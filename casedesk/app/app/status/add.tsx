@@ -115,7 +115,7 @@ export default function AddDocuments() {
         if (it.owner === NEW) {
           const k = (name || it.newRelation).toLowerCase();
           if (!created[k]) {
-            const m: Member = { id: `${Date.now()}${Math.floor(Math.random() * 1000)}`, name: name || it.newRelation, relation: it.newRelation, profile: { visa: visasFor(it.newRelation)[0] } };
+            const m: Member = { id: `${Date.now()}${Math.floor(Math.random() * 1000)}`, name: name || it.newRelation, relation: it.newRelation, profile: { visa: visasFor(it.newRelation)[0], visaSet: false } };
             fam.push(m); created[k] = m.id;
           }
           it.owner = created[k];
@@ -128,7 +128,7 @@ export default function AddDocuments() {
         const ups = it.applyDates ? statusUpdates(f) : [];
         if (ups.length) {
           if (it.owner === 'me') {
-            mine = mine ?? { visa: CLASS_TO_VISA[f.classOfAdmission ?? ''] ?? 'H-1B' };
+            mine = mine ?? { visa: 'H-1B', visaSet: false };
             for (const u of ups) (mine as any)[u.field] = u.value;
             if (it.type === 'I-129S (blanket L)') mine.blanket = true;
           } else {
@@ -146,6 +146,12 @@ export default function AddDocuments() {
             const m = fam.find((x) => x.id === it.owner);
             if (m && (!m.name?.trim() || m.name === m.relation || RELATION_WORDS.includes(m.name.trim()))) m.name = name;
           }
+        }
+        // The class on an I-94 or visa stamp (H4, L2…) confirms the person's visa type.
+        const cls = CLASS_TO_VISA[f.classOfAdmission ?? ''];
+        if (cls && (it.type === 'I-94' || it.type === 'Visa stamp')) {
+          if (it.owner === 'me') { mine = mine ?? { visa: cls }; mine.visa = cls; mine.visaSet = true; }
+          else { const m = fam.find((x) => x.id === it.owner); if (m) { m.profile.visa = cls; m.profile.visaSet = true; } }
         }
         if (it.addCase && it.receipt && /^[A-Z]{3}\d{10}$/.test(it.receipt) && !existing.has(it.receipt)) {
           await upsertCase({ receipt: it.receipt, form: f.form, owner: it.owner, nickname: it.owner !== 'me' && who ? `${who.name}${f.form ? ' · ' + f.form : ''}` : undefined, history: [] });

@@ -43,7 +43,7 @@ function Multi<V extends string | number>({ options, value, onChange, fmtLabel }
   );
 }
 
-import { useProfile } from '../src/lib/profile';
+import { visaLabel, useProfile } from '../src/lib/profile';
 import { useFamily } from '../src/lib/family';
 import { people } from '../src/lib/people';
 
@@ -89,7 +89,7 @@ export default function Alerts() {
             <>
               <T v="label" style={{ marginTop: 6 }}>For</T>
               {plist.map((x) => (
-                <Toggle key={x.id} label={x.id === 'me' ? `${x.short === 'Me' ? 'Me' : x.short} (me)` : `${x.short} · ${x.relation}`} sub={x.profile ? x.profile.visa : 'No dates yet'} value={!(p.mutedPeople || []).includes(x.id)}
+                <Toggle key={x.id} label={x.id === 'me' ? `${x.short === 'Me' ? 'Me' : x.short} (me)` : `${x.short} · ${x.relation}`} sub={x.profile ? visaLabel(x.profile) : 'No dates yet'} value={!(p.mutedPeople || []).includes(x.id)}
                   onChange={(v) => set({ mutedPeople: v ? (p.mutedPeople || []).filter((m) => m !== x.id) : [...(p.mutedPeople || []), x.id] })} />
               ))}
               <T v="label" style={{ marginTop: 6 }}>Remind me before</T>

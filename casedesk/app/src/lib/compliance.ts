@@ -15,6 +15,7 @@ const MAX_YEARS: Record<string, number> = { 'H-1B': 6, 'L-1A': 7, 'L-1B': 5 };
 
 export function runChecks(p: Profile): Check[] {
   const out: Check[] = [];
+  if (p.visaSet === false) out.push({ id: 'visa-unset', tone: 'amber', icon: 'help-circle-outline', title: 'Confirm the visa type', detail: 'CaseDesk doesn’t assume one. Pick it under Edit dates, or scan an I-94 or visa stamp — it shows the class.' });
   const work = hasPetition(p.visa);
   const filedOnTime = !!p.extFiled && (!p.i94Expiry || p.extFiled <= p.i94Expiry);
   const blanket = isBlanket(p);

@@ -10,7 +10,7 @@ import { loadFamily, saveMember, removeMember, RELATIONS } from '../../src/lib/f
 export default function EditStatus() {
   const t = useTheme();
   const router = useRouter();
-  const [p, setP] = useState<Profile>({ visa: 'H-1B' });
+  const [p, setP] = useState<Profile>({ visa: 'H-1B', visaSet: false });
   const { member: memberParam } = useLocalSearchParams<{ member?: string }>();
   const [existing, setExisting] = useState(false);
   const member = memberParam;
@@ -65,7 +65,8 @@ export default function EditStatus() {
         <View style={{ marginBottom: 16 }}><Button label={isMember ? `Scan ${name.trim() || 'their'}${name.trim() ? '’s' : ''} document` : 'Scan a document to fill dates'} icon="scan" kind="secondary" onPress={scan} /></View>
         <T v="label" style={{ marginBottom: 8 }}>Current status</T>
       </View>
-      <Chips options={options.map((v) => ({ label: v, value: v }))} value={p.visa} onChange={(v) => set('visa')(v as VisaType)} />
+      {p.visaSet === false ? <View style={{ paddingHorizontal: 20, marginBottom: 10 }}><T v="small">Not confirmed yet — pick {isMember ? 'their' : 'your'} visa, or scan an I-94 or visa stamp.</T></View> : null}
+      <Chips options={options.map((v) => ({ label: v, value: v }))} value={p.visaSet === false ? '' : p.visa} onChange={(v) => setP((x) => ({ ...x, visa: v as VisaType, visaSet: true }))} />
       <View style={{ padding: 20 }}>
         {!isMember && hasPetition(p.visa) ? <Field label="Employer" placeholder="e.g. HCL America Inc." value={p.employer ?? ''} onChangeText={set('employer')} /> : null}
         <DateField label="I-94 “Admit Until” date" value={p.i94Expiry} onChange={set('i94Expiry')} hint="From i94.cbp.dhs.gov — the date that controls your stay." />

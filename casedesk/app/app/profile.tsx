@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DetailScreen } from '../src/components/TopBar';
 import { Card, T, Section, Row, Note } from '../src/components/ui';
 import { useTheme } from '../src/theme';
-import { useProfile } from '../src/lib/profile';
+import { visaLabel, useProfile } from '../src/lib/profile';
 import { useFamily } from '../src/lib/family';
 import { people, initials } from '../src/lib/people';
 import { useVault, getLock, setLock, deleteDoc } from '../src/lib/vault';
@@ -60,7 +60,7 @@ export default function Profile() {
           <T style={{ fontSize: 30, fontWeight: '800', color: '#fff' }}>{self.named ? initials(self.name) : 'Me'}</T>
         </View>
         <T v="h1" style={{ marginTop: 12, textAlign: 'center' }}>{self.named ? self.name : 'Your profile'}</T>
-        <T v="sub" style={{ marginTop: 4, textAlign: 'center' }}>{me ? `${me.visa}${me.employer ? ' · ' + me.employer : ''}` : 'Add your name and status'}</T>
+        <T v="sub" style={{ marginTop: 4, textAlign: 'center' }}>{me ? `${visaLabel(me)}${me.employer ? ' · ' + me.employer : ''}` : 'Add your name and status'}</T>
       </View>
 
       <Section title="Me">
@@ -73,7 +73,7 @@ export default function Profile() {
       <Section title="Family" note="Each person has their own dates, documents, cases and reminders.">
         <Card style={{ paddingVertical: 4 }}>
           {list.slice(1).map((x) => (
-            <Row key={x.id} icon="person-circle-outline" tone="neutral" title={x.named ? x.name : `${x.relation} (add name)`} subtitle={`${x.relation}${x.profile ? ' · ' + x.profile.visa : ''}`} onPress={() => router.push(`/status/edit?member=${x.id}` as any)} />
+            <Row key={x.id} icon="person-circle-outline" tone="neutral" title={x.named ? x.name : `${x.relation} (add name)`} subtitle={`${x.relation}${x.profile ? ' · ' + visaLabel(x.profile) : ''}`} onPress={() => router.push(`/status/edit?member=${x.id}` as any)} />
           ))}
           <Row icon="person-add-outline" tone="accent" title="Add family member" subtitle="Spouse, child or parent" onPress={() => router.push('/status/edit?member=new' as any)} last />
         </Card>

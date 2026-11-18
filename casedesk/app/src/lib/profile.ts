@@ -22,6 +22,7 @@ export const isBlanket = (p: { visa: VisaType; blanket?: boolean }) => !!p.blank
 
 export type Profile = {
   visa: VisaType;
+  visaSet?: boolean; // false = not confirmed yet (CaseDesk never assumes a visa type)
   name?: string; // used to match scanned documents to the right person
   employer?: string;
   blanket?: boolean; // L-1 (or L-2 dependent) admitted under a blanket L petition with Form I-129S — no individual I-797
@@ -62,3 +63,6 @@ export function useProfile(): [Profile | null, boolean] {
 
 export const usesEAD = (v: VisaType) => ['F-1 OPT', 'STEM OPT', 'H-4 EAD', 'Green card pending'].includes(v);
 export const hasPetition = (v: VisaType) => ['H-1B', 'L-1A', 'L-1B', 'TN'].includes(v);
+
+// What to show for someone's visa: never a guessed one.
+export const visaLabel = (p?: Profile | null) => (!p ? '' : p.visaSet === false ? 'Visa not confirmed' : p.visa);

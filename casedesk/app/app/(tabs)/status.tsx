@@ -8,14 +8,14 @@ import Svg, { Circle } from 'react-native-svg';
 import { Screen, Section, Card, T, Pill, IconBubble, Row, Button, Columns, tap } from '../../src/components/ui';
 import { useFamily } from '../../src/lib/family';
 import { useTheme } from '../../src/theme';
-import { useProfile, usesEAD, isBlanket, hasApprovalNotice, Profile } from '../../src/lib/profile';
+import { visaLabel, useProfile, usesEAD, isBlanket, hasApprovalNotice, Profile } from '../../src/lib/profile';
 import { runChecks, fmt, daysTo } from '../../src/lib/compliance';
 import { useVault, VaultDoc } from '../../src/lib/vault';
 import { useCases } from '../../src/lib/store';
 import { stageOf } from '../../src/lib/caseStatus';
 import { people, initials } from '../../src/lib/people';
 import { DOC_ICON } from '../../src/components/DocIcon';
-import { mergeDuplicateSpouse, backfillNames } from '../../src/lib/tidy';
+import { mergeDuplicateSpouse, backfillNames, unconfirmDefaultVisas } from '../../src/lib/tidy';
 
 const SHORT: Partial<Record<keyof Profile, string>> = { i94Expiry: 'Until your I-94 ends', petitionEnd: 'Until your approval ends', eadExpiry: 'Until your EAD ends', passportExpiry: 'Until your passport expires' };
 
@@ -58,7 +58,7 @@ export default function Status() {
   const [who, setWho] = useState('me');
   const [allChecks, setAllChecks] = useState(false);
   // Tidy up quietly: merge a leftover unnamed spouse, read names from passports saved before names were read.
-  useEffect(() => { mergeDuplicateSpouse().catch(() => {}).finally(() => { backfillNames().catch(() => {}); }); }, [docs.length, family.length]);
+  useEffect(() => { unconfirmDefaultVisas().catch(() => {}); mergeDuplicateSpouse().catch(() => {}).finally(() => { backfillNames().catch(() => {}); }); }, [docs.length, family.length]);
   const list = useMemo(() => people(me, family), [me, family]);
   const person = list.find((x) => x.id === who) ?? list[0];
   const p = person.profile;
@@ -76,7 +76,7 @@ export default function Status() {
   const docFor = (r: DateRow): VaultDoc | undefined => myDocs.find((d) => r.doc.includes(d.type));
 
   return (
-    <Screen title="Documents" subtitle={p ? `${person.name} · ${p.visa}${p.employer && person.id === 'me' ? ' · ' + p.employer : ''}` : 'Status, dates and documents for you and your family'}>
+    <Screen title="Documents" subtitle={p ? `${person.name} · ${visaLabel(p)}${p.employer && person.id === 'me' ? ' · ' + p.employer : ''}` : 'Status, dates and documents for you and your family'}>
       {/* People */}
       {ready ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingVertical: 4 }}>

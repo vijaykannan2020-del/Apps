@@ -2,7 +2,7 @@
 // Runs quietly when the Documents tab opens.
 import { loadFamily, Member } from './family';
 import { read, write } from './store';
-import { loadProfile, saveProfile, Profile } from './profile';
+import { loadProfile, saveProfile, Profile, visasFor } from './profile';
 import { mapDocs, allDocs, updateDoc, VaultDoc } from './vault';
 
 const FAMILY = 'cd.family.v1';
@@ -80,4 +80,15 @@ export async function backfillNames() {
       }
     }
   } finally { running = false; }
+}
+
+// Earlier versions filled in a default visa (H-4 for a spouse or child) without asking. A family member
+// still on that untouched default is marked "not confirmed" until the user picks or a document shows it.
+export async function unconfirmDefaultVisas() {
+  if (await read<boolean>('cd.mig.visa1', false)) return;
+  const fam = await loadFamily();
+  let changed = false;
+  for (const m of fam) if (m.profile.visaSet === undefined && m.profile.visa === visasFor(m.relation)[0]) { m.profile.visaSet = false; changed = true; }
+  if (changed) await write(FAMILY, fam);
+  await write('cd.mig.visa1', true);
 }

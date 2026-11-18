@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Section, Card, T, Pill, IconBubble, Chips, Segmented, Note, Grid, Columns, GlassButton, tap } from '../../src/components/ui';
 import { useLayout, tileWidth } from '../../src/lib/layout';
-import { useProfile } from '../../src/lib/profile';
+import { visaLabel, useProfile } from '../../src/lib/profile';
 import { useFamily } from '../../src/lib/family';
 import { people, initials } from '../../src/lib/people';
 import { runChecks } from '../../src/lib/compliance';
@@ -78,7 +78,7 @@ export default function Today() {
                       <T v="h3" style={{ fontSize: 13 }}>{x.named ? initials(x.name) : x.id === 'me' ? 'Me' : x.relation[0]}</T>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <T v="h3" style={{ fontSize: 15 }}>{x.short} · {x.profile!.visa}</T>
+                      <T v="h3" style={{ fontSize: 15 }}>{x.short} · {visaLabel(x.profile)}</T>
                       <T v="small" numberOfLines={1} style={{ marginTop: 1 }}>{tp ? tp.title : 'All good'}</T>
                     </View>
                     <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: col }} />

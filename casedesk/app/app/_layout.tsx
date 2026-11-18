@@ -13,6 +13,7 @@ export default function Root() {
     setupNotificationHandling();
     registerBackground();
     applyAlerts(); // refresh reminders on every launch
+    import('../src/lib/tidy').then((m) => m.unconfirmDefaultVisas()).catch(() => {});
     import('../src/lib/pd').then((m) => m.checkPriorityDate(true)).catch(() => {});
     if (Platform.OS === 'web') return;
     // Apply app updates straight away: if a newer version downloads within a few seconds of opening,

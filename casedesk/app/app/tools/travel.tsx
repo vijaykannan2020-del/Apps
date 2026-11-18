@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { DetailScreen } from '../../src/components/TopBar';
 import { Card, T, Section, Button, Note, DateField, Chips, IconBubble } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
-import { useProfile } from '../../src/lib/profile';
+import { visaLabel, useProfile } from '../../src/lib/profile';
 import { useFamily } from '../../src/lib/family';
 import { checkTrip, Trip } from '../../src/lib/travel';
 import { people } from '../../src/lib/people';
@@ -66,7 +66,7 @@ export default function Travel() {
                 <Ionicons name={V.i as any} size={40} color={V.c} />
                 <View style={{ flex: 1 }}>
                   <T v="h2" style={{ color: V.c }}>{V.h}</T>
-                  <T v="sub" style={{ marginTop: 2 }}>{p.visa}{trip.back ? ` · back ${trip.back}` : ''}</T>
+                  <T v="sub" style={{ marginTop: 2 }}>{visaLabel(p)}{trip.back ? ` · back ${trip.back}` : ''}</T>
                 </View>
               </Card>
               {res.reasons.map((x, i) => (
