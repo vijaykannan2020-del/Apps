@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { DetailScreen } from '../../src/components/TopBar';
 import { Card, T, Button, Note, Chips, DateField, Pill, tap } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
-import { pickFiles, pickPhotos, pickPhoto, addDoc, DOC_TYPES, DocType, Picked } from '../../src/lib/vault';
+import { pickFiles, pickPhotos, pickPhoto, addDoc, deleteDoc, allDocs, useVault, DOC_TYPES, DocType, Picked } from '../../src/lib/vault';
 import { readText, parseDocument, statusUpdates, ocrAvailable, Found } from '../../src/lib/ocr';
 import { loadProfile, saveProfile, Profile, useProfile, VisaType, visasFor } from '../../src/lib/profile';
 import { useFamily, loadFamily, saveMember, Member } from '../../src/lib/family';
@@ -26,6 +26,8 @@ type Item = {
   name: string; newRelation: string; // name printed on it (editable); relation if it's a new person
 };
 const NEW = '__new';
+// Someone has one current passport, visa, I-94, approval and EAD: a new one replaces the old.
+const SINGLE = ['Passport', 'Visa stamp', 'I-94', 'Approval (I-797A/B)', 'I-129S (blanket L)', 'EAD card'];
 const RELATION_WORDS = ['Spouse', 'Child', 'Parent', 'Other', 'Son', 'Daughter', 'Wife', 'Husband', 'Kid'];
 const CLASS_TO_VISA: Record<string, VisaType> = { H1B: 'H-1B', L1A: 'L-1A', L1B: 'L-1B', TN: 'TN', H4: 'H-4', L2S: 'L-2S', L2: 'L-2', TD: 'TD', F1: 'F-1 OPT', F2: 'F-2' };
 
@@ -48,6 +50,7 @@ export default function AddDocuments() {
   const presetType = (DOC_TYPES as readonly string[]).includes(typeParam ?? '') ? (typeParam as DocType) : undefined;
   const [me] = useProfile();
   const [family] = useFamily();
+  const [saved] = useVault();
   const list = useMemo(() => people(me, family), [me, family]);
   const fallbackOwner = member || 'me';
   const [items, setItems] = useState<Item[]>([]);
@@ -125,6 +128,8 @@ export default function AddDocuments() {
         }
         const who = plist.find((p) => p.id === it.owner);
         const title = `${it.owner !== 'me' && who ? who.name + ' · ' : ''}${it.type}${it.validTo ? ' · ' + fmt(it.validTo) : ''}`;
+        // A new passport (visa, I-94…) replaces the one saved before for the same person.
+        if (SINGLE.includes(it.type)) for (const old of (await allDocs()).filter((d) => (d.owner || 'me') === it.owner && d.type === it.type)) await deleteDoc(old);
         await addDoc({ title, type: it.type, expires: it.validTo || undefined, receipt: it.receipt || undefined, name: name || undefined, fileName: it.file.name, mime: it.file.mime, size: it.file.size, owner: it.owner }, it.file);
         const f: Found = { ...(it.found || { lines: 0 }), type: it.type, validTo: it.validTo || undefined, receipt: it.receipt || undefined };
         const ups = it.applyDates ? statusUpdates(f) : [];
@@ -251,6 +256,17 @@ export default function AddDocuments() {
               {it.receipt || /I-797|I-129S/.test(it.type) ? <Line label="Receipt no." value={it.receipt || 'Add'} edit="receipt" muted={!it.receipt} /> : null}
               {it.edit === 'receipt' ? <Field label="Receipt number" value={it.receipt} onChangeText={(v) => patch(it.key, { receipt: v.toUpperCase().replace(/\s/g, '') })} autoCapitalize="characters" maxLength={13} placeholder="IOE0123456789" /> : null}
 
+              {(() => {
+                const old = SINGLE.includes(it.type) ? saved.find((d) => (d.owner || 'me') === it.owner && d.type === it.type) : undefined;
+                if (!old) return null;
+                const older = !!(it.validTo && old.expires && it.validTo < old.expires);
+                return (
+                  <View style={{ marginTop: 10, flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+                    <Ionicons name="swap-horizontal" size={16} color={older ? t.amber : t.green} style={{ marginTop: 2 }} />
+                    <T v="small" style={{ flex: 1, color: older ? t.amber : t.sub }}>{older ? `This one ends before the ${typeName} already saved (${fmt(old.expires)}). Saving replaces that one — check it’s the right file.` : `Replaces the ${typeName} saved before${old.expires ? ` (valid to ${fmt(old.expires)})` : ''} and updates the date.`}</T>
+                  </View>
+                );
+              })()}
               <Pressable onPress={() => patch(it.key, { open: !it.open })} style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Ionicons name="eye-outline" size={15} color={t.accent} />
                 <T v="small" style={{ color: t.accent, fontWeight: '700' }}>{it.open ? 'Hide document' : 'View document to check'}</T>
