@@ -23,6 +23,8 @@ async function applyToStatus(f: Found, memberId?: string) {
     const m = (await loadFamily()).find((x) => x.id === memberId);
     if (!m) return 0;
     for (const u of ups) (m.profile as any)[u.field] = u.value;
+    // Fill the name from the document if it wasn't typed (it defaults to "Child", "Spouse"…)
+    if (f.name && (!m.name || m.name === m.relation)) m.name = f.name.split(' ')[0];
     await saveMember(m);
     return ups.length;
   }

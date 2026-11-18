@@ -14,6 +14,7 @@ export type Found = {
   category?: string; // EAD category, e.g. C26
   passportExpiry?: string;
   receivedDate?: string; // on receipt notices
+  name?: string; // person's name as printed (passport/visa MRZ, I-94, EAD, I-797 beneficiary)
   lines: number;
 };
 
@@ -147,6 +148,28 @@ function mrz(text: string): { kind: 'P' | 'V'; expiry?: string } | null {
 }
 const latest = (text: string) => datesIn(text).sort().pop();
 
+const title = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase()).replace(/\s+/g, ' ').trim();
+// Name from the MRZ line 1: P<INDKRISHNAN<<THARA<DHIYANA<<< or VNUSAKRISHNAN<<THARA<<<
+function mrzName(text: string): string | undefined {
+  const l = text.toUpperCase().replace(/ /g, '').replace(/«/g, '<').split(/\n/).find((x) => /^[PV][A-Z<][A-Z<]{3}[A-Z<]+<<[A-Z<]+$/.test(x) && x.length >= 30);
+  if (!l) return undefined;
+  const body = l.slice(5);
+  const [sur, giv] = body.split('<<');
+  const given = (giv || '').replace(/<+/g, ' ').trim(), surname = sur.replace(/<+/g, ' ').trim();
+  if (!surname) return undefined;
+  return title(`${given} ${surname}`);
+}
+// Labelled names: "First (Given) Name: THARA" / "Given Name(s)" / "Surname" / "Beneficiary: KRISHNAN, THARA"
+function labelledName(text: string): string | undefined {
+  const get = (re: RegExp) => { const m = text.match(re); return m ? m[1].replace(/[^A-Za-z' -]/g, '').trim() : undefined; };
+  const given = get(/(?:first\s*\(given\)\s*name|given\s*names?)\s*[:\-]?\s*([A-Za-z][A-Za-z' -]{1,40})/i);
+  const sur = get(/(?:last\s*\(surname\)(?:\s*name)?|last\s*name|surname)\s*[:\-]?\s*([A-Za-z][A-Za-z' -]{1,40})/i);
+  if (given && sur) return title(`${given.split(/\s{2,}/)[0]} ${sur.split(/\s{2,}/)[0]}`);
+  const ben = text.match(/beneficiary\s*[:\-]?\s*([A-Z][A-Z' -]+),\s*([A-Z][A-Z' -]+)/i);
+  if (ben) return title(`${ben[2]} ${ben[1]}`);
+  return undefined;
+}
+
 // ---------- document understanding ----------
 export function parseDocument(text: string): Found {
   const T = text.replace(/\r/g, '');
@@ -194,6 +217,8 @@ export function parseDocument(text: string): Found {
     const m = T.match(/(?:period of employment|begin date)[\s\S]{0,80}?((?:\d{1,2}\/\d{1,2}\/\d{4}))[\s\S]{0,60}?((?:\d{1,2}\/\d{1,2}\/\d{4}))/i);
     if (m) { found.validFrom = datesIn(m[1])[0]; found.validTo = datesIn(m[2])[0]; }
   }
+  const nm = mrzName(T) ?? labelledName(T);
+  if (nm && nm.length >= 3 && nm.length <= 60) found.name = nm;
   return found;
 }
 

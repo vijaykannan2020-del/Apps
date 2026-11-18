@@ -24,9 +24,10 @@ export default function EditStatus() {
   // Reload when coming back (e.g. after scanning a document that filled some dates)
   useFocusEffect(useCallback(() => {
     if (isMember) {
-      loadFamily().then((all) => { const m = all.find((x) => x.id === memberId); if (m) { setP(m.profile); setName(m.name); setRelation(m.relation); setExisting(true); } });
+      loadFamily().then((all) => { const m = all.find((x) => x.id === memberId); if (m) { setP(m.profile); setName(m.name === m.relation ? '' : m.name); setRelationRaw(m.relation); setExisting(true); } });
     } else loadProfile().then((v) => { if (v) { setP(v); setExisting(true); } });
   }, [isMember, memberId]));
+  const needName = isMember && !name.trim();
   const save = async () => {
     if (isMember) await saveMember({ id: memberId, name: name.trim() || relation, relation, profile: p });
     else await saveProfile(p);
@@ -48,7 +49,7 @@ export default function EditStatus() {
         <T v="sub" style={{ marginBottom: 14 }}>{isMember ? 'Scan their I-94, I-797, passport, visa or EAD — or pick the dates.' : 'Scan your I-94, I-797, passport, visa or EAD — or pick the dates.'} Everything stays on this phone.</T>
         {isMember ? (
           <>
-            <Field label="Name" placeholder="e.g. Priya" value={name} onChangeText={setName} />
+            <Field label="Name" placeholder="e.g. Priya — or scan their passport to fill it" value={name} onChangeText={setName} />
             <T v="label" style={{ marginBottom: 8 }}>Relation</T>
             <View style={{ marginHorizontal: -20, marginBottom: 14 }}><Chips options={RELATIONS.map((r) => ({ label: r, value: r }))} value={relation} onChange={setRelation} /></View>
           </>
@@ -77,8 +78,9 @@ export default function EditStatus() {
         <DateField label="Date filed (receipt date)" value={p.extFiled} onChange={set('extFiled')} />
         <Field label="Receipt number" placeholder="e.g. WAC2690012345" autoCapitalize="characters" value={p.extReceipt ?? ''} onChangeText={set('extReceipt')} />
         {!valid ? <View style={{ marginBottom: 12 }}><Note tone="red">Check the dates.</Note></View> : null}
-        <Button label="Save" onPress={save} disabled={!valid} />
-        {isMember && !existing ? <View style={{ marginTop: 10 }}><Button label="Save & add another" kind="secondary" icon="person-add-outline" disabled={!valid} onPress={async () => { await saveMember({ id: memberId, name: name.trim() || relation, relation, profile: p }); router.replace('/status/edit?member=new' as any); }} /></View> : null}
+        {needName ? <View style={{ marginBottom: 10 }}><Note tone="amber">Add a name so you can tell family members apart.</Note></View> : null}
+        <Button label="Save" onPress={save} disabled={!valid || needName} />
+        {isMember && !existing ? <View style={{ marginTop: 10 }}><Button label="Save & add another" kind="secondary" icon="person-add-outline" disabled={!valid || needName} onPress={async () => { await saveMember({ id: memberId, name: name.trim() || relation, relation, profile: p }); router.replace('/status/edit?member=new' as any); }} /></View> : null}
         {existing ? <View style={{ marginTop: 10 }}><Button label={isMember ? 'Remove family member' : 'Clear my status'} kind="secondary" icon="trash-outline" onPress={clear} /></View> : null}
       </View>
     </DetailScreen>
