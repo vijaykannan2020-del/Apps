@@ -20,6 +20,7 @@ export type VaultDoc = {
   mime: string;
   size: number;
   uri: string; // native file uri, or "web:<id>" for the browser preview
+  owner?: string; // 'me' (default) or a family member id
   added: string;
 };
 
@@ -54,6 +55,20 @@ export async function pickFile(): Promise<{ name: string; mime: string; size: nu
   return { name: a.name, mime: a.mimeType ?? 'application/octet-stream', size: a.size ?? 0, uri: a.uri, webFile: a.file };
 }
 
+export type Picked = { name: string; mime: string; size: number; uri: string; webFile?: Blob };
+// Several PDFs / images at once (Files)
+export async function pickFiles(): Promise<Picked[]> {
+  const r = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true, multiple: true });
+  if (r.canceled || !r.assets?.length) return [];
+  return r.assets.map((a: any) => ({ name: a.name, mime: a.mimeType ?? 'application/octet-stream', size: a.size ?? 0, uri: a.uri, webFile: a.file }));
+}
+// Several photos at once (Photos library)
+export async function pickPhotos(): Promise<Picked[]> {
+  const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9, allowsMultipleSelection: true, selectionLimit: 20 });
+  if (r.canceled || !r.assets?.length) return [];
+  return r.assets.map((a: any, i: number) => ({ name: a.fileName ?? `photo-${Date.now()}-${i}.jpg`, mime: a.mimeType ?? 'image/jpeg', size: a.fileSize ?? 0, uri: a.uri, webFile: a.file }));
+}
+
 // Take a photo of a document (or choose one from Photos)
 export async function pickPhoto(camera: boolean): Promise<{ name: string; mime: string; size: number; uri: string; webFile?: Blob } | null> {
   if (camera) {
@@ -70,7 +85,7 @@ export async function pickPhoto(camera: boolean): Promise<{ name: string; mime: 
 const toDataUrl = (b: Blob) => new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = rej; fr.readAsDataURL(b); });
 
 export async function addDoc(meta: Omit<VaultDoc, 'id' | 'uri' | 'added'>, picked: { uri: string; webFile?: Blob }) {
-  const id = String(Date.now());
+  const id = `${Date.now()}${Math.floor(Math.random() * 1e4)}`;
   let uri: string;
   if (Platform.OS === 'web') {
     if (meta.size > 3_000_000) throw new Error('In the web preview, files must be under 3 MB. The phone app has no such limit.');

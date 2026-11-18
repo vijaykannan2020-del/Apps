@@ -5,6 +5,10 @@ import { DetailScreen } from '../../src/components/TopBar';
 import { Field, Button, T, Note, Card } from '../../src/components/ui';
 import { RECEIPT_RE, normalizeReceipt, CENTERS } from '../../src/lib/caseStatus';
 import { upsertCase } from '../../src/lib/store';
+import { useProfile } from '../../src/lib/profile';
+import { useFamily } from '../../src/lib/family';
+import { people } from '../../src/lib/people';
+import { Chips } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
 
 export default function AddCase() {
@@ -12,6 +16,10 @@ export default function AddCase() {
   const router = useRouter();
   const [receipt, setReceipt] = useState('');
   const [nickname, setNickname] = useState('');
+  const [owner, setOwner] = useState('me');
+  const [me] = useProfile();
+  const [family] = useFamily();
+  const plist = people(me, family);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const r = normalizeReceipt(receipt);
@@ -21,7 +29,7 @@ export default function AddCase() {
   const save = async () => {
     setBusy(true); setError('');
     try {
-      await upsertCase({ receipt: r, nickname: nickname.trim() || undefined, history: [] });
+      await upsertCase({ receipt: r, nickname: nickname.trim() || (owner !== 'me' ? plist.find((x) => x.id === owner)?.name : undefined), owner, history: [] });
       router.replace({ pathname: '/case/[id]', params: { id: r, check: '1' } });
     } catch (e: any) { setError(e.message || 'Could not save.'); }
     finally { setBusy(false); }
@@ -37,6 +45,12 @@ export default function AddCase() {
           <T v="small" style={{ marginTop: -6, marginBottom: 14, color: valid ? t.green : r.length >= 13 ? t.red : t.sub }}>
             {valid ? `✓ ${center ?? 'USCIS'}` : r.length >= 13 ? 'That doesn’t look like a USCIS receipt number' : `${center ? center + ' · ' : ''}3 letters + 10 digits — ${Math.max(0, r.replace(/^[A-Z]+/, '').length)} of 10 digits entered`}
           </T>
+        ) : null}
+        {plist.length > 1 ? (
+          <>
+            <T v="label" style={{ marginBottom: 8 }}>Whose case</T>
+            <View style={{ marginHorizontal: -20, marginBottom: 14 }}><Chips options={plist.map((x) => ({ label: x.id === 'me' ? 'Me' : x.name, value: x.id }))} value={owner} onChange={setOwner} /></View>
+          </>
         ) : null}
         <Field label="Nickname (optional)" placeholder="e.g. My H-1B extension" value={nickname} onChangeText={setNickname} />
         {error ? <View style={{ marginBottom: 12 }}><Note tone="red">{error}</Note></View> : null}

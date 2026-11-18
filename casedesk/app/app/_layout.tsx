@@ -27,6 +27,7 @@ export default function Root() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: Platform.OS === 'android' ? 'fade_from_bottom' : 'default' }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="case/add" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="status/add" options={{ presentation: 'modal' }} />
         <Stack.Screen name="tools/i9-record" options={{ presentation: 'modal' }} />
         <Stack.Screen name="alerts" />
       </Stack>

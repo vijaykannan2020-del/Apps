@@ -11,6 +11,7 @@ export type TrackedCase = {
   updated?: string;
   history: CaseEvent[];
   demo?: boolean;
+  owner?: string; // 'me' or a family member id
 };
 
 export type I9Record = {

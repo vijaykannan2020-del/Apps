@@ -1,26 +1,49 @@
-import React, { useState } from 'react';
-import { View, Pressable } from 'react-native';
+// My Status — one person at a time (me or a family member): what needs attention, the next deadline,
+// their key dates, documents and cases. Adding documents is the main action: they fill everything else.
+import React, { useMemo, useState } from 'react';
+import { View, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Section, Card, T, Pill, IconBubble, Row, Button, Grid, Columns, GlassButton, Chips, tap } from '../../src/components/ui';
+import Svg, { Circle } from 'react-native-svg';
+import { Screen, Section, Card, T, Pill, IconBubble, Row, Button, Columns, tap } from '../../src/components/ui';
 import { useFamily } from '../../src/lib/family';
-import { useLayout, tileWidth } from '../../src/lib/layout';
 import { useTheme } from '../../src/theme';
-import { useProfile, usesEAD } from '../../src/lib/profile';
+import { useProfile, usesEAD, isBlanket, hasApprovalNotice, Profile } from '../../src/lib/profile';
 import { runChecks, fmt, daysTo } from '../../src/lib/compliance';
-import { useVault } from '../../src/lib/vault';
+import { useVault, VaultDoc } from '../../src/lib/vault';
+import { useCases } from '../../src/lib/store';
+import { stageOf } from '../../src/lib/caseStatus';
+import { people, initials } from '../../src/lib/people';
+import { DOC_ICON } from '../../src/components/DocIcon';
 
-function DateTile({ label, value }: { label: string; value?: string }) {
+const SHORT: Partial<Record<keyof Profile, string>> = { i94Expiry: 'Until your I-94 ends', petitionEnd: 'Until your approval ends', eadExpiry: 'Until your EAD ends', passportExpiry: 'Until your passport expires' };
+
+type DateRow = { key: keyof Profile; label: string; doc: string[]; value?: string };
+
+function datesFor(p: Profile): DateRow[] {
+  const rows: DateRow[] = [{ key: 'i94Expiry', label: 'I-94 admit until', doc: ['I-94'], value: p.i94Expiry }];
+  if (hasApprovalNotice(p.visa)) rows.push(isBlanket(p) ? { key: 'petitionEnd', label: 'I-129S period ends', doc: ['I-129S (blanket L)'], value: p.petitionEnd } : { key: 'petitionEnd', label: 'Approval (I-797) valid to', doc: ['Approval (I-797A/B)'], value: p.petitionEnd });
+  if (usesEAD(p.visa)) rows.push({ key: 'eadExpiry', label: 'EAD card valid to', doc: ['EAD card'], value: p.eadExpiry });
+  rows.push({ key: 'passportExpiry', label: 'Passport expires', doc: ['Passport'], value: p.passportExpiry });
+  rows.push({ key: 'visaStampExpiry', label: 'Visa stamp expires', doc: ['Visa stamp'], value: p.visaStampExpiry });
+  if (p.extFiled) rows.push({ key: 'extFiled', label: 'Extension filed', doc: ['Receipt (I-797C)'], value: p.extFiled });
+  return rows;
+}
+
+// Countdown ring for the next deadline (fills as the date gets closer within a 1-year window).
+function Ring({ days, color }: { days: number; color: string }) {
   const t = useTheme();
-  const L = useLayout();
-  const d = daysTo(value);
-  const color = d === null ? t.faint : d < 0 ? t.red : d <= 90 ? t.amber : t.text;
+  const size = 112, stroke = 9, r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  const frac = Math.max(0.04, Math.min(1, days / 365));
   return (
-    <Card style={{ width: tileWidth(2), paddingVertical: 14 }}>
-      <T v="label">{label}</T>
-      <T v="h3" style={{ marginTop: 6, color: value ? t.text : t.faint }}>{value ? fmt(value) : 'Not added'}</T>
-      {d !== null ? <T v="small" style={{ marginTop: 2, color }}>{d < 0 ? `${-d} days ago` : `${d} days left`}</T> : null}
-    </Card>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={t.surface2} strokeWidth={stroke} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={stroke} fill="none" strokeLinecap="round" strokeDasharray={`${c * frac} ${c}`} />
+      </Svg>
+      <T style={{ fontSize: 30, fontWeight: '800', color: t.text, fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}>{Math.abs(days)}</T>
+      <T v="small" style={{ marginTop: -2 }}>{days < 0 ? 'days ago' : 'days'}</T>
+    </View>
   );
 }
 
@@ -29,115 +52,182 @@ export default function Status() {
   const router = useRouter();
   const [me, ready] = useProfile();
   const [family] = useFamily();
-  const [who, setWho] = useState('me');
-  const member = family.find((f) => f.id === who);
-  const p = who === 'me' ? me : member?.profile ?? null;
-  const editPath = who === 'me' ? '/status/edit' : `/status/edit?member=${who}`;
   const [docs] = useVault();
+  const [cases] = useCases();
+  const [who, setWho] = useState('me');
+  const [allChecks, setAllChecks] = useState(false);
+  const list = useMemo(() => people(me, family), [me, family]);
+  const person = list.find((x) => x.id === who) ?? list[0];
+  const p = person.profile;
+  const editPath = who === 'me' ? '/status/edit' : `/status/edit?member=${who}`;
+  const addPath = who === 'me' ? '/status/add' : `/status/add?member=${who}`;
+  const mine = (o?: string) => (o || 'me') === who;
+  const myDocs = docs.filter((d) => mine(d.owner));
+  const myCases = cases.filter((c) => mine(c.owner));
   const checks = p ? runChecks(p) : [];
-  const issues = checks.filter((c) => c.tone === 'red' || c.tone === 'amber').length;
+  const urgent = checks.filter((c) => c.tone === 'red' || c.tone === 'amber');
+  const rest = checks.filter((c) => !(c.tone === 'red' || c.tone === 'amber'));
+  const rows = p ? datesFor(p) : [];
+  const next = rows.filter((r) => r.value && r.key !== 'extFiled' && r.key !== 'visaStampExpiry').map((r) => ({ ...r, d: daysTo(r.value)! })).sort((a, b) => a.d - b.d)[0];
+  const tone = checks.some((c) => c.tone === 'red') ? t.red : urgent.length ? t.amber : t.green;
+  const docFor = (r: DateRow): VaultDoc | undefined => myDocs.find((d) => r.doc.includes(d.type));
 
   return (
-    <Screen
-      title="My Status"
-      subtitle={p ? `${member ? member.name + ' · ' : ''}${p.visa}${p.employer ? ' · ' + p.employer : ''}` : 'Your own compliance'}
-      right={p ? (
-        <GlassButton icon="create-outline" label={member ? `Edit ${member.name}` : 'Edit my status'} onPress={() => router.push(editPath as any)} />
-      ) : undefined}
-    >
-      {ready && (me || family.length) ? (
-        <View style={{ marginBottom: 4 }}>
-          <Chips options={[{ label: 'Me', value: 'me' }, ...family.map((f) => ({ label: f.name, value: f.id })), { label: '+ Family', value: '__add' }]} value={who}
-            onChange={(v) => (v === '__add' ? router.push('/status/edit?member=new' as any) : setWho(v))} />
-        </View>
+    <Screen title="My Status" subtitle={p ? `${person.id === 'me' ? '' : person.name + ' · '}${p.visa}${p.employer && person.id === 'me' ? ' · ' + p.employer : ''}` : 'You and your family'}>
+      {/* People */}
+      {ready ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingVertical: 4 }}>
+          {list.map((x) => {
+            const on = x.id === who;
+            const bad = x.profile ? runChecks(x.profile).some((c) => c.tone === 'red') : false;
+            return (
+              <Pressable key={x.id} onPress={() => { tap(); setWho(x.id); setAllChecks(false); }} style={{ alignItems: 'center', width: 60 }} accessibilityLabel={x.id === 'me' ? 'Me' : x.name}>
+                <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: on ? t.accent : t.surface, alignItems: 'center', justifyContent: 'center', borderWidth: on ? 0 : 0.5, borderColor: t.border }}>
+                  <T v="h3" style={{ color: on ? '#fff' : t.text }}>{x.id === 'me' && x.name === 'Me' ? 'Me' : initials(x.name)}</T>
+                  {bad ? <View style={{ position: 'absolute', top: 1, right: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: t.red, borderWidth: 2, borderColor: t.bg }} /> : null}
+                </View>
+                <T v="small" numberOfLines={1} style={{ marginTop: 5, color: on ? t.text : t.sub }}>{x.id === 'me' ? 'Me' : x.name}</T>
+              </Pressable>
+            );
+          })}
+          <Pressable onPress={() => router.push('/status/edit?member=new' as any)} style={{ alignItems: 'center', width: 60 }} accessibilityLabel="Add family member">
+            <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, borderStyle: 'dashed', borderColor: t.faint, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="add" size={22} color={t.sub} />
+            </View>
+            <T v="small" style={{ marginTop: 5 }}>Family</T>
+          </Pressable>
+        </ScrollView>
       ) : null}
+
       <Columns left={<>
-      {ready && !p && who === 'me' ? (
-        <Section>
-          <Card style={{ alignItems: 'center', paddingVertical: 30 }}>
-            <IconBubble name="shield-checkmark-outline" size={56} />
-            <T v="h2" style={{ marginTop: 16 }}>Track your own status</T>
-            <T v="sub" style={{ textAlign: 'center', marginTop: 6, maxWidth: 280 }}>Add your visa type and key dates (I-94, approval, passport, EAD). CaseDesk checks them and warns you before anything lapses.</T>
-            <View style={{ marginTop: 18, alignSelf: 'stretch' }}><Button label="Set up my status" onPress={() => router.push('/status/edit')} /></View>
-            <View style={{ marginTop: 10, alignSelf: 'stretch' }}><Button label="Add a family member" kind="secondary" icon="people-outline" onPress={() => router.push('/status/edit?member=new' as any)} /></View>
-            <T v="small" style={{ marginTop: 12 }}>Saved only on this phone.</T>
-          </Card>
-        </Section>
-      ) : null}
-      {p ? (
- <>
+        {ready && !p ? (
           <Section>
-            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <IconBubble name={issues ? 'alert-circle' : 'shield-checkmark'} tone={checks.some((c) => c.tone === 'red') ? 'red' : issues ? 'amber' : 'green'} size={46} />
-              <View style={{ flex: 1 }}>
-                <T v="h2">{issues ? `${issues} thing${issues > 1 ? 's' : ''} to act on` : 'You’re in good shape'}</T>
-                <T v="sub" style={{ marginTop: 2 }}>Checked {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} from your saved dates</T>
-              </View>
+            <Card style={{ alignItems: 'center', paddingVertical: 28 }}>
+              <IconBubble name="documents-outline" size={56} />
+              <T v="h2" style={{ marginTop: 14, textAlign: 'center' }}>{who === 'me' ? 'Start with your documents' : `Add ${person.name}’s documents`}</T>
+              <T v="sub" style={{ textAlign: 'center', marginTop: 6, maxWidth: 290 }}>Scan the I-94, I-797 / I-129S, passport, visa and EAD. CaseDesk reads the dates and watches them for you.</T>
+              <View style={{ marginTop: 18, alignSelf: 'stretch' }}><Button label="Add documents" icon="scan" onPress={() => router.push(addPath as any)} /></View>
+              <View style={{ marginTop: 10, alignSelf: 'stretch' }}><Button label="Enter dates instead" kind="secondary" onPress={() => router.push(editPath as any)} /></View>
+              <T v="small" style={{ marginTop: 12 }}>Saved only on this phone.</T>
             </Card>
           </Section>
+        ) : null}
 
-          <Section title="Checks">
-            <View>{checks.map((c) => (
-              <Card key={c.id} style={{ marginBottom: 10 }}>
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <IconBubble name={c.icon as any} tone={c.tone === 'neutral' ? 'neutral' : c.tone} size={34} />
-                  <View style={{ flex: 1 }}>
-                    <T v="h3" style={{ lineHeight: 21 }}>{c.title}</T>
-                    <T v="sub" style={{ marginTop: 4 }}>{c.detail}</T>
-                  </View>
+        {p ? (
+          <>
+            {/* Summary */}
+            <Section>
+              <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 18, paddingVertical: 20 }}>
+                {next ? <Ring days={next.d} color={next.d < 0 ? t.red : next.d <= 90 ? t.amber : tone} /> : <IconBubble name="calendar-outline" size={64} />}
+                <View style={{ flex: 1 }}>
+                  <Pill label={checks.some((c) => c.tone === 'red') ? 'Act now' : urgent.length ? `${urgent.length} to review` : 'All good'} tone={checks.some((c) => c.tone === 'red') ? 'red' : urgent.length ? 'amber' : 'green'} small />
+                  <T v="h3" style={{ marginTop: 8 }}>{next ? `${SHORT[next.key] ?? next.label}${next.d < 0 ? ' — passed' : ''}` : 'Add a date to start'}</T>
+                  {next ? <T v="sub" style={{ marginTop: 2 }}>{fmt(next.value)}</T> : null}
                 </View>
               </Card>
-            ))}</View>
-          </Section>
-        </>
-      ) : null}
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                <View style={{ flex: 1 }}><Button label="Add documents" icon="scan" onPress={() => router.push(addPath as any)} /></View>
+                <View style={{ flex: 1 }}><Button label="Edit dates" kind="secondary" icon="calendar-outline" onPress={() => router.push(editPath as any)} /></View>
+              </View>
+            </Section>
+
+            {/* What to do */}
+            {urgent.length || rest.length ? (
+              <Section title={urgent.length ? 'Needs attention' : 'Checks'}>
+                {(urgent.length ? urgent : rest).concat(allChecks && urgent.length ? rest : []).map((c) => (
+                  <Card key={c.id} style={{ marginBottom: 10, flexDirection: 'row', gap: 12 }}>
+                    <IconBubble name={c.icon as any} tone={c.tone === 'neutral' ? 'neutral' : c.tone} size={34} />
+                    <View style={{ flex: 1 }}>
+                      <T v="h3" style={{ lineHeight: 21 }}>{c.title}</T>
+                      <T v="sub" style={{ marginTop: 4 }}>{c.detail}</T>
+                    </View>
+                  </Card>
+                ))}
+                {urgent.length && rest.length ? (
+                  <Pressable onPress={() => setAllChecks(!allChecks)} style={{ alignSelf: 'center', padding: 6 }}>
+                    <T v="small" style={{ color: t.accent, fontWeight: '700' }}>{allChecks ? 'Show less' : `Show ${rest.length} more check${rest.length > 1 ? 's' : ''}`}</T>
+                  </Pressable>
+                ) : null}
+              </Section>
+            ) : null}
+          </>
+        ) : null}
       </>} right={<>
-      {p ? (
+        {p ? (
           <Section title="Key dates" action="Edit" onAction={() => router.push(editPath as any)}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              <DateTile label="I-94 admit until" value={p.i94Expiry} />
-              <DateTile label={p.blanket && /^L-/.test(p.visa) ? "I-129S period ends" : "Approval valid to"} value={p.petitionEnd} />
-              <DateTile label="Passport" value={p.passportExpiry} />
-              <DateTile label="Visa stamp" value={p.visaStampExpiry} />
-              {usesEAD(p.visa) ? <DateTile label="EAD card" value={p.eadExpiry} /> : null}
-              {p.extFiled ? <DateTile label="Extension filed" value={p.extFiled} /> : null}
-            </View>
+            <Card style={{ paddingVertical: 4 }}>
+              {rows.map((r, i) => {
+                const d = daysTo(r.value);
+                const doc = docFor(r);
+                const c = d === null ? t.faint : d < 0 ? t.red : d <= 90 ? t.amber : t.green;
+                return (
+                  <Pressable key={r.key} onPress={() => router.push((r.value ? editPath : addPath) as any)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i ? 0.5 : 0, borderTopColor: t.border, gap: 12 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c }} />
+                    <View style={{ flex: 1 }}>
+                      <T v="body" style={{ fontSize: 15 }}>{r.label}</T>
+                      <T v="small" style={{ marginTop: 1 }}>{r.value ? fmt(r.value) : 'Not added — tap to scan'}{doc ? ' · document saved' : ''}</T>
+                    </View>
+                    {d !== null && r.key !== 'extFiled' ? <T v="h3" style={{ fontSize: 14, color: c, fontVariant: ['tabular-nums'] }}>{d < 0 ? `${-d}d ago` : `${d}d`}</T> : null}
+                    {doc ? <Ionicons name="attach" size={16} color={t.sub} /> : !r.value ? <Ionicons name="scan-outline" size={16} color={t.accent} /> : null}
+                  </Pressable>
+                );
+              })}
+            </Card>
           </Section>
-      ) : null}
-      <Section>
-        <Card onPress={() => router.push('/alerts')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <IconBubble name="notifications-outline" size={42} />
-          <View style={{ flex: 1 }}>
-            <T v="h3">Alerts</T>
-            <T v="sub" style={{ marginTop: 2 }}>Choose when to be reminded before your dates</T>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={t.faint} />
-        </Card>
-      </Section>
+        ) : null}
 
-      <Section title="My documents" action={docs.length ? 'Open' : undefined} onAction={() => router.push('/status/vault')}>
-        <Card onPress={() => router.push('/status/vault')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <IconBubble name="folder-open-outline" tone="amber" size={42} />
-          <View style={{ flex: 1 }}>
-            <T v="h3">{docs.length ? `${docs.length} document${docs.length > 1 ? 's' : ''}` : 'Store receipts & approvals'}</T>
-            <T v="sub" style={{ marginTop: 2 }}>I-797s, I-94, passport, EAD, LCA — kept on this phone only.</T>
-          </View>
-          <Pill label="On device" tone="green" small />
-        </Card>
-      </Section>
+        {/* Documents for this person */}
+        <Section title={who === 'me' ? 'My documents' : `${person.name}’s documents`} action={myDocs.length ? 'See all' : undefined} onAction={() => router.push(`/status/vault?owner=${who}` as any)}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+            <Pressable onPress={() => router.push(addPath as any)} style={{ width: 120, height: 120, borderRadius: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: t.faint, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="add" size={26} color={t.accent} />
+              <T v="small" style={{ marginTop: 4, color: t.accent, fontWeight: '700' }}>Add</T>
+            </Pressable>
+            {myDocs.slice(0, 12).map((d) => {
+              const dd = daysTo(d.expires);
+              return (
+                <Pressable key={d.id} onPress={() => router.push(`/status/vault?owner=${who}` as any)} style={{ width: 120, height: 120, borderRadius: 18, backgroundColor: t.surface, padding: 12, justifyContent: 'space-between', borderWidth: 0.5, borderColor: t.border }}>
+                  <Ionicons name={DOC_ICON[d.type] ?? 'document-outline'} size={22} color={t.text} />
+                  <View>
+                    <T v="h3" style={{ fontSize: 13 }} numberOfLines={2}>{d.type === 'Other' ? d.title : d.type}</T>
+                    {d.expires ? <T v="small" style={{ marginTop: 2, color: dd! < 0 ? t.red : dd! <= 90 ? t.amber : t.sub }}>{fmt(d.expires)}</T> : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </Section>
 
-      <Section title="Official records">
-        <Card style={{ paddingVertical: 4 }}>
-          <Row icon="document-text-outline" title="Download my latest I-94" subtitle="CBP · Get Most Recent I-94 → passport details → print/save PDF" href="https://i94.cbp.dhs.gov/search/recent-search" />
-          <Row icon="airplane-outline" title="My travel history" subtitle="CBP · past 10 years of entries and exits" href="https://i94.cbp.dhs.gov/search/history-search" />
-          <Row icon="person-circle-outline" title="myUSCIS account" subtitle="Receipts, approvals and notices filed online" href="https://my.uscis.gov/" />
-          <Row icon="search-outline" title="USCIS case status" subtitle="egov.uscis.gov" href="https://egov.uscis.gov/" last />
-        </Card>
-      </Section>
+        {/* Cases for this person */}
+        {myCases.length ? (
+          <Section title="Cases" action="All cases" onAction={() => router.push('/cases')}>
+            <Card style={{ paddingVertical: 4 }}>
+              {myCases.map((c, i) => {
+                const st = stageOf(c.status);
+                return (
+                  <Pressable key={c.receipt} onPress={() => router.push(`/case/${c.receipt}`)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12, borderTopWidth: i ? 0.5 : 0, borderTopColor: t.border }}>
+                    <View style={{ flex: 1 }}>
+                      <T v="h3" style={{ fontSize: 15 }}>{c.form ?? 'Case'} · {c.receipt}</T>
+                      <T v="small" numberOfLines={1}>{c.status ?? 'Tap to check status'}</T>
+                    </View>
+                    <Pill label={st.short} tone={st.tone === 'neutral' ? 'neutral' : st.tone} small />
+                  </Pressable>
+                );
+              })}
+            </Card>
+          </Section>
+        ) : null}
 
-      <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
-        <T v="small" style={{ textAlign: 'center' }}>Checks are reminders based on your dates — not legal advice.</T>
-      </View>
+        <Section title="More">
+          <Card style={{ paddingVertical: 4 }}>
+            <Row icon="notifications-outline" title="Reminders" subtitle="When to alert me before dates" onPress={() => router.push('/alerts')} />
+            <Row icon="document-text-outline" title="Download latest I-94" subtitle="CBP website" href="https://i94.cbp.dhs.gov/search/recent-search" />
+            <Row icon="person-circle-outline" title="myUSCIS account" subtitle="Notices filed online" href="https://my.uscis.gov/" last />
+          </Card>
+        </Section>
+        <View style={{ paddingHorizontal: 20, marginTop: 14 }}>
+          <T v="small" style={{ textAlign: 'center' }}>Reminders based on your dates — not legal advice.</T>
+        </View>
       </>} />
     </Screen>
   );

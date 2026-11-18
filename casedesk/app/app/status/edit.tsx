@@ -35,8 +35,8 @@ export default function EditStatus() {
   };
   // Scanning fills this person's dates: save what's typed so far, then open the scanner for them.
   const scan = async () => {
-    if (isMember) { await saveMember({ id: memberId, name: name.trim() || relation, relation, profile: p }); setExisting(true); router.push(`/status/vault?add=1&member=${memberId}` as any); }
-    else router.push('/status/vault?add=1');
+    if (isMember) { await saveMember({ id: memberId, name: name.trim() || relation, relation, profile: p }); setExisting(true); router.push(`/status/add?member=${memberId}` as any); }
+    else router.push('/status/add');
   };
   const clear = async () => { if (isMember) await removeMember(memberId); else await saveProfile(null); router.back(); };
   const set = (k: keyof Profile) => (v: any) => setP({ ...p, [k]: v });
@@ -53,7 +53,7 @@ export default function EditStatus() {
             <T v="label" style={{ marginBottom: 8 }}>Relation</T>
             <View style={{ marginHorizontal: -20, marginBottom: 14 }}><Chips options={RELATIONS.map((r) => ({ label: r, value: r }))} value={relation} onChange={setRelation} /></View>
           </>
-        ) : null}
+        ) : <Field label="Your name (optional)" placeholder="As on your passport — matches scanned documents to you" value={p.name ?? ''} onChangeText={set('name')} />}
         <View style={{ marginBottom: 16 }}><Button label={isMember ? `Scan ${name.trim() || 'their'}${name.trim() ? '’s' : ''} document` : 'Scan a document to fill dates'} icon="scan" kind="secondary" onPress={scan} /></View>
         <T v="label" style={{ marginBottom: 8 }}>Current status</T>
       </View>

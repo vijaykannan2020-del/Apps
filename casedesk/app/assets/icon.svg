@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16181D"/>
+      <stop offset="1" stop-color="#050506"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.72" cy="0.78" r="0.6">
+      <stop offset="0" stop-color="#0A84FF" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#0A84FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E6E8EE"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3EA0FF"/>
+      <stop offset="1" stop-color="#0A6DFF"/>
+    </linearGradient>
+  </defs><rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/><g transform="translate(512 512) scale(1.12) translate(-516 -506)"><!-- back card -->
+  <rect x="300" y="210" width="420" height="540" rx="64" fill="#2C2E35" transform="rotate(-8 510 480)"/>
+  <!-- front card -->
+  <rect x="312" y="262" width="420" height="540" rx="64" fill="url(#card)"/>
+  <!-- text lines -->
+  <rect x="384" y="356" width="200" height="34" rx="17" fill="#C9CDD6"/>
+  <rect x="384" y="424" width="276" height="34" rx="17" fill="#DADDE4"/>
+  <rect x="384" y="492" width="150" height="34" rx="17" fill="#DADDE4"/>
+  <!-- check badge -->
+  <circle cx="680" cy="690" r="150" fill="url(#blue)"/>
+  <circle cx="680" cy="690" r="150" fill="none" stroke="#0B0C0F" stroke-width="22"/>
+  <path d="M612 692 L660 740 L752 640" fill="none" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+</g></svg>

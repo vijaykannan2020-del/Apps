@@ -22,6 +22,7 @@ export const isBlanket = (p: { visa: VisaType; blanket?: boolean }) => !!p.blank
 
 export type Profile = {
   visa: VisaType;
+  name?: string; // used to match scanned documents to the right person
   employer?: string;
   blanket?: boolean; // L-1 (or L-2 dependent) admitted under a blanket L petition with Form I-129S — no individual I-797
   i94Expiry?: string; // "Admit Until" date on the I-94

@@ -14,6 +14,7 @@ export type Found = {
   category?: string; // EAD category, e.g. C26
   passportExpiry?: string;
   receivedDate?: string; // on receipt notices
+  form?: string; // form on a USCIS notice, e.g. I-129, I-539, I-765
   name?: string; // person's name as printed (passport/visa MRZ, I-94, EAD, I-797 beneficiary)
   lines: number;
 };
@@ -223,6 +224,8 @@ export function parseDocument(text: string): Found {
     const m = T.match(/(?:period of employment|begin date)[\s\S]{0,80}?((?:\d{1,2}\/\d{1,2}\/\d{4}))[\s\S]{0,60}?((?:\d{1,2}\/\d{1,2}\/\d{4}))/i);
     if (m) { found.validFrom = datesIn(m[1])[0]; found.validTo = datesIn(m[2])[0]; }
   }
+  const form = U.match(/(?:CASE TYPE|FORM)\s*[:\-]?\s*(I-?\d{3}[A-Z]?|N-?\d{3})\b/);
+  if (form && /I-797|NOTICE|RECEIPT|APPROVAL/.test(U)) found.form = form[1].replace(/^([IN])-?/, '$1-');
   const nm = mrzName(T) ?? labelledName(T);
   if (nm && nm.length >= 3 && nm.length <= 60) found.name = nm;
   return found;
