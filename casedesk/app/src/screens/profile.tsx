@@ -11,6 +11,9 @@ import { Avatar, Button, Card, Field, Group, Hint, Icon, Meter, Note, Option, Ro
 import { back, go, home, relationLabel, statusLabel, replace } from './common';
 import { useThemeChoice } from './themeChoice';
 import { Confirm } from './sheets';
+import { diagLines, clearDiag } from '../native/diag';
+import { writeCacheText, share } from '../native/files';
+import { ScrollView } from 'react-native';
 
 export const leadText = (lead: number[], sep = ', ') => (lead.length ? `${lead.join(sep)} day${lead.length === 1 && lead[0] === 1 ? '' : 's'} before` : 'No reminders');
 
@@ -59,6 +62,7 @@ export function ProfileScreen() {
       <Group>
         <Row icon="play" title="How CaseDesk works" subtitle="A 4-screen tour" onPress={() => go('/tour')} chevron={false} />
         <Row icon="users" title="Example family" subtitle="Look around with made-up data (replaces what’s here)" chevron={false} onPress={() => sheet.open('Load the example family?', <Confirm body="Everything on this phone is replaced by a made-up H-1B family. Back up first if you need your data." action="Load example" onConfirm={() => { try { router.dismissAll(); } catch {} replace('/demo'); }} />)} />
+        <Row icon="info" title="Diagnostics" subtitle="What the app did — send this if something goes wrong" chevron={false} onPress={() => sheet.open('Diagnostics', <DiagSheet />)} />
         <Row icon="hr" title="Show HR tools" subtitle="Expiring documents across the family" trailing={<Switch value={!!f.settings.hrTools} label="Show HR tools" onValueChange={(on) => f.actions.updateSettings({ hrTools: on })} />} />
       </Group>
       <SectionHeader>Data</SectionHeader>
@@ -235,5 +239,24 @@ export function AboutScreen() {
         ))}
       </Group>
     </Screen>
+  );
+}
+
+function DiagSheet() {
+  const [lines, setLines] = useState<string[] | null>(null);
+  const toast = useToast();
+  useEffect(() => { diagLines().then(setLines); }, []);
+  const text = (lines ?? []).join('\n');
+  return (
+    <View>
+      <Why>No document details are in here — only what the app did and any errors.</Why>
+      <ScrollView style={{ maxHeight: 360, marginTop: 12 }}>
+        <T style={{ fontSize: 12, fontFamily: 'Menlo' }}>{lines == null ? 'Loading…' : text || 'Nothing logged yet.'}</T>
+      </ScrollView>
+      <SheetButtons>
+        <Button kind="ghost" title="Clear" onPress={async () => { await clearDiag(); setLines([]); }} />
+        <Button grow title="Share" onPress={async () => { const u = await writeCacheText('casedesk-diagnostics.txt', text); if (!u || !(await share(u, 'text/plain', 'CaseDesk diagnostics'))) toast('Couldn’t open the share sheet'); }} />
+      </SheetButtons>
+    </View>
   );
 }

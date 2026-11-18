@@ -62,7 +62,7 @@ export class Store {
     const prev = this.queue.get(key) ?? Promise.resolve();
     const next = prev.catch(() => {}).then(() => this.kv.setItem(key, JSON.stringify({ v: SCHEMA, data } satisfies Blob<T>)));
     this.queue.set(key, next);
-    return next.then(() => this.emit());
+    return next.then(() => this.emit(), (e) => { try { require('../native/diag').diag(`STORAGE WRITE FAILED ${key}: ${e?.message ?? e}`); } catch {} throw e; });
   }
 
   subscribe(fn: () => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }

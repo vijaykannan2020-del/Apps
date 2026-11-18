@@ -6,7 +6,7 @@ type State = { error?: Error };
 export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, State> {
   state: State = {};
   static getDerivedStateFromError(error: Error): State { return { error }; }
-  componentDidCatch(error: Error) { if (__DEV__) console.warn('Screen crashed', error); }
+  componentDidCatch(error: Error, info?: any) { if (__DEV__) console.warn('Screen crashed', error); try { require('../native/diag').diag(`SCREEN CRASH ${error?.message} @ ${String(info?.componentStack ?? '').split('\n').slice(0, 5).join(' | ')}`); } catch {} }
   render() {
     if (!this.state.error) return this.props.children;
     return (

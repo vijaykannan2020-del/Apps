@@ -7,6 +7,8 @@ import { ErrorBoundary, SheetProvider, ThemeProvider, ToastProvider, useTheme } 
 import { FamilyProvider, useFamily } from '../src/data/FamilyProvider';
 import { AppLock } from '../src/screens/lock';
 import { native } from '../src/native/safe';
+import { diag, startDiag } from '../src/native/diag';
+startDiag().catch(() => {});
 
 function Themed({ children }: { children: React.ReactNode }) {
   const f = useFamily();
@@ -39,9 +41,12 @@ export default function Root() {
         const started = Date.now();
         const r = await U.checkForUpdateAsync();
         if (!r.isAvailable) return;
+        diag('update available, downloading');
         await U.fetchUpdateAsync();
-        if (Date.now() - started < 12000) await U.reloadAsync();
-      } catch {}
+        const quick = Date.now() - started < 12000;
+        diag(quick ? 'update downloaded, reloading now' : 'update downloaded, applies next launch');
+        if (quick) await U.reloadAsync();
+      } catch (e: any) { diag(`update check failed: ${e?.message ?? e}`); }
     })();
     // Tapping a reminder opens that person's page.
     const N = native.notifications();

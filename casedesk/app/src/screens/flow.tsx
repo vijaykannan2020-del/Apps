@@ -186,7 +186,7 @@ export function ReviewScreen() {
     const mode = flow.mode, ret = flow.returnTo;
     const { saved } = await commit(f);
     if (mode === 'family') { router.dismissAll(); router.replace('/(tabs)' as never); setTimeout(() => go('/flow/summary'), 60); return; }
-    router.dismissAll();
+    home();
     if (ret) setTimeout(() => go(ret), 60);
     setTimeout(() => toast(saved ? 'Saved on this phone' : 'Nothing new to save'), 200);
   };

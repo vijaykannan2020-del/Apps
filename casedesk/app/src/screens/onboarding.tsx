@@ -8,7 +8,7 @@ import { STATUS_GROUPS } from '../core/model';
 import { useFamily } from '../data/FamilyProvider';
 import { Button, Card, ChipToggle, Chips, Field, H1, Hint, Icon, RowIcon, Screen, T, Why, font, useTheme, useToast, Footer, useLayout } from '../ui';
 import { chipLabel } from './sheets';
-import { replace } from './common';
+import { home, replace } from './common';
 
 export function Welcome() {
   const t = useTheme();
@@ -59,7 +59,7 @@ export function AboutYou() {
     if (!st) { toast('Pick the situation that fits'); return; }
     setBusy(true);
     await f.actions.createSelf(name, st);
-    replace('/(tabs)');
+    home();
     setTimeout(() => toast('Saved on this phone'), 400);
   };
   return (

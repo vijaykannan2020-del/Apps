@@ -7,5 +7,7 @@ export default function Start() {
   const { ready, settings, people } = useFamily();
   const t = useTheme();
   if (!ready) return <View style={{ flex: 1, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center' }}><Spinner /></View>;
-  return <Redirect href={settings.setupDone && people.length ? '/(tabs)' : '/welcome'} />;
+  const to = settings.setupDone && people.length ? '/(tabs)' : '/welcome';
+  try { require('../src/native/diag').diag(`open → ${to === '/welcome' ? 'Welcome' : 'Home'} (people ${people.length}, setupDone ${!!settings.setupDone})`); } catch {}
+  return <Redirect href={to} />;
 }

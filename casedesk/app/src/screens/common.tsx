@@ -17,7 +17,7 @@ import { Button, LegalLine, Row, T, font, severityTone, TONE_WORD } from '../ui'
 export const go = (path: string, params?: Record<string, string>) => router.push((params ? { pathname: path, params } : path) as never);
 export const replace = (path: string) => router.replace(path as never);
 export const back = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as never));
-export const home = () => { try { router.dismissAll(); } catch {} router.replace('/(tabs)' as never); };
+export const home = () => { try { if (router.canDismiss()) router.dismissAll(); } catch {} router.replace('/(tabs)' as never); };
 
 export function statusLabel(p: Person, rec?: PersonRecord, res?: PersonResult): string {
   if (rec?.visa) {

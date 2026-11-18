@@ -19,6 +19,7 @@ export function makeActions(store: Store) {
       const me: Person = { id: 'me', name: name.trim(), relation: 'self', isMain: true, status, facts: {}, createdAt: today(), reminders: { on: true, lead: [180, 90, 30, 7] } };
       await store.upsertPerson(me);
       await store.updateSettings({ tutorialSeen: true, setupDone: true });
+      try { require('../native/diag').diag(`about you saved (status ${status})`); } catch {}
       return me;
     },
     async upsertPerson(p: Person) { await store.upsertPerson(p); },

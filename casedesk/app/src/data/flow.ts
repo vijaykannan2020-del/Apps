@@ -1,6 +1,7 @@
 // The document step flow (setup from Home, add a family member, add / renew, "continue adding").
 // In-memory draft until Save (or Home, which saves what's done so far — owner change, Nov 18).
 import { useSyncExternalStore } from 'react';
+import { diag } from '../native/diag';
 import type { DocType, Document, Person } from '../core/model';
 import { readDocument } from '../core/read';
 import { identityOf, belongsElsewhere } from '../core/identity';
@@ -174,18 +175,23 @@ function analyse(pid: string, k: StepKey, doc: Document, fam: FamilyState): Uplo
 /** Upload one document into a step: pick → private copy → read on the phone → typed fields. */
 export async function upload(pid: string, k: StepKey, source: Source, fam: FamilyState) {
   const picked = await pick(source).catch((e: Error) => { setUpload(pid, k, { state: 'error', error: e.message }); return null; });
+  diag(`upload ${k} from ${source}: ${picked ? `${picked.mime} ${picked.size ?? '?'} bytes` : 'cancelled'}`);
   if (!picked) return;
   setUpload(pid, k, { state: 'reading' });
   const id = newId('doc');
   try {
     const file = await keepFile(picked, id);
+    diag(`kept file for ${k}`);
     const text = await readText(fileUri(file), file.mime);
+    diag(`read ${k}: ${text ? text.length + ' chars' : 'no text'}`);
     if (!text) { setUpload(pid, k, { state: 'error', error: 'Reading works in the CaseDesk app on your phone. You can type the details instead.', doc: draftDoc(id, pid, k, fam, file) }); return; }
     const r = readDocument(text);
     if (!r.type) { setUpload(pid, k, { state: 'error', error: 'Couldn’t read this one. Try a flatter, brighter photo — or type the dates yourself.', doc: draftDoc(id, pid, k, fam, file) }); return; }
     const doc: Document = { id, ownerId: pid, type: r.type, fields: r.fields, addedAt: new Date().toISOString(), files: [file] };
     setUpload(pid, k, analyse(pid, k, doc, fam));
-  } catch {
+    diag(`read ${k} as ${r.type}`);
+  } catch (e: any) {
+    diag(`upload ${k} failed: ${e?.message ?? e}`);
     setUpload(pid, k, { state: 'error', error: 'Couldn’t read this one. Try again, or type the details yourself.' });
   }
 }
@@ -246,7 +252,8 @@ export async function commit(fam: FamilyState) {
   const docs: Document[] = [];
   // A document with an unanswered "looks like someone else's" warning is never saved silently.
   for (const [pid, per] of Object.entries(flow.up)) for (const u of Object.values(per)) if (u?.state === 'done' && u.doc && !u.misfile) docs.push({ ...u.doc, ownerId: pid, addedAt: u.doc.addedAt || new Date().toISOString(), seq: docs.length, edited: u.typedIn ? (Object.keys(u.doc.fields) as never[]) : u.doc.edited });
-  await fam.actions.addDocs(docs);
+  diag(`commit: saving ${docs.length} document(s)`);
+  try { await fam.actions.addDocs(docs); } catch (e: any) { diag(`commit FAILED: ${e?.message ?? e}`); throw e; }
   for (const [pid, w] of Object.entries(flow.where)) if (w.v) await fam.actions.setFacts(pid, { location: w.v, country: w.v === 'Outside' ? w.c : undefined });
   const saved = docs.length;
   // files of readings that weren't saved (errors, skipped) are removed
