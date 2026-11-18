@@ -30,25 +30,54 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const iso = (m: RegExpMatchArray) => `${m[3]}-${String(MONTHS.findIndex((x) => x.toLowerCase() === m[1].toLowerCase()) + 1).padStart(2, '0')}-${m[2].padStart(2, '0')}`;
 const looksLikeHeading = (l: string) => l.length >= 8 && l.length <= 90 && !/[.:]$/.test(l) && /^[A-Z]/.test(l) && !/^on [A-Z][a-z]+ \d/i.test(l);
 
+// Status headings Case Status Online shows (case-insensitive; apostrophes normalised).
+const KNOWN: RegExp[] = [
+  /^case (was|is) (received|approved|denied|rejected|reopened|transferred|closed|updated|being actively reviewed|ready to be scheduled)/,
+  /^case is (on hold|pending)/,
+  /^request for (initial |additional )?evidence was (sent|received)/,
+  /^response to (uscis'? )?(request for evidence|notice of intent to deny) was received/,
+  /^notice of intent to (deny|revoke|terminate) was (sent|mailed)/,
+  /^interview (was )?(scheduled|cancelled|rescheduled|completed)/,
+  /^(fingerprint|biometrics?) (fee was received|appointment was scheduled)/,
+  /^case was updated to show fingerprints were taken/,
+  /^(new )?card (is being produced|was produced|was mailed to me|was delivered to me|was picked up|was returned)/,
+  /^(document|notice|decision notice|approval notice|duplicate notice) (was )?(mailed|sent)/,
+  /^notice explaining uscis actions was mailed/,
+  /^oath ceremony (was )?(scheduled|notice was mailed)/,
+  /^withdrawal acknowledgement notice was sent/,
+  /^expedite request (was )?(received|approved|denied)/,
+  /^(name|date of birth|address) was updated/,
+  /^fees? (was|were) (waived|refunded)/,
+];
+const norm = (l: string) => l.toLowerCase().replace(/[’‘`]/g, "'").replace(/\s+/g, ' ').trim();
+export const isKnownHeading = (l: string) => KNOWN.some((re) => re.test(norm(l)));
+/** USCIS explanation: "On November 10, 2026, we …" (or "As of …") that names a form or a receipt number. */
+const isExplanation = (l: string) =>
+  new RegExp(`^(on|as of) ${MONTH.source},? (we|uscis|the|your)`, 'i').test(l) &&
+  /\bForm\s+[A-Z]-?\d{2,4}|\bReceipt Number\b|\b[A-Z]{3}\d{10}\b/i.test(l);
+
+/**
+ * Read what the person copied from Case Status Online. Accepted only when it is clearly a USCIS
+ * status: a known status heading, or a USCIS explanation ("On <date>, we …") that names a Form or
+ * a Receipt Number. Anything else (a shopping list, half a sentence) returns null.
+ */
 export function parseCaseText(raw: string, receipt?: string): Parsed | null {
   if (!raw) return null;
   const text = raw.replace(/\r/g, '').trim();
   if (text.length < 15) return null;
   if (receipt && text.replace(/\s/g, '').toUpperCase() === receipt) return null; // still the receipt we copied
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
-    .filter((l) => !/^(case status online|check case status|enter a receipt number|receipt number:?)$/i.test(l));
+    .filter((l) => !/^(case status online|check case status|enter a receipt number|receipt number:?|check status)$/i.test(l));
   if (!lines.length) return null;
-  // The explanation: the longest sentence-like line (usually starts "On <date>, we …").
-  const detailLine = lines.filter((l) => l.length > 40).sort((a, b) => (/^on [A-Z][a-z]+ \d/i.test(b) ? 1 : 0) - (/^on [A-Z][a-z]+ \d/i.test(a) ? 1 : 0) || b.length - a.length)[0];
-  if (!detailLine) return null;
-  const idx = lines.indexOf(detailLine);
-  const heading = lines.slice(0, idx).reverse().find(looksLikeHeading);
-  const status = heading || FROM_DETAIL.find(([re]) => re.test(detailLine))?.[1];
-  if (!status) return null;
-  const form = detailLine.match(/Form\s+([A-Z]-?\d{2,4}[A-Z]?)/)?.[1]?.replace(/^([A-Z])(\d)/, '$1-$2');
-  const d = detailLine.match(new RegExp(`^(?:On|As of)\\s+${MONTH.source}`, 'i'));
+  const heading = lines.find((l) => looksLikeHeading(l) && isKnownHeading(l));
+  const detailLine = lines.find(isExplanation);
+  if (!heading && !detailLine) return null;
+  const detail = detailLine ?? '';
+  const status = heading ?? FROM_DETAIL.find(([re]) => re.test(detail))?.[1] ?? 'Case Was Updated';
+  const form = detail.match(/Form\s+([A-Z]-?\d{2,4}[A-Z]?)/)?.[1]?.replace(/^([A-Z])(\d)/, '$1-$2');
+  const d = detail.match(new RegExp(`^(?:On|As of)\\s+${MONTH.source}`, 'i'));
   const date = d ? iso(d) : undefined;
-  return { status, detail: detailLine, form, date };
+  return { status, detail, form, date };
 }
 
 /** CaseDesk's status for a USCIS heading. */
