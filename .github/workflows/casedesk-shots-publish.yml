@@ -1,0 +1,16 @@
+# Copies a screenshots artifact onto the 'casedesk-shots' branch so it can be viewed/fetched with git.
+name: CaseDesk publish screenshots
+on:
+  workflow_dispatch:
+    inputs: { run_id: { description: 'Run id of the screenshots workflow', required: true } }
+permissions: { contents: write, actions: read }
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: android-screenshots, path: shots, run-id: '${{ inputs.run_id }}', github-token: '${{ secrets.GITHUB_TOKEN }}' }
+      - run: |
+          cd shots && git init -q -b casedesk-shots && git add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q -m "screenshots ${{ inputs.run_id }}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" casedesk-shots
