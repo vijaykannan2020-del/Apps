@@ -16,6 +16,7 @@ export type Found = {
   receivedDate?: string; // on receipt notices
   form?: string; // form on a USCIS notice, e.g. I-129, I-539, I-765
   birthDate?: string; // passports/visas: tells a child's document from a parent's
+  i94Until?: string; // I-94 printed at the bottom of an I-797A approval (extension / change of status)
   blanket?: boolean; // visa annotated "BLANKET L…": admitted under a blanket L petition
   name?: string; // person's name as printed (passport/visa MRZ, I-94, EAD, I-797 beneficiary)
   lines: number;
@@ -135,6 +136,7 @@ export function datesIn(s: string): string[] {
   for (const m of T.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) add(m.index!, iso(+m[1], +m[2], +m[3]));
   for (const m of T.matchAll(/\b(\d{1,2})\s?([A-Z]{3,9})\.?\s?(\d{4}|\d{2})\b/g)) if (MONTHS[m[2]]) add(m.index!, iso(+m[3], MONTHS[m[2]], +m[1])); // 12 MAR 2027, 12MAR2027
   for (const m of T.matchAll(/\b([A-Z]{3,9})\.?\s(\d{1,2}),?\s(\d{4})\b/g)) if (MONTHS[m[1]]) add(m.index!, iso(+m[3], MONTHS[m[1]], +m[2])); // SEPTEMBER 30, 2029
+  for (const m of T.matchAll(/\b(\d{4})\s([A-Z]{3,9})\.?\s(\d{1,2})\b/g)) if (MONTHS[m[2]]) add(m.index!, iso(+m[1], MONTHS[m[2]], +m[3])); // 2027 JULY 21 (CBP I-94 site)
   return out.sort((a, b) => a.i - b.i).map((x) => x.v);
 }
 
@@ -224,8 +226,11 @@ function valueAfter(lines: string[], label: RegExp): string | undefined {
 }
 function labelledName(text: string): string | undefined {
   const lines = text.split(/\n/);
+  // USCIS notices: "Beneficiary KRISHNAN, VIJAYAKANNAN" / "Applicant KRISHNAN, SANGEETHA" (surname first).
+  const who = text.match(/(?:beneficiary|applicant)\s*(?:name)?\s*[:\-]?\s*([A-Z][A-Z' -]+),\s*([A-Z][A-Z' -]+)/i);
+  if (who) return title(`${who[2].trim()} ${who[1].trim()}`);
   const given = valueAfter(lines, /(?:first\s*\(given\)\s*name|given\s*names?(?:\s*\(s\))?|first\s*name)/i);
-  const sur = valueAfter(lines, /(?:last\s*\(surname\)(?:\s*name)?|last\s*name|surname)/i);
+  const sur = valueAfter(lines, /(?:last\s*\(surname\)(?:\s*name)?|last\s*\/\s*surname|last\s*name|family\s*name|surname)/i);
   if (given || sur) {
     const full = [given, sur].filter(Boolean).map((x) => x!.split(/\s{2,}/)[0]).join(' ');
     if (full.length >= 2) return title(full);
@@ -248,9 +253,33 @@ export function parseDocument(text: string): Found {
   const cat = U.match(/CATEGORY\s*[:\-]?\s*([AC]\s?\d{1,2}\s?[A-Z]?)\b/);
   if (cat) found.category = cat[1].replace(/\s/g, '');
 
-  if (/ADMIT\s*UNT[IL1]{2}|MOST RECENT DATE OF ENTRY|I-94 RECORD NUMBER|ADMISSION \(I-94\) RECORD/.test(U)) {
+  // USCIS notices (I-797 / I-797A / I-797B / I-797C) come first: an I-797A has an I-94 printed on it, so
+  // it would otherwise look like an I-94.
+  if (/NOTICE OF ACTION|I-797[ABC]?\b|APPROVAL NOTICE|RECEIPT NOTICE/.test(U) && /RECEIPT NUMBER|CASE TYPE|NOTICE TYPE|NOTICE DATE|RECEIPT #/.test(U)) {
+    const approval = /APPROVAL NOTICE|NOTICE TYPE\s*:?\s*APPROVAL|HAS BEEN APPROVED|HAVE BEEN APPROVED|I-797A|I-797B/.test(U) && !/NOTICE TYPE\s*:?\s*RECEIPT/.test(U);
+    found.type = approval ? 'Approval (I-797A/B)' : 'Receipt (I-797C)';
+    found.receivedDate = dateAfter(T, /received date|receipt date/i);
+    const form = U.match(/CASE TYPE\s*[:\-]?\s*(I-?\d{3}[A-Z]?|N-?\d{3})\b/) ?? U.match(/\bFORM\s*[:\-]?\s*(I-?\d{3}[A-Z]?)\b/);
+    if (form) found.form = form[1].replace(/^([IN])-?/, '$1-');
+    if (approval) {
+      // "Valid from 07/01/2023 to 06/30/2026" — on one line or spread over several.
+      const vf = U.search(/VALID FROM/);
+      if (vf >= 0) { const d = datesIn(T.slice(vf, vf + 120)); found.validFrom = d[0]; found.validTo = d[1]; }
+      found.validTo ||= dateAfter(T, /valid to|until/i);
+      // The I-94 at the bottom of an extension / change-of-status approval (not on consular I-797B).
+      const tear = U.search(/DEPARTURE RECORD|ARRIVAL[-\s\/]*DEPARTURE|DEPARTURE NUMBER|ADMISSION NUMBER|I-94 NUMBER|I-94 BELOW/);
+      if (tear >= 0 && !/CONSULAR NOTIFICATION|I-797B/.test(U)) {
+        const part = T.slice(tear);
+        // Its own "until" date if printed (it can end earlier than the petition, e.g. passport expiry);
+        // otherwise the I-94 runs to the approval's end date. Birth dates on it are ignored.
+        const own = dateAfter(part, /valid until|admit until|until|valid to/i);
+        found.i94Until = own && (!found.validFrom || own >= found.validFrom) ? own : found.validTo;
+      }
+    }
+  } else if (/ADMIT\s*UNT[IL1]{2}|MOST RECENT DATE OF ENTRY|I-94 RECORD NUMBER|ADMISSION \(I-94\) RECORD/.test(U)) {
     found.type = 'I-94';
     found.validTo = dateAfter(T, /admit\s*unt[il1]{2}(?:\s*date)?\s*[:\-]?/i);
+    found.classOfAdmission ||= U.match(/CLASS OF ADMISSION\s*[:\-]?\s*([A-Z0-9-]{2,4})\b/)?.[1].replace('-', '');
   } else if (/EMPLOYMENT AUTHORI[SZ]ATION|CARD EXPIRES|I-766/.test(U) && !/I-797/.test(U)) {
     found.type = 'EAD card';
     found.validFrom = dateAfter(T, /valid from\s*[:\-]?/i);
@@ -278,15 +307,6 @@ export function parseDocument(text: string): Found {
     const m = T.match(/(?:intended employment|employment)[\s\S]{0,60}?from[\s\S]{0,30}?(\S+\s?\S*\s?\S*)[\s\S]{0,30}?to\s*[:\-]?\s*(.+)/i);
     if (m) { found.validFrom = datesIn(m[1])[0]; found.validTo = datesIn(m[2])[0]; }
     found.validTo ||= latest(T);
-  } else if (/I-797|NOTICE OF ACTION|APPROVAL NOTICE|RECEIPT NOTICE/.test(U)) {
-    const approval = /APPROVAL NOTICE|VALID FROM|I-797A|I-797B|HAS BEEN APPROVED/.test(U);
-    found.type = approval ? 'Approval (I-797A/B)' : 'Receipt (I-797C)';
-    found.receivedDate = dateAfter(T, /received date|receipt date/i);
-    if (approval) {
-      const m = T.match(/valid from\s*[:\-]?\s*(.+?)\s+to\s+(.+?)(?:\n|$)/i);
-      if (m) { found.validFrom = datesIn(m[1])[0]; found.validTo = datesIn(m[2])[0]; }
-      found.validTo ||= dateAfter(T, /until\s*[:\-]?/i);
-    }
   } else if (/PASSPORT|P<[A-Z]{3}/.test(U) || mrz(T)?.kind === 'P') {
     found.type = 'Passport';
     // MRZ first; otherwise the latest date (birth and issue dates are always earlier than expiry).
@@ -307,15 +327,28 @@ export function parseDocument(text: string): Found {
 }
 
 // Which "My Status" fields this document can fill
-export function statusUpdates(f: Found): { field: 'i94Expiry' | 'petitionEnd' | 'eadExpiry' | 'passportExpiry' | 'visaStampExpiry' | 'extReceipt' | 'extFiled'; label: string; value: string }[] {
-  const u: ReturnType<typeof statusUpdates> = [];
+export type StatusUpdate = { field: 'i94Expiry' | 'petitionEnd' | 'eadExpiry' | 'passportExpiry' | 'visaStampExpiry' | 'extReceipt' | 'extFiled'; label: string; value: string | undefined };
+// What a document changes in its person's record. A value of undefined clears the field (an approved
+// extension is no longer pending).
+export function statusUpdates(f: Found): StatusUpdate[] {
+  const u: StatusUpdate[] = [];
+  const statusForm = !f.form || f.form === 'I-129' || f.form === 'I-539' || f.form === 'I-129S';
   if (f.type === 'I-94' && f.validTo) u.push({ field: 'i94Expiry', label: 'I-94 admit until', value: f.validTo });
-  if (f.type === 'Approval (I-797A/B)' && f.validTo) u.push({ field: 'petitionEnd', label: 'Approval valid to', value: f.validTo });
+  if (f.type === 'Approval (I-797A/B)') {
+    if (statusForm && f.validTo) u.push({ field: 'petitionEnd', label: 'Approval valid to', value: f.validTo });
+    if (statusForm && f.i94Until) u.push({ field: 'i94Expiry', label: 'I-94 admit until', value: f.i94Until });
+    if (f.form === 'I-765' && f.validTo) u.push({ field: 'eadExpiry', label: 'EAD valid to', value: f.validTo });
+    // An approved extension / change of status is no longer pending.
+    if (statusForm && f.validTo) { u.push({ field: 'extFiled', label: 'Pending extension cleared', value: undefined }); u.push({ field: 'extReceipt', label: '', value: undefined }); }
+  }
   if (f.type === 'I-129S (blanket L)' && f.validTo) u.push({ field: 'petitionEnd', label: 'I-129S period ends', value: f.validTo });
   if (f.type === 'EAD card' && f.validTo) u.push({ field: 'eadExpiry', label: 'EAD valid to', value: f.validTo });
   if (f.type === 'Passport' && f.validTo) u.push({ field: 'passportExpiry', label: 'Passport expires', value: f.validTo });
   if (f.type === 'Visa stamp' && f.validTo) u.push({ field: 'visaStampExpiry', label: 'Visa stamp expires', value: f.validTo });
-  if (f.type === 'Receipt (I-797C)' && f.receipt) u.push({ field: 'extReceipt', label: 'Extension receipt', value: f.receipt });
-  if (f.type === 'Receipt (I-797C)' && f.receivedDate) u.push({ field: 'extFiled', label: 'Extension filed', value: f.receivedDate });
+  // Only an extension / change of status (I-129, I-539) is a pending stay; I-765, I-140, I-485… are tracked as cases.
+  if (f.type === 'Receipt (I-797C)' && statusForm) {
+    if (f.receipt) u.push({ field: 'extReceipt', label: 'Extension receipt', value: f.receipt });
+    if (f.receivedDate) u.push({ field: 'extFiled', label: 'Extension filed', value: f.receivedDate });
+  }
   return u;
 }

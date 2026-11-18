@@ -8,7 +8,7 @@ import { DetailScreen } from '../../src/components/TopBar';
 import { Card, T, Button, Note, Chips, DateField, Pill, tap } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
 import { pickFiles, pickPhotos, pickPhoto, addDoc, deleteDoc, allDocs, useVault, DOC_TYPES, DocType, Picked } from '../../src/lib/vault';
-import { readText, parseDocument, statusUpdates, ocrAvailable, Found } from '../../src/lib/ocr';
+import { readText, parseDocument, statusUpdates, ocrAvailable, Found, StatusUpdate } from '../../src/lib/ocr';
 import { loadProfile, saveProfile, Profile, useProfile, VisaType, visasFor } from '../../src/lib/profile';
 import { useFamily, loadFamily, saveMember, Member } from '../../src/lib/family';
 import { people, matchOwner, initials, Person } from '../../src/lib/people';
@@ -35,6 +35,19 @@ function visaFromClass(c?: string, relation?: string): VisaType | undefined {
   if (c === 'L2') return relation === 'Spouse' ? 'L-2S' : 'L-2';
   if (c === 'H4' || c === 'L2S' || c === 'TD' || c === 'F2' || c === 'H1B' || c === 'L1A' || c === 'L1B' || c === 'TN') return CLASS_TO_VISA[c];
   return CLASS_TO_VISA[c];
+}
+// Apply a document's updates to a person's record. Dates never move backwards: uploading an older
+// approval or I-94 doesn't overwrite a newer one, and only the newest approval clears a pending extension.
+const DATE_FIELDS = ['i94Expiry', 'petitionEnd', 'eadExpiry', 'passportExpiry', 'visaStampExpiry'];
+function updatesPlan(p: Profile | null | undefined, ups: StatusUpdate[]) {
+  const skipped = new Set<string>();
+  for (const u of ups) if (DATE_FIELDS.includes(u.field) && u.value && (p as any)?.[u.field] && u.value < (p as any)[u.field]) skipped.add(u.field);
+  const clearsExt = ups.some((u) => u.field === 'extFiled' && u.value === undefined);
+  const older = clearsExt && skipped.has('petitionEnd');
+  return ups.filter((u) => !skipped.has(u.field) && !(older && (u.field === 'extFiled' || u.field === 'extReceipt')) && !(u.value === undefined && !(p as any)?.[u.field]));
+}
+function applyUpdates(p: Profile, ups: StatusUpdate[]) {
+  for (const u of updatesPlan(p, ups)) (p as any)[u.field] = u.value;
 }
 const CLASS_TO_VISA: Record<string, VisaType> = { H1B: 'H-1B', L1A: 'L-1A', L1B: 'L-1B', TN: 'TN', H4: 'H-4', L2S: 'L-2S', L2: 'L-2', TD: 'TD', F1: 'F-1 OPT', F2: 'F-2' };
 
@@ -141,17 +154,11 @@ export default function AddDocuments() {
         const f: Found = { ...(it.found || { lines: 0 }), type: it.type, validTo: it.validTo || undefined, receipt: it.receipt || undefined };
         const ups = it.applyDates ? statusUpdates(f) : [];
         if (ups.length) {
-          if (it.owner === 'me') {
-            mine = mine ?? { visa: 'H-1B', visaSet: false };
-            for (const u of ups) (mine as any)[u.field] = u.value;
-            if (it.type === 'I-129S (blanket L)') mine.blanket = true;
-          } else {
-            const m = fam.find((x) => x.id === it.owner);
-            if (m) {
-              for (const u of ups) (m.profile as any)[u.field] = u.value;
-              if (it.type === 'I-129S (blanket L)') m.profile.blanket = true;
-            }
-          }
+          let target: Profile | null = null;
+          if (it.owner === 'me') target = mine = mine ?? { visa: 'H-1B', visaSet: false };
+          else target = fam.find((x) => x.id === it.owner)?.profile ?? null;
+          if (target) applyUpdates(target, ups);
+          if (target && it.type === 'I-129S (blanket L)') target.blanket = true;
         }
         // The name on the document fills in the person's name if they don't have one yet.
         if (name) {
@@ -163,7 +170,7 @@ export default function AddDocuments() {
         }
         // The class on an I-94 or visa stamp (H4, L2…) confirms the person's visa type.
         const cls = visaFromClass(f.classOfAdmission, it.owner === 'me' ? 'Me' : fam.find((x) => x.id === it.owner)?.relation);
-        if (cls && (it.type === 'I-94' || it.type === 'Visa stamp')) {
+        if (cls && (it.type === 'I-94' || it.type === 'Visa stamp' || (it.type === 'Approval (I-797A/B)' && (!f.form || f.form === 'I-129' || f.form === 'I-539')))) {
           if (it.owner === 'me') { mine = mine ?? { visa: cls }; mine.visa = cls; mine.visaSet = true; if (f.blanket) mine.blanket = true; }
           else { const m = fam.find((x) => x.id === it.owner); if (m) { m.profile.visa = cls; m.profile.visaSet = true; if (f.blanket) m.profile.blanket = true; } }
         }
@@ -260,6 +267,21 @@ export default function AddDocuments() {
                 <DateField label={it.type === 'Receipt (I-797C)' ? 'Receipt date' : 'Valid until'} value={it.validTo} onChange={(v) => patch(it.key, { validTo: v })} />
               </View>
 
+              {(() => {
+                const target = it.owner === 'me' ? me : family.find((x) => x.id === it.owner)?.profile;
+                const all = statusUpdates({ ...(it.found || { lines: 0 }), type: it.type, validTo: it.validTo || undefined, receipt: it.receipt || undefined });
+                const plan = updatesPlan(target, all);
+                const kept = all.filter((u) => u.label && plan.includes(u));
+                const skipped = all.filter((u) => u.label && u.value && !plan.includes(u) && DATE_FIELDS.includes(u.field));
+                if (!kept.length && !skipped.length) return null;
+                return (
+                  <View style={{ borderTopWidth: 0.5, borderTopColor: t.border, paddingVertical: 10, gap: 4 }}>
+                    <T v="sub">{`Updates ${it.owner === 'me' ? 'your' : `${whoName}’s`} record`}</T>
+                    {kept.map((u) => <T key={u.field} v="small" style={{ color: t.text }}>{`✓ ${u.label}${u.value ? ` → ${fmt(u.value)}` : ''}`}</T>)}
+                    {skipped.map((u) => <T key={u.field} v="small" style={{ color: t.amber }}>{`${u.label}: kept the newer date already saved`}</T>)}
+                  </View>
+                );
+              })()}
               {(it.type === 'Visa stamp' || it.type === 'I-94') && it.found?.classOfAdmission ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderTopWidth: 0.5, borderTopColor: t.border, gap: 10 }}>
                   <T v="sub" style={{ width: 96 }}>Visa class</T>
