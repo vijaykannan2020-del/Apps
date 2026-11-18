@@ -16,6 +16,7 @@ export type Found = {
   receivedDate?: string; // on receipt notices
   form?: string; // form on a USCIS notice, e.g. I-129, I-539, I-765
   birthDate?: string; // passports/visas: tells a child's document from a parent's
+  blanket?: boolean; // visa annotated "BLANKET L…": admitted under a blanket L petition
   name?: string; // person's name as printed (passport/visa MRZ, I-94, EAD, I-797 beneficiary)
   lines: number;
 };
@@ -153,8 +154,8 @@ function dateAfter(text: string, label: RegExp): string | undefined {
 // Machine-readable zone (passport "P<…" or US visa "V<…"/"VN…"): expiry is YYMMDD at positions 22–27
 // of line 2 (same place on passports and visa foils). OCR often reads 0 as O, 1 as I, 5 as S, 8 as B.
 const DIG: Record<string, string> = { O: '0', Q: '0', D: '0', I: '1', L: '1', Z: '2', S: '5', B: '8', G: '6' };
-function mrz(text: string): { kind: 'P' | 'V'; expiry?: string; birth?: string } | null {
-  const lines = text.toUpperCase().replace(/ /g, '').replace(/«/g, '<').split(/\n/).filter((l) => /^[A-Z0-9<]{30,46}$/.test(l) && l.includes('<'));
+function mrz(text: string): { kind: 'P' | 'V'; expiry?: string; birth?: string; cls?: string } | null {
+  const lines = text.toUpperCase().split(/\n/).map((l) => l.replace(/\s/g, '').replace(/[«‹(){}\[\]|]/g, '<')).filter((l) => /^[A-Z0-9<]{30,46}$/.test(l));
   const i = lines.findIndex((l) => /^[PV][A-Z<]/.test(l));
   if (i < 0) return null;
   const kind = lines[i][0] as 'P' | 'V';
@@ -165,7 +166,9 @@ function mrz(text: string): { kind: 'P' | 'V'; expiry?: string; birth?: string }
   const b = l2.slice(13, 19).split('').map((c) => DIG[c] ?? c).join('');
   const yy = new Date().getFullYear() % 100;
   const birth = /^\d{6}$/.test(b) ? iso((+b.slice(0, 2) > yy ? 1900 : 2000) + +b.slice(0, 2), +b.slice(2, 4), +b.slice(4, 6)) : undefined;
-  return { kind, expiry, birth };
+  // US visa MRZ: the visa class follows the expiry check digit ("…F2706188L2MDR…" → L2).
+  const cls = kind === 'V' ? l2.slice(28, 32).match(/^(H1B|H4|L1|L2|F1|F2|J1|J2|TD|TN|O1|E3|B1|B2|R)/)?.[1] : undefined;
+  return { kind, expiry, birth, cls: cls === 'R' ? undefined : cls };
 }
 const latest = (text: string) => datesIn(text).sort().pop();
 
@@ -209,10 +212,11 @@ function valueAfter(lines: string[], label: RegExp): string | undefined {
     if (!m) continue;
     const rest = lines[i].slice((m.index ?? 0) + m[0].length).split('/')[0].replace(/^[\s:\-()s]*/, '').trim();
     if (/^[A-Z][A-Z' -]{1,40}$/.test(rest) && !NOT_NAME.test(rest)) return rest;
-    for (const next of lines.slice(i + 1, i + 3)) {
+    for (const next of lines.slice(i + 1, i + 4)) {
       const v = next.trim();
       if (!v) continue;
-      if (NOT_NAME.test(v.toUpperCase())) break; // next label reached — this field is blank (e.g. no surname)
+      if (/SURNAME|GIVEN|\bNAME/.test(v.toUpperCase())) break; // the next name label — this field is blank (e.g. no surname)
+      if (NOT_NAME.test(v.toUpperCase())) continue; // another label in between (e.g. "Visa Type / Class")
       if (/^[A-Z][A-Z' -]{1,40}$/.test(v)) return v;
     }
   }
@@ -251,6 +255,23 @@ export function parseDocument(text: string): Found {
     found.type = 'EAD card';
     found.validFrom = dateAfter(T, /valid from\s*[:\-]?/i);
     found.validTo = dateAfter(T, /card expires\s*[:\-]?|expires\s*[:\-]?/i);
+  } else if (mrz(T)?.kind === 'V' || (/VISA TYPE|VISA\s*\/\s*CLASS|CONTROL NUMBER|ANNOTATION|ENTRIES/.test(U) && /EXPIRATION|EXPIRY|ISSUE DATE/.test(U))) {
+    // US visa foil — checked before passports (it says "Passport Number") and before the blanket-L
+    // check (its annotation can say "BLANKET L2").
+    found.type = 'Visa stamp';
+    const m = mrz(T);
+    // Expiry: the MRZ, then the "Expiration Date" label, then the latest date that isn't the petition
+    // expiry ("PED-21JUL2027" in the annotation is the employer's petition, not the visa).
+    const noPed = T.replace(/PED\s*[-:]?\s*\S+/gi, ' ');
+    found.validTo = m?.expiry ?? dateAfter(noPed, /expiration date|expiry date|expires/i) ?? latest(noPed);
+    found.classOfAdmission = m?.cls;
+    const v = U.match(/(?:VISA TYPE\s*\/\s*CLASS|VISA TYPE|CLASS)\s*[:\-]?\s*(?:[A-Z]\s+)?([A-Z]-?\d[A-Z0-9]?)\b/);
+    if (v) found.classOfAdmission ||= v[1].replace(/[\s-]/g, '');
+    // The class printed on its own line under "Visa Type / Class" ("R L2", "R H4").
+    found.classOfAdmission ||= U.match(/^\s*(?:[A-Z]\s+)?(H-?1B|H-?4|L-?1|L-?2|F-?1|F-?2|J-?1|J-?2|TD|TN|O-?1|E-?3)\s*$/m)?.[1].replace('-', '');
+    if (/BLANKET\s*L/.test(U)) found.blanket = true;
+    // "P#-WAC…" on a visa is the employer's petition receipt — not this person's case.
+    found.receipt = undefined;
   } else if (/I-129S|BASED ON BLANKET L PETITION|BLANKET L/.test(U)) {
     // Blanket L: the I-129S (endorsed by the consulate/CBP) sets the period — there's no individual I-797.
     found.type = 'I-129S (blanket L)';
@@ -266,15 +287,6 @@ export function parseDocument(text: string): Found {
       if (m) { found.validFrom = datesIn(m[1])[0]; found.validTo = datesIn(m[2])[0]; }
       found.validTo ||= dateAfter(T, /until\s*[:\-]?/i);
     }
-  } else if (mrz(T)?.kind === 'V' || (/VISA TYPE|VISA\/CLASS|CONTROL NUMBER|ANNOTATION|ENTRIES/.test(U) && /EXPIRATION|EXPIRY|ISSUE DATE/.test(U))) {
-    // US visa foil. It also says "Passport Number", so it must be checked before passports.
-    found.type = 'Visa stamp';
-    const m = mrz(T);
-    // Labels sit above the dates ("Issue Date   Expiration Date" / "16OCT2024   15OCT2027"),
-    // so the latest date on the foil is the expiration.
-    found.validTo = m?.expiry ?? latest(T);
-    const v = U.match(/(?:VISA TYPE\/CLASS|VISA TYPE|CLASS)\s*[:\-]?\s*(?:[A-Z]\s+)?([A-Z]-?\d[A-Z0-9]?)\b/);
-    if (v) found.classOfAdmission ||= v[1].replace(/[\s-]/g, '');
   } else if (/PASSPORT|P<[A-Z]{3}/.test(U) || mrz(T)?.kind === 'P') {
     found.type = 'Passport';
     // MRZ first; otherwise the latest date (birth and issue dates are always earlier than expiry).

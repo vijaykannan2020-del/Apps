@@ -29,6 +29,13 @@ const NEW = '__new';
 // Someone has one current passport, visa, I-94, approval and EAD: a new one replaces the old.
 const SINGLE = ['Passport', 'Visa stamp', 'I-94', 'Approval (I-797A/B)', 'I-129S (blanket L)', 'EAD card'];
 const RELATION_WORDS = ['Spouse', 'Child', 'Parent', 'Other', 'Son', 'Daughter', 'Wife', 'Husband', 'Kid'];
+// A visa or I-94 class → the app's visa type. "L2" is L-2S for a spouse (work-authorised) and L-2 for a child.
+function visaFromClass(c?: string, relation?: string): VisaType | undefined {
+  if (!c) return undefined;
+  if (c === 'L2') return relation === 'Spouse' ? 'L-2S' : 'L-2';
+  if (c === 'H4' || c === 'L2S' || c === 'TD' || c === 'F2' || c === 'H1B' || c === 'L1A' || c === 'L1B' || c === 'TN') return CLASS_TO_VISA[c];
+  return CLASS_TO_VISA[c];
+}
 const CLASS_TO_VISA: Record<string, VisaType> = { H1B: 'H-1B', L1A: 'L-1A', L1B: 'L-1B', TN: 'TN', H4: 'H-4', L2S: 'L-2S', L2: 'L-2', TD: 'TD', F1: 'F-1 OPT', F2: 'F-2' };
 
 function Avatar({ p, on, onPress }: { p: Person; on: boolean; onPress: () => void }) {
@@ -155,10 +162,10 @@ export default function AddDocuments() {
           }
         }
         // The class on an I-94 or visa stamp (H4, L2…) confirms the person's visa type.
-        const cls = CLASS_TO_VISA[f.classOfAdmission ?? ''];
+        const cls = visaFromClass(f.classOfAdmission, it.owner === 'me' ? 'Me' : fam.find((x) => x.id === it.owner)?.relation);
         if (cls && (it.type === 'I-94' || it.type === 'Visa stamp')) {
-          if (it.owner === 'me') { mine = mine ?? { visa: cls }; mine.visa = cls; mine.visaSet = true; }
-          else { const m = fam.find((x) => x.id === it.owner); if (m) { m.profile.visa = cls; m.profile.visaSet = true; } }
+          if (it.owner === 'me') { mine = mine ?? { visa: cls }; mine.visa = cls; mine.visaSet = true; if (f.blanket) mine.blanket = true; }
+          else { const m = fam.find((x) => x.id === it.owner); if (m) { m.profile.visa = cls; m.profile.visaSet = true; if (f.blanket) m.profile.blanket = true; } }
         }
         if (it.addCase && it.receipt && /^[A-Z]{3}\d{10}$/.test(it.receipt) && !existing.has(it.receipt)) {
           await upsertCase({ receipt: it.receipt, form: f.form, owner: it.owner, nickname: it.owner !== 'me' && who ? `${who.name}${f.form ? ' · ' + f.form : ''}` : undefined, history: [] });
@@ -253,6 +260,12 @@ export default function AddDocuments() {
                 <DateField label={it.type === 'Receipt (I-797C)' ? 'Receipt date' : 'Valid until'} value={it.validTo} onChange={(v) => patch(it.key, { validTo: v })} />
               </View>
 
+              {(it.type === 'Visa stamp' || it.type === 'I-94') && it.found?.classOfAdmission ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderTopWidth: 0.5, borderTopColor: t.border, gap: 10 }}>
+                  <T v="sub" style={{ width: 96 }}>Visa class</T>
+                  <T v="body" style={{ flex: 1, textAlign: 'right', fontSize: 15 }}>{`${it.found.classOfAdmission}${it.found.blanket ? ' · blanket L' : ''} → sets ${it.owner === 'me' ? 'your' : `${whoName}’s`} visa`}</T>
+                </View>
+              ) : null}
               {it.receipt || /I-797|I-129S/.test(it.type) ? <Line label="Receipt no." value={it.receipt || 'Add'} edit="receipt" muted={!it.receipt} /> : null}
               {it.edit === 'receipt' ? <Field label="Receipt number" value={it.receipt} onChangeText={(v) => patch(it.key, { receipt: v.toUpperCase().replace(/\s/g, '') })} autoCapitalize="characters" maxLength={13} placeholder="IOE0123456789" /> : null}
 
