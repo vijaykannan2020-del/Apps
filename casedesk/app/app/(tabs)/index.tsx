@@ -87,7 +87,7 @@ export default function Today() {
               })}
             </Card>
           ) : (
-            <Card onPress={() => router.push('/status/add')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <Card onPress={() => router.push('/status')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <IconBubble name="documents-outline" size={42} />
               <View style={{ flex: 1 }}>
                 <T v="h3">Add your documents</T>

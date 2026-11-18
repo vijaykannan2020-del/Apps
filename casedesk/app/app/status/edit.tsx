@@ -48,10 +48,10 @@ export default function EditStatus() {
   return (
     <DetailScreen title={isMember ? (existing ? `Edit ${name || 'family member'}` : 'Add family member') : existing ? 'Edit my status' : 'Set up my status'}>
       <View style={{ paddingHorizontal: 20 }}>
-        <T v="sub" style={{ marginBottom: 14 }}>{isMember ? 'Scan their I-94, I-797, passport, visa or EAD — or pick the dates.' : 'Scan your I-94, I-797, passport, visa or EAD — or pick the dates.'} Everything stays on this phone.</T>
+        <T v="sub" style={{ marginBottom: 14 }}>Name, visa and dates. Everything stays on this phone.</T>
         {isMember ? (
           <>
-            <Field label="Name" placeholder="e.g. Priya — or scan their passport to fill it" value={name} onChangeText={setName} />
+            <Field label="Name" placeholder="Priya" value={name} onChangeText={setName} />
             <T v="label" style={{ marginBottom: 8 }}>Relation</T>
             <View style={{ marginHorizontal: -20, marginBottom: 14 }}><Chips options={RELATIONS.map((r) => ({ label: r, value: r }))} value={relation} onChange={setRelation} /></View>
             {relation === 'Spouse' && otherSpouse && !existing ? (
@@ -62,7 +62,7 @@ export default function EditStatus() {
             ) : null}
           </>
         ) : <Field label="Your name (optional)" placeholder="As on your passport — matches scanned documents to you" value={p.name ?? ''} onChangeText={set('name')} />}
-        <View style={{ marginBottom: 16 }}><Button label={isMember ? `Scan ${name.trim() || 'their'}${name.trim() ? '’s' : ''} document` : 'Scan a document to fill dates'} icon="scan" kind="secondary" onPress={scan} /></View>
+        <T v="small" style={{ marginBottom: 16 }}>Tip: upload {isMember ? 'their' : 'your'} documents from Documents → Upload documents and these dates fill in for you.</T>
         <T v="label" style={{ marginBottom: 8 }}>Current status</T>
       </View>
       {p.visaSet === false ? <View style={{ paddingHorizontal: 20, marginBottom: 10 }}><T v="small">Not confirmed yet — pick {isMember ? 'their' : 'your'} visa, or scan an I-94 or visa stamp.</T></View> : null}

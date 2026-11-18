@@ -43,8 +43,8 @@ export default function Status() {
   return (
     <Screen title="Documents" subtitle="Your family’s documents and dates">
       <View style={{ marginTop: 4 }}>
-        <Button label="Add document" icon="add" onPress={() => router.push('/status/add' as any)} />
-        <T v="small" style={{ textAlign: 'center', marginTop: 8 }}>Passport, visa, I-94, I-797, EAD — for anyone in your family</T>
+        <Button label="Upload documents" icon="cloud-upload-outline" onPress={() => router.push('/status/add' as any)} />
+        <T v="small" style={{ textAlign: 'center', marginTop: 8 }}>The one place to add or renew any document, for anyone in your family. CaseDesk reads it and files it under the right person.</T>
       </View>
 
       <View style={{ marginTop: 20, gap: 10 }}>

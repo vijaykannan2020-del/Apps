@@ -107,9 +107,6 @@ export default function Vault() {
         <T v="h1">My documents</T>
         <T v="sub" style={{ marginTop: 4 }}>For you and your family · stored only on this phone.</T>
       </View>
-      <Section>
-        <Button label="Add documents" icon="scan" onPress={() => router.push((owner !== 'all' ? `/status/add?member=${owner === 'me' ? '' : owner}` : '/status/add') as any)} />
-      </Section>
       {plist.length > 1 ? <View style={{ marginTop: 16 }}><Chips options={[{ label: 'Everyone', value: 'all' }, ...plist.map((x) => ({ label: x.short, value: x.id }))]} value={owner} onChange={setOwner} /></View> : null}
       {docs.length > 1 ? <View style={{ marginTop: 8 }}><Chips options={types.map((x) => ({ label: x, value: x }))} value={filter} onChange={setFilter} /></View> : null}
       <Section>

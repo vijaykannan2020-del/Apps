@@ -103,13 +103,7 @@ export default function DocDetail() {
       <View style={{ paddingHorizontal: 20 }}>
         <DocPreview uri={uri} mime={doc.mime} height={260} onOpenExternal={() => openDoc(doc)} />
         <T v="small" style={{ marginTop: 8, textAlign: 'center' }}>Check the details below against the document. Tap it to see it full screen.</T>
-        {['Passport', 'Visa stamp', 'I-94', 'Approval (I-797A/B)', 'I-129S (blanket L)', 'EAD card'].includes(doc.type) ? (
-          <View style={{ marginTop: 14 }}>
-            <Button label={`Upload new ${doc.type === 'Approval (I-797A/B)' ? 'I-797' : doc.type.replace(/ \(.*\)/, '')}`} icon="swap-horizontal" kind="secondary"
-              onPress={() => router.replace(`/status/add?${(doc.owner || 'me') !== 'me' ? `member=${doc.owner}&` : ''}type=${encodeURIComponent(doc.type)}` as any)} />
-            <T v="small" style={{ textAlign: 'center', marginTop: 6 }}>Renewed? The new one replaces this and updates the date.</T>
-          </View>
-        ) : null}
+        <T v="small" style={{ marginTop: 4, textAlign: 'center' }}>Renewed? Upload the new one from Documents → Upload documents — it replaces this one.</T>
 
         <Card style={{ marginTop: 16 }}>
           <Field label="Title" value={title} onChangeText={setTitle} />

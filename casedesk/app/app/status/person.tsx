@@ -31,7 +31,6 @@ export default function PersonPage() {
   const p = person.profile;
   const isMe = id === 'me';
   const editPath = isMe ? '/status/edit' : `/status/edit?member=${id}`;
-  const addPath = (type?: string) => `/status/add?${isMe ? '' : `member=${id}&`}${type ? `type=${encodeURIComponent(type)}` : ''}`;
   const mine = docs.filter((d) => (d.owner || 'me') === id);
   const myCases = cases.filter((c) => (c.owner || 'me') === id);
   const slots = slotsFor(p);
@@ -40,17 +39,17 @@ export default function PersonPage() {
   const name = isMe ? (person.named ? person.name : 'You') : person.named ? person.name : person.relation;
 
   const color = (d: number | null) => (d === null ? t.sub : d < 0 ? t.red : d <= 90 ? t.amber : t.green);
-  const DocRow = ({ icon, label, date, doc, onPress, first }: { icon: any; label: string; date?: string; doc?: VaultDoc; onPress: () => void; first?: boolean }) => {
+  const DocRow = ({ icon, label, date, doc, onPress, first }: { icon: any; label: string; date?: string; doc?: VaultDoc; onPress?: () => void; first?: boolean }) => {
     const d = daysTo(date);
     return (
-      <Pressable onPress={() => { tap(); onPress(); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderTopWidth: first ? 0 : 0.5, borderTopColor: t.border }}>
+      <Pressable disabled={!onPress} onPress={() => { tap(); onPress?.(); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderTopWidth: first ? 0 : 0.5, borderTopColor: t.border }}>
         <Ionicons name={icon} size={20} color={t.text} />
         <View style={{ flex: 1 }}>
           <T v="body" style={{ fontSize: 16 }}>{label}</T>
-          {date || doc ? <T v="small" style={{ marginTop: 1 }}>{doc ? 'File saved' : 'Date only — no file yet'}</T> : null}
+          <T v="small" style={{ marginTop: 1 }}>{doc ? 'Tap to view' : date ? 'Date entered — no file' : 'Not uploaded'}</T>
         </View>
-        {date ? <T v="h3" style={{ fontSize: 14, color: color(d) }}>{fmt(date)}</T> : doc ? <T v="small">Saved</T> : <T v="h3" style={{ fontSize: 14, color: t.accent }}>Add</T>}
-        <Ionicons name="chevron-forward" size={16} color={t.faint} />
+        {date ? <T v="h3" style={{ fontSize: 14, color: color(d) }}>{fmt(date)}</T> : doc ? <T v="small">Saved</T> : <T v="small" style={{ color: t.faint }}>—</T>}
+        {onPress ? <Ionicons name="chevron-forward" size={16} color={t.faint} /> : null}
       </Pressable>
     );
   };
@@ -91,11 +90,11 @@ export default function PersonPage() {
           {slots.map((s, i) => {
             const doc = mine.find((d) => d.type === s.type);
             const date = doc?.expires || (p ? (p[s.key] as string | undefined) : undefined);
-            return <DocRow key={s.type} first={i === 0} icon={DOC_ICON[s.type] ?? 'document-outline'} label={s.label} date={date} doc={doc} onPress={() => router.push((doc ? `/status/doc?id=${doc.id}` : addPath(s.type)) as any)} />;
+            return <DocRow key={s.type} first={i === 0} icon={DOC_ICON[s.type] ?? 'document-outline'} label={s.label} date={date} doc={doc} onPress={doc ? () => router.push(`/status/doc?id=${doc.id}` as any) : undefined} />;
           })}
           {extra.map((d) => <DocRow key={d.id} icon={DOC_ICON[d.type] ?? 'document-outline'} label={d.type === 'Other' ? d.title : d.type.replace(/ \(.*\)/, '')} date={d.expires} doc={d} onPress={() => router.push(`/status/doc?id=${d.id}` as any)} />)}
         </Card>
-        <View style={{ marginTop: 12 }}><Button label="Add document" icon="add" onPress={() => router.push(addPath() as any)} /></View>
+        <T v="small" style={{ marginTop: 8, textAlign: 'center' }}>To add or renew a document, use Upload documents on the Documents tab.</T>
 
         {myCases.length ? (
           <>
