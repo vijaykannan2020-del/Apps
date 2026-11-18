@@ -1,8 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useCallback } from 'react';
 
-export const VISA_TYPES = ['H-1B', 'L-1A', 'L-1B', 'TN', 'F-1 OPT', 'STEM OPT', 'H-4', 'H-4 EAD', 'L-2S', 'Green card pending'] as const;
+export const VISA_TYPES = ['H-1B', 'L-1A', 'L-1B', 'TN', 'F-1 OPT', 'STEM OPT', 'H-4', 'H-4 EAD', 'L-2S', 'L-2', 'TD', 'F-1', 'F-2', 'B-1/B-2', 'Green card pending'] as const;
 export type VisaType = (typeof VISA_TYPES)[number];
+
+// Statuses offered for each person: dependents only see dependent/student/visitor statuses, no work visas.
+export const MY_VISAS: VisaType[] = ['H-1B', 'L-1A', 'L-1B', 'TN', 'F-1 OPT', 'STEM OPT', 'H-4', 'H-4 EAD', 'L-2S', 'Green card pending'];
+export function visasFor(relation?: string): VisaType[] {
+  switch (relation) {
+    case 'Spouse': return ['H-4', 'H-4 EAD', 'L-2S', 'TD', 'F-2', 'Green card pending', 'B-1/B-2'];
+    case 'Child': return ['H-4', 'L-2', 'TD', 'F-1', 'F-2', 'Green card pending', 'B-1/B-2'];
+    case 'Parent': return ['B-1/B-2', 'Green card pending'];
+    case 'Other': return [...VISA_TYPES];
+    default: return MY_VISAS;
+  }
+}
+// Statuses that come with their own I-797 approval (or follow the principal's)
+export const hasApprovalNotice = (v: VisaType) => ['H-1B', 'L-1A', 'L-1B', 'TN', 'H-4', 'H-4 EAD', 'L-2S', 'L-2'].includes(v);
 
 export type Profile = {
   visa: VisaType;

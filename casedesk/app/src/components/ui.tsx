@@ -266,26 +266,58 @@ export function Note({ children, tone = 'neutral' }: { children: React.ReactNode
 export const money = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 
 // Date input: type digits, dashes are added automatically (YYYY-MM-DD)
+// Date picker everywhere: iOS inline calendar, Android system dialog, typed YYYY-MM-DD on the web preview.
 export function DateField({ label, value, onChange, hint }: { label: string; value?: string; onChange: (v: string) => void; hint?: string }) {
   const t = useTheme();
-  const fmt = (raw: string) => {
-    const d = raw.replace(/\D/g, '').slice(0, 8);
-    return d.length > 6 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}` : d.length > 4 ? `${d.slice(0, 4)}-${d.slice(4)}` : d;
-  };
+  const [open, setOpen] = React.useState(false);
   const v = value ?? '';
-  const bad = v.length === 10 && isNaN(new Date(v + 'T12:00:00').getTime());
+  const valid = /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(new Date(v + 'T12:00:00').getTime());
+  const asDate = valid ? new Date(v + 'T12:00:00') : new Date();
+  const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const shown = valid ? asDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Select date';
+
+  // Native picker if this build has it (older installed builds may not); otherwise typed dates.
+  let Picker: any = null;
+  if (Platform.OS !== 'web') { try { Picker = require('@react-native-community/datetimepicker'); if (!Picker?.default) Picker = null; } catch { Picker = null; } }
+  if (!Picker) {
+    const fmtRaw = (raw: string) => { const d = raw.replace(/\D/g, '').slice(0, 8); return d.length > 6 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}` : d.length > 4 ? `${d.slice(0, 4)}-${d.slice(4)}` : d; };
+    return (
+      <View style={{ marginBottom: 12 }}>
+        <T v="label" style={{ marginBottom: 6 }}>{label}</T>
+        <TextInput value={v} onChangeText={(x) => onChange(fmtRaw(x))} placeholder="YYYY-MM-DD" placeholderTextColor={t.faint} maxLength={10}
+          style={{ backgroundColor: t.surface2, color: v.length === 10 && !valid ? t.red : t.text, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, fontVariant: ['tabular-nums'] }} />
+        {hint ? <T v="small" style={{ marginTop: 5 }}>{hint}</T> : null}
+      </View>
+    );
+  }
+  const press = () => {
+    tap();
+    if (Platform.OS === 'android') {
+      Picker.DateTimePickerAndroid.open({ value: asDate, mode: 'date', onChange: (e: any, d?: Date) => { if (e.type === 'set' && d) onChange(toIso(d)); } });
+    } else setOpen(!open);
+  };
   return (
     <View style={{ marginBottom: 12 }}>
       <T v="label" style={{ marginBottom: 6 }}>{label}</T>
-      <TextInput
-        value={v}
-        onChangeText={(x) => onChange(fmt(x))}
-        placeholder="YYYY-MM-DD"
-        placeholderTextColor={t.faint}
-        keyboardType={Platform.OS === 'ios' ? 'number-pad' : 'numeric'}
-        maxLength={10}
-        style={{ backgroundColor: t.surface2, color: bad ? t.red : t.text, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, fontVariant: ['tabular-nums'] }}
-      />
+      <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={`${label}: ${shown}`}
+        style={{ backgroundColor: t.surface2, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, flexDirection: 'row', alignItems: 'center' }}>
+        <Ionicons name="calendar-outline" size={18} color={valid ? t.accent : t.faint} />
+        <Text style={{ flex: 1, marginLeft: 10, fontSize: 16, color: valid ? t.text : t.faint, fontVariant: ['tabular-nums'] }}>{shown}</Text>
+        {valid ? (
+          <Pressable onPress={() => { tap(); onChange(''); setOpen(false); }} hitSlop={10} accessibilityLabel="Clear date">
+            <Ionicons name="close-circle" size={18} color={t.faint} />
+          </Pressable>
+        ) : <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={t.faint} />}
+      </Pressable>
+      {open && Platform.OS === 'ios' ? (
+        <View style={{ backgroundColor: t.surface2, borderRadius: 14, marginTop: 8, paddingBottom: 6, overflow: 'hidden' }}>
+          <Picker.default value={asDate} mode="date" display="inline" themeVariant={t.dark ? 'dark' : 'light'} accentColor={t.accent}
+            onChange={(_e: any, d?: Date) => { if (d) onChange(toIso(d)); }} />
+          <Pressable onPress={() => { if (!valid) onChange(toIso(asDate)); setOpen(false); }} style={{ alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 8 }}>
+            <Text style={{ color: t.accent, fontSize: 16, fontWeight: '600' }}>Done</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {hint ? <T v="small" style={{ marginTop: 5 }}>{hint}</T> : null}
     </View>
   );

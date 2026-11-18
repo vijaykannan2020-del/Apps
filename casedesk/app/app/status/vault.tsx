@@ -12,11 +12,20 @@ import { fmt, daysTo } from '../../src/lib/compliance';
 import { readText, parseDocument, statusUpdates, ocrAvailable, Found } from '../../src/lib/ocr';
 import { loadProfile, saveProfile, Profile, VisaType } from '../../src/lib/profile';
 
-const CLASS_TO_VISA: Record<string, VisaType> = { H1B: 'H-1B', L1A: 'L-1A', L1B: 'L-1B', TN: 'TN', H4: 'H-4', L2S: 'L-2S', F1: 'F-1 OPT' };
+const CLASS_TO_VISA: Record<string, VisaType> = { H1B: 'H-1B', L1A: 'L-1A', L1B: 'L-1B', TN: 'TN', H4: 'H-4', L2S: 'L-2S', L2: 'L-2', TD: 'TD', F1: 'F-1 OPT', F2: 'F-2' };
+import { loadFamily, saveMember } from '../../src/lib/family';
 
-async function applyToStatus(f: Found) {
+// Fills dates on "My Status", or on a family member's status when the scan was started for them.
+async function applyToStatus(f: Found, memberId?: string) {
   const ups = statusUpdates(f);
   if (!ups.length) return 0;
+  if (memberId) {
+    const m = (await loadFamily()).find((x) => x.id === memberId);
+    if (!m) return 0;
+    for (const u of ups) (m.profile as any)[u.field] = u.value;
+    await saveMember(m);
+    return ups.length;
+  }
   const p: Profile = (await loadProfile()) ?? { visa: CLASS_TO_VISA[f.classOfAdmission ?? ''] ?? 'H-1B' };
   for (const u of ups) (p as any)[u.field] = u.value;
   await saveProfile(p);
@@ -26,7 +35,7 @@ async function applyToStatus(f: Found) {
 const BIO = Platform.OS === 'android' ? 'fingerprint' : 'Face ID';
 const ICON: Record<string, any> = { 'Receipt (I-797C)': 'receipt-outline', 'Approval (I-797A/B)': 'ribbon-outline', 'I-94': 'document-text-outline', 'Visa stamp': 'card-outline', Passport: 'airplane-outline', 'EAD card': 'id-card-outline', LCA: 'briefcase-outline', 'Green card': 'card-outline', 'Pay stub / W-2': 'cash-outline', Other: 'document-outline' };
 
-function AddSheet({ onDone }: { onDone: (msg?: string) => void }) {
+function AddSheet({ onDone, memberId, memberName }: { onDone: (msg?: string) => void; memberId?: string; memberName?: string }) {
   const t = useTheme();
   const [picked, setPicked] = useState<Awaited<ReturnType<typeof pickFile>>>(null);
   const [title, setTitle] = useState('');
@@ -43,7 +52,7 @@ function AddSheet({ onDone }: { onDone: (msg?: string) => void }) {
   const onPicked = async (f: Awaited<ReturnType<typeof pickFile>>) => {
     if (!f) return;
     setPicked(f); setErr(''); setFound(null); setReadNote('');
-    if (!title) setTitle(f.name.replace(/\.[a-z0-9]+$/i, ''));
+    if (!title) setTitle(`${memberName ? memberName + ' · ' : ''}${f.name.replace(/\.[a-z0-9]+$/i, '')}`);
     if (!ocrAvailable()) { setReadNote('Auto-read works in the installed app (not Expo Go). Fill in the details below.'); return; }
     setReading(true);
     const text = await readText(f.uri, f.mime);
@@ -51,7 +60,7 @@ function AddSheet({ onDone }: { onDone: (msg?: string) => void }) {
     if (!text || text.trim().length < 20) { setReadNote('Couldn’t read text from this file (it may be a scan). Try a clear photo, or fill in below.'); return; }
     const d = parseDocument(text);
     setFound(d);
-    if (d.type) { setType(d.type); setTitle((x) => (x && x !== f.name.replace(/\.[a-z0-9]+$/i, '') ? x : `${d.type}${d.validTo ? ' · ' + fmt(d.validTo) : ''}`)); }
+    if (d.type) { setType(d.type); setTitle(`${memberName ? memberName + ' · ' : ''}${d.type}${d.validTo ? ' · ' + fmt(d.validTo) : ''}`); }
     if (d.receipt) setReceipt(d.receipt);
     if (d.validTo) setExpires(d.validTo);
     if (!d.type && !d.validTo && !d.receipt) setReadNote('Read the document but found no dates I recognise. Fill in below.');
@@ -63,8 +72,8 @@ function AddSheet({ onDone }: { onDone: (msg?: string) => void }) {
     try {
       await addDoc({ title: title.trim() || picked.name, type, expires: expires || undefined, receipt: receipt.trim() || undefined, fileName: picked.name, mime: picked.mime, size: picked.size }, picked);
       let n = 0;
-      if (found && applyStatus) n = await applyToStatus({ ...found, type, validTo: expires || found.validTo, receipt: receipt || found.receipt });
-      onDone(n ? `Saved · My Status updated (${n} date${n > 1 ? 's' : ''})` : 'Saved');
+      if (found && applyStatus) n = await applyToStatus({ ...found, type, validTo: expires || found.validTo, receipt: receipt || found.receipt }, memberId);
+      onDone(n ? `Saved · ${memberName ? memberName + '’s status' : 'My Status'} updated (${n} date${n > 1 ? 's' : ''})` : 'Saved');
     } catch (e: any) { setErr(e.message); }
     setBusy(false);
   };
@@ -118,7 +127,7 @@ function AddSheet({ onDone }: { onDone: (msg?: string) => void }) {
           {ups.length ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
               <View style={{ flex: 1, paddingRight: 10 }}>
-                <T v="h3" style={{ fontSize: 15 }}>Also update My Status</T>
+                <T v="h3" style={{ fontSize: 15 }}>{memberName ? `Also update ${memberName}’s status` : 'Also update My Status'}</T>
                 <T v="small" style={{ marginTop: 2 }}>{ups.map((u) => `${u.label}: ${u.field === 'extReceipt' ? u.value : fmt(u.value)}`).join(' · ')}</T>
               </View>
               <Switch value={applyStatus} onValueChange={setApplyStatus} trackColor={{ true: t.green, false: t.surface2 }} thumbColor="#fff" />
@@ -169,7 +178,9 @@ function DocRow({ d }: { d: VaultDoc }) {
 export default function Vault() {
   const t = useTheme();
   const [docs] = useVault();
-  const params = useLocalSearchParams<{ add?: string }>();
+  const params = useLocalSearchParams<{ add?: string; member?: string }>();
+  const [memberName, setMemberName] = useState<string | undefined>();
+  useEffect(() => { if (params.member) loadFamily().then((all) => setMemberName(all.find((m) => m.id === params.member)?.name)); }, [params.member]);
   const [adding, setAdding] = useState(params.add === '1');
   const [toast, setToast] = useState('');
   const [locked, setLocked] = useState<boolean | null>(null);
@@ -216,7 +227,7 @@ export default function Vault() {
         <T v="sub" style={{ marginTop: 4 }}>Stored in this app’s private folder on your phone. Nothing is uploaded.</T>
       </View>
       <Section>
-        {adding ? <AddSheet onDone={(m) => { setAdding(false); setToast(m ?? ''); }} /> : <Button label="Add or scan a document" icon="scan" onPress={() => { setAdding(true); setToast(''); }} />}
+        {adding ? <AddSheet memberId={params.member} memberName={memberName} onDone={(m) => { setAdding(false); setToast(m ?? ''); }} /> : <Button label="Add or scan a document" icon="scan" onPress={() => { setAdding(true); setToast(''); }} />}
         {toast ? <View style={{ marginTop: 10 }}><Note tone="accent">{toast}</Note></View> : null}
       </Section>
       {docs.length > 1 ? <View style={{ marginTop: 16 }}><Chips options={types.map((x) => ({ label: x, value: x }))} value={filter} onChange={setFilter} /></View> : null}
