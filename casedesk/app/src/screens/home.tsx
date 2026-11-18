@@ -13,6 +13,7 @@ import { AttentionRow, go, needsLocation, runFlow, statusLabel, untilText } from
 import { Confirm, SourceSheet } from './sheets';
 import { endFlow, unsavedCount, useFlow } from '../data/flow';
 import { RULES_CHECKED } from '../core/rules/catalog';
+import { HomeUpdates } from './news';
 
 export const UPDATES = [
   { tag: 'EAD', t: 'EAD renewals filed on or after Oct 30, 2025 don’t get an automatic extension', src: 'uscis.gov', url: 'https://www.uscis.gov/i-765', body: 'If a work permit renewal is pending when the card ends, work has to stop until the new card arrives. Plan renewals up to 180 days early.' },
@@ -141,14 +142,7 @@ export function Home() {
         </Card>
       </View>
 
-      <SectionHeader>Official updates</SectionHeader>
-      <Group>
-        {UPDATES.map((u) => (
-          <Row key={u.tag} onPress={() => sheet.open(u.t, <SourceSheet body={u.body} source={u.src} url={u.url} checked={fmt(RULES_CHECKED)} />)}
-            title={u.t} titleStyle={font.callout}
-            subtitle={<View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}><Tag text={u.tag} /><T tone="text2" style={font.caption}>{`${u.src} · checked ${fmt(RULES_CHECKED)}`}</T></View>} />
-        ))}
-      </Group>
+      <HomeUpdates />
       <Hint center style={{ marginTop: 18 }}>{`General information, not legal advice. Rules checked ${fmt(RULES_CHECKED)}.`}</Hint>
     </Screen>
   );
