@@ -34,7 +34,7 @@ export default function Status() {
     const next = dates.map((d) => ({ d, n: daysTo(d)! })).sort((a, b) => a.n - b.n)[0];
     let pill: { label: string; bg: string; fg: string } | null = null;
     if (bad.some((c) => c.tone === 'red')) pill = { label: 'Act now', bg: t.redSoft, fg: t.red };
-    else if (bad.length) pill = { label: `${bad.length} to fix`, bg: t.amberSoft, fg: t.amber };
+    else if (bad.some((c) => c.id === 'visa-unset')) pill = { label: 'Confirm visa', bg: t.amberSoft, fg: t.amber };
     else if (next) pill = { label: next.n < 0 ? 'Date passed' : `Next: ${fmt(next.d).replace(/ \d+,/, '')}`, bg: t.surface2, fg: next.n <= 90 ? t.amber : t.green };
     const sub = [x.id === 'me' ? 'You' : x.relation, p ? visaLabel(p) : null, mine.length ? `${mine.length} document${mine.length > 1 ? 's' : ''}` : 'No documents yet'].filter(Boolean).join(' · ');
     return { x, sub, pill };

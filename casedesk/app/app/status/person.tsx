@@ -1,11 +1,11 @@
 // One person (you or a family member): their details and one list of their documents. Each row is a
 // document they should have — tap it to open the saved file, or "Add" to scan it.
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { DetailScreen } from '../../src/components/TopBar';
-import { Card, T, Pill, Button, Note, tap } from '../../src/components/ui';
+import { Card, T, Pill, Button, tap } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
 import { useProfile, visaLabel, Profile } from '../../src/lib/profile';
 import { useFamily } from '../../src/lib/family';
@@ -25,6 +25,7 @@ export default function PersonPage() {
   const [family] = useFamily();
   const [docs] = useVault();
   const [cases] = useCases();
+  const [open, setOpen] = useState('');
   const person = people(me, family).find((x) => x.id === id);
   if (!person) return <DetailScreen title="Documents"><View style={{ padding: 20 }}><T v="sub">This person was removed.</T></View></DetailScreen>;
   const p = person.profile;
@@ -70,11 +71,20 @@ export default function PersonPage() {
           </Pressable>
         </Card>
 
-        {issues.slice(0, 2).map((c) => (
-          <View key={c.id} style={{ marginTop: 10 }}>
-            <Pressable onPress={() => router.push(editPath as any)}><Note tone={c.tone === 'red' ? 'red' : 'amber'}>{`${c.title}. ${c.detail}`}</Note></Pressable>
-          </View>
-        ))}
+        {issues.length ? (
+          <Card style={{ marginTop: 10, paddingVertical: 2 }}>
+            {issues.slice(0, 3).map((c, i) => (
+              <Pressable key={c.id} onPress={() => { tap(); setOpen(open === c.id ? '' : c.id); }} style={{ paddingVertical: 12, borderTopWidth: i ? 0.5 : 0, borderTopColor: t.border }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.tone === 'red' ? t.red : t.amber }} />
+                  <T v="body" style={{ flex: 1, fontSize: 15 }}>{c.title}</T>
+                  <Ionicons name={open === c.id ? 'chevron-up' : 'chevron-down'} size={14} color={t.sub} />
+                </View>
+                {open === c.id ? <T v="sub" style={{ marginTop: 6, marginLeft: 18 }}>{c.detail}</T> : null}
+              </Pressable>
+            ))}
+          </Card>
+        ) : null}
 
         <T v="label" style={{ marginTop: 22, marginBottom: 8 }}>Documents</T>
         <Card style={{ paddingVertical: 2 }}>
