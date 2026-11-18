@@ -43,6 +43,10 @@ function Multi<V extends string | number>({ options, value, onChange, fmtLabel }
   );
 }
 
+import { useProfile } from '../src/lib/profile';
+import { useFamily } from '../src/lib/family';
+import { people } from '../src/lib/people';
+
 export default function Alerts() {
   const t = useTheme();
   const [p, save] = useAlertPrefs();
@@ -50,6 +54,9 @@ export default function Alerts() {
   const [next, setNext] = useState<{ title: string; date: string }[]>([]);
   const native = Platform.OS !== 'web';
   const set = (patch: Partial<AlertPrefs>) => save({ ...p, ...patch });
+  const [meP] = useProfile();
+  const [fam] = useFamily();
+  const plist = people(meP, fam);
 
   useEffect(() => {
     if (native) require('expo-notifications').getPermissionsAsync().then((r: any) => setPerm(r.granted)).catch(() => setPerm(false));
@@ -77,9 +84,14 @@ export default function Alerts() {
 
       <Section title="My dates">
         <Card>
-          <Toggle label="Expiry reminders" sub="I-94, approval, EAD, passport and visa stamp from My Status" value={p.statusReminders} onChange={(v) => set({ statusReminders: v })} />
+          <Toggle label="Expiry reminders" sub="I-94, approval, EAD, passport and visa stamp for each person" value={p.statusReminders} onChange={(v) => set({ statusReminders: v })} />
           {p.statusReminders ? (
             <>
+              <T v="label" style={{ marginTop: 6 }}>For</T>
+              {plist.map((x) => (
+                <Toggle key={x.id} label={x.id === 'me' ? `${x.short === 'Me' ? 'Me' : x.short} (me)` : `${x.short} · ${x.relation}`} sub={x.profile ? x.profile.visa : 'No dates yet'} value={!(p.mutedPeople || []).includes(x.id)}
+                  onChange={(v) => set({ mutedPeople: v ? (p.mutedPeople || []).filter((m) => m !== x.id) : [...(p.mutedPeople || []), x.id] })} />
+              ))}
               <T v="label" style={{ marginTop: 6 }}>Remind me before</T>
               <Multi options={DAYS} value={p.reminderDays} onChange={(v) => set({ reminderDays: [...v].sort((a, b) => b - a) })} fmtLabel={(d) => (d === 1 ? '1 day' : d >= 60 ? `${Math.round(d / 30)} months` : `${d} days`)} />
               <T v="label" style={{ marginTop: 6 }}>At</T>

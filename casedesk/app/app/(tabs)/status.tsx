@@ -1,7 +1,7 @@
 // My Status — one person at a time (me or a family member): what needs attention, the next deadline,
 // their key dates, documents and cases. Adding documents is the main action: they fill everything else.
 import React, { useMemo, useState } from 'react';
-import { View, Pressable, ScrollView } from 'react-native';
+import { View, Pressable, ScrollView, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
@@ -41,8 +41,8 @@ function Ring({ days, color }: { days: number; color: string }) {
         <Circle cx={size / 2} cy={size / 2} r={r} stroke={t.surface2} strokeWidth={stroke} fill="none" />
         <Circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={stroke} fill="none" strokeLinecap="round" strokeDasharray={`${c * frac} ${c}`} />
       </Svg>
-      <T style={{ fontSize: 30, fontWeight: '800', color: t.text, fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}>{Math.abs(days)}</T>
-      <T v="small" style={{ marginTop: -2 }}>{days < 0 ? 'days ago' : 'days'}</T>
+      <Text allowFontScaling={false} style={{ fontSize: 30, lineHeight: 36, fontWeight: '800', color: t.text, fontVariant: ['tabular-nums'], letterSpacing: -0.5, includeFontPadding: false, textAlign: 'center' }}>{Math.abs(days)}</Text>
+      <Text allowFontScaling={false} style={{ fontSize: 12, lineHeight: 15, color: t.sub, textAlign: 'center' }}>{days < 0 ? 'days ago' : 'days'}</Text>
     </View>
   );
 }
@@ -73,7 +73,7 @@ export default function Status() {
   const docFor = (r: DateRow): VaultDoc | undefined => myDocs.find((d) => r.doc.includes(d.type));
 
   return (
-    <Screen title="My Status" subtitle={p ? `${person.id === 'me' ? '' : person.name + ' · '}${p.visa}${p.employer && person.id === 'me' ? ' · ' + p.employer : ''}` : 'You and your family'}>
+    <Screen title="My Documents" subtitle={p ? `${person.name} · ${p.visa}${p.employer && person.id === 'me' ? ' · ' + p.employer : ''}` : 'Status, dates and documents for you and your family'}>
       {/* People */}
       {ready ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 14, paddingVertical: 4 }}>
@@ -81,12 +81,12 @@ export default function Status() {
             const on = x.id === who;
             const bad = x.profile ? runChecks(x.profile).some((c) => c.tone === 'red') : false;
             return (
-              <Pressable key={x.id} onPress={() => { tap(); setWho(x.id); setAllChecks(false); }} style={{ alignItems: 'center', width: 60 }} accessibilityLabel={x.id === 'me' ? 'Me' : x.name}>
+              <Pressable key={x.id} onPress={() => { tap(); setWho(x.id); setAllChecks(false); }} style={{ alignItems: 'center', width: 64 }} accessibilityLabel={x.name}>
                 <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: on ? t.accent : t.surface, alignItems: 'center', justifyContent: 'center', borderWidth: on ? 0 : 0.5, borderColor: t.border }}>
-                  <T v="h3" style={{ color: on ? '#fff' : t.text }}>{x.id === 'me' && x.name === 'Me' ? 'Me' : initials(x.name)}</T>
+                  <T v="h3" style={{ color: on ? '#fff' : t.text }}>{x.named ? initials(x.name) : x.id === 'me' ? 'Me' : x.relation[0]}</T>
                   {bad ? <View style={{ position: 'absolute', top: 1, right: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: t.red, borderWidth: 2, borderColor: t.bg }} /> : null}
                 </View>
-                <T v="small" numberOfLines={1} style={{ marginTop: 5, color: on ? t.text : t.sub }}>{x.id === 'me' ? 'Me' : x.name}</T>
+                <T v="small" numberOfLines={1} style={{ marginTop: 5, color: on ? t.text : t.sub }}>{x.short}</T>
               </Pressable>
             );
           })}
@@ -99,12 +99,19 @@ export default function Status() {
         </ScrollView>
       ) : null}
 
+      {ready && !person.named && (person.id !== 'me' || p) ? (
+        <Pressable onPress={() => router.push(editPath as any)} style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: t.accentSoft, padding: 12, borderRadius: 14 }}>
+          <Ionicons name="person-add-outline" size={18} color={t.accent} />
+          <T v="body" style={{ flex: 1, color: t.accent, fontSize: 14 }}>{person.id === 'me' ? 'Add your name' : `Add ${person.relation.toLowerCase()}’s name`} — so documents and reminders show who they’re for.</T>
+          <Ionicons name="chevron-forward" size={16} color={t.accent} />
+        </Pressable>
+      ) : null}
       <Columns left={<>
         {ready && !p ? (
           <Section>
             <Card style={{ alignItems: 'center', paddingVertical: 28 }}>
               <IconBubble name="documents-outline" size={56} />
-              <T v="h2" style={{ marginTop: 14, textAlign: 'center' }}>{who === 'me' ? 'Start with your documents' : `Add ${person.name}’s documents`}</T>
+              <T v="h2" style={{ marginTop: 14, textAlign: 'center' }}>{who === 'me' ? 'Start with your documents' : `Add ${person.short}’s documents`}</T>
               <T v="sub" style={{ textAlign: 'center', marginTop: 6, maxWidth: 290 }}>Scan the I-94, I-797 / I-129S, passport, visa and EAD. CaseDesk reads the dates and watches them for you.</T>
               <View style={{ marginTop: 18, alignSelf: 'stretch' }}><Button label="Add documents" icon="scan" onPress={() => router.push(addPath as any)} /></View>
               <View style={{ marginTop: 10, alignSelf: 'stretch' }}><Button label="Enter dates instead" kind="secondary" onPress={() => router.push(editPath as any)} /></View>
@@ -161,7 +168,7 @@ export default function Status() {
                 const doc = docFor(r);
                 const c = d === null ? t.faint : d < 0 ? t.red : d <= 90 ? t.amber : t.green;
                 return (
-                  <Pressable key={r.key} onPress={() => router.push((r.value ? editPath : addPath) as any)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i ? 0.5 : 0, borderTopColor: t.border, gap: 12 }}>
+                  <Pressable key={r.key} onPress={() => router.push((doc ? `/status/doc?id=${doc.id}` : r.value ? editPath : addPath) as any)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i ? 0.5 : 0, borderTopColor: t.border, gap: 12 }}>
                     <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c }} />
                     <View style={{ flex: 1 }}>
                       <T v="body" style={{ fontSize: 15 }}>{r.label}</T>
@@ -177,25 +184,37 @@ export default function Status() {
         ) : null}
 
         {/* Documents for this person */}
-        <Section title={who === 'me' ? 'My documents' : `${person.name}’s documents`} action={myDocs.length ? 'See all' : undefined} onAction={() => router.push(`/status/vault?owner=${who}` as any)}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
-            <Pressable onPress={() => router.push(addPath as any)} style={{ width: 120, height: 120, borderRadius: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: t.faint, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="add" size={26} color={t.accent} />
-              <T v="small" style={{ marginTop: 4, color: t.accent, fontWeight: '700' }}>Add</T>
-            </Pressable>
-            {myDocs.slice(0, 12).map((d) => {
-              const dd = daysTo(d.expires);
-              return (
-                <Pressable key={d.id} onPress={() => router.push(`/status/vault?owner=${who}` as any)} style={{ width: 120, height: 120, borderRadius: 18, backgroundColor: t.surface, padding: 12, justifyContent: 'space-between', borderWidth: 0.5, borderColor: t.border }}>
-                  <Ionicons name={DOC_ICON[d.type] ?? 'document-outline'} size={22} color={t.text} />
-                  <View>
-                    <T v="h3" style={{ fontSize: 13 }} numberOfLines={2}>{d.type === 'Other' ? d.title : d.type}</T>
-                    {d.expires ? <T v="small" style={{ marginTop: 2, color: dd! < 0 ? t.red : dd! <= 90 ? t.amber : t.sub }}>{fmt(d.expires)}</T> : null}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+        <Section title={`${person.id === 'me' && !person.named ? 'My' : person.short + '’s'} documents`} note="Tap a document to view it and check the details read from it." action={myDocs.length ? 'See all' : undefined} onAction={() => router.push(`/status/vault?owner=${who}` as any)}>
+          {(() => {
+            // One slot per document this person should have; anything else follows.
+            const slots: string[] = ['I-94'];
+            if (p && hasApprovalNotice(p.visa)) slots.push(isBlanket(p) ? 'I-129S (blanket L)' : 'Approval (I-797A/B)');
+            slots.push('Passport', 'Visa stamp');
+            if (p && usesEAD(p.visa)) slots.push('EAD card');
+            const extra = myDocs.filter((d) => !slots.includes(d.type));
+            const tile = (key: string, icon: any, label: string, sub: string, color: string, onPress: () => void, dashed?: boolean) => (
+              <Pressable key={key} onPress={onPress} style={{ width: '48.5%', borderRadius: 16, backgroundColor: dashed ? 'transparent' : t.surface, borderWidth: dashed ? 1.2 : 0.5, borderStyle: dashed ? 'dashed' : 'solid', borderColor: dashed ? t.faint : t.border, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name={icon} size={20} color={dashed ? t.accent : t.text} />
+                <View style={{ flex: 1 }}>
+                  <T v="h3" style={{ fontSize: 13 }} numberOfLines={1}>{label}</T>
+                  <T v="small" style={{ color }} numberOfLines={1}>{sub}</T>
+                </View>
+              </Pressable>
+            );
+            return (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' }}>
+                {slots.map((ty) => {
+                  const d = myDocs.find((x) => x.type === ty);
+                  const label = ty === 'Approval (I-797A/B)' ? 'I-797 approval' : ty === 'I-129S (blanket L)' ? 'I-129S' : ty;
+                  if (!d) return tile(ty, 'add-circle-outline', label, 'Add', t.accent, () => router.push(addPath as any), true);
+                  const dd = daysTo(d.expires);
+                  return tile(d.id, DOC_ICON[ty] ?? 'document-outline', label, d.expires ? fmt(d.expires) : 'Saved', dd !== null && dd < 0 ? t.red : dd !== null && dd <= 90 ? t.amber : t.green, () => router.push(`/status/doc?id=${d.id}` as any));
+                })}
+                {extra.map((d) => tile(d.id, DOC_ICON[d.type] ?? 'document-outline', d.type === 'Other' ? d.title : d.type.replace(/ \(.*\)/, ''), d.expires ? fmt(d.expires) : 'Saved', t.sub, () => router.push(`/status/doc?id=${d.id}` as any)))}
+                {tile('add-more', 'documents-outline', 'Other document', 'Receipts, LCA, W-2…', t.accent, () => router.push(addPath as any), true)}
+              </View>
+            );
+          })()}
         </Section>
 
         {/* Cases for this person */}

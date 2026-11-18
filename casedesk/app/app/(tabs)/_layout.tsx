@@ -9,16 +9,16 @@ export default function TabsLayout() {
   return (
     <NativeTabs sidebarAdaptable minimizeBehavior="onScrollDown" tintColor={t.accent} iconColor={t.sub} labelStyle={{ fontSize: 11, fontWeight: '600' }}>
       <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Icon sf={{ default: 'sun.max', selected: 'sun.max.fill' }} md="today" />
-        <NativeTabs.Trigger.Label>Today</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
+        <NativeTabs.Trigger.Label>Overview</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="cases">
         <NativeTabs.Trigger.Icon sf={{ default: 'tray.full', selected: 'tray.full.fill' }} md="inbox" />
-        <NativeTabs.Trigger.Label>Cases</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Case Status</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="status">
-        <NativeTabs.Trigger.Icon sf={{ default: 'checkmark.shield', selected: 'checkmark.shield.fill' }} md="verified_user" />
-        <NativeTabs.Trigger.Label>My Status</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'doc.text', selected: 'doc.text.fill' }} md="description" />
+        <NativeTabs.Trigger.Label>Documents</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="tools">
         <NativeTabs.Trigger.Icon sf={{ default: 'square.grid.2x2', selected: 'square.grid.2x2.fill' }} md="apps" />

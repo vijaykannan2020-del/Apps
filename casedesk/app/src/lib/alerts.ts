@@ -22,6 +22,7 @@ export type AlertPrefs = {
   news: { enabled: boolean; tags: Tag[]; importantOnly: boolean; webNews: boolean };
   bulletin: { enabled: boolean; country: Country; categories: string[] };
   hour: number; // time of day for reminders (local)
+  mutedPeople?: string[]; // 'me' or family ids whose date reminders are off
 };
 
 export const DEFAULT_PREFS: AlertPrefs = {
@@ -98,7 +99,8 @@ const when = (n: number) => (n === 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n}
 export async function buildReminders(p: AlertPrefs): Promise<Reminder[]> {
   const out: Reminder[] = [];
   const prof = await loadProfile();
-  if (p.statusReminders && prof) {
+  const muted = new Set(p.mutedPeople || []);
+  if (p.statusReminders && prof && !muted.has('me')) {
     for (const f of DATE_FIELDS) {
       const v = prof[f.k] as string | undefined;
       if (!v) continue;
@@ -110,9 +112,10 @@ export async function buildReminders(p: AlertPrefs): Promise<Reminder[]> {
     try {
       const fam = JSON.parse((await AsyncStorage.getItem('cd.family.v1')) || '[]') as { id: string; name: string; profile: any }[];
       for (const m of fam) for (const f of DATE_FIELDS) {
+        if (muted.has(m.id)) continue;
         const v = m.profile?.[f.k] as string | undefined;
         if (!v || f.k === 'visaStampExpiry') continue;
-        const label = f.label.replace(/^Your /, `${m.name}'s `);
+        const label = f.label.replace(/^Your /, `${m.name}’s `);
         for (const d of p.reminderDays) out.push({ id: `fam-${m.id}-${f.k}-${d}`, date: at(v, d, p.hour).toISOString(), title: `${label} ends ${when(d)}`, body: 'Open CaseDesk to check what to do next.', url: '/status' });
       }
     } catch {}

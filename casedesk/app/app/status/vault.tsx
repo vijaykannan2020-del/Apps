@@ -19,6 +19,7 @@ const BIO = Platform.OS === 'android' ? 'fingerprint' : 'Face ID';
 const ICON_UNUSED: Record<string, any> = { 'I-129S (blanket L)': 'layers-outline', 'Receipt (I-797C)': 'receipt-outline', 'Approval (I-797A/B)': 'ribbon-outline', 'I-94': 'document-text-outline', 'Visa stamp': 'card-outline', Passport: 'airplane-outline', 'EAD card': 'id-card-outline', LCA: 'briefcase-outline', 'Green card': 'card-outline', 'Pay stub / W-2': 'cash-outline', Other: 'document-outline' };
 
 function DocRow({ d, who }: { d: VaultDoc; who?: string }) {
+  const router = useRouter();
   const t = useTheme();
   const [preview, setPreview] = useState<string | null>(null);
   const days = daysTo(d.expires);
@@ -33,7 +34,7 @@ function DocRow({ d, who }: { d: VaultDoc; who?: string }) {
   };
   return (
     <Card style={{ marginBottom: 10 }}>
-      <Pressable onPress={open} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <Pressable onPress={() => router.push(`/status/doc?id=${d.id}` as any)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <IconBubble name={DOC_ICON[d.type] ?? 'document-outline'} tone="neutral" size={40} />
         <View style={{ flex: 1 }}>
           <T v="h3" numberOfLines={1}>{d.title}</T>

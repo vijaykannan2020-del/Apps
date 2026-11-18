@@ -8,6 +8,9 @@ import { useTheme } from '../../src/theme';
 import { useCases, upsertCase } from '../../src/lib/store';
 import { stageOf, STAGES } from '../../src/lib/caseStatus';
 import { fetchCase, isLive } from '../../src/lib/api';
+import { useProfile } from '../../src/lib/profile';
+import { useFamily } from '../../src/lib/family';
+import { people } from '../../src/lib/people';
 
 export default function Cases() {
   const t = useTheme();
@@ -15,6 +18,10 @@ export default function Cases() {
   const [cases, , ready] = useCases();
   const [refreshing, setRefreshing] = useState(false);
   const L = useLayout();
+  const [me] = useProfile();
+  const [family] = useFamily();
+  const plist = people(me, family);
+  const whose = (o?: string) => (plist.length > 1 ? plist.find((x) => x.id === (o || 'me'))?.short : undefined);
 
   const refreshAll = async () => {
     setRefreshing(true);
@@ -30,8 +37,8 @@ export default function Cases() {
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" style={{ flex: 1, backgroundColor: t.bg }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshAll} tintColor={t.sub} />} showsVerticalScrollIndicator={false}>
       <Screen
-        title="Cases"
-        subtitle={cases.length ? `${cases.length} tracked` : 'Case status'}
+        title="Case Status"
+        subtitle={cases.length ? `${cases.filter((c) => !/approved|denied|rejected|card was (mailed|delivered)|oath/i.test(c.status || '')).length} pending · ${cases.length} tracked` : 'USCIS receipts, LCA, PERM and PWD'}
         scroll={false}
         right={
           <GlassButton icon="add" label="Add a case" primary onPress={() => router.push('/case/add')} />
@@ -56,15 +63,15 @@ export default function Cases() {
             </Card>
           </Section>
         ) : (
-          <Section>
-            <View>{cases.map((c) => {
+          <Section title="USCIS cases" note="Receipt numbers from your I-797 notices — pending and completed.">
+            <View>{[...cases].sort((a, b) => Number(/approved|denied|rejected|delivered|oath/i.test(a.status || '')) - Number(/approved|denied|rejected|delivered|oath/i.test(b.status || ''))).map((c) => {
               const st = stageOf(c.status);
               const color = st.tone === 'red' ? t.red : st.tone === 'amber' ? t.amber : st.tone === 'green' ? t.green : t.accent;
               return (
                 <Card key={c.receipt} onPress={() => router.push(`/case/${c.receipt}`)} style={{ marginBottom: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={{ flex: 1 }}>
-                      <T v="label">{c.form ? `Form ${c.form}` : 'USCIS case'}{c.demo ? ' · Sample' : ''}</T>
+                      <T v="label">{c.form ? `Form ${c.form}` : 'USCIS case'}{whose(c.owner) ? ` · ${whose(c.owner)}` : ''}{c.demo ? ' · Sample' : ''}</T>
                       <T v="h3" style={{ marginTop: 6, fontSize: 17 }}>{c.nickname || c.receipt}</T>
                       {c.nickname ? <T v="small" style={{ marginTop: 2, letterSpacing: 0.5 }}>{c.receipt}</T> : null}
                     </View>
@@ -84,9 +91,9 @@ export default function Cases() {
           </Section>
         )}
         </>} right={<>
-        <Section title="Other case types">
+        <Section title="Other case status" note="Department of Labor cases and timelines.">
           <Card style={{ paddingVertical: 4 }}>
-            <Row icon="briefcase-outline" tone="amber" title="LCA, PERM & PWD (DOL)" subtitle="Check Department of Labor case status" onPress={() => router.push('/tools/dol-status')} />
+            <Row icon="briefcase-outline" tone="amber" title="LCA, PERM & prevailing wage" subtitle="Look up a DOL case number on FLAG" onPress={() => router.push('/tools/dol-status')} />
             <Row icon="time-outline" tone="neutral" title="Processing times" subtitle="How long USCIS is taking now" onPress={() => router.push('/tools/times')} />
             <Row icon="calendar-number-outline" tone="neutral" title="Visa Bulletin" subtitle="Is my green card date current?" onPress={() => router.push('/tools/bulletin')} last />
           </Card>

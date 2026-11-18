@@ -133,3 +133,4 @@ export async function shareDoc(doc: VaultDoc) {
 
 export const getLock = async () => (await AsyncStorage.getItem(LOCK).catch(() => null)) === '1';
 export const setLock = (on: boolean) => AsyncStorage.setItem(LOCK, on ? '1' : '0').catch(() => {});
+

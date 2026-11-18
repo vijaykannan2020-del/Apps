@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen, Section, Card, T, Pill, IconBubble, Chips, Segmented, Note, Grid, Columns, GlassButton, tap } from '../../src/components/ui';
 import { useLayout, tileWidth } from '../../src/lib/layout';
 import { useProfile } from '../../src/lib/profile';
+import { useFamily } from '../../src/lib/family';
+import { people, initials } from '../../src/lib/people';
 import { runChecks } from '../../src/lib/compliance';
 import { useTheme } from '../../src/theme';
 import { fetchNews } from '../../src/lib/api';
@@ -25,6 +27,8 @@ export default function Today() {
   const [filter, setFilter] = useState<F>('All');
   const [kind, setKind] = useState<'official' | 'news'>('official');
   const [profile] = useProfile();
+  const [family] = useFamily();
+  const everyone = people(profile, family).filter((x) => x.profile);
   const checks = profile ? runChecks(profile) : [];
   const top = checks.find((c) => c.tone === 'red') ?? checks.find((c) => c.tone === 'amber');
   const [refreshing, setRefreshing] = useState(false);
@@ -49,34 +53,45 @@ export default function Today() {
       showsVerticalScrollIndicator={false}
     >
       <Screen
-        title="Today"
+        title="Overview"
         subtitle={today}
         right={
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <GlassButton icon="notifications-outline" label="Alerts" onPress={() => router.push('/alerts')} />
-            <GlassButton icon="person-circle-outline" label="Settings" onPress={() => router.push('/about')} />
+            <GlassButton icon="person-circle-outline" label="Profile" onPress={() => router.push('/profile')} />
           </View>
         }
         scroll={false}
       >
         <Columns ratio={1.25} left={<>
-        {/* My status */}
-        <Section title="My status" action={profile ? 'Open' : undefined} onAction={() => router.push('/status')}>
-          {profile ? (
-            <Card onPress={() => router.push('/status')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <IconBubble name={top ? 'alert-circle' : 'shield-checkmark'} tone={top ? (top.tone as any) : 'green'} size={42} />
-              <View style={{ flex: 1 }}>
-                <T v="h3">{profile.visa}{profile.employer ? ` · ${profile.employer}` : ''}</T>
-                <T v="sub" style={{ marginTop: 2 }} numberOfLines={2}>{top ? top.title : 'All checks look good'}</T>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={t.faint} />
+        {/* Status for everyone */}
+        <Section title="Status" note="Your family’s visa dates and anything that needs action." action={everyone.length ? 'Open' : undefined} onAction={() => router.push('/status')}>
+          {everyone.length ? (
+            <Card style={{ paddingVertical: 4 }}>
+              {everyone.map((x, i) => {
+                const cs = runChecks(x.profile!);
+                const tp = cs.find((c) => c.tone === 'red') ?? cs.find((c) => c.tone === 'amber');
+                const col = tp?.tone === 'red' ? t.red : tp ? t.amber : t.green;
+                return (
+                  <Pressable key={x.id} onPress={() => router.push('/status')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: i ? 0.5 : 0, borderTopColor: t.border }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                      <T v="h3" style={{ fontSize: 13 }}>{x.named ? initials(x.name) : x.id === 'me' ? 'Me' : x.relation[0]}</T>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <T v="h3" style={{ fontSize: 15 }}>{x.short} · {x.profile!.visa}</T>
+                      <T v="small" numberOfLines={1} style={{ marginTop: 1 }}>{tp ? tp.title : 'All good'}</T>
+                    </View>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: col }} />
+                  </Pressable>
+                );
+              })}
             </Card>
           ) : (
-            <Card onPress={() => router.push('/status/edit')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <IconBubble name="shield-checkmark-outline" size={42} />
+            <Card onPress={() => router.push('/status/add')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              <IconBubble name="documents-outline" size={42} />
               <View style={{ flex: 1 }}>
-                <T v="h3">Set up your status</T>
-                <T v="sub" style={{ marginTop: 2 }}>Visa, I-94 and expiry dates — get alerts before anything lapses.</T>
+                <T v="h3">Add your documents</T>
+                <T v="sub" style={{ marginTop: 2 }}>Scan your I-94, I-797, passport and visa — CaseDesk reads the dates and reminds you.</T>
               </View>
               <Ionicons name="chevron-forward" size={18} color={t.faint} />
             </Card>
@@ -84,7 +99,7 @@ export default function Today() {
         </Section>
 
         {/* Cases strip */}
-        <Section title="Your cases" action={cases.length ? 'See all' : undefined} onAction={() => router.push('/cases')}>
+        <Section title="Case status" note="USCIS receipts you’re tracking." action={cases.length ? 'See all' : undefined} onAction={() => router.push('/cases')}>
           {cases.length === 0 ? (
             <Card onPress={() => router.push('/case/add')} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <IconBubble name="add" size={42} />
@@ -119,7 +134,7 @@ export default function Today() {
         </Section>
 
         {/* Quick tools */}
-        <Section title="Quick tools" action="All tools" onAction={() => router.push('/tools')}>
+        <Section title="Quick tools" note="Most-used checks — more in Tools." action="All tools" onAction={() => router.push('/tools')}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
             {[
               { icon: 'airplane-outline', label: 'Can I travel?', sub: 'Trip check', to: '/tools/travel', tone: 'accent' },
@@ -139,6 +154,9 @@ export default function Today() {
         {/* Updates */}
         <View style={{ marginTop: 26, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ flex: 1, color: t.text, fontSize: 19, fontWeight: '700', letterSpacing: -0.3 }}>Updates</Text>
+        </View>
+        <View style={{ paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+          <Text style={{ flex: 1, color: t.sub, fontSize: 13 }}>Rule changes from USCIS, DOL and State — plus news coverage.</Text>
           <Pill label={live ? 'Live' : 'Built-in'} tone={live ? 'green' : 'neutral'} small />
         </View>
         <View style={{ paddingHorizontal: 20, marginTop: 10 }}>

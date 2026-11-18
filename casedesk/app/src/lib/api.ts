@@ -30,7 +30,11 @@ export async function fetchNews(): Promise<{ items: NewsItem[]; live: boolean }>
   if (!API_BASE) return { items: BUILT_IN, live: false };
   try {
     const d = await get<{ items: NewsItem[] }>('/api/news');
-    return { items: d.items.length ? d.items : BUILT_IN, live: true };
+    // Live items first; keep the curated built-in briefs (H-1B, L-1, OPT, I-9…) that the live feed doesn't cover.
+    const key = (n: NewsItem) => n.title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').slice(0, 60);
+    const seen = new Set(d.items.map(key));
+    const items = [...d.items, ...BUILT_IN.filter((n) => !seen.has(key(n)))].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    return { items, live: true };
   } catch {
     return { items: BUILT_IN, live: false };
   }

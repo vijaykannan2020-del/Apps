@@ -80,8 +80,8 @@ export function Grid({ children, cols, gap = 10 }: { children: React.ReactNode; 
   );
 }
 
-export function Section({ title, action, onAction, children, style }: {
-  title?: string; action?: string; onAction?: () => void; children: React.ReactNode; style?: ViewStyle;
+export function Section({ title, action, onAction, children, style, note }: {
+  title?: string; action?: string; onAction?: () => void; children: React.ReactNode; style?: ViewStyle; note?: string;
 }) {
   const t = useTheme();
   return (
@@ -92,6 +92,7 @@ export function Section({ title, action, onAction, children, style }: {
           {action ? <Pressable onPress={onAction} hitSlop={10}><Text style={{ color: t.accent, fontSize: 15, fontWeight: '600' }}>{action}</Text></Pressable> : null}
         </View>
       ) : null}
+      {note ? <Text style={{ color: t.sub, fontSize: 13, marginTop: -6, marginBottom: 10, lineHeight: 18 }}>{note}</Text> : null}
       {children}
     </View>
   );

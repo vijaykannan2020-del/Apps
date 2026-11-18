@@ -15,6 +15,8 @@ import { people, matchOwner, initials, Person } from '../../src/lib/people';
 import { upsertCase, read as readStore } from '../../src/lib/store';
 import { fmt } from '../../src/lib/compliance';
 import { DOC_ICON } from '../../src/components/DocIcon';
+import { DocPreview } from '../../src/components/DocPreview';
+import { Field } from '../../src/components/ui';
 
 type Item = {
   key: string; file: Picked; state: 'reading' | 'done' | 'unread';
@@ -28,9 +30,9 @@ function Avatar({ p, on, onPress }: { p: Person; on: boolean; onPress: () => voi
   return (
     <Pressable onPress={() => { tap(); onPress(); }} style={{ alignItems: 'center', width: 58 }}>
       <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: on ? t.accent : t.surface2, alignItems: 'center', justifyContent: 'center', borderWidth: on ? 0 : 1, borderColor: t.border }}>
-        <T v="h3" style={{ fontSize: 14, color: on ? '#fff' : t.sub }}>{p.id === 'me' && p.name === 'Me' ? 'Me' : initials(p.name)}</T>
+        <T v="h3" style={{ fontSize: 14, color: on ? '#fff' : t.sub }}>{(p as any).named ? initials(p.name) : p.id === 'me' ? 'Me' : p.relation[0]}</T>
       </View>
-      <T v="small" numberOfLines={1} style={{ marginTop: 4, color: on ? t.text : t.sub, fontSize: 11 }}>{p.id === 'me' ? 'Me' : p.name}</T>
+      <T v="small" numberOfLines={1} style={{ marginTop: 4, color: on ? t.text : t.sub, fontSize: 11 }}>{(p as any).short ?? p.name}</T>
     </Pressable>
   );
 }
@@ -180,7 +182,7 @@ export default function AddDocuments() {
 
                   {ups.length ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-                      <T v="body" style={{ flex: 1, fontSize: 14 }}>Update {it.owner === 'me' ? 'my' : `${who?.name}’s`} {ups.map((u) => u.label.toLowerCase()).join(', ')}</T>
+                      <T v="body" style={{ flex: 1, fontSize: 14 }}>Update {it.owner === 'me' ? 'my' : `${(who as any)?.short ?? who?.name}’s`} {ups.map((u) => u.label.toLowerCase()).join(', ')}</T>
                       <Switch value={it.applyDates} onValueChange={(v) => patch(it.key, { applyDates: v })} trackColor={{ true: t.green, false: t.surface2 }} thumbColor="#fff" />
                     </View>
                   ) : null}
@@ -192,14 +194,17 @@ export default function AddDocuments() {
                   ) : null}
 
                   <Pressable onPress={() => patch(it.key, { open: !it.open })} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <T v="small" style={{ color: t.accent, fontWeight: '700' }}>{it.open ? 'Hide details' : 'Edit details'}</T>
+                    <T v="small" style={{ color: t.accent, fontWeight: '700' }}>{it.open ? 'Hide' : 'View document & edit details'}</T>
                     <Ionicons name={it.open ? 'chevron-up' : 'chevron-down'} size={14} color={t.accent} />
                   </Pressable>
                   {it.open ? (
                     <View style={{ marginTop: 10 }}>
+                      <DocPreview uri={Platform.OS === 'web' && it.file.webFile ? URL.createObjectURL(it.file.webFile) : it.file.uri} mime={it.file.mime} height={240} />
+                      <T v="small" style={{ marginTop: 6, marginBottom: 12, textAlign: 'center' }}>Compare with the document and correct anything that’s off.</T>
                       <T v="label" style={{ marginBottom: 8 }}>Type</T>
                       <View style={{ marginHorizontal: -36, marginBottom: 12 }}><Chips options={DOC_TYPES.map((d) => ({ label: d, value: d }))} value={it.type} onChange={(v) => patch(it.key, { type: v })} /></View>
                       <DateField label="Valid until" value={it.validTo} onChange={(v) => patch(it.key, { validTo: v })} />
+                      <Field label="Receipt number (if any)" value={it.receipt} onChangeText={(v) => patch(it.key, { receipt: v.toUpperCase().replace(/\s/g, '') })} autoCapitalize="characters" maxLength={13} />
                     </View>
                   ) : null}
                 </>

@@ -6,10 +6,10 @@ import { useTheme } from '../../src/theme';
 import { useLayout } from '../../src/lib/layout';
 
 const icons: Record<string, [any, any]> = {
-  index: ['today', 'today-outline'],
+  index: ['home', 'home-outline'],
   cases: ['file-tray-full', 'file-tray-full-outline'],
   tools: ['calculator', 'calculator-outline'],
-  status: ['shield-checkmark', 'shield-checkmark-outline'],
+  status: ['document-text', 'document-text-outline'],
 };
 
 export default function TabsLayout() {
@@ -46,9 +46,9 @@ export default function TabsLayout() {
         tabBarIcon: ({ focused, color }) => <Ionicons name={icons[route.name]?.[focused ? 0 : 1] ?? 'ellipse'} size={22} color={color as string} />,
       })}
     >
-      <Tabs.Screen name="index" options={{ title: 'Today' }} />
-      <Tabs.Screen name="cases" options={{ title: 'Cases' }} />
-      <Tabs.Screen name="status" options={{ title: 'My Status' }} />
+      <Tabs.Screen name="index" options={{ title: 'Overview' }} />
+      <Tabs.Screen name="cases" options={{ title: 'Case Status' }} />
+      <Tabs.Screen name="status" options={{ title: 'Documents' }} />
       <Tabs.Screen name="tools" options={{ title: 'Tools' }} />
     </Tabs>
   );
