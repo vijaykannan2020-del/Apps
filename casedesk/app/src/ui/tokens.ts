@@ -1,12 +1,14 @@
+// Dark (v2.1.1): "ink" text colours for blue and red are lighter so pills, tinted buttons and links pass
+// 4.5:1 on dark cards; fills, dots and the white-on-blue primary button stay Apple's.
 // Colour tokens (pure — unit-tested for contrast in tests/theme.test.ts). Dark is the approved look and
 // stays as it is. Light mode (owner feedback, v2.1): darker secondary/tertiary text, visible separators,
 // stronger tinted pills with dark "ink" text, grey page with white cards — all text ≥ 4.5:1 (WCAG AA).
 export const DARK = {
   dark: true,
   bg: '#000000', card: '#1C1C1E', card2: '#2C2C2E', fill: 'rgba(118,118,128,0.24)', segOn: '#636366',
-  text: '#FFFFFF', text2: 'rgba(235,235,245,0.6)', text3: 'rgba(235,235,245,0.3)', sep: 'rgba(84,84,88,0.55)',
+  text: '#FFFFFF', text2: 'rgba(235,235,245,0.6)', text3: 'rgba(235,235,245,0.45)', sep: 'rgba(84,84,88,0.55)',
   accent: '#0A84FF', green: '#30D158', amber: '#FF9F0A', red: '#FF453A', grey: '#8E8E93',
-  inkAccent: '#0A84FF', inkGreen: '#30D158', inkAmber: '#FF9F0A', inkRed: '#FF453A', pillAlpha: 0.16,
+  inkAccent: '#5EAEFF', inkGreen: '#30D158', inkAmber: '#FF9F0A', inkRed: '#FF7A70', pillAlpha: 0.16,
   bar: 'rgba(18,18,20,0.82)', shade: 'rgba(0,0,0,0.55)', avatar: '#2C2C2E', field: '#2C2C2E', fieldBorder: 'transparent',
 };
 export const LIGHT: typeof DARK = {

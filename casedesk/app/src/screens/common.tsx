@@ -71,7 +71,7 @@ export function AttentionRow({ f, name, onPress, cta }: { f: Finding; name?: str
       subtitle={<T tone="text2" style={[font.foot, { marginTop: 2 }]}>{name ? `${name} · ` : ''}{f.detail}</T>}>
       {cta && !onPress ? <View style={{ marginTop: 10 }}><Button size="sm" kind="tint" title={cta.label} onPress={cta.run} /></View> : null}
       {f.severity === 'act' ? <LegalLine /> : null}
-      {f.source && !name ? <T tone="text3" style={[font.caption, { marginTop: 4 }]}>{f.source.label} · checked {fmt(f.checked ?? '')}</T> : null}
+      {f.source && !name ? <T tone="text2" style={[font.caption, { marginTop: 4 }]}>{f.source.label} · checked {fmt(f.checked ?? '')}</T> : null}
     </Row>
   );
 }

@@ -143,3 +143,15 @@ test('help: every tab card and "?" button points at a real topic; required topic
   for (const id of ['overview', 'family-docs', 'statuses', 'cases', 'citizenship', 'i9', 'backups', 'privacy', 'priority-date', 'processing', 'travel', 'layoff']) assert.ok(helpTopic(id), id);
   assert.ok(HELP.find((h) => h.id === 'cases')!.steps!.some((s) => /Paste what USCIS says/.test(s)));
 });
+
+test('dark mode (v2.1.1): captions, pills and tinted buttons pass 4.5:1; primary stays Apple white-on-blue', () => {
+  for (const bg of [DARK.card, DARK.bg, DARK.card2]) {
+    for (const fg of [DARK.text, DARK.text2, DARK.inkAccent, DARK.inkAmber, DARK.inkRed, DARK.inkGreen]) assert.ok(contrast(fg, bg) >= 4.5, `${fg} on ${bg}`);
+    assert.ok(contrast(DARK.inkAccent, tintOf(DARK.accent, 0.16), bg) >= 4.5, 'tinted button');
+    assert.ok(contrast(DARK.inkRed, tintOf(DARK.red, 0.15), bg) >= 4.5, 'danger button');
+  }
+  for (const [c, ink] of [[DARK.amber, DARK.inkAmber], [DARK.red, DARK.inkRed], [DARK.green, DARK.inkGreen], [DARK.accent, DARK.inkAccent]] as const) {
+    assert.ok(contrast(ink, tintOf(c, DARK.pillAlpha), DARK.card) >= 4.5, `${ink} pill`);
+  }
+  assert.equal(DARK.accent, '#0A84FF');
+});
