@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveRecord, evaluateFamily, setToday, type Case, type Document, type Person } from '../src/core';
 import { needsAttention, listNames } from '../src/core/rules/engine';
-import { familyTags, forFamily, updateAlerts } from '../src/core/updates';
+import { familyTags, forFamily, orderTags, updateAlerts } from '../src/core/updates';
 import { nextFilings, decisionWindow, planDate } from '../src/core/filings';
 import { parseCaseText, applyCaseText, statusOf } from '../src/core/uscis';
 import { DARK, LIGHT, contrast, tintOf } from '../src/ui/tokens';
@@ -154,4 +154,10 @@ test('dark mode (v2.1.1): captions, pills and tinted buttons pass 4.5:1; primary
     assert.ok(contrast(ink, tintOf(c, DARK.pillAlpha), DARK.card) >= 4.5, `${ink} pill`);
   }
   assert.equal(DARK.accent, '#0A84FF');
+});
+
+test('update rows show the family’s own tags first', () => {
+  assert.deepEqual(orderTags(['H-1B', 'Fees', 'L-1'], ['L-1', 'L-2']), ['L-1', 'H-1B', 'Fees']);
+  assert.deepEqual(orderTags(['Fees', 'STEM OPT'], ['OPT']), ['STEM OPT', 'Fees']);
+  assert.deepEqual(orderTags(['H-1B', 'Fees'], []), ['H-1B', 'Fees']);
 });

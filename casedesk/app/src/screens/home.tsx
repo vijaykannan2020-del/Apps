@@ -16,7 +16,7 @@ import { RULES_CHECKED } from '../core/rules/catalog';
 import { HomeUpdates } from './news';
 import { HelpCard } from './help';
 import { listNames, type AttentionItem } from '../core/rules/engine';
-import { familyTags, updateAlerts } from '../core/updates';
+import { familyTags, orderTags, updateAlerts } from '../core/updates';
 import { useNews, type NewsItem } from '../data/news';
 
 export const UPDATES = [
@@ -175,7 +175,7 @@ function UpdateAlertRow({ n }: { n: NewsItem }) {
   return (
     <Row dot="blue" alignTop title={n.title} titleStyle={{ ...font.callout, fontWeight: '500' }} label={`Info: ${n.title}`}
       onPress={() => { seen(); go(`/news/${encodeURIComponent(n.id)}`); }} chevron={false}
-      subtitle={<T tone="text2" style={[font.foot, { marginTop: 2 }]}>{`Update for ${n.tags.slice(0, 2).join(', ')} · ${n.agency}`}</T>}
+      subtitle={<T tone="text2" style={[font.foot, { marginTop: 2 }]}>{`Update for ${orderTags(n.tags, familyTags(f.people, f.records)).slice(0, 2).join(', ')} · ${n.agency}`}</T>}
       trailing={<Pressable onPress={seen} accessibilityRole="button" accessibilityLabel="Dismiss this update" hitSlop={6} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: -10, marginRight: -8 }}><Icon name="x" size={15} color={t.text2} /></Pressable>} />
   );
 }

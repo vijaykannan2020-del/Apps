@@ -9,7 +9,7 @@ import { openUrl } from '../native/device';
 import { Button, Card, ChipToggle, Chips, Group, Hint, Icon, LinkButton, Pill, Row, Screen, SectionHeader, Segmented, T, Tag, Why, font, useTheme } from '../ui';
 import { back, go } from './common';
 import { useFamily } from '../data/FamilyProvider';
-import { familyTags, forFamily } from '../core/updates';
+import { familyTags, forFamily, orderTags } from '../core/updates';
 
 const KINDS = ['Official', 'News & analysis'];
 const kindKey = (k: string) => (k === 'Official' ? 'official' : 'news');
@@ -17,12 +17,13 @@ const sev = (n: NewsItem): 'review' | 'info' => (n.impact === 'high' ? 'review' 
 const when = (d: string) => { try { return fmt(d); } catch { return d; } };
 
 export function NewsRow({ n }: { n: NewsItem }) {
-  const t = useTheme();
+  const f = useFamily();
+  const tags = orderTags(n.tags, familyTags(f.people, f.records));
   return (
     <Row onPress={() => go(`/news/${encodeURIComponent(n.id)}`)} title={n.title} titleStyle={font.callout}
       subtitle={<View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
         {n.impact === 'high' ? <Pill severity="review" text="Important" /> : null}
-        {n.tags.slice(0, 2).map((g) => <Tag key={g} text={g} />)}
+        {tags.slice(0, 2).map((g) => <Tag key={g} text={g} />)}
         <T tone="text2" style={font.caption}>{`${n.agency} · ${when(n.date)}`}</T>
       </View>} />
   );
@@ -82,7 +83,7 @@ export function NewsItemScreen() {
     <Screen nav={{ title: kindOf(n) === 'news' ? 'News' : 'Official update', back: 'Back', onBack: back }}>
       <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         <Pill severity={sev(n)} text={n.impact === 'high' ? 'Important' : 'Info'} />
-        {n.tags.map((g) => <Tag key={g} text={g} />)}
+        {orderTags(n.tags, familyTags(f.people, f.records)).map((g) => <Tag key={g} text={g} />)}
       </View>
       <T a11y="header" style={[font.title2, { marginTop: 12 }]}>{n.title}</T>
       <T tone="text2" style={[font.foot, { marginTop: 6 }]}>{`${n.agency} · ${when(n.date)}`}</T>

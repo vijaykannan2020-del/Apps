@@ -30,6 +30,12 @@ export function familyTags(people: Person[], records: Record<string, PersonRecor
 
 export const matchesFamily = (n: { tags: string[] }, tags: UpdateTag[]) => n.tags.some((t) => tags.includes(t as UpdateTag) || (t === 'STEM OPT' && tags.includes('OPT')));
 
+/** An item's tags with the family's own visa types first (so the row shows what matters to them). */
+export function orderTags(tags: string[], fam: UpdateTag[]): string[] {
+  const mine = (t: string) => fam.includes(t as UpdateTag) || (t === 'STEM OPT' && fam.includes('OPT'));
+  return [...tags.filter(mine), ...tags.filter((t) => !mine(t))];
+}
+
 /** "For my family": items with one of the family's tags (all items when the family has no visa tags). */
 export function forFamily<T extends { tags: string[] }>(items: T[], tags: UpdateTag[]): T[] {
   return tags.length ? items.filter((n) => matchesFamily(n, tags)) : items;
