@@ -704,6 +704,12 @@ export async function roomMembers(r: Room) {
 /** The fullest Instagram link in a message, exactly as the bridge sent it (the version with ?id=… is the one the
  *  Instagram app opens straight to the post; the short one only opens Instagram's home for posts). */
 export function igOpenUrl(c: any, fallback: string) {
+  const code0 = (/\/(?:reel|reels|p)\/([A-Za-z0-9_-]+)/.exec(fallback) || [])[1];
+  // 1st choice: the link the bridge put behind the text (formatted_body href) — exactly what Beeper opens
+  const hrefs = [...String(c?.formatted_body || '').matchAll(/href="([^"]*instagram\.com[^"]*)"/g)]
+    .map(m => m[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'"))
+    .filter(u => !code0 || u.includes(code0));
+  if (hrefs.length) return hrefs.sort((a, b) => b.length - a.length)[0];
   const all = (((c?.body || '') + ' ' + (c?.external_url || '')).match(/https?:\/\/(?:www\.)?instagram\.com\/[^\s<>()\]]+/g) || [])
     .map((u: string) => u.replace(/[.,!?*]+$/, ''));
   const code = (/\/(?:reel|reels|p)\/([A-Za-z0-9_-]+)/.exec(fallback) || [])[1];

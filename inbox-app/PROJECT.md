@@ -15,3 +15,4 @@
 - v40: Instagram link cards get a "Safari ›" option (x-safari-https) to view the post page directly.
 - v41: Instagram posts open the chat in Instagram (instagram.com/direct/t/<thread>) — private-account posts only open inside the DM; reels still open directly.
 - v42: Instagram posts open Instagram messages (instagram://direct-inbox) — bridge thread id is not IG chat id.
+- v43: Instagram cards open the formatted_body href (the exact link Beeper opens); long-press shows the link.

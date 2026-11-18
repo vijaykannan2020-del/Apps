@@ -33,15 +33,10 @@ function IgLinkCard({ link, text, c, thread, fg, mine, t, fs }: { link: string; 
   const what = /\/(reel|reels)\//.test(link) ? 'Instagram reel' : 'Instagram post';
   const caption = text.replace(/https?:\/\/\S+/g, '').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
   // Plain instagram.com link: iOS hands it to the Instagram app (the instagram://media?id= trick opened the wrong id → "Try Again Later")
-  // Posts from private accounts only open inside the chat they were shared in (a direct link lands on Instagram's
-  // home), so posts open this chat in Instagram; reels are public and open directly.
   const isPost = what === 'Instagram post';
-  // (Inbox's chat id isn't Instagram's own chat id, so it opens your Instagram messages; the chat is at the top.)
-  const open = () => isPost
-    ? Linking.openURL('instagram://direct-inbox').catch(() => Linking.openURL('https://www.instagram.com/direct/inbox/'))
-    : Linking.openURL(igOpenUrl(c, link));
+  const open = () => Linking.openURL(igOpenUrl(c, link));
   return (
-    <Pressable onPress={open} accessibilityLabel={`Open ${what} in Instagram`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 220 }}>
+    <Pressable onPress={open} onLongPress={() => Alert.alert(what, igOpenUrl(c, link))} accessibilityLabel={`Open ${what} in Instagram`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 220 }}>
       <View style={{ width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: mine ? 'rgba(0,0,0,0.08)' : t.fill }}>
         <Ionicons name={what === 'Instagram reel' ? 'film-outline' : 'logo-instagram'} size={22} color={mine ? fg : t.ink} />
       </View>
@@ -49,7 +44,7 @@ function IgLinkCard({ link, text, c, thread, fg, mine, t, fs }: { link: string; 
         <Text style={{ color: fg, fontWeight: '700', fontSize: 16 * fs }}>{what}</Text>
         {!!caption && <Text numberOfLines={2} style={{ color: fg, opacity: 0.8, fontSize: 14 * fs, marginTop: 1 }}>{caption}</Text>}
         <View style={{ flexDirection: 'row', gap: 16, marginTop: 4 }}>
-          <Text style={{ color: mine ? fg : t.blue, fontSize: 13 * fs, fontWeight: '600' }}>{isPost ? 'Open in Instagram messages ›' : 'Open in Instagram ›'}</Text>
+          <Text style={{ color: mine ? fg : t.blue, fontSize: 13 * fs, fontWeight: '600' }}>Open in Instagram ›</Text>
           {/* Safari shows the post's web page directly (doesn't hand off to the Instagram app) */}
           <Text onPress={() => Linking.openURL('x-safari-' + link.split('?')[0]).catch(() => Linking.openURL(link))} suppressHighlighting
             style={{ color: mine ? fg : t.blue, fontSize: 13 * fs, fontWeight: '600', opacity: 0.85 }}>Safari ›</Text>
