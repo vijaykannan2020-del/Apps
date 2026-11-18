@@ -17,8 +17,10 @@ import { fileUri, keepFile, pick, preview, share as shareFile, type Source } fro
 import { readDocument } from '../core/read';
 import {
   Avatar, Button, Card, CheckRow, Chip, DateField, EmptyState, Field, Group, H1, Hint, Icon, LegalLine, Meter, NavButton, Note, Pill, Row, Screen, SectionHeader, Switch, T, Why, ChipToggle, Chips,
-  font, useSheet, useTheme, useToast, Spinner,
+  font, useSheet, useTheme, useToast, Spinner, Columns, BigText,
 } from '../ui';
+import { NextFiling } from './filings';
+import { HelpButton } from './help';
 import { AttentionRow, back, ctaFor, go, locationChip, needsLocation, relationLabel, statusLabel, untilText } from './common';
 import { AddCase, AskWhere, Confirm, EditDetails, FixClass, RemovePerson, RenewSheet, Trips, Unemployment, WorkLocation } from './sheets';
 import { newId } from '../data/store';
@@ -27,10 +29,23 @@ import { leadText } from './profile';
 
 export function PersonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { person: p, rec } = usePerson(id);
+  const sheet = useSheet();
+  if (!p || !rec) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="user" title="Removed" /></Screen>;
+  return (
+    <Screen wide nav={{ back: 'Back', onBack: back, title: p.name, right: <NavButton title="Edit" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} /> }}>
+      <PersonBody id={p.id} />
+    </Screen>
+  );
+}
+
+/** The person page body — on its own screen, or the right pane of Family on wide screens.
+ *  Wide (≥ 700): status + needs attention + next filing | documents + cases + work + travel. */
+export function PersonBody({ id, single }: { id: string; single?: boolean }) {
   const { family: f, person: p, rec, result } = usePerson(id);
   const sheet = useSheet();
   const t = useTheme();
-  if (!p || !rec) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="user" title="Removed" /></Screen>;
+  if (!p || !rec) return <EmptyState icon="user" title="Removed" />;
   const you = p.relation === 'self';
   const legal = rec.legalName;
   const steps = stepsFor(p, rec);
@@ -54,11 +69,11 @@ export function PersonScreen() {
   const missing = f.missing[p.id] ?? [];
   const rm = p.reminders ?? { on: true, lead: [180, 90, 30, 7] };
 
-  return (
-    <Screen nav={{ back: 'Back', onBack: back, title: p.name, right: <NavButton title="Edit" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} /> }}>
+  const left = (
+    <>
       <View style={{ alignItems: 'center', paddingTop: 4, paddingBottom: 6 }}>
         <Avatar name={p.name} size="lg" />
-        <T a11y="header" style={{ fontSize: 24, fontWeight: '700', marginTop: 12, letterSpacing: -0.2, textAlign: 'center' }}>{p.name}</T>
+        <T a11y="header" style={{ fontSize: 24, lineHeight: 30, fontWeight: '700', marginTop: 12, letterSpacing: -0.2, textAlign: 'center' }}>{p.name}</T>
         {legal && legal !== p.name ? <T tone="text2" style={[font.sub, { marginTop: 2 }]}>{legal}</T> : null}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 8 }}>
           <T tone="text2" style={font.sub}>{`${relationLabel(p)} · ${statusLabel(p, rec, result)}`}</T><Chip text={locationChip(p, rec)} />
@@ -86,6 +101,11 @@ export function PersonScreen() {
         </Card>
       )}
 
+      <NextFiling p={p} />
+    </>
+  );
+  const right = (
+    <>
       <SectionHeader>Documents</SectionHeader>
       <Group>
         {docs.map((d) => <DocRow key={d.id} d={d} superseded={f.superseded.has(d.id)} />)}
@@ -126,8 +146,13 @@ export function PersonScreen() {
         <Row icon="bell" title="Reminders" subtitle={rm.on ? `On · ${leadText(rm.lead)}` : 'Off'} onPress={() => go(`/reminders/${p.id}`)} chevron={false} />
         {!you ? <Row icon="trash" iconTone="red" title={`Remove ${p.name}`} titleTone="red" chevron={false} onPress={() => sheet.open(`Remove ${p.name}?`, <RemovePerson pid={p.id} />)} /> : null}
       </Group>
+    </>
+  );
+  return (
+    <>
+      <Columns left={left} right={right} stack={single} />
       <Hint center style={{ marginTop: 18 }}>General information, not legal advice.</Hint>
-    </Screen>
+    </>
   );
 }
 const stepTitleWhere = (p: Person) => (p.relation === 'self' ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`);
@@ -153,7 +178,7 @@ function Counters({ p }: { p: Person }) {
     <Pressable key={key} disabled={!onPress} onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={`${label}: ${n} ${unit}`} style={{ paddingHorizontal: 16, paddingVertical: 13 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <T style={[font.body, { flexShrink: 1 }]}>{label}</T>
-        <T><T style={{ fontSize: 22, fontWeight: '700' }}>{String(n)}</T><T tone="text2" style={font.foot}>{` ${unit}`}</T></T>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, flexShrink: 0 }}><BigText size={22}>{String(n)}</BigText><T tone="text2" style={font.foot}>{unit}</T></View>
       </View>
       <Meter value={n} max={of} tone={tone} />
       <T tone="text2" style={[font.foot, { marginTop: 6 }]}>{sub}</T>
@@ -290,7 +315,7 @@ function LayoffPlan({ id }: { id?: string }) {
   const week = ['Get the termination letter and last pay slips', 'Save copies of every I-94, approval and pay slip', opt ? 'Report the job end in the SEVP portal' : 'Talk to an immigration attorney', 'Set a reminder for the earliest last day'];
   const saved = !!me.facts.jobEnded && me.facts.jobEnded === last;
   return (
-    <Screen nav={{ back: 'Back', onBack: back, title: 'Layoff plan' }} footer={<Button title={saved ? 'Saved — undo' : me.facts.jobEnded ? `Update ${me.name}’s last day` : `Save to ${me.name}’s page`} onPress={async () => {
+    <Screen nav={{ back: 'Back', onBack: back, title: 'Layoff plan', right: <HelpButton topic="layoff" /> }} footer={<Button title={saved ? 'Saved — undo' : me.facts.jobEnded ? `Update ${me.name}’s last day` : `Save to ${me.name}’s page`} onPress={async () => {
       if (saved) { await f.actions.setFacts(me.id, { jobEnded: undefined }); toast('Removed'); } else { await f.actions.setFacts(me.id, { jobEnded: last }); toast('Saved · shown as Act now on Home'); }
     }} />}>
       <H1>{me.relation === 'self' ? 'You lost your job' : `${me.name}’s job ended`}</H1>

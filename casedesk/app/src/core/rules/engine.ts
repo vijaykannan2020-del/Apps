@@ -111,9 +111,26 @@ export function evaluateFamily(ctx: FamilyCtx): Record<string, PersonResult> {
 }
 
 /** Top items across the family for Home → "Needs attention". */
-export function needsAttention(results: Record<string, PersonResult>, n = 3) {
-  return Object.values(results)
-    .flatMap((r) => r.findings.filter((f) => f.severity === 'act' || f.severity === 'review').map((f) => ({ personId: r.personId, finding: f })))
+export type AttentionItem = { personId: string; finding: Finding; people: string[] };
+
+/**
+ * Top items across the family for Home → "Needs attention". The same finding for several people
+ * (e.g. "Principal's I-94 ends first" for every dependent) is ONE item listing everyone it affects.
+ */
+export function needsAttention(results: Record<string, PersonResult>, n = 3): AttentionItem[] {
+  const groups = new Map<string, AttentionItem>();
+  for (const r of Object.values(results)) for (const f of r.findings) {
+    if (f.severity !== 'act' && f.severity !== 'review') continue;
+    const shared = f.id === 'principal-first' || f.rule === 'C15';
+    const key = shared ? `${f.id}|${f.title}` : `${r.personId}|${f.id}|${f.title}`;
+    const g = groups.get(key);
+    if (g) { if (!g.people.includes(r.personId)) g.people.push(r.personId); }
+    else groups.set(key, { personId: r.personId, finding: f, people: [r.personId] });
+  }
+  return [...groups.values()]
     .sort((a, b) => bySeverity(a.finding, b.finding) || (a.finding.date || '9999').localeCompare(b.finding.date || '9999'))
     .slice(0, n);
 }
+
+/** "A", "A and B", "A, B and C". */
+export const listNames = (names: string[]) => (names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`);

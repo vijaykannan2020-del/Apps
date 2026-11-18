@@ -4,12 +4,12 @@
 // screens (fold open, iPad, landscape).
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch as RNSwitch,
+  ActivityIndicator, Animated, BackHandler, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch as RNSwitch,
   Text as RNText, TextInput, View, StyleSheet, type TextStyle, type ViewStyle, type KeyboardTypeOptions, type TextProps,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
-import { font, MIN_TOUCH, radius, space, tint, toneColor, TONE_WORD, useLayout, useTheme, type Tone } from './theme';
+import { font, MIN_TOUCH, radius, space, tint, toneColor, toneInk, TONE_WORD, useLayout, useTheme, type Tone } from './theme';
 import type { Severity } from '../core/rules/types';
 import { fmt, isISO } from '../core/dates';
 
@@ -27,10 +27,43 @@ let BlurView: any;
 try { BlurView = require('expo-blur').BlurView; } catch { BlurView = undefined; }
 
 // ---------- text ----------
-export function T({ children, style, tone = 'text', numberOfLines, a11y }: { children: React.ReactNode; style?: TextStyle | TextStyle[]; tone?: 'text' | 'text2' | 'text3' | 'accent' | 'red' | 'green' | 'amber'; numberOfLines?: number; a11y?: 'header' }) {
+/**
+ * Line height for a font size: never tighter than 1.2× (iOS clips the top of big digits otherwise —
+ * owner feedback "Jan 15, 2015" cut off). A lineHeight smaller than that is raised.
+ */
+export const safeLineHeight = (fontSize: number, lineHeight?: number) => Math.max(lineHeight ?? 0, Math.ceil(fontSize * 1.22));
+
+export function T({ children, style, tone = 'text', numberOfLines, a11y, selectable }: { children: React.ReactNode; style?: TextStyle | TextStyle[]; tone?: 'text' | 'text2' | 'text3' | 'accent' | 'red' | 'green' | 'amber'; numberOfLines?: number; a11y?: 'header'; selectable?: boolean }) {
   const t = useTheme();
-  const color = tone === 'text' ? t.text : tone === 'text2' ? t.text2 : tone === 'text3' ? t.text3 : tone === 'accent' ? t.accent : t[tone];
-  return <Text accessibilityRole={a11y} numberOfLines={numberOfLines} style={[{ color }, font.body, ...(Array.isArray(style) ? style : style ? [style] : [])]}>{children}</Text>;
+  const color = tone === 'text' ? t.text : tone === 'text2' ? t.text2 : tone === 'text3' ? t.text3 : tone === 'accent' ? t.inkAccent : tone === 'red' ? t.inkRed : tone === 'green' ? t.inkGreen : t.inkAmber;
+  const st = StyleSheet.flatten([font.body, ...(Array.isArray(style) ? style : style ? [style] : [])]) as TextStyle;
+  const fs = st.fontSize ?? 17;
+  return <Text selectable={selectable} accessibilityRole={a11y} numberOfLines={numberOfLines} style={[{ color }, st, { lineHeight: safeLineHeight(fs, st.lineHeight) }]}>{children}</Text>;
+}
+
+/**
+ * Big numbers and dates (priority date, KPIs, counters, totals). One line, shrinks to fit the card
+ * instead of clipping, follows Dynamic Type, and has a line height that never cuts the digits.
+ */
+export function BigText({ children, size = 34, tone = 'text', style, label }: { children: string; size?: number; tone?: 'text' | 'accent' | 'green' | 'amber' | 'red'; style?: TextStyle; label?: string }) {
+  const t = useTheme();
+  const color = tone === 'text' ? t.text : tone === 'accent' ? t.inkAccent : tone === 'green' ? t.inkGreen : tone === 'amber' ? t.inkAmber : t.inkRed;
+  return (
+    <Text accessibilityLabel={label} allowFontScaling numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} maxFontSizeMultiplier={1.6}
+      style={[{ color, fontSize: size, lineHeight: safeLineHeight(size), fontWeight: '700', includeFontPadding: false, paddingTop: 2 }, style ?? {}]}>{children}</Text>
+  );
+}
+
+/** Two columns on wide screens (≥ 700 pt: unfolded fold, iPad, landscape); one column on phones. */
+export function Columns({ left, right, ratio = 1, gap = 20, stack }: { left: React.ReactNode; right: React.ReactNode; ratio?: number; gap?: number; stack?: boolean }) {
+  const L = useLayout();
+  if (!L.twoCol || stack) return <>{left}{right}</>;
+  return (
+    <View style={{ flexDirection: 'row', gap, alignItems: 'flex-start' }}>
+      <View style={{ flex: ratio, minWidth: 0 }}>{left}</View>
+      <View style={{ flex: 1, minWidth: 0 }}>{right}</View>
+    </View>
+  );
 }
 export const H1 = ({ children }: { children: React.ReactNode }) => <T a11y="header" style={font.title}>{children}</T>;
 export const Why = ({ children }: { children: React.ReactNode }) => <T tone="text2" style={[font.body, { marginTop: 6, lineHeight: 23 }]}>{children}</T>;
@@ -127,11 +160,11 @@ export function Footer({ children, column }: { children: React.ReactNode; column
 }
 
 // ---------- screen ----------
-export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard, padTop = true }: { nav?: NavProps; footer?: React.ReactNode; children: React.ReactNode; scroll?: boolean; tabRoot?: boolean; keyboard?: boolean; padTop?: boolean }) {
+export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard, padTop = true, wide }: { nav?: NavProps; footer?: React.ReactNode; children: React.ReactNode; scroll?: boolean; tabRoot?: boolean; keyboard?: boolean; padTop?: boolean; wide?: boolean }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const L = useLayout();
-  const inner: ViewStyle = { paddingHorizontal: L.side, paddingTop: nav ? 20 : padTop ? insets.top + 14 : 0, paddingBottom: (footer ? 24 : 32) + (tabRoot ? insets.bottom + 56 : footer ? 0 : insets.bottom), alignSelf: 'center', width: '100%', maxWidth: L.maxWidth + 2 * L.side };
+  const inner: ViewStyle = { paddingHorizontal: L.side, paddingTop: nav ? 20 : padTop ? insets.top + 14 : 0, paddingBottom: (footer ? 24 : 32) + (tabRoot ? insets.bottom + 56 : footer ? 0 : insets.bottom), alignSelf: 'center', width: '100%', maxWidth: wide && L.twoCol ? L.wideMax + 2 * L.side : L.maxWidth + 2 * L.side };
   const body = scroll ? (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={inner} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{children}</ScrollView>
   ) : <View style={[{ flex: 1 }, inner]}>{children}</View>;
@@ -174,7 +207,7 @@ export function Avatar({ name, size = 'md', accent }: { name: string; size?: 'sm
   const d = size === 'sm' ? 34 : size === 'lg' ? 76 : 44;
   const initials = (name || '?').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
   return (
-    <View accessible={false} style={{ width: d, height: d, borderRadius: d / 2, backgroundColor: accent ? t.accent : t.avatar, alignItems: 'center', justifyContent: 'center' }}>
+    <View accessible={false} style={{ width: d, height: d, borderRadius: d / 2, backgroundColor: accent ? (t.dark ? t.accent : t.inkAccent) : t.avatar, alignItems: 'center', justifyContent: 'center' }}>
       <Text allowFontScaling={false} style={{ color: accent ? '#fff' : t.text, fontWeight: '600', fontSize: size === 'sm' ? 13 : size === 'lg' ? 28 : 16 }}>{initials}</Text>
     </View>
   );
@@ -186,8 +219,8 @@ export function Pill({ severity, text }: { severity: Severity; text?: string }) 
   const c = toneColor(t, tone);
   const label = text ?? (severity === 'info' ? 'Info' : TONE_WORD[tone]);
   return (
-    <View accessible accessibilityLabel={`Status: ${label}`} style={{ backgroundColor: tint(c, 0.16), borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' }}>
-      <Text style={[font.caption, { color: c, fontWeight: '600' }]}>{label}</Text>
+    <View accessible accessibilityLabel={`Status: ${label}`} style={{ backgroundColor: tint(c, t.pillAlpha), borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' }}>
+      <Text style={[font.caption, { color: toneInk(t, tone), fontWeight: '600' }]}>{label}</Text>
     </View>
   );
 }
@@ -201,7 +234,7 @@ export function Tag({ text }: { text: string }) {
 }
 export function Dot({ tone, label }: { tone: Tone; label?: string }) {
   const t = useTheme();
-  return <View accessible={!!label} accessibilityLabel={label} style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: tone === 'blue' ? t.grey : toneColor(t, tone) }} />;
+  return <View accessible={!!label} accessibilityLabel={label} style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: toneColor(t, tone) }} />;
 }
 
 export function RowIcon({ name, tone }: { name: string; tone?: Tone }) {
@@ -243,10 +276,10 @@ export function Row({ title, subtitle, value, icon, iconTone, avatar, dot, pill,
 export function Note({ tone, children, actions, style }: { tone: Tone; children: React.ReactNode; actions?: React.ReactNode; style?: ViewStyle }) {
   const t = useTheme();
   const c = toneColor(t, tone);
-  const bg = tone === 'blue' || tone === 'grey' ? t.fill : tint(c, 0.14);
+  const bg = tone === 'blue' || tone === 'grey' ? (t.dark ? t.fill : tint(t.accent, 0.1)) : tint(c, t.dark ? 0.14 : 0.16);
   return (
     <View accessibilityRole="text" style={[{ borderRadius: 14, padding: 12, paddingHorizontal: 14, flexDirection: 'row', gap: 10, backgroundColor: bg, marginTop: 14 }, style]}>
-      <View style={{ marginTop: 1 }}><Icon name={tone === 'red' || tone === 'amber' ? 'alert' : tone === 'green' ? 'checkc' : 'info'} size={19} color={tone === 'grey' ? t.accent : c} /></View>
+      <View style={{ marginTop: 1 }}><Icon name={tone === 'red' || tone === 'amber' ? 'alert' : tone === 'green' ? 'checkc' : 'info'} size={19} color={tone === 'grey' || tone === 'blue' ? t.inkAccent : toneInk(t, tone)} /></View>
       <View style={{ flex: 1, minWidth: 0 }}>
         {typeof children === 'string' ? <T style={font.sub}>{children}</T> : children}
         {actions ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>{actions}</View> : null}
@@ -269,8 +302,8 @@ export function Button({ title, onPress, kind = 'primary', icon, busy, disabled,
   title: string; onPress: () => void; kind?: 'primary' | 'ghost' | 'tint' | 'danger'; icon?: string; busy?: boolean; disabled?: boolean; size?: 'sm'; grow?: boolean; block?: boolean; label?: string;
 }) {
   const t = useTheme();
-  const bg = kind === 'primary' ? t.accent : kind === 'ghost' ? t.fill : kind === 'tint' ? tint(t.accent, 0.16) : tint(t.red, 0.15);
-  const fg = kind === 'primary' ? '#FFFFFF' : kind === 'ghost' ? t.text : kind === 'tint' ? t.accent : t.red;
+  const bg = kind === 'primary' ? (t.dark ? t.accent : t.inkAccent) : kind === 'ghost' ? t.fill : kind === 'tint' ? tint(t.accent, t.dark ? 0.16 : 0.14) : tint(t.red, t.dark ? 0.15 : 0.12);
+  const fg = kind === 'primary' ? '#FFFFFF' : kind === 'ghost' ? t.text : kind === 'tint' ? t.inkAccent : t.inkRed;
   const sm = size === 'sm';
   return (
     <Pressable onPress={onPress} disabled={disabled || busy} accessibilityRole="button" accessibilityLabel={label ?? title} accessibilityState={{ disabled: !!(disabled || busy), busy: !!busy }}
@@ -307,7 +340,7 @@ export function ChipToggle({ text, on, onPress, role = 'radio' }: { text: string
   const t = useTheme();
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={role} accessibilityState={{ checked: role !== 'button' ? !!on : undefined, selected: !!on }} accessibilityLabel={text}
-      style={({ pressed }) => ({ minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: 999, backgroundColor: on ? t.accent : t.fill, justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}>
+      style={({ pressed }) => ({ minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: 999, backgroundColor: on ? (t.dark ? t.accent : t.inkAccent) : t.fill, justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}>
       <Text style={{ color: on ? '#fff' : t.text, fontSize: 15, fontWeight: '500' }}>{text}</Text>
     </Pressable>
   );
@@ -364,9 +397,9 @@ export function Switch({ value, onValueChange, label }: { value: boolean; onValu
 }
 
 // ---------- fields ----------
-export function Field({ label, value, onChangeText, placeholder, secure, keyboardType, autoCapitalize = 'sentences', mono, onBlur, autoFocus, maxLength, error, nativeID }: {
+export function Field({ label, value, onChangeText, placeholder, secure, keyboardType, autoCapitalize = 'sentences', mono, onBlur, autoFocus, maxLength, error, nativeID, multiline }: {
   label: string; value: string; onChangeText: (s: string) => void; placeholder?: string; secure?: boolean; keyboardType?: KeyboardTypeOptions;
-  autoCapitalize?: 'none' | 'words' | 'characters' | 'sentences'; mono?: boolean; onBlur?: () => void; autoFocus?: boolean; maxLength?: number; error?: string; nativeID?: string;
+  autoCapitalize?: 'none' | 'words' | 'characters' | 'sentences'; mono?: boolean; onBlur?: () => void; autoFocus?: boolean; maxLength?: number; error?: string; nativeID?: string; multiline?: boolean;
 }) {
   const t = useTheme();
   const [focus, setFocus] = useState(false);
@@ -374,9 +407,9 @@ export function Field({ label, value, onChangeText, placeholder, secure, keyboar
     <View style={{ marginTop: 12 }}>
       <T tone="text2" style={[font.caption, { marginBottom: 5, marginLeft: 2 }]}>{label}</T>
       <TextInput nativeID={nativeID} value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={t.text3} secureTextEntry={secure} keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize} autoCorrect={false} autoFocus={autoFocus} maxLength={maxLength} accessibilityLabel={label}
+        autoCapitalize={autoCapitalize} autoCorrect={false} autoFocus={autoFocus} maxLength={maxLength} accessibilityLabel={label} multiline={multiline} textAlignVertical={multiline ? 'top' : undefined}
         onFocus={() => setFocus(true)} onBlur={() => { setFocus(false); onBlur?.(); }}
-        style={[font.body, { minHeight: 46, borderRadius: radius.field, backgroundColor: t.field, color: t.text, paddingHorizontal: 12, paddingVertical: 10, borderWidth: t.dark ? 2 : 1, borderColor: focus ? t.accent : t.dark ? 'transparent' : t.fieldBorder, fontFamily: mono ? Platform.select({ ios: 'Menlo', default: 'monospace' }) : undefined }]} />
+        style={[font.body, { minHeight: multiline ? 110 : 46, borderRadius: radius.field, backgroundColor: t.field, color: t.text, paddingHorizontal: 12, paddingVertical: 10, borderWidth: t.dark ? 2 : 1, borderColor: focus ? t.accent : t.dark ? 'transparent' : t.fieldBorder, fontFamily: mono ? Platform.select({ ios: 'Menlo', default: 'monospace' }) : undefined }]} />
       {error ? <T tone="red" style={[font.caption, { marginTop: 6 }]}>{error}</T> : null}
     </View>
   );
@@ -487,26 +520,83 @@ export function EmptyState({ icon = 'users', title, body, action, small }: { ico
 }
 
 // ---------- sheet ----------
-export function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title?: string; children: React.ReactNode }) {
+// Sheets are NOT React Native <Modal>s. A Modal is a separate iOS view controller: when Safari
+// (SFSafariViewController), the share sheet, a document/photo picker or Face ID is presented while a
+// Modal is up, iOS can't stack them and the Modal can be left in a broken state that swallows every
+// touch after returning (owner: stuck after "Copy number & open uscis.gov"). Instead every sheet is an
+// overlay drawn by <OverlayHost> above the app's own root view, so native UI always presents on top
+// of a normal view and nothing is left behind. Sheets still stack (a picker inside a sheet).
+// Each sheet keeps its latest props in a small registry; the host only tracks which sheets are open
+// (so updating a sheet's content never re-renders the host — no update loops).
+type SheetProps = { onClose: () => void; title?: string; children: React.ReactNode };
+const registry = new Map<number, { props: SheetProps | null; subs: Set<() => void> }>();
+const slotOf = (id: number) => { let r = registry.get(id); if (!r) { r = { props: null, subs: new Set() }; registry.set(id, r); } return r; };
+type OverlaySet = (id: number, open: boolean) => void;
+const OverlayCtx = createContext<OverlaySet | null>(null);
+let overlayIds = 1;
+
+export function OverlayHost({ children }: { children: React.ReactNode }) {
+  const [ids, setIds] = useState<number[]>([]);
+  const set = useCallback<OverlaySet>((id, open) => setIds((es) => {
+    const has = es.includes(id);
+    if (open === has) return es;
+    return open ? [...es, id] : es.filter((e) => e !== id);
+  }), []);
+  return (
+    <OverlayCtx.Provider value={set}>
+      <View style={{ flex: 1 }}>
+        <View style={{ flex: 1 }} importantForAccessibility={ids.length ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={ids.length > 0}>{children}</View>
+        {ids.map((id) => <Slot key={id} id={id} />)}
+      </View>
+    </OverlayCtx.Provider>
+  );
+}
+function Slot({ id }: { id: number }) {
+  const [, force] = useState(0);
+  useEffect(() => { const r = slotOf(id); const f = () => force((n) => n + 1); r.subs.add(f); return () => { r.subs.delete(f); }; }, [id]);
+  const p = registry.get(id)?.props;
+  return p ? <SheetView {...p} /> : null;
+}
+
+function SheetView({ onClose, title, children }: { onClose: () => void; title?: string; children: React.ReactNode }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const L = useLayout();
+  const a = useRef(new Animated.Value(0)).current;
+  useEffect(() => { Animated.timing(a, { toValue: 1, duration: 240, useNativeDriver: Platform.OS !== 'web' }).start(); }, [a]);
+  useEffect(() => { const sub = BackHandler.addEventListener('hardwareBackPress', () => { onClose(); return true; }); return () => sub.remove(); }, [onClose]);
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent supportedOrientations={['portrait', 'landscape']}>
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: t.shade }} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ maxHeight: '92%', alignSelf: 'center', width: '100%', maxWidth: L.wide ? 560 : undefined }}>
-          <View accessibilityViewIsModal style={{ backgroundColor: t.dark ? '#1C1C1E' : t.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingHorizontal: 16, paddingBottom: 16 + insets.bottom }}>
-            <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: t.text3, alignSelf: 'center', marginBottom: 14 }} />
-            <ScrollView keyboardShouldPersistTaps="handled" bounces={false}>
-              {title ? <T a11y="header" style={font.title2}>{title}</T> : null}
-              {children}
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
+    <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end', zIndex: 50, elevation: 50 }]}>
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: a }]}>
+        <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: t.shade }]} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+      </Animated.View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ maxHeight: '92%', alignSelf: 'center', width: '100%', maxWidth: L.wide ? 560 : undefined }}>
+        <Animated.View accessibilityViewIsModal style={{ transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }], backgroundColor: t.dark ? '#1C1C1E' : t.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingHorizontal: 16, paddingBottom: 16 + insets.bottom }}>
+          <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: t.text3, alignSelf: 'center', marginBottom: 14 }} />
+          <ScrollView keyboardShouldPersistTaps="handled" bounces={false}>
+            {title ? <T a11y="header" style={font.title2}>{title}</T> : null}
+            {children}
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </View>
   );
+}
+
+export function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title?: string; children: React.ReactNode }) {
+  const set = useContext(OverlayCtx);
+  const id = useRef(0);
+  if (!id.current) id.current = overlayIds++;
+  useEffect(() => {
+    const r = slotOf(id.current);
+    r.props = visible ? { onClose, title, children } : null;
+    set?.(id.current, visible);
+    r.subs.forEach((f) => f());
+  });
+  useEffect(() => () => { set?.(id.current, false); registry.delete(id.current); }, [set]);
+  if (set) return null;
+  // No host (shouldn't happen — SheetProvider adds one): fall back to a Modal.
+  return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent supportedOrientations={['portrait', 'landscape']}>{visible ? <SheetView onClose={onClose} title={title}>{children}</SheetView> : null}</Modal>;
 }
 export const SheetButtons = ({ children }: { children: React.ReactNode }) => <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 18 }}>{children}</View>;
 
@@ -519,8 +609,10 @@ export function SheetProvider({ children }: { children: React.ReactNode }) {
   const close = useCallback(() => setState(null), []);
   return (
     <SheetCtx.Provider value={{ open, close }}>
-      {children}
-      <Sheet visible={!!state} onClose={close} title={state?.title}>{state?.node}</Sheet>
+      <OverlayHost>
+        {children}
+        <Sheet visible={!!state} onClose={close} title={state?.title}>{state?.node}</Sheet>
+      </OverlayHost>
     </SheetCtx.Provider>
   );
 }

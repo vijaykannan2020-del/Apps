@@ -3,22 +3,12 @@
 import React, { createContext, useContext } from 'react';
 import { useColorScheme, useWindowDimensions } from 'react-native';
 import type { Severity } from '../core/rules/types';
+import { DARK, LIGHT } from './tokens';
+export { DARK, LIGHT, contrast } from './tokens';
 
-const dark = {
-  dark: true,
-  bg: '#000000', card: '#1C1C1E', card2: '#2C2C2E', fill: 'rgba(118,118,128,0.24)', segOn: '#636366',
-  text: '#FFFFFF', text2: 'rgba(235,235,245,0.6)', text3: 'rgba(235,235,245,0.3)', sep: 'rgba(84,84,88,0.55)',
-  accent: '#0A84FF', green: '#30D158', amber: '#FF9F0A', red: '#FF453A', grey: '#8E8E93',
-  bar: 'rgba(18,18,20,0.82)', shade: 'rgba(0,0,0,0.55)', avatar: '#2C2C2E', field: '#2C2C2E', fieldBorder: 'transparent',
-};
-const light: typeof dark = {
-  dark: false,
-  bg: '#F2F2F7', card: '#FFFFFF', card2: '#F2F2F7', fill: 'rgba(118,118,128,0.12)', segOn: '#FFFFFF',
-  text: '#000000', text2: 'rgba(60,60,67,0.6)', text3: 'rgba(60,60,67,0.3)', sep: 'rgba(60,60,67,0.18)',
-  accent: '#007AFF', green: '#34C759', amber: '#FF9500', red: '#FF3B30', grey: '#8E8E93',
-  bar: 'rgba(249,249,251,0.86)', shade: 'rgba(0,0,0,0.28)', avatar: '#E5E5EA', field: '#FFFFFF', fieldBorder: 'rgba(60,60,67,0.29)',
-};
-export type Theme = typeof dark;
+const dark = DARK;
+const light = LIGHT;
+export type Theme = typeof DARK;
 export type ThemeChoice = 'system' | 'dark' | 'light';
 
 /** Semi-transparent tint of a colour (the prototype's color-mix). */
@@ -55,6 +45,8 @@ export const useTheme = () => useContext(Ctx).t;
 
 export type Tone = 'red' | 'amber' | 'green' | 'blue' | 'grey';
 export const toneColor = (t: Theme, tone: Tone) => (tone === 'red' ? t.red : tone === 'amber' ? t.amber : tone === 'green' ? t.green : tone === 'blue' ? t.accent : t.grey);
+/** Colour for TEXT in a tone (darker in light mode so it passes WCAG AA on white and tinted pills). */
+export const toneInk = (t: Theme, tone: Tone) => (tone === 'red' ? t.inkRed : tone === 'amber' ? t.inkAmber : tone === 'green' ? t.inkGreen : tone === 'blue' ? t.inkAccent : t.text2);
 export const severityTone = (s: Severity): Tone => (s === 'act' ? 'red' : s === 'review' ? 'amber' : s === 'good' ? 'green' : 'grey');
 export const TONE_WORD: Record<Tone, string> = { red: 'Act now', amber: 'Review', blue: 'Info', grey: 'Info', green: 'Good' };
 
@@ -72,7 +64,9 @@ export function useLayout() {
   const { width, height } = dims;
   const fontScale = dims.fontScale * WEB_TEXT_SCALE;
   const wide = width >= 600;
+  const twoCol = width >= 700; // unfolded fold / iPad / landscape: real two-column layouts
   const maxWidth = width >= 900 ? 720 : 640;
+  const wideMax = Math.min(1180, width - 2 * (wide ? 24 : 16));
   const side = width < 360 ? 12 : wide ? 24 : 16;
-  return { width, height, wide, landscape: width > height, maxWidth, side, fontScale, compact: width < 380 || fontScale > 1.35 };
+  return { width, height, wide, twoCol, wideMax, landscape: width > height, maxWidth, side, fontScale, compact: width < 380 || fontScale > 1.35 };
 }

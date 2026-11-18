@@ -21,6 +21,7 @@ const MAP: Record<string, [string, Ion]> = {
   building: ['building.2', 'business-outline'], dice: ['dice', 'dice-outline'], map: ['map', 'map-outline'], edit: ['pencil', 'create-outline'], ext: ['arrow.up.right.square', 'open-outline'],
   layers: ['square.stack.3d.up', 'layers-outline'], shield: ['checkmark.shield', 'shield-checkmark-outline'], play: ['play.circle', 'play-circle-outline'], list: ['list.bullet', 'list-outline'],
   scale: ['scalemass', 'scale-outline'], hr: ['chart.bar.doc.horizontal', 'stats-chart-outline'], sun: ['sun.max', 'sunny-outline'], moon: ['moon', 'moon-outline'],
+  gear: ['gearshape', 'settings-outline'], news: ['newspaper', 'newspaper-outline'], bulb: ['lightbulb', 'bulb-outline'],
   backup: ['externaldrive.badge.icloud', 'cloud-upload-outline'], restore: ['arrow.counterclockwise.icloud', 'cloud-download-outline'],
 };
 

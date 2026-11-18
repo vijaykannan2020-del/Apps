@@ -11,22 +11,28 @@ import { Avatar, Button, Card, Chip, ChipToggle, Chips, EmptyState, H1, Icon, Ic
 import { go, home, locationChip, relationLabel, runFlow, statusLabel, untilText } from './common';
 import { statusGroups } from './sheets';
 import { SelectField } from '../ui';
-import { useThemeChoice } from './themeChoice';
+import { HelpCard } from './help';
+import { PersonBody } from './person';
+import { Columns, LinkButton, useLayout } from '../ui';
 
 export function FamilyTab() {
   const f = useFamily();
   const t = useTheme();
-  const theme = useThemeChoice();
+  const L = useLayout();
+  const [sel, setSel] = useState<string | undefined>(undefined);
+  const selected = L.twoCol ? (f.people.find((p) => p.id === sel) ?? f.people[0])?.id : undefined;
   return (
-    <Screen tabRoot>
-      <LargeTitle title="Family" right={<IconButton icon={t.dark ? 'sun' : 'moon'} label={`Switch to ${t.dark ? 'light' : 'dark'} mode`} onPress={() => theme.set(t.dark ? 'light' : 'dark')} />} />
+    <Screen tabRoot wide>
+      <LargeTitle title="Family" />
       <T tone="text2" style={[font.sub, { marginTop: 2 }]}>{`${f.people.length} ${f.people.length === 1 ? 'person' : 'people'} · saved only on this phone`}</T>
+      <HelpCard tab="family" />
+      <Columns ratio={0.8} left={<>
       {f.people.length ? (
         <Stack style={{ marginTop: 20 }}>
           {f.people.map((p) => {
             const r = f.records[p.id], res = f.results[p.id];
             return (
-              <Card key={p.id} onPress={() => go(`/person/${p.id}`)} label={`${p.name}, ${res ? res.worst : ''}`}>
+              <Card key={p.id} onPress={() => (L.twoCol ? setSel(p.id) : go(`/person/${p.id}`))} label={`${p.name}, ${res ? res.worst : ''}`} style={selected === p.id ? { borderWidth: 2, borderColor: t.accent } : { borderWidth: 2, borderColor: 'transparent' }}>
                 <View style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start' }}>
                   <Avatar name={p.name} />
                   <View style={{ flex: 1, minWidth: 0 }}>
@@ -47,6 +53,7 @@ export function FamilyTab() {
         </Stack>
       ) : <EmptyState small icon="users" title="No family members yet" />}
       <AddButton title="Add family member" onPress={() => go('/add-member')} />
+      </>} right={selected ? <View style={{ marginTop: 20 }}><PersonBody id={selected} single /><LinkButton title="Open full page" onPress={() => go(`/person/${selected}`)} /></View> : null} />
     </Screen>
   );
 }
@@ -109,7 +116,7 @@ function FamilySetupForm() {
     const keep = list.filter((d) => d.name.trim() || d.relation === 'self');
     const people: Person[] = keep.map((d) => {
       const old = f.people.find((p) => p.id === d.id);
-      return { ...(old ?? { facts: {}, createdAt: today(), reminders: { on: true, lead: [180, 90, 30, 7] } }), id: d.id, name: d.name.trim() || 'Person', relation: d.relation, status: d.status } as Person;
+      return { ...(old ?? { facts: {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } }), id: d.id, name: d.name.trim() || 'Person', relation: d.relation, status: d.status } as Person;
     });
     const removed = f.people.filter((p) => !keep.some((d) => d.id === p.id));
     for (const p of removed) if (p.relation !== 'self') await f.actions.removePerson(p.id);
@@ -148,13 +155,13 @@ function AddMemberForm() {
   const [d, setD] = useState<Draft>({ id: newId('p'), name: '', relation: 'spouse', status: dependentStatusFor(f.main?.status, 'spouse'), isNew: true });
   const goNext = async () => {
     if (!d.name.trim()) { toast('Type a name first'); return; }
-    const p: Person = { id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: {}, createdAt: today(), reminders: { on: true, lead: [180, 90, 30, 7] } };
+    const p: Person = { id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } };
     await f.actions.upsertPerson(p);
     router.back();
     setTimeout(() => runFlow({ mode: 'add', pids: [p.id], returnTo: `/person/${p.id}` }, { ...f, people: [...f.people, p], records: f.records, missing: f.missing }, toast), 80);
   };
   return (
-    <Screen keyboard nav={{ title: 'Add family member', back: 'Family', onBack: () => router.back(), right: <NavButton title="Home" label="Save and go to Home" onPress={async () => { if (d.name.trim()) { await f.actions.upsertPerson({ id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: {}, createdAt: today(), reminders: { on: true, lead: [180, 90, 30, 7] } }); toast(`${d.name.trim()} saved · add documents anytime from Home`); } home(); }} /> }} footer={<Button title="Continue to documents" onPress={goNext} />}>
+    <Screen keyboard nav={{ title: 'Add family member', back: 'Family', onBack: () => router.back(), right: <NavButton title="Home" label="Save and go to Home" onPress={async () => { if (d.name.trim()) { await f.actions.upsertPerson({ id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } }); toast(`${d.name.trim()} saved · add documents anytime from Home`); } home(); }} /> }} footer={<Button title="Continue to documents" onPress={goNext} />}>
       <H1>Who are you adding?</H1>
       <Why>Same short form as setup. Then we’ll go through their documents.</Why>
       <View style={{ marginTop: 22 }}><PersonForm d={d} index={1} onChange={setD} /></View>

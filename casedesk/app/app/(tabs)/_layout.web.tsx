@@ -3,8 +3,8 @@
 import { Tabs } from 'expo-router';
 import { Icon, useTheme } from '../../src/ui';
 
-const ICON: Record<string, string> = { index: 'home', family: 'users', cases: 'clock', tools: 'grid' };
-const LABEL: Record<string, string> = { index: 'Home', family: 'Family', cases: 'Cases', tools: 'Tools' };
+const ICON: Record<string, string> = { index: 'home', family: 'users', cases: 'clock', tools: 'grid', settings: 'gear' };
+const LABEL: Record<string, string> = { index: 'Home', family: 'Family', cases: 'Cases', tools: 'Tools', settings: 'Settings' };
 
 export default function TabsWeb() {
   const t = useTheme();
@@ -23,6 +23,7 @@ export default function TabsWeb() {
       <Tabs.Screen name="family" />
       <Tabs.Screen name="cases" />
       <Tabs.Screen name="tools" />
+      <Tabs.Screen name="settings" />
     </Tabs>
   );
 }

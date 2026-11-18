@@ -6,8 +6,9 @@ import { useLocalSearchParams } from 'expo-router';
 import { fmt, daysTo } from '../core/dates';
 import { isPendingCase, type CaseView } from '../core/cases';
 import { useFamily } from '../data/FamilyProvider';
-import { Button, Card, EmptyState, Group, Hint, Icon, IconButton, LargeTitle, LegalLine, Note, Pill, Row, Screen, SectionHeader, T, Timeline, font, useSheet, useTheme, useToast, tint } from '../ui';
+import { Columns, useLayout, Button, Card, EmptyState, Group, Hint, Icon, IconButton, LargeTitle, LegalLine, Note, Pill, Row, Screen, SectionHeader, T, Timeline, font, useSheet, useTheme, useToast, tint } from '../ui';
 import { back, go } from './common';
+import { HelpCard, HelpButton } from './help';
 import { AddCase, AddKeyDate, Confirm, startCaseCheck } from './sheets';
 import { copy } from '../native/device';
 
@@ -21,12 +22,12 @@ export function CaseStatusPill({ c }: { c: CaseView }) {
   return <View style={{ backgroundColor: t.fill, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}><T style={[font.caption, { fontWeight: '600' }]}>{c.status}</T></View>;
 }
 
-export function CaseRow({ c, who = true }: { c: CaseView; who?: boolean }) {
+export function CaseRow({ c, who = true, onPick, on }: { c: CaseView; who?: boolean; onPick?: (id: string) => void; on?: boolean }) {
   const f = useFamily();
   const nd = c.keyDates.find((k) => (daysTo(k.date) ?? -1) >= 0);
   const name = f.people.find((p) => p.id === c.ownerId)?.name;
   return (
-    <Row icon="doc" onPress={() => go(`/case/${encodeURIComponent(c.id)}`)} chevron={false} trailing={<CaseStatusPill c={c} />}
+    <Row icon={on ? 'checkc' : 'doc'} onPress={() => (onPick ? onPick(c.id) : go(`/case/${encodeURIComponent(c.id)}`))} chevron={false} trailing={<CaseStatusPill c={c} />}
       title={<T style={font.body}><T style={[font.body, { fontWeight: '600' }]}>{c.form ?? 'Case'}</T>{` · ${c.name}`}</T>}
       subtitle={`${who && name ? `${name} · ` : ''}${nd ? `${nd.label} ${fmt(nd.date)}` : c.updated ? `Updated ${fmt(c.updated)}` : 'Added by you'}`} />
   );
@@ -35,16 +36,22 @@ export function CaseRow({ c, who = true }: { c: CaseView; who?: boolean }) {
 export function CasesTab() {
   const f = useFamily();
   const sheet = useSheet();
+  const L = useLayout();
+  const [sel, setSel] = React.useState<string>();
+  const selected = L.twoCol ? (f.caseList.find((c) => c.id === sel) ?? f.caseList[0])?.id : undefined;
+  const pick = L.twoCol ? setSel : undefined;
   const pend = f.caseList.filter(isPendingCase), done = f.caseList.filter((c) => !isPendingCase(c));
   const byPerson = (list: CaseView[]) => f.people.map((p) => {
     const l = list.filter((c) => c.ownerId === p.id);
-    return l.length ? <View key={p.id}><SectionHeader>{p.name}</SectionHeader><Group>{l.map((c) => <CaseRow key={c.id} c={c} who={false} />)}</Group></View> : null;
+    return l.length ? <View key={p.id}><SectionHeader>{p.name}</SectionHeader><Group>{l.map((c) => <CaseRow key={c.id} c={c} who={false} onPick={pick} on={selected === c.id} />)}</Group></View> : null;
   });
   const add = () => sheet.open('Add a case', <AddCase />);
   return (
-    <Screen tabRoot>
+    <Screen tabRoot wide>
       <LargeTitle title="Cases" right={<IconButton icon="plus" label="Add a case" onPress={add} />} />
       <T tone="text2" style={[font.sub, { marginTop: 2 }]}>Every USCIS form, by person. Pending first.</T>
+      <HelpCard tab="cases" />
+      <Columns ratio={0.9} left={<>
       {f.caseList.length ? (
         <>
           {pend.length ? <T a11y="header" style={[font.title2, { marginTop: 24 }]}>{`Pending · ${pend.length}`}</T> : null}
@@ -55,6 +62,7 @@ export function CasesTab() {
       ) : <EmptyState small icon="clock" title="No cases yet" body="Add a receipt number from an I-797C notice." action={{ title: 'Add a case', onPress: add }} />}
       <SectionHeader>Look up</SectionHeader>
       <Group><Row icon="search" onPress={() => go('/tools/lca')} title="LCA / PERM status" subtitle="Look up your employer’s filing with the Department of Labor" /></Group>
+      </>} right={selected ? <View style={{ marginTop: 24 }}><CaseBody id={selected} /></View> : null} />
     </Screen>
   );
 }
@@ -62,14 +70,26 @@ export function CasesTab() {
 export function CaseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const f = useFamily();
+  const c = f.caseList.find((x) => x.id === decodeURIComponent(id ?? ''));
+  if (!c) return <Screen nav={{ back: 'Cases', onBack: back }}><EmptyState icon="doc" title="Case deleted" /></Screen>;
+  return (
+    <Screen nav={{ back: 'Back', onBack: back, title: c.form ?? 'Case', right: <HelpButton topic="cases" /> }}>
+      <CaseBody id={c.id} />
+    </Screen>
+  );
+}
+
+/** Case detail — its own screen, or the right pane of Cases on wide screens. */
+export function CaseBody({ id }: { id: string }) {
+  const f = useFamily();
   const sheet = useSheet();
   const toast = useToast();
   const t = useTheme();
-  const c = f.caseList.find((x) => x.id === decodeURIComponent(id ?? ''));
-  if (!c) return <Screen nav={{ back: 'Cases', onBack: back }}><EmptyState icon="doc" title="Case deleted" /></Screen>;
+  const c = f.caseList.find((x) => x.id === id);
+  if (!c) return <EmptyState icon="doc" title="Case deleted" />;
   const p = f.people.find((x) => x.id === c.ownerId);
   return (
-    <Screen nav={{ back: 'Back', onBack: back, title: c.form ?? 'Case' }}>
+    <>
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
           <View style={{ flex: 1 }}>
@@ -96,7 +116,7 @@ export function CaseScreen() {
         <>
           <SectionHeader>Check status</SectionHeader>
           <Card>
-            {['Copy the receipt number', 'Safari opens uscis.gov case status — paste and tap Check', 'Come back and tell CaseDesk what it said'].map((x, i) => (
+            {['Copy the receipt number', 'Safari opens uscis.gov — paste it and tap Check Status', 'Copy what the page says, tap Done, then “Paste what USCIS says”'].map((x, i) => (
               <View key={i} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 5 }}>
                 <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: tint(t.accent, 0.18), alignItems: 'center', justifyContent: 'center' }}><T tone="accent" style={[font.foot, { fontWeight: '600' }]}>{String(i + 1)}</T></View>
                 <T style={[font.callout, { flex: 1 }]}>{x}</T>
@@ -113,6 +133,6 @@ export function CaseScreen() {
         <Button kind="ghost" icon="share" title="Share" onPress={() => Share.share({ message: `${c.form ?? 'Case'} · ${c.name}\nStatus: ${c.status}${c.updated ? ` (updated ${fmt(c.updated)})` : ''}` }).catch(() => {})} />
         <Button kind="danger" icon="trash" title="Delete" onPress={() => sheet.open('Delete this case?', <Confirm body="It’s removed from this phone only. Nothing changes at USCIS." action="Delete" onConfirm={async () => { back(); await f.actions.deleteCase(c); toast('Case deleted'); }} />)} />
       </View>
-    </Screen>
+    </>
   );
 }

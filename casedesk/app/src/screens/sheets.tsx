@@ -13,10 +13,11 @@ import { showField, FIELDS } from '../core/docs';
 import { useFamily, type FamilyState } from '../data/FamilyProvider';
 import { newId } from '../data/store';
 import {
-  Button, Chips, ChipToggle, DateField, Field, Group, Hint, Note, Option, Row, SelectField, SheetButtons, T, Why, font, useSheet, useToast, LegalLine, Icon, useTheme,
+  Button, Card, Chips, ChipToggle, DateField, Field, Group, Hint, Note, Option, Row, SelectField, SheetButtons, T, Why, font, useSheet, useToast, LegalLine, Icon, useTheme,
 } from '../ui';
 import { back, runFlow } from './common';
-import { copy, openUrl } from '../native/device';
+import { clipboardHasText, copy, hasClipboard, openUrl, openUrlAndWait, readClipboard } from '../native/device';
+import { applyCaseText, parseCaseText, USCIS_CASE_URL, type Parsed } from '../core/uscis';
 
 const Cancel = ({ label = 'Cancel' }: { label?: string }) => { const s = useSheet(); return <Button kind="ghost" title={label} onPress={s.close} />; };
 
@@ -250,8 +251,27 @@ export function AddCase({ pid }: { pid?: string }) {
   );
 }
 
-export function CheckStatus({ view }: { view: CaseView }) {
+/** After Safari: paste what USCIS says (clipboard, or a text box), or pick the status by hand. */
+export function CheckStatus({ view, copied }: { view: CaseView; copied: boolean }) {
   const f = useFamily(); const s = useSheet(); const toast = useToast(); const t = useTheme();
+  const [typed, setTyped] = useState('');
+  const [showBox, setShowBox] = useState(!hasClipboard());
+  const [found, setFound] = useState<Parsed | null>(null);
+  const [miss, setMiss] = useState(false);
+  const saveParsed = async (p: Parsed) => {
+    await f.actions.editCase(view, (c) => applyCaseText(c, p, today()));
+    s.close(); toast(`Status saved · ${p.status}`);
+  };
+  const tryText = (x: string) => {
+    const p = parseCaseText(x, view.receipt);
+    setFound(p); setMiss(!p);
+    if (!p) setShowBox(true);
+  };
+  const paste = async () => {
+    const x = await readClipboard();
+    if (x === undefined) { setShowBox(true); return; }
+    setTyped(x); tryText(x);
+  };
   const set = async (label: string) => {
     const status = label === 'Approved' ? 'approved' : label === 'Request for Evidence' ? 'rfe' : 'pending';
     await f.actions.editCase(view, (c) => ({ ...c, status, history: [{ date: new Date().toISOString(), text: label === 'Still pending' ? 'Checked · still pending' : label }, ...c.history] }));
@@ -259,9 +279,29 @@ export function CheckStatus({ view }: { view: CaseView }) {
   };
   return (
     <View>
-      <View style={{ alignItems: 'center' }}><Icon name="compass" size={40} color={t.accent} /></View>
-      <Why>{`Copied ${view.receipt}. Safari is opening uscis.gov — paste the number and tap Check status, then come back here.`}</Why>
-      <T tone="text2" style={[font.caption, { marginTop: 14 }]}>What did it say?</T>
+      {!copied && view.receipt ? (
+        <Note tone="amber">
+          <T style={font.sub}>Couldn’t copy the receipt number. Press and hold it to copy:</T>
+          <T selectable style={[font.headline, { fontFamily: 'Menlo', marginTop: 6 }]}>{view.receipt}</T>
+        </Note>
+      ) : null}
+      <Why>On the USCIS page, select the status and its explanation, tap Copy, and come back here.</Why>
+      <View style={{ marginTop: 12, flexDirection: 'row' }}><Button icon="copy" title="Paste what USCIS says" onPress={paste} /></View>
+      {showBox ? (
+        <Field label="Or paste it here" value={typed} onChangeText={(x) => { setTyped(x); setMiss(false); setFound(null); }} onBlur={() => typed && tryText(typed)} placeholder="Case Was Received…" multiline autoCapitalize="none" />
+      ) : null}
+      {showBox && typed && !found ? <View style={{ marginTop: 8, flexDirection: 'row' }}><Button kind="tint" title="Read this" onPress={() => tryText(typed)} /></View> : null}
+      {found ? (
+        <Card style={{ marginTop: 12, backgroundColor: t.card2 }}>
+          <T tone="text2" style={font.caption}>USCIS says</T>
+          <T style={[font.headline, { marginTop: 2 }]}>{found.status}</T>
+          <T tone="text2" style={[font.foot, { marginTop: 4 }]}>{[found.date ? fmt(found.date) : undefined, found.form].filter(Boolean).join(' · ')}</T>
+          <T style={[font.foot, { marginTop: 6 }]} numberOfLines={4}>{found.detail}</T>
+          <Button block title="Save to this case" onPress={() => saveParsed(found)} />
+        </Card>
+      ) : null}
+      {miss ? <Hint>{`That doesn’t look like a USCIS status yet. Copy the heading and the sentence under it${view.receipt ? ` for ${view.receipt}` : ''}, or pick below.`}</Hint> : null}
+      <T tone="text2" style={[font.caption, { marginTop: 16 }]}>Or pick what it said</T>
       <View style={{ gap: 8, marginTop: 8 }}>
         {['Still pending', 'Request for Evidence', 'Biometrics scheduled', 'Approved'].map((x) => <Option key={x} title={x} onPress={() => set(x)} />)}
       </View>
@@ -269,10 +309,19 @@ export function CheckStatus({ view }: { view: CaseView }) {
     </View>
   );
 }
+
+/**
+ * Copy the receipt → Safari (wait until the person is back) → THEN open the paste sheet. Opening a
+ * sheet before Safari left the app stuck on iOS (v2.0.2 P0).
+ */
 export async function startCaseCheck(view: CaseView, open: (title: string, node: React.ReactNode) => void) {
-  if (view.receipt) await copy(view.receipt);
-  open('Check status', <CheckStatus view={view} />);
-  await openUrl('https://egov.uscis.gov/');
+  let copied = false;
+  if (view.receipt) {
+    copied = await copy(view.receipt);
+    if (copied) { const has = await clipboardHasText(); if (has === false) copied = false; }
+  }
+  await openUrlAndWait(USCIS_CASE_URL);
+  open('What did USCIS say?', <CheckStatus view={view} copied={copied || !view.receipt} />);
 }
 
 export function AddKeyDate({ view }: { view: CaseView }) {

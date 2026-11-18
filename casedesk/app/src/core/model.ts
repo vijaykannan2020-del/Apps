@@ -255,6 +255,8 @@ export type Settings = {
   backupReminderSnoozed?: string; // ISO date until which the Home reminder is hidden
   familyCardDismissed?: boolean; // Home "Add your family" card dismissed
   hrTools?: boolean; // show "For HR" tools
+  helpSeen?: string[]; // first-time help cards dismissed (home, family, cases, tools, settings)
+  updatesDismissed?: string[]; // update alerts dismissed or opened (news ids)
 };
 
 export const DEFAULT_SETTINGS: Settings = { reminderLeadDays: [180, 90, 30, 7] };

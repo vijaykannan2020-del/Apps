@@ -7,7 +7,7 @@ import { RULES_CHECKED } from '../core/rules/catalog';
 import { useFamily } from '../data/FamilyProvider';
 import { backUpNow, markBackedUp, openBackup, pickBackupFile, restore, type MergeReport, type RestorePreview } from '../data/backupIO';
 import { canUseBiometrics, authenticate } from '../native/device';
-import { Avatar, Button, Card, Field, Group, Hint, Icon, Meter, Note, Option, Row, Screen, SectionHeader, Segmented, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useTheme, useToast } from '../ui';
+import { Avatar, BigText, Button, Card, Field, Group, Hint, Icon, Meter, Note, Option, Row, Screen, SectionHeader, Segmented, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useTheme, useToast } from '../ui';
 import { back, go, home, relationLabel, statusLabel, replace } from './common';
 import { useThemeChoice } from './themeChoice';
 import { Confirm } from './sheets';
@@ -17,16 +17,15 @@ import { ScrollView } from 'react-native';
 
 export const leadText = (lead: number[], sep = ', ') => (lead.length ? `${lead.join(sep)} day${lead.length === 1 && lead[0] === 1 ? '' : 's'} before` : 'No reminders');
 
+/** Profile (from the avatar on Home): you, your family, and alerts / reminders per person.
+ *  Everything else moved to the Settings tab (v2.1). */
 export function ProfileScreen() {
   const f = useFamily();
-  const sheet = useSheet();
-  const toast = useToast();
-  const theme = useThemeChoice();
-  const params = useLocalSearchParams<{ backup?: string }>();
   const me = f.main;
   const t = useTheme();
-  useEffect(() => { if (params.backup === '1') setTimeout(() => sheet.open('Back up now', <BackupSheet />), 350); }, [params.backup, sheet]);
-  const lastBackup = f.settings.lastBackupAt ? fmt(f.settings.lastBackupAt.slice(0, 10)) : 'Never';
+  const params = useLocalSearchParams<{ backup?: string }>();
+  // Old links (Home's "Back up now" in v2.0) go to Settings now.
+  useEffect(() => { if (params.backup === '1') router.replace({ pathname: '/(tabs)/settings', params: { backup: '1' } } as never); }, [params.backup]);
   return (
     <Screen nav={{ back: 'Home', onBack: back, title: 'Profile' }}>
       {me ? (
@@ -43,43 +42,16 @@ export function ProfileScreen() {
         {f.people.map((p) => <Row key={p.id} avatar={p.name} title={p.name} subtitle={`${relationLabel(p)} · ${statusLabel(p, f.records[p.id], f.results[p.id])}`} onPress={() => go(`/person/${p.id}`)} />)}
         <Row icon="plus" title="Add family member" titleTone="accent" chevron={false} onPress={() => go('/add-member')} />
       </Group>
-      <SectionHeader>Reminders &amp; alerts</SectionHeader>
+      <SectionHeader>Alerts &amp; reminders</SectionHeader>
       <Group>
-        {f.people.map((p) => { const r = p.reminders ?? { on: true, lead: [180, 90, 30, 7] }; return <Row key={p.id} icon="bell" title={p.name} subtitle={r.on ? leadText(r.lead, ' · ') : 'Off'} onPress={() => go(`/reminders/${p.id}`)} />; })}
+        {f.people.map((p) => { const r = p.reminders ?? { on: true, lead: f.settings.reminderLeadDays }; return <Row key={p.id} icon="bell" title={p.name} subtitle={r.on ? leadText(r.lead, ' · ') : 'Off'} onPress={() => go(`/reminders/${p.id}`)} />; })}
       </Group>
-      <SectionHeader>Privacy &amp; look</SectionHeader>
-      <Group>
-        <Row icon="face" title="Face ID lock" subtitle="Also hides documents in the app switcher" trailing={<Switch value={!!f.settings.faceId} label="Face ID lock" onValueChange={async (on) => {
-          if (on && !(await canUseBiometrics())) { toast('Set up Face ID or a passcode in Settings first'); return; }
-          if (on && !(await authenticate('Turn on Face ID lock'))) return;
-          await f.actions.updateSettings({ faceId: on, hideInSwitcher: on }); toast(on ? 'Face ID on' : 'Face ID off');
-        }} />} />
-        <Row icon={theme.value === 'light' ? 'sun' : 'moon'} title="Appearance">
-          <Segmented options={['System', 'Dark', 'Light']} value={theme.value[0].toUpperCase() + theme.value.slice(1)} onChange={(v) => theme.set(v.toLowerCase() as never)} />
-        </Row>
-      </Group>
-      <SectionHeader>Help</SectionHeader>
-      <Group>
-        <Row icon="play" title="How CaseDesk works" subtitle="A 4-screen tour" onPress={() => go('/tour')} chevron={false} />
-        <Row icon="users" title="Example family" subtitle="Look around with made-up data (replaces what’s here)" chevron={false} onPress={() => sheet.open('Load the example family?', <Confirm body="Everything on this phone is replaced by a made-up H-1B family. Back up first if you need your data." action="Load example" onConfirm={() => { try { router.dismissAll(); } catch {} replace('/demo'); }} />)} />
-        <Row icon="info" title="Diagnostics" subtitle="What the app did — send this if something goes wrong" chevron={false} onPress={() => sheet.open('Diagnostics', <DiagSheet />)} />
-        <Row icon="hr" title="Show HR tools" subtitle="Expiring documents across the family" trailing={<Switch value={!!f.settings.hrTools} label="Show HR tools" onValueChange={(on) => f.actions.updateSettings({ hrTools: on })} />} />
-      </Group>
-      <SectionHeader>Data</SectionHeader>
-      <Group>
-        <Row icon="backup" title="Back up now" subtitle={`Last backup: ${lastBackup}`} onPress={() => sheet.open('Back up now', <BackupSheet />)} chevron={false} />
-        <Row icon="restore" title="Restore from backup" subtitle="From a .casedesk file in Files, iCloud Drive or Google Drive" onPress={() => sheet.open('Restore from backup', <RestoreSheet />)} chevron={false} />
-        <Row icon="trash" iconTone="red" title="Delete all data" titleTone="red" chevron={false} onPress={() => sheet.open('Delete all data?', <WipeSheet />)} />
-      </Group>
-      <SectionHeader>About</SectionHeader>
-      <Group>
-        <Row icon="info" title="About CaseDesk" subtitle="Not legal advice · sources · version" onPress={() => go('/about')} />
-      </Group>
+      <Group style={{ marginTop: 24 }}><Row icon="gear" title="Settings" subtitle="Appearance, Face ID, backups, help, about" onPress={() => router.navigate('/(tabs)/settings' as never)} /></Group>
     </Screen>
   );
 }
 
-function BackupSheet() {
+export function BackupSheet() {
   const f = useFamily(); const s = useSheet(); const toast = useToast();
   const [pw, setPw] = useState(''); const [pw2, setPw2] = useState('');
   const [busy, setBusy] = useState(false); const [pct, setPct] = useState(0);
@@ -124,7 +96,7 @@ function Progress({ pct, label }: { pct: number; label: string }) {
   );
 }
 
-function RestoreSheet() {
+export function RestoreSheet() {
   const s = useSheet();
   return <RestorePanel onDone={s.close} onCancel={s.close} />;
 }
@@ -204,7 +176,7 @@ export function RestoreScreen() {
   );
 }
 
-function WipeSheet() {
+export function WipeSheet() {
   const f = useFamily(); const s = useSheet(); const toast = useToast();
   return (
     <View>
@@ -219,10 +191,10 @@ export function AboutScreen() {
   let version = '2.0';
   try { version = require('expo-constants').default?.expoConfig?.version ?? version; } catch {}
   return (
-    <Screen nav={{ back: 'Profile', onBack: back, title: 'About' }}>
+    <Screen nav={{ back: 'Settings', onBack: back, title: 'About' }}>
       <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 4 }}>
         <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name="shield" size={34} color="#fff" /></View>
-        <T style={{ fontSize: 24, fontWeight: '700', marginTop: 12 }}>CaseDesk</T>
+        <BigText size={24} style={{ marginTop: 12 }}>CaseDesk</BigText>
         <T tone="text2" style={font.sub}>{`Version ${version} · rules checked ${fmt(RULES_CHECKED)}`}</T>
       </View>
       <Note tone="amber">Not legal advice. CaseDesk gives general information from official sources. It can be wrong or out of date. For decisions — especially “Act now” items — talk to an immigration attorney or, for students, your DSO.</Note>
@@ -242,7 +214,7 @@ export function AboutScreen() {
   );
 }
 
-function DiagSheet() {
+export function DiagSheet() {
   const [lines, setLines] = useState<string[] | null>(null);
   const toast = useToast();
   useEffect(() => { diagLines().then(setLines); }, []);

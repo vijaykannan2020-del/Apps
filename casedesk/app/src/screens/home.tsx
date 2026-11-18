@@ -8,12 +8,16 @@ import { isPendingCase } from '../core/cases';
 import { needsAttention } from '../core/rules/engine';
 import { useFamily } from '../data/FamilyProvider';
 import { backupDue } from '../data/backupIO';
-import { Avatar, Button, Card, EmptyState, Group, Hint, Icon, LargeTitle, LinkButton, Pill, Row, Screen, SectionHeader, T, Tag, font, useSheet, useTheme, useToast, tint } from '../ui';
+import { Avatar, BigText, Columns, Button, Card, EmptyState, Group, Hint, Icon, LargeTitle, LinkButton, Pill, Row, Screen, SectionHeader, T, Tag, font, useSheet, useTheme, useToast, tint } from '../ui';
 import { AttentionRow, go, needsLocation, runFlow, statusLabel, untilText } from './common';
 import { Confirm, SourceSheet } from './sheets';
 import { endFlow, unsavedCount, useFlow } from '../data/flow';
 import { RULES_CHECKED } from '../core/rules/catalog';
 import { HomeUpdates } from './news';
+import { HelpCard } from './help';
+import { listNames, type AttentionItem } from '../core/rules/engine';
+import { familyTags, updateAlerts } from '../core/updates';
+import { useNews, type NewsItem } from '../data/news';
 
 export const UPDATES = [
   { tag: 'EAD', t: 'EAD renewals filed on or after Oct 30, 2025 don’t get an automatic extension', src: 'uscis.gov', url: 'https://www.uscis.gov/i-765', body: 'If a work permit renewal is pending when the card ends, work has to stop until the new card arrives. Plan renewals up to 180 days early.' },
@@ -29,6 +33,7 @@ export function Home() {
   const sheet = useSheet();
   const me = f.main;
   const draft = useFlow();
+  const news = useNews();
   const unsaved = draft ? unsavedCount() : 0;
   if (!f.people.length || !me) {
     return (
@@ -39,8 +44,8 @@ export function Home() {
     );
   }
   const att = needsAttention(f.results, 99);
-  const pending = f.caseList.filter(isPendingCase);
-  const latest = [...f.caseList].sort((a, b) => (b.updated || '').localeCompare(a.updated || ''))[0];
+  const alerts = updateAlerts(news.items, familyTags(f.people, f.records), f.settings.updatesDismissed ?? [], today());
+  const total = att.length + Math.min(2, alerts.length);
   const missingCount = f.people.reduce((n, p) => n + (f.missing[p.id]?.length ?? 0), 0);
   const noDocs = f.docs.length === 0;
   const onlyMe = f.people.length === 1;
@@ -54,7 +59,7 @@ export function Home() {
   const locAsk = f.people.filter((p) => needsLocation(f.records[p.id]));
 
   return (
-    <Screen tabRoot>
+    <Screen tabRoot wide>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flex: 1 }}>
           <T tone="text2" style={[font.caption, { textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }]}>{dateLine}</T>
@@ -98,52 +103,109 @@ export function Home() {
           <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}><Icon name="backup" size={20} color={t.accent} /><T style={[font.headline, { flex: 1 }]}>Back up your documents</T></View>
           <T tone="text2" style={[font.foot, { marginTop: 4 }]}>{f.settings.lastBackupAt ? `Last backup ${fmt(f.settings.lastBackupAt.slice(0, 10))}.` : 'No backup yet.'} A password-protected copy keeps them safe if you lose or change your phone.</T>
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-            <Button title="Back up now" grow onPress={() => go('/profile', { backup: '1' })} />
+            <Button title="Back up now" grow onPress={() => router.navigate({ pathname: '/(tabs)/settings', params: { backup: '1' } } as never)} />
             <Button kind="ghost" title="Later" onPress={() => f.actions.updateSettings({ backupReminderSnoozed: new Date(Date.now() + 7 * 864e5).toISOString() })} />
           </View>
         </Card>
       ) : null}
 
-      <SectionHeader>Family</SectionHeader>
-      <Group>
-        {f.people.map((p) => (
-          <Row key={p.id} avatar={p.name} onPress={() => go(`/person/${p.id}`)} pill={f.results[p.id]?.worst} chevron={false}
-            label={`${p.name}, ${statusLabel(p, f.records[p.id], f.results[p.id])}, ${untilText(p, f.records[p.id], f.results[p.id])}`}
-            title={<T style={[font.body, { fontWeight: '600' }]}>{p.name} <T tone="text2" style={font.foot}>· {statusLabel(p, f.records[p.id], f.results[p.id])}</T></T>}
-            subtitle={untilText(p, f.records[p.id], f.results[p.id]).replace('Status valid until', 'Valid until')} />
-        ))}
-      </Group>
-
-      <SectionHeader right={att.length > 3 ? <T tone="text2" style={font.caption}>{`${att.length} items`}</T> : undefined}>Needs attention</SectionHeader>
-      {att.length || locAsk.length ? (
-        <>
+      <HelpCard tab="home" />
+      <Columns
+        left={<>
+          <SectionHeader>Family</SectionHeader>
           <Group>
-            {locAsk.slice(0, 1).map((p) => (
-              <Row key={`loc-${p.id}`} dot="amber" alignTop onPress={() => go(`/person/${p.id}`)} title={p.relation === 'self' ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`} titleStyle={{ ...font.callout, fontWeight: '500' }} subtitle={`${p.name} · People outside the US don’t have an I-94.`} />
+            {f.people.map((p) => (
+              <Row key={p.id} avatar={p.name} onPress={() => go(`/person/${p.id}`)} pill={f.results[p.id]?.worst} chevron={false}
+                label={`${p.name}, ${statusLabel(p, f.records[p.id], f.results[p.id])}, ${untilText(p, f.records[p.id], f.results[p.id])}`}
+                title={<T style={[font.body, { fontWeight: '600' }]}>{p.name} <T tone="text2" style={font.foot}>· {statusLabel(p, f.records[p.id], f.results[p.id])}</T></T>}
+                subtitle={untilText(p, f.records[p.id], f.results[p.id]).replace('Status valid until', 'Valid until')} />
             ))}
-            {att.slice(0, locAsk.length ? 2 : 3).map((x) => <AttentionRow key={x.personId + x.finding.id} f={x.finding} name={f.people.find((p) => p.id === x.personId)?.name} onPress={() => go(`/person/${x.personId}`)} />)}
           </Group>
-          {att.length > 3 ? <LinkButton title="See all on Family" onPress={() => router.navigate('/(tabs)/family' as never)} /> : null}
-        </>
-      ) : (
-        <Card><View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}><Icon name="checkc" size={20} color={t.green} /><T style={font.headline}>Nothing needs attention</T></View></Card>
-      )}
+        </>}
+        right={<>
+          <SectionHeader right={total > 3 ? <T tone="text2" style={font.caption}>{`${total} items`}</T> : undefined}>Needs attention</SectionHeader>
+          {att.length || locAsk.length || alerts.length ? (
+            <>
+              <Group>
+                {locAsk.slice(0, 1).map((p) => (
+                  <Row key={`loc-${p.id}`} dot="amber" alignTop onPress={() => go(`/person/${p.id}`)} title={p.relation === 'self' ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`} titleStyle={{ ...font.callout, fontWeight: '500' }} subtitle={`${p.name} · People outside the US don’t have an I-94.`} />
+                ))}
+                {att.slice(0, locAsk.length ? 2 : 3).map((x) => <GroupedAttention key={x.personId + x.finding.id} x={x} />)}
+                {alerts.slice(0, 2).map((n) => <UpdateAlertRow key={n.id} n={n} />)}
+              </Group>
+              {total > 3 ? <LinkButton title="See all on Family" onPress={() => router.navigate('/(tabs)/family' as never)} /> : null}
+            </>
+          ) : (
+            <Card><View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}><Icon name="checkc" size={20} color={t.green} /><T style={font.headline}>Nothing needs attention</T></View></Card>
+          )}
+        </>}
+      />
 
-      <SectionHeader>Cases at a glance</SectionHeader>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Card style={{ flex: 1 }} onPress={() => router.navigate('/(tabs)/cases' as never)} label={`${pending.length} pending cases`}>
-          <T style={{ fontSize: 32, fontWeight: '700', letterSpacing: -0.6 }}>{pending.length}</T>
-          <T tone="text2" style={[font.foot, { marginTop: 6 }]}>{`pending case${pending.length === 1 ? '' : 's'}`}</T>
-        </Card>
-        <Card style={{ flex: 1 }} onPress={() => (latest ? go(`/case/${encodeURIComponent(latest.id)}`) : router.navigate('/(tabs)/cases' as never))} label="Latest update">
-          <T tone="text2" style={font.foot}>Latest update</T>
-          <T style={[font.body, { fontWeight: '600', marginTop: 4 }]}>{latest ? `${latest.form ?? 'Case'} · ${latest.status}` : 'None yet'}</T>
-          <T tone="text2" style={font.foot}>{latest?.updated ? fmt(latest.updated) : 'Add a receipt'}</T>
-        </Card>
-      </View>
-
-      <HomeUpdates />
+      <Columns
+        left={<>
+          <SectionHeader>Cases at a glance</SectionHeader>
+          <CasesGlance />
+        </>}
+        right={<HomeUpdates />}
+      />
       <Hint center style={{ marginTop: 18 }}>{`General information, not legal advice. Rules checked ${fmt(RULES_CHECKED)}.`}</Hint>
     </Screen>
+  );
+}
+
+/** One Needs-attention item; the same finding for several dependents is listed once with their names. */
+function GroupedAttention({ x }: { x: AttentionItem }) {
+  const f = useFamily();
+  const name = (id: string) => f.people.find((p) => p.id === id)?.name ?? '';
+  if (x.finding.id === 'principal-first' || x.people.length > 1) {
+    const principalId = f.results[x.people[0]]?.principalId;
+    const principal = principalId ? name(principalId) : undefined;
+    const who = listNames(x.people.map(name));
+    const detail = `${who} ${x.people.length === 1 ? 'follows' : 'follow'} it — plan ${principal ? `${principal}’s` : 'the principal’s'} extension first.`;
+    return <AttentionRow f={{ ...x.finding, detail }} onPress={() => go(`/person/${principalId ?? x.personId}`)} />;
+  }
+  return <AttentionRow f={x.finding} name={name(x.personId)} onPress={() => go(`/person/${x.personId}`)} />;
+}
+
+/** A high-impact update for the family's visa types: Info, shown once (dismiss or open it). */
+function UpdateAlertRow({ n }: { n: NewsItem }) {
+  const f = useFamily();
+  const t = useTheme();
+  const seen = () => f.actions.updateSettings({ updatesDismissed: [...new Set([...(f.settings.updatesDismissed ?? []), n.id])] });
+  return (
+    <Row dot="blue" alignTop title={n.title} titleStyle={{ ...font.callout, fontWeight: '500' }} label={`Info: ${n.title}`}
+      onPress={() => { seen(); go(`/news/${encodeURIComponent(n.id)}`); }} chevron={false}
+      subtitle={<T tone="text2" style={[font.foot, { marginTop: 2 }]}>{`Update for ${n.tags.slice(0, 2).join(', ')} · ${n.agency}`}</T>}
+      trailing={<Pressable onPress={seen} accessibilityRole="button" accessibilityLabel="Dismiss this update" hitSlop={6} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: -10, marginRight: -8 }}><Icon name="x" size={15} color={t.text2} /></Pressable>} />
+  );
+}
+
+/** Cases at a glance: one simple card with no cases; counts that fit when there are some. */
+function CasesGlance() {
+  const f = useFamily();
+  const t = useTheme();
+  const pending = f.caseList.filter(isPendingCase);
+  const latest = [...f.caseList].sort((a, b) => (b.updated || '').localeCompare(a.updated || ''))[0];
+  if (!f.caseList.length) {
+    return <Card onPress={() => router.navigate('/(tabs)/cases' as never)} label="No cases yet. Add a receipt number">
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Icon name="doc" size={22} color={t.inkAccent} />
+        <View style={{ flex: 1 }}><T style={font.headline}>No cases yet</T><T tone="accent" style={[font.foot, { marginTop: 2 }]}>Add a receipt number</T></View>
+        <Icon name="chevR" size={14} color={t.text3} />
+      </View>
+    </Card>;
+  }
+  return (
+    <View style={{ flexDirection: 'row', gap: 8 }}>
+      <Card style={{ flex: 1, minWidth: 0 }} onPress={() => router.navigate('/(tabs)/cases' as never)} label={`${pending.length} pending, ${f.caseList.length - pending.length} completed`}>
+        <BigText size={32}>{String(pending.length)}</BigText>
+        <T tone="text2" style={[font.foot, { marginTop: 4 }]}>{`pending · ${f.caseList.length - pending.length} done`}</T>
+      </Card>
+      <Card style={{ flex: 1.4, minWidth: 0 }} onPress={() => (latest ? go(`/case/${encodeURIComponent(latest.id)}`) : router.navigate('/(tabs)/cases' as never))} label="Latest update">
+        <T tone="text2" style={font.foot}>Latest update</T>
+        <T style={[font.callout, { fontWeight: '600', marginTop: 4 }]} numberOfLines={2}>{`${latest.form ?? 'Case'} · ${latest.status}`}</T>
+        {latest.updated ? <T tone="text2" style={font.foot}>{fmt(latest.updated)}</T> : null}
+      </Card>
+    </View>
   );
 }

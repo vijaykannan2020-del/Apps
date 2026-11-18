@@ -17,9 +17,12 @@ import { WEIGHTS, WEIGHT_NOTE, STEPS as LOT_STEPS, LAST_SEASON, CAP_GAP, FEE_STA
 import { CIVICS, CIVICS_SOURCE } from '../content/civics';
 import { TOP_INITIAL_FY25, H1B_SOURCE } from '../content/h1b';
 import {
-  Avatar, Button, Card, CheckRow, useLayout, Chip, ChipToggle, Chips, DateField, Field, Group, H1, Hint, Icon, LargeTitle, LinkButton, Note, Option, Row, Screen, SectionHeader, Segmented, SelectField, Stack, T, Timeline, Why, font, useSheet, useTheme, useToast, Pill,
+  Avatar, BigText, Button, Card, CheckRow, useLayout, Chip, ChipToggle, Chips, DateField, Field, Group, H1, Hint, Icon, LargeTitle, LinkButton, Note, Option, Row, Screen, SectionHeader, Segmented, SelectField, Stack, T, Timeline, Why, font, useSheet, useTheme, useToast, Pill,
 } from '../ui';
 import { back, go, statusLabel } from './common';
+import { FamilyFilings, familyForms } from './filings';
+import { useProcessing } from '../data/processing';
+import { HelpButton, HelpCard } from './help';
 import { COUNTRIES } from './sheets';
 import { openUrl } from '../native/device';
 
@@ -50,21 +53,35 @@ const HR: [string, ToolDef[]] = ['For HR', [{ id: 'hr', icon: 'hr', title: 'Expi
 
 export function ToolsTab() {
   const f = useFamily();
+  const L = useLayout();
+  const t = useTheme();
   const groups = f.settings.hrTools ? [...TOOLS, HR] : TOOLS;
   return (
-    <Screen tabRoot>
+    <Screen tabRoot wide>
       <LargeTitle title="Tools" />
       <T tone="text2" style={[font.sub, { marginTop: 2 }]}>Plans, look-ups and guides.</T>
+      <HelpCard tab="tools" />
       {groups.map(([g, list]) => (
         <View key={g}>
           <SectionHeader>{g}</SectionHeader>
-          <Group>{list.map((x) => <Row key={x.id} icon={x.icon} title={x.title} subtitle={x.sub} onPress={() => go(`/tools/${x.id}`)} />)}</Group>
+          {L.twoCol ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+              {list.map((x) => (
+                <Card key={x.id} onPress={() => go(`/tools/${x.id}`)} label={`${x.title}. ${x.sub}`} style={{ flexBasis: L.width >= 1000 ? '31%' : '47%', flexGrow: 1, minHeight: 120 }}>
+                  <Icon name={x.icon} size={24} color={t.inkAccent} />
+                  <T style={[font.headline, { marginTop: 10 }]}>{x.title}</T>
+                  <T tone="text2" style={[font.foot, { marginTop: 2 }]}>{x.sub}</T>
+                </Card>
+              ))}
+            </View>
+          ) : <Group>{list.map((x) => <Row key={x.id} icon={x.icon} title={x.title} subtitle={x.sub} onPress={() => go(`/tools/${x.id}`)} />)}</Group>}
         </View>
       ))}
     </Screen>
   );
 }
 
+const TOOL_HELP: Record<string, string> = { travel: 'travel', pd: 'priority-date', proc: 'processing', vb: 'priority-date', civics: 'citizenship', i9: 'i9' };
 const ALL = Object.fromEntries([...TOOLS, HR].flatMap(([, l]) => l).map((x) => [x.id, x]));
 const Src = ({ text, live }: { text: string; live?: boolean }) => { const t = useTheme(); return <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 10 }}><Icon name="globe" size={14} color={t.text2} /><T tone="text2" style={[font.caption, { flex: 1 }]}>{`${text}${live === false ? ' · built-in copy' : live ? ' · live' : ''}`}</T></View>; };
 
@@ -93,7 +110,7 @@ export function ToolScreen() {
     }
   })();
   return (
-    <Screen keyboard nav={{ back: 'Tools', onBack: back, title: def.title }} footer={foot ?? undefined}>
+    <Screen keyboard nav={{ back: 'Tools', onBack: back, title: def.title, right: TOOL_HELP[def.id] ? <HelpButton topic={TOOL_HELP[def.id]} /> : undefined }} footer={foot ?? undefined}>
       <H1>{def.title}</H1>
       {def.sub ? <Why>{/[.?!]$/.test(def.sub) ? def.sub : `${def.sub}.`}</Why> : null}
       {body}
@@ -200,7 +217,7 @@ function PriorityDate() {
       </Card>
       <Card style={{ marginTop: 12, alignItems: 'center' }}>
         <T tone="text2" style={font.foot}>{`${chart === 'filing' ? 'Dates for filing' : 'Final action date'} · ${b.data.month}`}</T>
-        <T style={{ fontSize: 34, fontWeight: '700', letterSpacing: -0.6, marginTop: 6, textAlign: 'center' }}>{fmtCell(cell)}</T>
+        <BigText size={34} style={{ marginTop: 6, textAlign: 'center', alignSelf: 'stretch' }}>{fmtCell(cell)}</BigText>
         <View style={{ marginTop: 12 }}>{pd ? (cur ? <Pill severity="good" text="Current — you may be able to file I-485" /> : <Pill severity="review" text="Not current yet" />) : <T tone="text2" style={font.foot}>Add your priority date</T>}</View>
       </Card>
       <Src text={`travel.state.gov · ${b.data.month} bulletin · USCIS uses ${chart === 'filing' ? 'dates for filing' : 'final action dates'} this month`} live={b.live} />
@@ -269,16 +286,20 @@ function Planner() {
 }
 
 function Processing() {
-  const forms = Array.from(new Set(PROCESSING.map((p) => p.form)));
-  const [form, setForm] = useState('I-765');
-  const [d, setD] = useState<{ data: typeof PROCESSING; live: boolean }>({ data: PROCESSING, live: false });
-  useEffect(() => { fetchOr('/api/processing-times', PROCESSING).then(setD).catch(() => {}); }, []);
-  const rows = (Array.isArray(d.data) ? d.data : PROCESSING).filter((p) => p.form === form);
+  const f = useFamily();
+  const d = useProcessing();
+  const forms = Array.from(new Set(d.data.map((p) => p.form)));
+  const mine = familyForms(f);
+  const [form, setForm] = useState(mine[0]?.form ?? 'I-765'); // preselected for the family
+  const rows = d.data.filter((p) => p.form === form);
+  const ours = new Set(mine.map((m) => `${m.form}|${m.category}`));
   return (
     <>
-      <Card style={{ marginTop: 18 }}><SelectField label="Form" value={form} onChange={setForm} options={forms.map((x) => ({ value: x, label: x }))} /></Card>
+      <FamilyFilings />
+      <SectionHeader>All forms</SectionHeader>
+      <Card><SelectField label="Form" value={form} onChange={setForm} options={forms.map((x) => ({ value: x, label: x }))} /></Card>
       <SectionHeader>8 in 10 cases decided within</SectionHeader>
-      <Group>{rows.map((r) => <Row key={r.category} title={r.category} titleStyle={font.callout} value={fmtMonths(r.months)} />)}</Group>
+      <Group>{rows.map((r) => <Row key={r.category} title={r.category} titleStyle={font.callout} value={fmtMonths(r.months)} trailing={ours.has(`${r.form}|${r.category}`) ? <Pill severity="info" text="Your family" /> : undefined} />)}</Group>
       <Src text={`egov.uscis.gov/processing-times · ${PT_AS_OF}`} live={d.live} />
     </>
   );
@@ -343,7 +364,7 @@ function Fees() {
         {lines.map((l) => <Row key={l.label} title={l.label} subtitle={l.note} value={`$${l.amount.toLocaleString()}`} />)}
         <CheckRow title="Add premium processing" checked={premium} onPress={() => setPremium(!premium)} />
       </Group>
-      <Card style={{ marginTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><T style={font.headline}>Total</T><T style={{ fontSize: 28, fontWeight: '700' }}>{`$${total.toLocaleString()}`}</T></Card>
+      <Card style={{ marginTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><T style={font.headline}>Total</T><View style={{ flexShrink: 1, minWidth: 0 }}><BigText size={28}>{`$${total.toLocaleString()}`}</BigText></View></Card>
       {fc.alert ? <Note tone="amber">{fc.alert}</Note> : null}
       <Hint>{`USCIS fee schedule · ${FEES_AS_OF}. Check uscis.gov/fees before you pay. CaseDesk never takes payments.`}</Hint>
     </>
@@ -408,8 +429,8 @@ function Employer() {
             <T style={font.headline}>{e.name}</T>
             <T tone="text2" style={font.foot}>{`${e.state ?? ''}${y ? ` · FY ${y.fy}` : ''}`}</T>
             {y ? <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-              <View style={{ flex: 1 }}><T style={{ fontSize: 24, fontWeight: '700' }}>{total.toLocaleString()}</T><T tone="text2" style={font.foot}>H-1B approvals</T></View>
-              <View style={{ flex: 1 }}><T style={{ fontSize: 24, fontWeight: '700' }}>{`${total + denied ? ((denied / (total + denied)) * 100).toFixed(1) : '0'}%`}</T><T tone="text2" style={font.foot}>denial rate</T></View>
+              <View style={{ flex: 1 }}><BigText size={24}>{total.toLocaleString()}</BigText><T tone="text2" style={font.foot}>H-1B approvals</T></View>
+              <View style={{ flex: 1 }}><BigText size={24}>{`${total + denied ? ((denied / (total + denied)) * 100).toFixed(1) : '0'}%`}</BigText><T tone="text2" style={font.foot}>denial rate</T></View>
             </View> : null}
           </Card>
         );
@@ -486,7 +507,7 @@ function Civics({ setFoot }: { setFoot: (n: React.ReactNode) => void }) {
   useEffect(() => {
     setFoot(done ? <Button title="Practise again" onPress={() => { setI(0); setScore(0); setA(null); }} /> : <Button title="Next question" disabled={a === null} onPress={() => { setI(i + 1); setA(null); }} />);
   }, [setFoot, done, a, i]);
-  if (done) return <Card style={{ marginTop: 18, alignItems: 'center' }}><T style={{ fontSize: 34, fontWeight: '700' }}>{`${score} of ${qs.length}`}</T><Why>The real test asks up to 20 questions. You need 12 right.</Why></Card>;
+  if (done) return <Card style={{ marginTop: 18, alignItems: 'center' }}><BigText size={34}>{`${score} of ${qs.length}`}</BigText><Why>The real test asks up to 20 questions. You need 12 right.</Why></Card>;
   const q = qs[i];
   return (
     <>

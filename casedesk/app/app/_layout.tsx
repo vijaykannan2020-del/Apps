@@ -65,11 +65,11 @@ export default function Root() {
         <FamilyProvider>
           <Themed>
             <ToastProvider>
-              <SheetProvider>
-                <AppLock>
+              <AppLock>
+                <SheetProvider>
                   <Nav />
-                </AppLock>
-              </SheetProvider>
+                </SheetProvider>
+              </AppLock>
             </ToastProvider>
           </Themed>
         </FamilyProvider>

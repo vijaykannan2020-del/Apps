@@ -52,7 +52,7 @@ cases from `src/core`. Changes go through `actions` (`src/data/actions.ts`).
   landscape); rows and footers wrap at large Dynamic Type sizes; safe areas everywhere.
 - Example family: Profile → Help → Example family (or `/demo` in the web preview) — made-up data.
 
-## Backups (Profile → Data)
+## Backups (Settings → Backup & restore)
 
 "Back up now" writes one `.casedesk` file: people, documents (with the images / PDFs kept in the app)
 and cases, encrypted on the phone with **AES-256-GCM**; the key comes from the user's password via
@@ -64,6 +64,30 @@ default, Merge is offered, and after a merge the app lists exactly what was adde
 backup's own "You" is never dropped: if it differs from this phone's, it's added as a family member).
 "Last backup" is set only after the user confirms the file was saved (the share sheet doesn't report
 it). Format: `src/core/backup.ts`.
+
+## Sheets and native screens (v2.1, P0)
+
+- Sheets are **not** React Native `<Modal>`s. A Modal is its own iOS view controller; presenting
+  Safari (SFSafariViewController), the share sheet, a document/photo picker or Face ID while one is
+  up can leave it in a state that swallows every touch afterwards (the app looked frozen after
+  "Copy number & open uscis.gov"). Every sheet is now an overlay drawn by `OverlayHost`
+  (`src/ui/kit.tsx`) above the app's root view, so native UI always presents on a normal view.
+- Order rule anyway: native UI first, sheet after. `startCaseCheck` copies the receipt, awaits
+  `openUrlAndWait` (resolves when Safari is dismissed, or when the app is active again), and only
+  then opens "What did USCIS say?" with **Paste what USCIS says** (expo-clipboard, guarded; a paste
+  box when the clipboard module isn't in the build). The parser is `src/core/uscis.ts`
+  (unit-tested in `tests/v21.test.ts`).
+- If a receipt can't be copied, the sheet shows it as selectable text.
+
+## Layout, contrast, help (v2.1)
+
+- Big numbers and dates use `BigText` (one line, `adjustsFontSizeToFit`, line height ≥ 1.22×);
+  `T` raises any line height below 1.22× its font size, so digits are never clipped on iOS.
+- Light-mode tokens live in `src/ui/tokens.ts`; `tests/v21.test.ts` checks every text colour and
+  tone "ink" against cards, the page and tinted pills for WCAG AA (≥ 4.5:1). Dark mode is unchanged.
+- Width ≥ 700 (`useLayout().twoCol`): Home, Family, Cases, person page and Settings use two columns
+  (`Columns`), Tools is a grid. Below 700 the phone layout is unchanged.
+- Help: `src/content/help.ts` (Settings → Help, "?" buttons, first-time tab cards).
 
 ## Crash safety and drafts
 
