@@ -5,7 +5,7 @@ import { differentMetro } from './metro';
 // rule = the brief's rule (C1–C25, X1–X3). tone: red = act now, amber = review, neutral = info, green = all good.
 export type Check = { id: string; rule?: string; tone: 'red' | 'amber' | 'green' | 'neutral'; title: string; detail: string; icon: string };
 // Who a person is in the family, for rules that depend on it (dependents follow the principal's approval).
-export type Ctx = { relation?: string; principal?: Profile | null };
+export type Ctx = { relation?: string; principal?: Profile | null; principalName?: string };
 
 const DAY = 864e5;
 const today = () => { const d = new Date(); d.setHours(12, 0, 0, 0); return d; };
@@ -24,7 +24,8 @@ const MAX_YEARS: Record<string, number> = { 'H-1B': 6, 'L-1A': 7, 'L-1B': 5 };
 const ORDER = { red: 0, amber: 1, neutral: 2, green: 3 };
 const sorted = (c: Check[]) => c.sort((a, b) => ORDER[a.tone] - ORDER[b.tone]);
 export const WORST = { red: 'act now', amber: 'review', neutral: 'info', green: 'ok' } as const;
-export const worst = (c: Check[]) => (c.length ? WORST[[...c].sort((a, b) => ORDER[a.tone] - ORDER[b.tone])[0].tone] : 'ok');
+// Only rule-tagged items count (an untagged note, e.g. the blanket-L reminder, doesn't change the pill).
+export const worst = (c: Check[]) => { const r = c.filter((x) => x.rule || x.tone === 'red' || x.tone === 'amber'); return r.length ? WORST[[...r].sort((a, b) => ORDER[a.tone] - ORDER[b.tone])[0].tone] : 'ok'; };
 
 const isDependent = (ctx: Ctx) => ctx.relation === 'Spouse' || ctx.relation === 'Child';
 const pendingKind = (p: Profile) => (p.extFiled || p.extReceipt ? p.extKind ?? 'extension' : undefined);
@@ -140,7 +141,8 @@ export function runChecks(p: Profile, ctx: Ctx = {}): Check[] {
     out.push({ id: 'class-mismatch', rule: 'C25', tone: 'amber', icon: 'git-compare-outline', title: `I-94 class ${classKey(p.i94Class)} doesn't match your petition (${classLabel(p.approvalClass)}) — ask CBP about a correction`, detail: 'A wrong class on the I-94 can cause trouble with I-9, extensions and travel. CBP Deferred Inspection can correct it.' });
   }
 
-  if (blanket) out.push({ id: 'blanket', tone: 'green', icon: 'layers-outline', title: 'Blanket L — carry the endorsed I-129S', detail: 'Keep it with the passport — it’s the proof of status with the I-94. Staying past the I-129S needs an individual I-129 filed with USCIS.' });
+  if (blanket && isDependent(ctx)) out.push({ id: 'blanket', tone: 'neutral', icon: 'layers-outline', title: `On a blanket L via ${ctx.principalName || 'the employee'} — travel with a copy of their endorsed I-129S`, detail: 'A dependent on a blanket L shows the principal’s I-129S (with the visa and I-94) at the border and for extensions.' });
+  else if (blanket) out.push({ id: 'blanket', tone: 'green', icon: 'layers-outline', title: 'Blanket L — carry the endorsed I-129S', detail: 'Keep it with the passport — it’s the proof of status with the I-94. Staying past the I-129S needs an individual I-129 filed with USCIS.' });
 
   // C8 / C9 passport
   const dp = daysTo(p.passportExpiry);
@@ -197,7 +199,7 @@ export function runChecks(p: Profile, ctx: Ctx = {}): Check[] {
 }
 
 // Family-level checks (C14–C16, and C18 for dependents), keyed by person id.
-type Who = { id: string; profile: Profile | null | undefined; relation?: string };
+type Who = { id: string; profile: Profile | null | undefined; relation?: string; name?: string };
 export function runFamilyChecks(principal: Who, dependents: Who[]): Record<string, Check[]> {
   const res: Record<string, Check[]> = {};
   const add = (id: string, c: Check) => { (res[id] ||= []).push(c); };
@@ -228,7 +230,7 @@ export function familyChecks(principal: Who, dependents: Who[]): Record<string, 
   const res: Record<string, Check[]> = {};
   for (const w of [principal, ...dependents]) {
     if (!w.profile) { res[w.id] = []; continue; }
-    const own = runChecks(w.profile, { relation: w === principal ? 'You' : w.relation, principal: principal.profile });
+    const own = runChecks(w.profile, { relation: w === principal ? 'You' : w.relation, principal: principal.profile, principalName: principal.name });
     res[w.id] = w.profile.location === 'Outside' ? own : finalize([...own, ...(fam[w.id] || [])]);
   }
   return res;

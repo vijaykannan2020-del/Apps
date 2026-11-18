@@ -26,6 +26,7 @@ export type Found = {
   employer?: string; // petitioner on an I-797
   workLocation?: { city?: string; state?: string }; // "Work location" / "Place of employment" on a notice
   issueDate?: string; // passport / visa issue date (never the expiry)
+  dateNote?: string; // a date that needs a second look (e.g. printed expiry doesn't fit the passport term)
   oldPassportNo?: string; // new Indian passports print "Old Passport No." — links the old passport to the same person
   lines: number;
 };
@@ -170,6 +171,16 @@ function dateAfter(text: string, label: RegExp): string | undefined {
 // Machine-readable zone (passport "P<…" or US visa "V<…"/"VN…"): expiry is YYMMDD at positions 22–27
 // of line 2 (same place on passports and visa foils). OCR often reads 0 as O, 1 as I, 5 as S, 8 as B.
 const DIG: Record<string, string> = { O: '0', Q: '0', D: '0', I: '1', L: '1', Z: '2', S: '5', B: '8', G: '6' };
+// ICAO 9303 check digit: weights 7, 3, 1; digits as-is, A–Z = 10–35, '<' = 0.
+function checkDigit(field: string) {
+  let sum = 0;
+  for (let i = 0; i < field.length; i++) {
+    const ch = field[i];
+    const v = /\d/.test(ch) ? +ch : /[A-Z]/.test(ch) ? ch.charCodeAt(0) - 55 : 0;
+    sum += v * [7, 3, 1][i % 3];
+  }
+  return sum % 10;
+}
 function mrz(text: string): { kind: 'P' | 'V'; expiry?: string; birth?: string; cls?: string; docNo?: string } | null {
   const lines = text.toUpperCase().split(/\n/).map((l) => l.replace(/\s/g, '').replace(/[«‹(){}\[\]|]/g, '<')).filter((l) => /^[A-Z0-9<]{30,46}$/.test(l));
   const i = lines.findIndex((l) => /^[PV][A-Z<]/.test(l) && l.includes('<'));
@@ -177,9 +188,12 @@ function mrz(text: string): { kind: 'P' | 'V'; expiry?: string; birth?: string; 
   const kind = lines[i][0] as 'P' | 'V';
   const l2 = lines[i + 1];
   if (!l2) return { kind };
+  // A date is used only if its check digit agrees (when the check digit was read as a digit).
+  const okCheck = (field: string, check?: string) => { const c = DIG[check ?? ''] ?? check; return !c || !/^\d$/.test(c) || checkDigit(field) === +c; };
   const e = l2.slice(21, 27).split('').map((c) => DIG[c] ?? c).join('');
-  const expiry = /^\d{6}$/.test(e) ? iso(2000 + +e.slice(0, 2), +e.slice(2, 4), +e.slice(4, 6)) : undefined;
-  const b = l2.slice(13, 19).split('').map((c) => DIG[c] ?? c).join('');
+  const expiry = /^\d{6}$/.test(e) && okCheck(e, l2[27]) ? iso(2000 + +e.slice(0, 2), +e.slice(2, 4), +e.slice(4, 6)) : undefined;
+  const b0 = l2.slice(13, 19).split('').map((c) => DIG[c] ?? c).join('');
+  const b = okCheck(b0, l2[19]) ? b0 : '';
   const yy = new Date().getFullYear() % 100;
   const birth = /^\d{6}$/.test(b) ? iso((+b.slice(0, 2) > yy ? 1900 : 2000) + +b.slice(0, 2), +b.slice(2, 4), +b.slice(4, 6)) : undefined;
   // US visa MRZ: the visa class follows the expiry check digit ("…F2706188L2MDR…" → L2).
@@ -188,6 +202,7 @@ function mrz(text: string): { kind: 'P' | 'V'; expiry?: string; birth?: string; 
   const docNo = l2.slice(0, 9).replace(/<+$/, '').replace(/</g, '');
   return { kind, expiry, birth, cls: cls === 'R' ? undefined : cls, docNo: /^[A-Z0-9]{6,9}$/.test(docNo) && /\d/.test(docNo) ? docNo : undefined };
 }
+const fmtShort = (d: string) => { const [y, m, day] = d.split('-').map(Number); return `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1]} ${day}, ${y}`; };
 const latest = (text: string) => datesIn(text).sort().pop();
 
 const title = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase()).replace(/\s+/g, ' ').trim();
@@ -232,7 +247,12 @@ function mrzName(text: string): string | undefined {
     for (let i = 0; i + 1 < visual.length; i++) if (visual[i] + visual[i + 1] === w && visual[i].length >= 2 && visual[i + 1].length >= 3) return `${visual[i]} ${visual[i + 1]}`;
     return undefined;
   };
+  // "M" printed but read as "11"/"IJ"/"lI" in the visual zone while the MRZ read "N": the printed letter wins.
+  const raw = text.toUpperCase().split('\n').filter((x) => !x.includes('<')).join(' ');
+  const mFix = (w: string) => (/^N/.test(w) && new RegExp(`(?:^|[^A-Z])(?:11|1I|I1|IL|LI|IJ|1J)\\.?${w.slice(1)}\\b`).test(raw) ? 'M' + w.slice(1) : undefined);
   const near = (w: string): string | undefined => {
+    const fixed = mFix(w);
+    if (fixed) return fixed;
     const e = exactish(w) ?? (w.length > 4 && /[KSXC]$/.test(w) ? exactish(w.replace(/[KSXC]{1,3}$/, '')) : undefined);
     if (e) return e;
     const same = visual.filter((x) => x.length === w.length && x.length >= 3 && oneOff(x, w));
@@ -277,7 +297,7 @@ function labelledName(text: string): string | undefined {
   const who = text.match(/(?:beneficiary|applicant)\s*(?:name)?\s*[:\-]?\s*([A-Z][A-Z' -]+),\s*([A-Z][A-Z' -]+)/i);
   if (who) return title(`${who[2].trim()} ${who[1].trim()}`);
   const given = valueAfter(lines, /(?:first\s*\(given\)\s*name|given\s*names?(?:\s*\(s\))?|first\s*name)/i);
-  const sur = valueAfter(lines, /(?:last\s*\(surname\)(?:\s*name)?|last\s*\/\s*surname|last\s*name|family\s*name|surname)/i);
+  const sur = valueAfter(lines, /(?:last\s*\(surname\)(?:\s*name)?|last\s*\/\s*s[uv][rm]n?[ae]me|last\s*name|family\s*name|surname)/i);
   if (given || sur) {
     const full = [given, sur].filter(Boolean).map((x) => x!.split(/\s{2,}/)[0]).join(' ');
     if (full.length >= 2) return title(full);
@@ -310,6 +330,28 @@ function workLocation(text: string): Found['workLocation'] {
   return undefined;
 }
 
+// A value in the USCIS notice table: "Petitioner: ACME INC" on the same line, or — in the printed table
+// layout — on the line under a header row ("Received Date   Priority Date   Petitioner" then
+// "04/14/2025                      ACME INC"): the cell in the label's column, else the last text cell.
+function tableValue(text: string, label: RegExp): string | undefined {
+  const lines = text.split(/\n/);
+  const isCell = (x: string) => /[A-Za-z]{2}/.test(x) && !datesIn(x).length && !/^\d+\s*of\s*\d+$/i.test(x) && !/^[A-Z]{3}\d{10}$/.test(x.replace(/\s/g, ''));
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(label);
+    if (!m) continue;
+    const col = m.index ?? 0;
+    const rest = lines[i].slice(col + m[0].length).replace(/^[\s:\-]+/, '');
+    const same = rest.split(/\s{2,}|\t/)[0]?.trim();
+    if (same && isCell(same) && !/\b(date|page|beneficiary|applicant|notice|receipt|priority)\b/i.test(same)) return same;
+    const next = lines.slice(i + 1, i + 3).find((l) => l.trim());
+    if (!next) continue;
+    const cells = [...next.matchAll(/\S+(?: \S+)*/g)].map((c) => ({ at: c.index ?? 0, v: c[0].trim() })).filter((c) => isCell(c.v));
+    if (!cells.length) continue;
+    const near = cells.filter((c) => Math.abs(c.at - col) <= 6);
+    return (near[0] ?? cells[cells.length - 1]).v;
+  }
+  return undefined;
+}
 // A date under a column label: "Date of Issue   Date of Expiry" with "06/02/2017   05/02/2027" on the next
 // line. The value is on the same line after the label, or in the matching column on the next lines.
 function columnDate(text: string, label: RegExp, others: RegExp[], latestOnLine = false): string | undefined {
@@ -363,7 +405,10 @@ function readI129S(T: string, found: Found) {
     return undefined;
   };
   const fam = nameAfter(/4\.?\s*a\.?\s*family name(?:\s*\(last name\))?/i), giv = nameAfter(/4\.?\s*b\.?\s*given name(?:\s*\(first name\))?/i);
-  if (fam || giv) found.name = title([giv, fam].filter(Boolean).join(' '));
+  // OCR splits a boxed name ("KRISH NAN"): short all-caps pieces are joined. Both parts are needed —
+  // half a name is worse than none.
+  const join = (x?: string) => (x && /^[A-Z]{2,5}( [A-Z]{2,5})+$/.test(x) ? x.replace(/ /g, '') : x);
+  if (fam && giv) found.name = title(`${join(giv)} ${join(fam)}`);
   const emp = nameAfter(/name of the petitioning organi[sz]ation/i);
   if (emp) found.employer = emp.replace(/\s{2,}.*$/, '');
   // L class: the checked box ("[X] Specialized Knowledge Professional (L-1B)").
@@ -399,8 +444,8 @@ export function parseDocument(text: string): Found {
     found.receivedDate = dateAfter(T, /received date|receipt date/i);
     found.noticeDate = dateAfter(T, /notice date/i);
     found.petitionKind = petitionKind(U);
-    const pet = T.match(/petitioner\s*(?:name)?\s*[:\-]?[ \t]*([A-Za-z0-9][A-Za-z0-9&.,' -]{2,60})/i)?.[1]?.trim();
-    if (pet && !/^(name|beneficiary)\b/i.test(pet)) found.employer = pet.replace(/\s{2,}.*$/, '');
+    const pet = tableValue(T, /\bpetitioner(?:'s)?(?:\s*name)?\b(?!')/i);
+    if (pet && !/^(name|beneficiary|page)\b/i.test(pet)) found.employer = pet;
     found.workLocation = workLocation(T);
     const form = U.match(/CASE TYPE\s*[:\-]?\s*(I-?\d{3}[A-Z]?|N-?\d{3})\b/) ?? U.match(/\b(I-?\d{3}[A-Z]?)\s*-\s*(?:PETITION|APPLICATION|IMMIGRANT|NONIMMIGRANT)/) ?? U.match(/\bFORM\s*[:\-]?\s*(I-?\d{3}[A-Z]?)\b/);
     if (form) found.form = form[1].replace(/^([IN])-?/, '$1-');
@@ -423,7 +468,15 @@ export function parseDocument(text: string): Found {
     found.type = 'I-94';
     found.validTo = dateAfter(T, /admit\s*unt[il1]{2}(?:\s*date)?\s*[:\-]?/i);
     // The issue date of this I-94: the CBP printout's most recent entry (decides which I-94 is current).
-    found.entryDate = dateAfter(T, /most recent date of entry|arrival\s*\/\s*issued date|date of (?:most recent )?entry|entry date|admission date|issued date/i);
+    // OCR slips: "Arrival/lssued Date", "Arrival / Issued" with the date on the next line.
+    found.entryDate = dateAfter(T, /most recent date of entry|arrival\s*\/?\s*[il1|]ss?ued(?:\s*date)?|date of (?:most recent )?entry|entry date|admission date|[il1|]ssued date/i);
+    // CBP printouts head the page with the full name: "For: PRIYA ANAND KUMAR".
+    const cbpName = T.match(/^[^A-Za-z\n]{0,4}For\s*:\s*([A-Z][A-Z' -]{2,60})\s*$/m)?.[1]?.trim();
+    // Its words are checked against the labelled name fields (a misread "PRYA" takes the labelled spelling "PRIYA").
+    if (cbpName && cbpName.split(/\s+/).length >= 2) {
+      const lab = (labelledName(T) || '').toUpperCase().split(/\s+/).filter(Boolean);
+      found.name = title(cbpName.split(/\s+/).map((w) => lab.find((x) => x === w) ?? lab.find((x) => oneOff(x, w)) ?? w).join(' '));
+    }
     found.classOfAdmission ||= U.match(/CLASS OF ADMISSION\s*[:\-]?\s*([A-Z0-9-]{2,4})\b/)?.[1].replace('-', '');
   } else if (/EMPLOYMENT AUTHORI[SZ]ATION|CARD EXPIRES|I-766/.test(U) && !/I-797/.test(U)) {
     found.type = 'EAD card';
@@ -467,8 +520,28 @@ export function parseDocument(text: string): Found {
     const PL = [/date of issue|issue date/i, /date of expiry|expiry date|date d'expiration/i, /date of birth|birth date/i];
     found.issueDate = columnDate(T, PL[0], [PL[1], PL[2]]);
     const birth = mrz(T)?.birth ?? dateAfter(T, /date of birth|birth date/i);
-    const cands = [columnDate(T, PL[1], [PL[0], PL[2]], true), mrz(T)?.expiry, latest(T)];
-    found.validTo = cands.find((d) => d && d !== found.issueDate && d !== birth && (!found.issueDate || d > found.issueDate));
+    const ok = (d?: string) => !!d && d !== found.issueDate && d !== birth && (!found.issueDate || d > found.issueDate);
+    const printed = columnDate(T, PL[1], [PL[0], PL[2]], true), mz = mrz(T)?.expiry; // MRZ expiry only if its check digit agrees
+    const india = /REPUBLIC OF INDIA|P<IND/.test(U);
+    // Indian passports run 10 years (5 for minors) less a day from the issue date.
+    const term = (iss: string, n: number) => { const x = new Date(iss + 'T12:00:00'); x.setFullYear(x.getFullYear() + n); x.setDate(x.getDate() - 1); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+    found.validTo = [printed, mz].find(ok);
+    if (found.validTo && india && found.validTo !== mz) {
+      // A printed expiry that doesn't fit the term (a misread digit?) is kept, with a note to check it.
+      const row = T.split('\n').find((l) => datesIn(l).includes(found.validTo!)) ?? '';
+      const iss = found.issueDate ?? datesIn(row).filter((x) => x < found.validTo!)[0];
+      if (iss && ![10, 5].some((n) => term(iss, n) === found.validTo)) {
+        const near = [10, 5].map((n) => term(iss, n)).find((x) => Math.abs(new Date(x).getTime() - new Date(found.validTo!).getTime()) <= 40 * 864e5);
+        found.dateNote = `Check this date — passports issued ${fmtShort(iss)} usually expire ${fmtShort(near ?? term(iss, 10))}.`;
+      }
+    }
+    if (!found.validTo && india && found.issueDate) {
+      // The expiry couldn't be read: work it out from the issue date (5 years if issued before 18).
+      const minor = birth && term(birth, 18) > found.issueDate;
+      found.validTo = term(found.issueDate, minor ? 5 : 10);
+      found.dateNote = 'The expiry couldn’t be read — worked out from the issue date. Check this date.';
+    }
+    found.validTo ||= [latest(T)].find(ok);
     found.passportExpiry = found.validTo;
     const old = U.match(/OLD PASSPORT\s*N[O0]\.?[^\n]*\n?[^\n]*?\b([A-Z]\d{7})\b/);
     if (old) found.oldPassportNo = old[1];

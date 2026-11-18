@@ -23,7 +23,9 @@ import { DOC_ICON } from '../../src/components/DocIcon';
 import { DocPreview } from '../../src/components/DocPreview';
 
 type P = { id: string; name: string; relation: string; isMe: boolean; profile: Profile | null };
-type Item = Doc & { key: string; owner: string; step: StepKey; state: 'reading' | 'done' | 'unread'; open: boolean; editType: boolean; keep?: boolean; movedFrom?: string };
+type Src = 'camera' | 'photos' | 'files';
+type Item = Doc & { key: string; owner: string; step: StepKey; state: 'reading' | 'done' | 'unread'; open: boolean; editType: boolean; keep?: boolean; movedFrom?: string; src?: Src };
+const STEP_TYPE: Partial<Record<StepKey, DocType>> = { passport: 'Passport', visa: 'Visa stamp', i94: 'I-94', approval: 'Approval (I-797A/B)', receipt: 'Receipt (I-797C)', ead: 'EAD card' };
 type Where = { loc: 'US' | 'Outside'; country: string };
 const COUNTRIES = ['India', 'Canada', 'Mexico', 'United Kingdom', 'Other'];
 const ORDER: StepKey[] = ['passport', 'visa', 'where', 'i94', 'approval', 'receipt', 'ead'];
@@ -58,6 +60,9 @@ export default function UploadFlow() {
   const [skipped, setSkipped] = useState<Record<string, boolean>>({});
   const [where, setWhere] = useState<Record<string, Where>>({});
   const [work, setWork] = useState<{ now: string; approved: string }>({ now: '', approved: '' });
+  const [life, setLife] = useState<{ jobEndedOn: boolean; jobEnded: string }>({ jobEndedOn: false, jobEnded: '' });
+  const [travel, setTravel] = useState<Record<string, boolean>>({});
+  const travelOf = (p: P) => travel[p.id] ?? !!p.profile?.travelPlanned;
   const [flash, setFlash] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -68,19 +73,23 @@ export default function UploadFlow() {
   const mine = (id: string) => items.filter((i) => i.owner === id && i.state !== 'reading');
   // A draft of each person's record with this flow's documents applied — decides their steps (blanket L,
   // EAD for the spouse, I-94 only in the US).
-  const draft = useMemo(() => {
-    const out: Record<string, Profile> = {};
-    for (const p of list) {
-      const w = whereOf(p);
-      const base: Profile = { ...(p.profile ?? { visa: visasFor(p.isMe ? undefined : p.relation)[0], visaSet: false }), location: w.loc, country: w.loc === 'Outside' ? w.country : undefined };
-      const docs = mine(p.id).filter((i) => i.state === 'done').sort((a, b) => ORDER.indexOf(a.step) - ORDER.indexOf(b.step));
-      for (const d of docs) applyDoc(base, d, p.relation);
-      if (docs.some((d) => d.type === 'I-94')) base.location = 'US';
-      out[p.id] = base;
-    }
-    return out;
-  }, [items, where, people, me, family]);
-  const steps = (p: P): Step[] => stepsFor(draft[p.id], p.isMe ? 'You' : p.relation, mine(p.id).map((i) => i.type));
+  const build = (p: P, without?: Item): Profile => {
+    const w = whereOf(p);
+    const base: Profile = JSON.parse(JSON.stringify({ ...(p.profile ?? { visa: visasFor(p.isMe ? undefined : p.relation)[0], visaSet: false }), location: w.loc, country: w.loc === 'Outside' ? w.country : undefined }));
+    const docs = mine(p.id).filter((i) => i.state === 'done' && i !== without).sort((a, b) => ORDER.indexOf(a.step) - ORDER.indexOf(b.step));
+    for (const d of docs) applyDoc(base, d, p.isMe ? 'You' : p.relation);
+    if (docs.some((d) => d.type === 'I-94')) base.location = 'US';
+    return base;
+  };
+  const draft = useMemo(() => Object.fromEntries(list.map((p) => [p.id, build(p)])) as Record<string, Profile>, [items, where, people, me, family]);
+  // "What changes" for a document: compared with this flow's draft (saved record + the other documents
+  // uploaded in this flow), so a newer CBP I-94 uploaded earlier shows as kept.
+  const changes = (p: P, it: Item) => describe(build(p, it), it);
+  // The step the user is on never disappears under them (e.g. after Retake removes the document that made it appear).
+  const steps = (p: P): Step[] => {
+    const here = stage === 'step' && p.id === at.who && STEP_TYPE[at.step] ? [STEP_TYPE[at.step]!] : [];
+    return stepsFor(draft[p.id], p.isMe ? 'You' : p.relation, [...mine(p.id).map((i) => i.type), ...here]);
+  };
   const person = byId(at.who) ?? list[0];
 
   // Whose is each document? Passport data only (never the typed name).
@@ -96,7 +105,13 @@ export default function UploadFlow() {
   const go = (dir: 1 | -1) => {
     tap(); setFlash(''); setErr('');
     const f = flat();
-    const i = f.findIndex((x) => x.who === at.who && x.step === at.step);
+    let i = f.findIndex((x) => x.who === at.who && x.step === at.step);
+    if (i < 0) {
+      // Step gone: continue from where it would have been in this person's waterfall.
+      const mineAt = f.map((x, k) => ({ ...x, k })).filter((x) => x.who === at.who);
+      const after = mineAt.find((x) => ORDER.indexOf(x.step) > ORDER.indexOf(at.step));
+      i = after ? after.k - (dir === 1 ? 1 : 0) : (mineAt[mineAt.length - 1]?.k ?? 0) + (dir === 1 ? 0 : 1);
+    }
     const n = f[i + dir];
     if (n) setAt(n);
     else if (dir === 1) setStage('review');
@@ -119,15 +134,16 @@ export default function UploadFlow() {
     }
     const w = me?.workLocation, a = me?.approvedWorkLocation;
     setWork({ now: w ? [w.city, w.state].filter(Boolean).join(', ') : '', approved: a ? [a.city, a.state].filter(Boolean).join(', ') : '' });
+    setLife({ jobEndedOn: !!me?.jobEnded, jobEnded: me?.jobEnded ?? '' });
     tap(); setAt({ who: list[0].id, step: 'passport' }); setStage('step');
   };
 
   // ---- reading ----
-  const add = (files: Picked[]) => {
+  const add = (files: Picked[], src?: Src) => {
     if (!files.length) return;
     const owner = person.id, step = at.step;
     const want = steps(person).find((s) => s.key === step)?.type ?? 'Other';
-    const fresh: Item[] = files.map((f, i) => ({ key: `${Date.now()}-${i}-${f.name}`, file: f, owner, step, state: canRead ? 'reading' : 'unread', type: want, validTo: '', receipt: '', name: '', open: false, editType: false }));
+    const fresh: Item[] = files.map((f, i) => ({ key: `${Date.now()}-${i}-${f.name}`, file: f, owner, step, state: canRead ? 'reading' : 'unread', type: want, validTo: '', receipt: '', name: '', open: false, editType: false, src }));
     setItems((xs) => [...xs, ...fresh]);
     setSkipped((s) => ({ ...s, [`${owner}:${step}`]: false }));
     if (!canRead) return;
@@ -147,12 +163,24 @@ export default function UploadFlow() {
     }
   };
   const titleOf = (k: StepKey) => ({ passport: 'Passport', visa: 'Visa stamp', where: 'Where now', i94: 'I-94', approval: 'Approval', receipt: 'Pending receipt', ead: 'EAD' }[k]);
-  const pick = async (src: 'camera' | 'photos' | 'files') => {
+  const choose = async (src: Src): Promise<Picked[]> => {
+    if (src === 'camera') { const p = await pickPhoto(true); return p ? [p] : []; }
+    return src === 'photos' ? pickPhotos() : pickFiles();
+  };
+  const pick = async (src: Src) => {
     setErr('');
+    try { add(await choose(src), src); } catch (e: any) { setErr(e.message); }
+  };
+  // Retake: open the same source again; the old document is replaced only once a new file is picked
+  // (cancelling keeps it).
+  const retake = async (it: Item) => {
+    setErr('');
+    const src = it.src ?? (Platform.OS === 'web' ? 'files' : 'camera');
     try {
-      if (src === 'camera') { const p = await pickPhoto(true); if (p) add([p]); }
-      else if (src === 'photos') add(await pickPhotos());
-      else add(await pickFiles());
+      const files = await choose(src);
+      if (!files.length) return;
+      setItems((xs) => xs.filter((x) => x.key !== it.key)); setFlash('');
+      add(files, src);
     } catch (e: any) { setErr(e.message); }
   };
   const reading = items.some((x) => x.state === 'reading');
@@ -167,10 +195,12 @@ export default function UploadFlow() {
         const w = whereOf(p);
         const loc = (prof: Profile): Profile => {
           const out: Profile = { ...prof, location: w.loc, country: w.loc === 'Outside' ? w.country : undefined };
+          if (travelOf(p)) out.travelPlanned = true; else delete out.travelPlanned;
           if (p.isMe) {
             const now = parseCity(work.now), appr = parseCity(work.approved);
             if (now) out.workLocation = now;
             if (appr) out.approvedWorkLocation = appr;
+            if (life.jobEndedOn && /^\d{4}-\d{2}-\d{2}$/.test(life.jobEnded)) out.jobEnded = life.jobEnded; else delete out.jobEnded;
           }
           return out;
         };
@@ -247,6 +277,7 @@ export default function UploadFlow() {
     const done = here.some((i) => i.state === 'done' || i.state === 'unread') || items.some((i) => i.movedFrom === s.key && i.owner === person.id);
     const blocked = here.some((i) => i.state === 'reading' || looksLike(i));
     const cur = currentApproval(draft[person.id]);
+    const lastOfMine = idx === ss.length - 1;
     return (
       <DetailScreen title="Upload documents" modal>
         <View style={{ paddingHorizontal: 20 }}>
@@ -292,7 +323,7 @@ export default function UploadFlow() {
                 {here.map((it) => {
                   if (it.state === 'reading') return <Card key={it.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}><ActivityIndicator color={t.accent} /><View><T v="h3">{`Reading ${s.title.toLowerCase().replace(' · optional', '')}…`}</T><T v="small">On this phone only</T></View></Card>;
                   const other = looksLike(it);
-                  const lines = describe(person.profile, it);
+                  const lines = changes(person, it);
                   const statusReceipt = it.type === 'Receipt (I-797C)' && STATUS_FORMS.includes(it.found?.form);
                   const otherEmployer = statusReceipt && cur?.employer && it.found?.employer && !sameEmployer(cur.employer, it.found.employer);
                   return (
@@ -303,7 +334,8 @@ export default function UploadFlow() {
                           <T v="h3" style={{ fontSize: 17 }}>{`${short(it.type)} ▾`}</T>
                           <T v="small" numberOfLines={1}>{it.name ? `Name on it: ${it.name}` : it.state === 'unread' ? 'Couldn’t read much here — fill in what you can, or skip' : it.file.name}</T>
                         </Pressable>
-                        <Pressable hitSlop={10} onPress={() => setItems((xs) => xs.filter((x) => x.key !== it.key))}><T v="small" style={{ color: t.accent, fontWeight: '600' }}>Retake</T></Pressable>
+                        <Pressable hitSlop={10} onPress={() => retake(it)}><T v="small" style={{ color: t.accent, fontWeight: '600' }}>Retake</T></Pressable>
+                        <Pressable hitSlop={10} onPress={() => setItems((xs) => xs.filter((x) => x.key !== it.key))} accessibilityLabel="Remove"><Ionicons name="close-circle" size={20} color={t.faint} /></Pressable>
                       </View>
                       {it.editType ? <View style={{ marginHorizontal: -36, marginTop: 10 }}><Chips options={DOC_TYPES.map((d) => ({ label: d, value: d }))} value={it.type} onChange={(v) => { const st = stepOf(v) ?? it.step; patch(it.key, { type: v, editType: false, step: st }); if (st !== it.step) setFlash(`Moved to the ${titleOf(st)} step.`); }} /></View> : null}
                       {other ? (
@@ -315,6 +347,7 @@ export default function UploadFlow() {
                           </View>
                         </View>
                       ) : null}
+                      {it.found?.dateNote ? <View style={{ marginTop: 12 }}><Note tone="amber">{it.found.dateNote}</Note></View> : null}
                       <View style={{ marginTop: 12 }}><DateField label={it.type === 'Receipt (I-797C)' ? 'Receipt date' : it.type === 'I-94' ? 'Admit until' : it.type === 'Approval (I-797A/B)' || it.type === 'I-129S (blanket L)' ? 'Valid to' : 'Expires'} value={it.validTo} onChange={(v) => patch(it.key, { validTo: v })} /></View>
                       {it.receipt || /I-797/.test(it.type) ? <Field label="Receipt number" value={it.receipt} onChangeText={(v) => patch(it.key, { receipt: v.toUpperCase().replace(/\s/g, '') })} autoCapitalize="characters" maxLength={13} placeholder="WAC2612345678" /> : null}
                       {statusReceipt ? (
@@ -325,13 +358,6 @@ export default function UploadFlow() {
                           </View>
                         )
                       ) : it.type === 'Receipt (I-797C)' ? <Note tone="neutral">{`${it.found?.form ?? 'This'} is just a case — it doesn’t extend the stay. It’s added to Cases.`}</Note> : null}
-                      {s.key === 'approval' && you && (draft[person.id].visa === 'H-1B' || draft[person.id].visaSet === false) ? (
-                        <View style={{ marginTop: 12 }}>
-                          <Field label="Work location on this approval (city, state)" placeholder="e.g. Irving, TX" value={work.approved} onChangeText={(v) => setWork({ ...work, approved: v })} autoCapitalize="words" />
-                          <Field label="Where do you work now? (city, state)" placeholder="e.g. Frisco, TX" value={work.now} onChangeText={(v) => setWork({ ...work, now: v })} autoCapitalize="words" />
-                          <T v="small" style={{ marginTop: -4 }}>The I-797A doesn’t print the worksite — it’s on the LCA. A move to another metro needs an amendment first.</T>
-                        </View>
-                      ) : null}
                       {lines.length ? <View style={{ gap: 3, marginTop: 10 }}>{lines.map((l) => <T key={l.text} v="small" style={{ color: l.ok ? t.text : t.amber }}>{l.ok ? `✓ ${l.text}` : l.text}</T>)}</View> : null}
                       <Pressable onPress={() => patch(it.key, { open: !it.open })} style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <Ionicons name="eye-outline" size={15} color={t.accent} />
@@ -341,6 +367,29 @@ export default function UploadFlow() {
                     </Card>
                   );
                 })}
+                {s.key === 'approval' && you && (draft[person.id].visa === 'H-1B' || draft[person.id].visaSet === false) ? (
+                  <Card>
+                    <T v="h3" style={{ marginBottom: 10 }}>Work location</T>
+                    <Field label="Work location on your approval / LCA (city, state)" placeholder="e.g. Irving, TX" value={work.approved} onChangeText={(v) => setWork({ ...work, approved: v })} autoCapitalize="words" />
+                    <Field label="Where do you work now? (city, state)" placeholder="e.g. Frisco, TX" value={work.now} onChangeText={(v) => setWork({ ...work, now: v })} autoCapitalize="words" />
+                    <T v="small" style={{ marginTop: -4 }}>The I-797A doesn’t print the worksite — it’s on the LCA. A move to another metro needs an amendment first. Fill this in even if you skip the approval.</T>
+                  </Card>
+                ) : null}
+                {lastOfMine ? (
+                  <Card>
+                    <T v="h3">Anything coming up?</T>
+                    <T v="small" style={{ marginTop: 2, marginBottom: 10 }}>Optional — {you ? 'these change' : 'this changes'} what the app checks.</T>
+                    <Pressable onPress={() => { tap(); setTravel({ ...travel, [person.id]: !travelOf(person) }); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }}>
+                      <Ionicons name={travelOf(person) ? 'checkbox' : 'square-outline'} size={22} color={travelOf(person) ? t.accent : t.sub} />
+                      <T v="body" style={{ flex: 1 }}>{you ? 'Planning to travel outside the US soon' : `${nm} is planning to travel outside the US soon`}</T>
+                    </Pressable>
+                    {you ? <Pressable onPress={() => { tap(); setLife({ ...life, jobEndedOn: !life.jobEndedOn, jobEnded: life.jobEndedOn ? '' : life.jobEnded }); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }}>
+                      <Ionicons name={life.jobEndedOn ? 'checkbox' : 'square-outline'} size={22} color={life.jobEndedOn ? t.accent : t.sub} />
+                      <T v="body" style={{ flex: 1 }}>My job ended (layoff or resignation)</T>
+                    </Pressable> : null}
+                    {you && life.jobEndedOn ? <View style={{ marginTop: 8 }}><DateField label="Last day of work" value={life.jobEnded} onChange={(v) => setLife({ ...life, jobEnded: v })} /></View> : null}
+                  </Card>
+                ) : null}
                 {here.length ? <Pressable onPress={() => pick('photos')} style={{ alignSelf: 'center', padding: 8 }}><T v="small" style={{ color: t.accent, fontWeight: '600' }}>+ Add another page or document</T></Pressable> : null}
               </View>
             </>
@@ -378,12 +427,14 @@ export default function UploadFlow() {
                   return docs.map((d) => (
                     <View key={d.key} style={{ paddingVertical: 4 }}>
                       <T v="body">{`✓ ${short(d.type)}${d.validTo ? ` → ${fmt(d.validTo)}` : ' saved'}${d.movedFrom ? ' (moved here)' : ''}`}</T>
-                      {describe(p.profile, d).filter((l) => !l.ok).map((l) => <T key={l.text} v="small" style={{ color: t.amber, marginLeft: 16 }}>{l.text}</T>)}
+                      {changes(p, d).filter((l) => !l.ok).map((l) => <T key={l.text} v="small" style={{ color: t.amber, marginLeft: 16 }}>{l.text}</T>)}
                     </View>
                   ));
                 })}
                 {w.loc === 'Outside' ? <T v="sub" style={{ paddingVertical: 4 }}>– I-94 — not needed outside the US</T> : null}
                 {p.isMe && (work.now || work.approved) ? <T v="body" style={{ paddingVertical: 4 }}>{`✓ Work location → ${work.now || '—'}${work.approved ? ` (approval: ${work.approved})` : ''}`}</T> : null}
+                {travelOf(p) ? <T v="body" style={{ paddingVertical: 4 }}>✓ Travel planned</T> : null}
+                {p.isMe && life.jobEndedOn && life.jobEnded ? <T v="body" style={{ paddingVertical: 4 }}>{`✓ Job ended → ${fmt(life.jobEnded)}`}</T> : null}
               </Card>
             );
           })}
@@ -409,7 +460,7 @@ function Summary({ onDone }: { onDone: () => void }) {
   const [family] = useFamily();
   const [saved] = useVault();
   const everyone = [{ id: 'me', name: me?.name || 'You', relation: 'You', profile: me as Profile | null }, ...family.map((m: Member) => ({ id: m.id, name: m.name, relation: m.relation, profile: m.profile as Profile | null }))];
-  const all = familyChecks({ id: 'me', profile: me, relation: 'You' }, everyone.slice(1));
+  const all = familyChecks({ id: 'me', profile: me, relation: 'You', name: me?.name }, everyone.slice(1));
   return (
     <DetailScreen title="Summary" modal>
       <View style={{ paddingHorizontal: 20 }}>

@@ -5,10 +5,10 @@ import { View, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { DetailScreen } from '../../src/components/TopBar';
-import { Card, T, Pill, Button, Field, Note, tap } from '../../src/components/ui';
+import { Card, T, Pill, Button, Field, Note, DateField, tap } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
 import { useProfile, visaLabel, Profile, loadProfile, saveProfile, WorkLocation } from '../../src/lib/profile';
-import { useFamily } from '../../src/lib/family';
+import { useFamily, loadFamily, saveMember } from '../../src/lib/family';
 import { metroOf, differentMetro } from '../../src/lib/metro';
 import { useVault, VaultDoc } from '../../src/lib/vault';
 import { useCases } from '../../src/lib/store';
@@ -31,6 +31,7 @@ export default function PersonPage() {
   const [city, setCity] = useState('');
   const [checked, setChecked] = useState<WorkLocation | null>(null);
   const [editApproved, setEditApproved] = useState(false);
+  const [jobOpen, setJobOpen] = useState(false);
   const person = people(me, family).find((x) => x.id === id);
   if (!person) return <DetailScreen title="Documents"><View style={{ padding: 20 }}><T v="sub">This person was removed.</T></View></DetailScreen>;
   const p = person.profile;
@@ -43,7 +44,7 @@ export default function PersonPage() {
   const currentOf = (type: string) => mine.filter((d) => d.type === type).sort((a, b) => (b.expires || '').localeCompare(a.expires || ''))[0];
   const chosen = new Set(slots.map((s) => currentOf(s.type)?.id).filter(Boolean));
   const extra = mine.filter((d) => !chosen.has(d.id));
-  const all = familyChecks({ id: 'me', profile: me, relation: 'You' }, family.map((m) => ({ id: m.id, profile: m.profile, relation: m.relation })));
+  const all = familyChecks({ id: 'me', profile: me, relation: 'You', name: me?.name }, family.map((m) => ({ id: m.id, profile: m.profile, relation: m.relation })));
   const mineChecks = all[id] || [];
   const issues = mineChecks.filter((c) => c.tone !== 'green');
   const w = worst(mineChecks);
@@ -56,6 +57,13 @@ export default function PersonPage() {
     const cur = await loadProfile();
     if (cur) await saveProfile({ ...cur, [field]: loc });
     tap(); setMoving(false); setChecked(null); setCity(''); setEditApproved(false);
+  };
+  // Job end (employee) and travel plans (anyone) — they drive the grace-period (C18) and travel (C16) checks.
+  const savePatch = async (patch: Partial<Profile>) => {
+    const clean = (x: Profile) => { const o: any = { ...x, ...patch }; for (const k of Object.keys(patch)) if ((patch as any)[k] === undefined) delete o[k]; return o as Profile; };
+    if (isMe) { const cur = await loadProfile(); if (cur) await saveProfile(clean(cur)); }
+    else { const m = (await loadFamily()).find((x) => x.id === id); if (m) await saveMember({ ...m, profile: clean(m.profile) }); }
+    tap();
   };
   const name = isMe ? (person.named ? person.name : 'You') : person.named ? person.name : person.relation;
 
@@ -97,7 +105,7 @@ export default function PersonPage() {
 
         <Card style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <T v="h3" style={{ flex: 1, fontSize: 17 }}>{statusLine(p, me)}</T>
-          <Pill label={w === 'act now' ? 'Act now' : w === 'review' ? 'Review' : 'Good'} tone={w === 'act now' ? 'red' : w === 'review' ? 'amber' : 'green'} />
+          <Pill label={w === 'act now' ? 'Act now' : w === 'review' ? 'Review' : w === 'info' ? 'Info' : 'Good'} tone={w === 'act now' ? 'red' : w === 'review' ? 'amber' : w === 'info' ? 'accent' : 'green'} />
         </Card>
         {issues.length ? (
           <Card style={{ marginTop: 10, paddingVertical: 2 }}>
@@ -138,6 +146,37 @@ export default function PersonPage() {
                   <Pill small label={a.superseded ? 'Superseded' : 'Current'} tone={a.superseded ? 'neutral' : 'green'} />
                 </View>
               ))}
+            </Card>
+          </>
+        ) : null}
+
+        {p ? (
+          <>
+            <T v="label" style={{ marginTop: 22, marginBottom: 8 }}>{isMe ? 'Job & travel' : 'Travel'}</T>
+            <Card style={{ paddingVertical: 2 }}>
+              <Pressable onPress={() => savePatch({ travelPlanned: p.travelPlanned ? undefined : true })} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13 }}>
+                <Ionicons name="airplane-outline" size={20} color={t.accent} />
+                <T v="body" style={{ flex: 1, fontSize: 16 }}>Planning to travel outside the US</T>
+                <Ionicons name={p.travelPlanned ? 'checkbox' : 'square-outline'} size={22} color={p.travelPlanned ? t.accent : t.sub} />
+              </Pressable>
+              {isMe ? (
+                <>
+                  <Pressable onPress={() => { tap(); setJobOpen(!jobOpen); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderTopWidth: 0.5, borderTopColor: t.border }}>
+                    <Ionicons name="briefcase-outline" size={20} color={t.accent} />
+                    <View style={{ flex: 1 }}>
+                      <T v="body" style={{ fontSize: 16 }}>{p.jobEnded ? `Job ended ${fmt(p.jobEnded)}` : 'Job ended?'}</T>
+                      <T v="small">{p.jobEnded ? 'Grace period is counted from this day · tap to change' : 'Layoff or resignation — starts the 60-day grace period'}</T>
+                    </View>
+                    <Ionicons name={jobOpen ? 'chevron-up' : 'chevron-forward'} size={16} color={t.faint} />
+                  </Pressable>
+                  {jobOpen ? (
+                    <View style={{ paddingBottom: 10 }}>
+                      <DateField label="Last day of work" value={p.jobEnded} onChange={(v) => { if (/^\d{4}-\d{2}-\d{2}$/.test(v)) savePatch({ jobEnded: v }); }} />
+                      {p.jobEnded ? <Button label="Still employed — clear" kind="secondary" onPress={() => { savePatch({ jobEnded: undefined }); setJobOpen(false); }} /> : null}
+                    </View>
+                  ) : null}
+                </>
+              ) : null}
             </Card>
           </>
         ) : null}

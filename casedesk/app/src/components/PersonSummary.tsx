@@ -11,7 +11,7 @@ export function PersonSummary({ p, checks, principal, have }: { p: { id: string;
   const t = useTheme();
   const pr = p.profile;
   const w = worst(checks);
-  const pill = w === 'act now' ? <Pill label="Act now" tone="red" /> : w === 'review' ? <Pill label="Review" tone="amber" /> : <Pill label="Good" tone="green" />;
+  const pill = w === 'act now' ? <Pill label="Act now" tone="red" /> : w === 'review' ? <Pill label="Review" tone="amber" /> : w === 'info' ? <Pill label="Info" tone="accent" /> : <Pill label="Good" tone="green" />;
   const shown = checks.filter((c) => c.tone !== 'green');
   const good = checks.filter((c) => c.tone === 'green' && c.id !== 'i94-ok' && c.id !== 'i94-filed');
   const missing = missingDocs(pr, p.relation, have);

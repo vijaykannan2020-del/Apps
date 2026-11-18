@@ -29,7 +29,7 @@ export default function Today() {
   const [profile] = useProfile();
   const [family] = useFamily();
   const everyone = people(profile, family).filter((x) => x.profile);
-  const famChecks = familyChecks({ id: 'me', profile, relation: 'You' }, family.map((m) => ({ id: m.id, profile: m.profile, relation: m.relation })));
+  const famChecks = familyChecks({ id: 'me', profile, relation: 'You', name: profile?.name }, family.map((m) => ({ id: m.id, profile: m.profile, relation: m.relation })));
   const checks = profile ? famChecks.me || [] : [];
   const top = checks.find((c) => c.tone === 'red') ?? checks.find((c) => c.tone === 'amber');
   const [refreshing, setRefreshing] = useState(false);

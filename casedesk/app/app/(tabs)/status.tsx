@@ -23,7 +23,7 @@ export default function Status() {
   useEffect(() => { unconfirmDefaultVisas().catch(() => {}); mergeDuplicateSpouse().catch(() => {}).finally(() => { backfillNames().catch(() => {}); }); }, [docs.length, family.length]);
   const list = useMemo(() => people(me, family), [me, family]);
 
-  const all = useMemo(() => familyChecks({ id: 'me', profile: me, relation: 'You' }, family.map((m) => ({ id: m.id, profile: m.profile, relation: m.relation }))), [me, family]);
+  const all = useMemo(() => familyChecks({ id: 'me', profile: me, relation: 'You', name: me?.name }, family.map((m) => ({ id: m.id, profile: m.profile, relation: m.relation }))), [me, family]);
   const summary = (id: string) => {
     const x = list.find((y) => y.id === id)!;
     const p = x.profile;
@@ -32,6 +32,7 @@ export default function Status() {
     const pill = !mine.length && !p?.i94Expiry && !p?.passportExpiry ? null
       : w === 'act now' ? { label: 'Act now', bg: t.redSoft, fg: t.red }
       : w === 'review' ? { label: 'Review', bg: t.amberSoft, fg: t.amber }
+      : w === 'info' ? { label: 'Info', bg: t.accentSoft, fg: t.accent }
       : { label: 'Good', bg: t.greenSoft, fg: t.green };
     const sub = [x.id === 'me' ? 'You' : x.relation, p ? visaLabel(p) : null].filter(Boolean).join(' · ');
     const loc = p?.location === 'Outside' ? `In ${p.country || 'another country'}` : 'In US';
