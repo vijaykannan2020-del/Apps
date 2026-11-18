@@ -42,6 +42,7 @@ export function Welcome() {
       <Footer column>
         <Button title="Get started" onPress={() => router.push('/about-you' as never)} block={false} />
         <Button kind="ghost" icon="restore" title="Restore from a backup" onPress={() => router.push('/restore' as never)} />
+        {Platform.OS === 'ios' ? <Button kind="ghost" icon="backup" title="Restore from iCloud" onPress={() => router.push('/restore-icloud' as never)} /> : null}
         <T tone="text2" style={[font.caption, { textAlign: 'center' }]}>CaseDesk gives general information, not legal advice.</T>
       </Footer>
     </View>

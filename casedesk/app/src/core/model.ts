@@ -257,6 +257,7 @@ export type Settings = {
   hrTools?: boolean; // show "For HR" tools
   helpSeen?: string[]; // first-time help cards dismissed (home, family, cases, tools, settings)
   updatesDismissed?: string[]; // update alerts dismissed or opened (news ids)
+  icloud?: { on: boolean; wifiOnly: boolean; lastAt?: string; lastError?: string }; // iCloud automatic backup (v2.2)
 };
 
 export const DEFAULT_SETTINGS: Settings = { reminderLeadDays: [180, 90, 30, 7] };

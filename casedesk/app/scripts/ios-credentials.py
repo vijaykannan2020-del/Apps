@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """CaseDesk iPhone signing on GitHub (no Mac), same method as Inbox.
 Reuses Inbox's App Store distribution certificate (Apple allows only a few), registers the CaseDesk App ID
-with Push Notifications, makes an App Store provisioning profile, and saves it encrypted in credentials/ios.enc."""
+with Push Notifications and iCloud (v2.2: iCloud Documents for automatic backups), makes an App Store
+provisioning profile, and saves it encrypted in credentials/ios.enc.
+
+iCloud: Apple's API can turn the ICLOUD capability on, but it can NOT create the iCloud container or
+assign it to the App ID — the owner does that once on developer.apple.com (see ICLOUD.md). This script
+stops with a clear message if the new profile doesn't carry the container yet."""
 import base64, hashlib, json, os, subprocess, sys, tarfile, time, urllib.request, urllib.error
 import jwt  # pyjwt
 
 BUNDLE = 'com.vijaykannan.casedesk'
-VERSION = 'v1'  # bump when capabilities change → new profile
+VERSION = 'v2-icloud'  # bump when capabilities change → new profile (v2: iCloud Documents)
+CONTAINER = 'iCloud.com.vijaykannan.casedesk'
 KEY_ID, ISSUER, KEY_PATH = os.environ['EXPO_ASC_KEY_ID'], os.environ['EXPO_ASC_ISSUER_ID'], os.environ['EXPO_ASC_API_KEY_PATH']
 PRIV = open(KEY_PATH).read()
 KEYSTR = ''.join(PRIV.split())
@@ -58,7 +64,8 @@ for extra in (['-legacy'], []):
     r = subprocess.run(['openssl', 'pkcs12', '-in', f'{OUT}/dist.p12', '-nokeys', '-clcerts', '-passin', f'pass:{pw}', *extra], capture_output=True)
     if r.returncode == 0 and b'BEGIN CERTIFICATE' in r.stdout:
         der = subprocess.run(['openssl', 'x509', '-outform', 'DER'], input=r.stdout, capture_output=True, check=True).stdout; break
-if os.path.exists(MANUAL):
+# A hand-made profile is only used if it already carries the iCloud container (the v1 one doesn't).
+if os.path.exists(MANUAL) and CONTAINER.encode() in open(MANUAL, 'rb').read():
     run('cp', MANUAL, f'{OUT}/profile.mobileprovision')
     write_credentials_json(pw); print('Using hand-made provisioning profile + Inbox certificate ✓'); sys.exit(0)
 serial = subprocess.run(['openssl', 'x509', '-inform', 'DER', '-noout', '-serial'], input=der, capture_output=True, check=True).stdout.decode().strip().split('=')[1].upper().lstrip('0')
@@ -85,12 +92,20 @@ bid = found[0]['id'] if found else api('POST', '/v1/bundleIds', {'data': {'type'
 print(f'App ID {BUNDLE} ✓')
 api('POST', '/v1/bundleIdCapabilities', {'data': {'type': 'bundleIdCapabilities', 'attributes': {'capabilityType': 'PUSH_NOTIFICATIONS'}, 'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}}}}, ok409=True)
 print('Push Notifications on ✓')
+api('POST', '/v1/bundleIdCapabilities', {'data': {'type': 'bundleIdCapabilities', 'attributes': {'capabilityType': 'ICLOUD',
+    'settings': [{'key': 'ICLOUD_VERSION', 'options': [{'key': 'XCODE_6'}]}]},
+    'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}}}}, ok409=True)
+print('iCloud capability on ✓ (container assignment is done on developer.apple.com — ICLOUD.md)')
 
 # 3. App Store provisioning profile
 prof = api('POST', '/v1/profiles', {'data': {'type': 'profiles', 'attributes': {'name': f'CaseDesk App Store {int(time.time())}', 'profileType': 'IOS_APP_STORE'},
     'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}, 'certificates': {'data': [{'type': 'certificates', 'id': cert_id}]}}}})['data']
-open(f'{OUT}/profile.mobileprovision', 'wb').write(base64.b64decode(prof['attributes']['profileContent']))
-print('Created provisioning profile ✓')
+content = base64.b64decode(prof['attributes']['profileContent'])
+if CONTAINER.encode() not in content:
+    print(f'::error::The new profile has no iCloud container {CONTAINER}. On developer.apple.com: Identifiers → iCloud Containers → create {CONTAINER}; then App IDs → com.vijaykannan.casedesk → iCloud → Edit → tick it → Save. Then run this build again. (See casedesk/app/ICLOUD.md)', file=sys.stderr)
+    sys.exit(1)
+open(f'{OUT}/profile.mobileprovision', 'wb').write(content)
+print('Created provisioning profile (with iCloud container) ✓')
 
 # 4. Save encrypted
 open(f'{OUT}/version', 'w').write(VERSION)

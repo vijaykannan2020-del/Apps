@@ -19,6 +19,7 @@ import { bindDraft, draftFiles, restoreDraft, type Flow } from './flow';
 import { sweepOrphans } from '../native/files';
 import { referencedFiles } from '../core/files';
 import { reminderItems, scheduleReminders } from '../native/reminders';
+import { useICloudAuto } from './icloudBackup';
 
 export type FamilyState = Snapshot & {
   ready: boolean;
@@ -61,6 +62,7 @@ export function FamilyProvider({ children, store = appStore() }: { children: Rea
       sweepOrphans(referencedFiles(docs, draftFiles()));
     })().catch(() => { restoreDraft(null); });
   }, [store]);
+  useICloudAuto(store); // iCloud automatic backup (no-op on builds without the module)
   const actions = useMemo(() => makeActions(store), [store]);
   const [bulletin, setBulletin] = useState<{ data: VisaBulletin; live: boolean }>({ data: BULLETIN, live: false });
   useEffect(() => { fetchOr<VisaBulletin>('/api/visa-bulletin', BULLETIN).then((b) => { if (b.data?.rows?.length) setBulletin(b); }).catch(() => {}); }, []);

@@ -12,4 +12,9 @@ export const native = {
   clipboard: (): any => { try { return require('expo-clipboard'); } catch { return undefined; } },
   webBrowser: (): any => { try { return require('expo-web-browser'); } catch { return undefined; } },
   updates: (): any => { try { return require('expo-updates'); } catch { return undefined; } },
+  // v2.2 native build (iCloud backup). On older binaries these are missing: callers show
+  // "Needs the latest app version from TestFlight" instead of crashing.
+  cloudStorage: (): any => { try { return require('react-native-cloud-storage'); } catch { return undefined; } },
+  secureStore: (): any => { try { return require('expo-secure-store'); } catch { return undefined; } },
+  network: (): any => { try { return require('expo-network'); } catch { return undefined; } },
 };

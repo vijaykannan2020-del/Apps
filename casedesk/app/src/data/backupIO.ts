@@ -132,7 +132,8 @@ export async function restore(store: Store, p: BackupPayload, mode: 'replace' | 
 export function backupDue(s: Settings, docCount: number, now = new Date()): boolean {
   if (!docCount) return false;
   if (s.backupReminderSnoozed && s.backupReminderSnoozed > now.toISOString()) return false;
-  const since = s.lastBackupAt ?? s.firstDocAt;
+  const last = [s.lastBackupAt, s.icloud?.on ? s.icloud.lastAt : undefined].filter(Boolean).sort().pop(); // iCloud backups count too
+  const since = last ?? s.firstDocAt;
   if (!since) return false;
   return now.getTime() - new Date(since).getTime() > 30 * 864e5;
 }

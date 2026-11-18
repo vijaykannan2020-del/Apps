@@ -102,9 +102,9 @@ export function RestoreSheet() {
 }
 
 /** Restore: choose file → password → preview → Replace (default) or Merge → exactly what was added / skipped. */
-export function RestorePanel({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+export function RestorePanel({ onDone, onCancel, initial }: { onDone: () => void; onCancel: () => void; initial?: { text: string; name: string } }) {
   const f = useFamily(); const toast = useToast();
-  const [file, setFile] = useState<{ text: string; name: string } | null>(null);
+  const [file, setFile] = useState<{ text: string; name: string } | null>(initial ?? null);
   const [pw, setPw] = useState(''); const [busy, setBusy] = useState(false); const [pct, setPct] = useState(0);
   const [prev, setPrev] = useState<RestorePreview | null>(null);
   const [mode, setMode] = useState<'replace' | 'merge'>('replace');
@@ -158,8 +158,8 @@ export function RestorePanel({ onDone, onCancel }: { onDone: () => void; onCance
   );
   return (
     <View>
-      <Why>Choose a .casedesk file, then type its password. Nothing leaves this phone.</Why>
-      <View style={{ marginTop: 14 }}><Button kind={file ? 'ghost' : 'tint'} icon="folder" title={file ? file.name : 'Choose backup file'} onPress={choose} /></View>
+      <Why>{initial ? 'Type the backup password to open it.' : 'Choose a .casedesk file, then type its password. Nothing leaves this phone.'}</Why>
+      {initial ? <T style={[font.headline, { marginTop: 14 }]}>{initial.name}</T> : <View style={{ marginTop: 14 }}><Button kind={file ? 'ghost' : 'tint'} icon="folder" title={file ? file.name : 'Choose backup file'} onPress={choose} /></View>}
       {file ? <Field label="Password" value={pw} onChangeText={setPw} secure autoCapitalize="none" /> : null}
       {busy ? <Progress pct={pct} label="Opening with your password" /> : null}
       <SheetButtons><Button kind="ghost" title="Cancel" onPress={onCancel} /><Button grow title="Open" disabled={!file || !pw} busy={busy} onPress={open} /></SheetButtons>

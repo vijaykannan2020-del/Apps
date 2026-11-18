@@ -76,7 +76,15 @@
             "extraProguardRules": "# PDF text reading (PdfBox-Android) optionally uses a JPEG2000 decoder we do not ship\n-dontwarn com.gemalto.jp2.**\n"
           }
         }
-      ]
+      ],
+      [
+        "react-native-cloud-storage",
+        {
+          "iCloudContainerIdentifier": "iCloud.com.vijaykannan.casedesk",
+          "iCloudContainerEnvironment": "Production"
+        }
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "apiBase": "https://casedeskapp.duckdns.org",

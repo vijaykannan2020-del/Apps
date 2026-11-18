@@ -14,6 +14,7 @@ import { useThemeChoice } from './themeChoice';
 import { Confirm } from './sheets';
 import { BackupSheet, DiagSheet, RestoreSheet, WipeSheet, leadText } from './profile';
 import { HelpCard } from './help';
+import { ICloudRows } from './icloud';
 import { HELP } from '../content/help';
 
 export function SettingsTab() {
@@ -48,7 +49,8 @@ export function SettingsTab() {
       </Group>
       <SectionHeader>Backup &amp; restore</SectionHeader>
       <Group>
-        <Row icon="backup" title="Back up now" subtitle={`Last backup: ${lastBackup}`} onPress={() => sheet.open('Back up now', <BackupSheet />)} chevron={false} />
+        <ICloudRows />
+        <Row icon="share" title="Back up to a file" subtitle={`Files, Google Drive or AirDrop · last: ${lastBackup}`} onPress={() => sheet.open('Back up now', <BackupSheet />)} chevron={false} />
         <Row icon="restore" title="Restore from backup" subtitle="From a .casedesk file in Files, iCloud Drive or Google Drive" onPress={() => sheet.open('Restore from backup', <RestoreSheet />)} chevron={false} />
         <Row icon="trash" iconTone="red" title="Delete all data" titleTone="red" chevron={false} onPress={() => sheet.open('Delete all data?', <WipeSheet />)} />
       </Group>

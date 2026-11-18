@@ -79,6 +79,16 @@ it). Format: `src/core/backup.ts`.
   (unit-tested in `tests/v21.test.ts`).
 - If a receipt can't be copied, the sheet shows it as selectable text.
 
+## iCloud automatic backup (v2.2 native build)
+
+- `react-native-cloud-storage` 3.3.0 (TurboModule, RN ≥ 0.76, built against RN 0.88 / React 19.3,
+  Expo config plugin), `expo-secure-store` (password in the keychain) and `expo-network` (Only on
+  Wi-Fi). All three are required lazily (`src/native/safe.ts`); older binaries show
+  "Needs the latest app version from TestFlight".
+- Pure logic `src/core/icloud.ts` (names, keep 3, when due — `tests/icloud.test.ts`), I/O in
+  `src/native/icloud.ts`, scheduling in `src/data/icloudBackup.ts`, UI in `src/screens/icloud.tsx`.
+- Apple setup and the developer.apple.com step: `ICLOUD.md`.
+
 ## Layout, contrast, help (v2.1)
 
 - Big numbers and dates use `BigText` (one line, `adjustsFontSizeToFit`, line height ≥ 1.22×);
