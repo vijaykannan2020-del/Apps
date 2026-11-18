@@ -13,7 +13,7 @@
 import type { Person } from './model';
 import type { PersonRecord } from './record';
 import type { StatusFacts } from './rules/status';
-import { addDays, addMonths, minDate } from './dates';
+import { addDays, addMonths, minDate, today } from './dates';
 
 export type Filing = {
   personId: string;
@@ -24,7 +24,15 @@ export type Filing = {
   why: string;
   pt?: { form: string; category: string }; // row in the processing-times table
   premium?: string; // "15 business days" when premium processing exists
+  filed?: { receipt?: string; received?: string }; // already filed and pending: show the case, not "file now"
+  kind?: 'filing' | 'report'; // report = something to send (STEM OPT validation report), not a USCIS form
+  dates?: { label: string; date: string }[]; // extra dates (STEM OPT reports, EAD end)
 };
+
+/** A case on file (from documents or added in Cases). */
+export type CaseOnFile = { form?: string; status?: string; received?: string; receipt?: string };
+const isPendingStatus = (st?: string) => !st || /^(pending|rfe)$/i.test(st);
+const isDone = (st?: string) => /^(approved)$/i.test(st ?? '');
 
 const WORK: Record<string, { title: string; category?: string }> = {
   'H-1B': { title: 'H-1B extension', category: 'H-1B — extension of stay' },
@@ -35,7 +43,7 @@ const WORK: Record<string, { title: string; category?: string }> = {
   'O-1': { title: 'O-1 extension' },
 };
 
-export function nextFilings(p: Person, rec: PersonRecord | undefined, facts: StatusFacts | undefined): Filing[] {
+export function nextFilings(p: Person, rec: PersonRecord | undefined, facts: StatusFacts | undefined, more: CaseOnFile[] = []): Filing[] {
   if (!rec) return [];
   const v = rec.visa ?? (p.status as string | undefined);
   const out: Filing[] = [];
@@ -59,6 +67,22 @@ export function nextFilings(p: Person, rec: PersonRecord | undefined, facts: Sta
   if (v === 'F-1 OPT' && rec.ead?.expires) {
     out.push({ personId: p.id, form: 'I-765', title: 'STEM OPT extension', earliest: addDays(rec.ead.expires, -90), deadline: rec.ead.expires, why: 'Only with a STEM degree and an E-Verify employer. File in the 90 days before the OPT card ends.', pt: { form: 'I-765', category: 'F-1 student — OPT / STEM OPT (c)(3)' }, premium: '30 days' });
   }
+  if (v === 'STEM OPT') {
+    // STEM OPT: no further OPT to file. What's due: validation reports to the DSO every 6 months,
+    // the I-983 self-evaluations at 12 and 24 months, and the end of the STEM EAD.
+    const start = rec.ead?.category === 'C3C' ? rec.ead.validFrom : rec.i20?.optStart ?? rec.ead?.validFrom;
+    const end = rec.ead?.expires;
+    const dates: { label: string; date: string }[] = [];
+    if (start) for (const m of [6, 12, 18, 24]) {
+      let d = addMonths(start, m);
+      if (end && d > addDays(end, 1)) break;
+      if (end && d > end) d = end; // the final evaluation is due when STEM OPT ends
+      dates.push({ label: m === 12 || m === 24 ? `${m}-month validation report + I-983 self-evaluation` : `${m}-month validation report`, date: d });
+    }
+    if (end) dates.push({ label: 'STEM OPT work permit ends', date: end });
+    const next = dates.find((d) => d.date >= today()) ?? dates[dates.length - 1];
+    if (next) out.push({ personId: p.id, form: 'SEVP', kind: 'report', title: 'STEM OPT reports to your DSO', earliest: next.date, why: 'Confirm your name, address, employer and job to your DSO every 6 months (validation report); send the I-983 self-evaluation at 12 and 24 months. No USCIS form to file — an H-1B cap petition (registration each March) is the usual next step.', dates });
+  }
   if (v === 'Green card pending' && rec.ead?.expires) {
     out.push({ personId: p.id, form: 'I-765', title: 'Combo card renewal (EAD + travel)', earliest: addMonths(rec.ead.expires, -6), deadline: rec.ead.expires, why: 'Up to 6 months before the card ends. File the I-765 and I-131 together.', pt: { form: 'I-765', category: 'Pending green card (c)(9)' } });
   }
@@ -69,7 +93,26 @@ export function nextFilings(p: Person, rec: PersonRecord | undefined, facts: Sta
     if (facts?.citizenship?.fileFrom) out.push({ personId: p.id, form: 'N-400', title: 'Citizenship', earliest: facts.citizenship.fileFrom, why: `You can file 90 days before your ${facts.citizenship.years}-year anniversary as a resident.` });
     if (rec.greenCard?.expires) out.push({ personId: p.id, form: 'I-90', title: 'Green card renewal', earliest: addMonths(rec.greenCard.expires, -6), deadline: rec.greenCard.expires, why: 'Within 6 months of the card’s expiry date.' });
   }
-  return out.sort((a, b) => a.earliest.localeCompare(b.earliest));
+  return markFiled(out, [...(rec.cases ?? []).map((c) => ({ form: c.form, status: c.status, received: c.received, receipt: c.receipt })), ...(rec.pending ? [{ form: rec.pending.form, status: 'pending', received: rec.pending.filed, receipt: rec.pending.receipt }] : []), ...more])
+    .sort((a, b) => a.earliest.localeCompare(b.earliest));
+}
+
+/**
+ * Filings already made: a pending case for the same form, filed in this window (no more than a
+ * year before the earliest date), becomes "Filed <date> · pending" — never "you can file now" or
+ * "deadline passed". An approved one in the window means it's done, so the card goes away.
+ */
+export function markFiled(list: Filing[], cases: CaseOnFile[]): Filing[] {
+  const out: Filing[] = [];
+  for (const f of list) {
+    if (f.kind === 'report') { out.push(f); continue; }
+    const from = addMonths(f.earliest, -12);
+    const mine = cases.filter((c) => c.form === f.form && (!c.received || c.received >= from)).sort((a, b) => (b.received ?? '').localeCompare(a.received ?? ''));
+    const c = mine.find((x) => isPendingStatus(x.status)) ?? mine.find((x) => isDone(x.status));
+    if (c && isDone(c.status) && c.received && c.received >= addMonths(f.earliest, -1)) continue; // filed in this window and approved: done
+    out.push(c && isPendingStatus(c.status) ? { ...f, filed: { receipt: c.receipt, received: c.received } } : f);
+  }
+  return out;
 }
 
 /** If filed on `filed`, when is a decision likely? 8 in 10 cases are decided within `months`. */
