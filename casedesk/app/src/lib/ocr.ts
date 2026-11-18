@@ -72,8 +72,10 @@ export async function readText(uri: string, mime: string): Promise<string | null
       // often poor, OCR layer — if it doesn't give us the type, a date and (for IDs) a name, read the page images too.
       if (text.replace(/\s/g, '').length >= 40) {
         const f = parseDocument(text);
-        const idDoc = f.type === 'Passport' || f.type === 'Visa stamp' || f.type === 'EAD card';
-        if (f.type && f.validTo && (!idDoc || f.name)) return text;
+        // IDs (passport, visa, EAD) are always read from the image too: a scanner's text layer misreads
+        // names ("NAYA" for "MAYA"), and the name matters most on these.
+        const idDoc = f.type === 'Passport' || f.type === 'Visa stamp' || f.type === 'EAD card' || /P<[A-Z]{3}|REPUBLIC OF|PASSPORT/i.test(text);
+        if (f.type && f.validTo && !idDoc) return text;
       }
       // Scanned PDF: render the first pages and read them as images (on-device text recognition).
       try {
@@ -180,13 +182,19 @@ function mrzName(text: string): string | undefined {
   // OCR often reads the '<' filler as 'K': "VIJAYAKANNAN<K<MAYA<KTHUSHARA". A lone K between fillers is a
   // filler; a K glued to the front of a name is too when no name starts that way (KT, KM…) or when the
   // name without it is printed elsewhere on the page (the visual zone above the MRZ).
-  const words = new Set(text.toUpperCase().split(/[^A-Z]+/).filter((w) => w.length >= 2));
+  const words = new Set(text.toUpperCase().split('\n').filter((x) => !x.includes('<')).join(' ').split(/[^A-Z]+/).filter((w) => w.length >= 2));
   const body = l.slice(5).replace(/[^A-Z<]/g, '').replace(/<K(?=<)/g, '<<')
     .replace(/(^|<)K([A-Z]+)/g, (all, pre, rest) => (/^[^AEIOUHRYLWS]/.test(rest) || (words.has(rest) && !words.has('K' + rest)) ? `${pre}<${rest}` : all));
   let sur = '', giv = '';
   const cut = body.indexOf('<<');
   if (cut >= 0) { sur = body.slice(0, cut); giv = body.slice(cut + 2); } else giv = body;
-  const clean = (x: string) => x.replace(/<+/g, ' ').replace(/\b[KC]\b/g, ' ').trim();
+  // A name word the MRZ misread by one letter ("NAYA") is corrected from the printed name above it ("MAYA").
+  const near = (w: string) => {
+    if (words.has(w)) return w;
+    const alt = [...words].filter((x) => x.length === w.length && [...x].filter((c, i) => c !== w[i]).length === 1);
+    return alt.length === 1 ? alt[0] : w;
+  };
+  const clean = (x: string) => x.replace(/<+/g, ' ').replace(/\b[KC]\b/g, ' ').trim().split(/\s+/).filter(Boolean).map((w) => (w.length >= 3 ? near(w) : w)).join(' ');
   const given = clean(giv), surname = clean(sur);
   const full = [given, surname].filter(Boolean).join(' ');
   if (full.length < 2 || full.split(' ').some((w) => w.length > 20)) return undefined; // OCR noise, not a name

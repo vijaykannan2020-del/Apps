@@ -47,14 +47,20 @@ export async function backfillNames() {
   try {
     const { readText, parseDocument, ocrAvailable } = await import('./ocr');
     if (!ocrAvailable()) return;
-    const docs = (await allDocs()) as (VaultDoc & { nameTried?: boolean })[];
-    const todo = docs.filter((d) => !d.name && !d.nameTried && !d.uri.startsWith('web:') && ['Passport', 'Visa stamp', 'EAD card', 'I-94', 'Other'].includes(d.type));
+    const docs = (await allDocs()) as (VaultDoc & { nameTried?: boolean; nameV?: number })[];
+    // v2: names read from a scanner's text layer only (before image reading) are read again from the image.
+    const IDS = ['Passport', 'Visa stamp', 'EAD card'];
+    const todo = docs.filter((d) => !d.uri.startsWith('web:') && (
+      (!d.name && !d.nameTried && [...IDS, 'I-94', 'Other'].includes(d.type)) ||
+      (IDS.includes(d.type) && /pdf/i.test(d.mime) && (d.nameV ?? 0) < 2)));
     for (const d of todo.slice(0, 6)) {
       let f: ReturnType<typeof parseDocument> | null = null;
       try { const text = await readText(d.uri, d.mime); f = text ? parseDocument(text) : null; } catch {}
-      const cur = ((await allDocs()) as (VaultDoc & { nameTried?: boolean })[]).find((x) => x.id === d.id);
+      const cur = ((await allDocs()) as (VaultDoc & { nameTried?: boolean; nameV?: number })[]).find((x) => x.id === d.id);
       if (!cur) continue;
       cur.nameTried = true;
+      cur.nameV = 2;
+      const oldName = cur.name;
       if (f?.name) cur.name = f.name;
       if (f?.validTo && !cur.expires && cur.type === (f.type ?? cur.type)) cur.expires = f.validTo;
       await updateDoc(cur);
@@ -62,11 +68,11 @@ export async function backfillNames() {
       const owner = cur.owner || 'me';
       if (owner === 'me') {
         const p = await loadProfile();
-        if (p && !p.name) await saveProfile({ ...p, name: f.name, passportExpiry: p.passportExpiry || (cur.type === 'Passport' ? cur.expires : undefined) });
+        if (p && (!p.name || (oldName && p.name === oldName && f.name !== oldName))) await saveProfile({ ...p, name: f.name, passportExpiry: p.passportExpiry || (cur.type === 'Passport' ? cur.expires : undefined) });
       } else {
         const fam = await loadFamily();
         const m = fam.find((x) => x.id === owner);
-        if (m && !isNamed(m)) {
+        if (m && (!isNamed(m) || (oldName && m.name === oldName && f.name !== oldName))) {
           m.name = f.name;
           if (cur.type === 'Passport' && cur.expires && !m.profile.passportExpiry) m.profile.passportExpiry = cur.expires;
           await write(FAMILY, fam);
