@@ -31,7 +31,7 @@ const URL_RE = /(https?:\/\/[^\s<>()\]]+)/g;
 // Instagram reels/posts: just a link (no picture or video loaded) — tap opens it in the Instagram app.
 function IgLinkCard({ link, text, c, thread, fg, mine, t, fs }: { link: string; text: string; c: any; thread?: string | null; fg: string; mine: boolean; t: any; fs: number }) {
   const what = /\/(reel|reels)\//.test(link) ? 'Instagram reel' : 'Instagram post';
-  const caption = text.replace(/https?:\/\/\S+/g, '').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
+  const caption = text.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/https?:\/\/\S+/g, '').replace(/[*\[\]()]/g, '').replace(/\s+/g, ' ').trim();
   // Plain instagram.com link: iOS hands it to the Instagram app (the instagram://media?id= trick opened the wrong id → "Try Again Later")
   const isPost = what === 'Instagram post';
   const open = () => Linking.openURL(igOpenUrl(c, link));
