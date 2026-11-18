@@ -242,7 +242,7 @@ export default function AddDocuments() {
               </View>
 
               <Line label="Name" value={it.name || 'Add name'} edit="name" muted={!it.name} />
-              {it.edit === 'name' ? <Field label="Name as printed" value={it.name} onChangeText={(v) => patch(it.key, { name: v })} placeholder="Maya Thushara" autoCapitalize="words" autoFocus /> : null}
+              {it.edit === 'name' ? <Field label="Name as printed" value={it.name} onChangeText={(v) => patch(it.key, { name: v })} placeholder="Full name" autoCapitalize="words" autoFocus /> : null}
 
               <Line label="Belongs to" value={whoName} edit="owner" />
               {it.edit === 'owner' ? (

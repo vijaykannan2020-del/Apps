@@ -7,7 +7,7 @@ import { useLayout, tileWidth } from '../../src/lib/layout';
 import { visaLabel, useProfile } from '../../src/lib/profile';
 import { useFamily } from '../../src/lib/family';
 import { people, initials } from '../../src/lib/people';
-import { runChecks } from '../../src/lib/compliance';
+import { familyChecks } from '../../src/lib/compliance';
 import { useTheme } from '../../src/theme';
 import { fetchNews } from '../../src/lib/api';
 import { NewsItem, STARTER_NEWS } from '../../src/data/news';
@@ -29,7 +29,8 @@ export default function Today() {
   const [profile] = useProfile();
   const [family] = useFamily();
   const everyone = people(profile, family).filter((x) => x.profile);
-  const checks = profile ? runChecks(profile) : [];
+  const famChecks = familyChecks({ id: 'me', profile, relation: 'You' }, family.map((m) => ({ id: m.id, profile: m.profile, relation: m.relation })));
+  const checks = profile ? famChecks.me || [] : [];
   const top = checks.find((c) => c.tone === 'red') ?? checks.find((c) => c.tone === 'amber');
   const [refreshing, setRefreshing] = useState(false);
   const [cases] = useCases();
@@ -69,7 +70,7 @@ export default function Today() {
           {everyone.length ? (
             <Card style={{ paddingVertical: 4 }}>
               {everyone.map((x, i) => {
-                const cs = runChecks(x.profile!);
+                const cs = famChecks[x.id] || [];
                 const tp = cs.find((c) => c.tone === 'red') ?? cs.find((c) => c.tone === 'amber');
                 const col = tp?.tone === 'red' ? t.red : tp ? t.amber : t.green;
                 return (

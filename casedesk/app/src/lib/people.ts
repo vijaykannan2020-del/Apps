@@ -21,7 +21,7 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/
 
 // Best person for a name printed on a document. The first (given) name must match, or at least two name
 // parts. A single shared part isn't enough: in many Indian families the child's surname is the father's
-// given name ("Maya Thushara Vijayakannan" is not "Vijayakannan Krishnan").
+// given name ("Meera Tara Rajan" is not "Rajan Kumar").
 const RELATION_WORDS = ['me', 'spouse', 'child', 'parent', 'other', 'son', 'daughter', 'wife', 'husband'];
 export function matchOwner(docName: string | undefined, list: Person[], fallback = 'me'): string {
   if (!docName) return fallback;

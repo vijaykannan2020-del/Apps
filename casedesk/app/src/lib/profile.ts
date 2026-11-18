@@ -1,16 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useCallback } from 'react';
 
-export const VISA_TYPES = ['H-1B', 'L-1A', 'L-1B', 'TN', 'F-1 OPT', 'STEM OPT', 'H-4', 'H-4 EAD', 'L-2S', 'L-2', 'TD', 'F-1', 'F-2', 'B-1/B-2', 'Green card pending'] as const;
+export const VISA_TYPES = ['H-1B', 'L-1A', 'L-1B', 'TN', 'F-1 OPT', 'STEM OPT', 'H-4', 'H-4 EAD', 'L-2S', 'L-2', 'TD', 'F-1', 'F-2', 'B-1/B-2', 'B-2', 'Green card pending'] as const;
 export type VisaType = (typeof VISA_TYPES)[number];
 
 // Statuses offered for each person: dependents only see dependent/student/visitor statuses, no work visas.
 export const MY_VISAS: VisaType[] = ['H-1B', 'L-1A', 'L-1B', 'TN', 'F-1 OPT', 'STEM OPT', 'H-4', 'H-4 EAD', 'L-2S', 'Green card pending'];
 export function visasFor(relation?: string): VisaType[] {
   switch (relation) {
-    case 'Spouse': return ['H-4', 'H-4 EAD', 'L-2S', 'TD', 'F-2', 'Green card pending', 'B-1/B-2'];
-    case 'Child': return ['H-4', 'L-2', 'TD', 'F-1', 'F-2', 'Green card pending', 'B-1/B-2'];
-    case 'Parent': return ['B-1/B-2', 'Green card pending'];
+    case 'Spouse': return ['H-4', 'H-4 EAD', 'L-2S', 'L-2', 'TD', 'F-2', 'Green card pending', 'B-1/B-2', 'B-2'];
+    case 'Child': return ['H-4', 'L-2', 'TD', 'F-1', 'F-2', 'Green card pending', 'B-1/B-2', 'B-2'];
+    case 'Parent': return ['B-1/B-2', 'B-2', 'Green card pending'];
     case 'Other': return [...VISA_TYPES];
     default: return MY_VISAS;
   }
@@ -30,6 +30,9 @@ export type Profile = {
   petitionEnd?: string; // validity end on I-797 approval
   passportExpiry?: string;
   passportNo?: string; // links this person's passport, visa stamp and I-94
+  oldPassportNos?: string[]; // earlier (superseded) passports of the same person
+  location?: 'US' | 'Outside'; // where the person is now (an I-94 means they're in the US)
+  country?: string; // when outside the US, e.g. India
   legalName?: string; // full name as on the passport (the typed name is only what the family calls them)
   birthDate?: string;
   visaStampExpiry?: string;
@@ -38,7 +41,33 @@ export type Profile = {
   i140Approved?: boolean;
   extFiled?: string; // date an extension / renewal was filed
   extReceipt?: string;
+  extKind?: PetitionKind; // what the pending I-129 / I-539 is: extension, amendment, transfer (change of employer)…
+  i94IssuedOn?: string; // issue date of the current I-94: CBP "Most Recent Date of Entry", or the I-797A notice date
+  i94Class?: string; // class printed on the current I-94 (L2 vs L2S matters for an L-2 spouse)
+  approvalNoticeDate?: string; // notice date of the current approval (the one petitionEnd comes from)
+  approvals?: Approval[]; // every status approval saved (newest notice = current; the rest are superseded)
+  workLocation?: WorkLocation; // where the employee works now (H-1B: a move to another metro needs an amendment)
+  approvedWorkLocation?: WorkLocation; // work location the current approval / LCA is for (the I-797A doesn't print it — asked)
+  visaFrom?: 'Visa stamp' | 'I-94' | 'Approval'; // which document set the visa type (approval > I-94 > visa stamp)
+  approvalClass?: string; // class on the current approval / I-129S (H1B, L1A, L1B…) — compared with the I-94 class
+  jobEnded?: string; // last day of employment (layoff / resignation) — starts the 60-day grace period
+  travelPlanned?: boolean; // planning to leave the US soon (matters while an extension is pending)
   updated?: string;
+};
+
+export type PetitionKind = 'new' | 'extension' | 'amendment' | 'transfer';
+export type WorkLocation = { city?: string; state?: string; metro?: string };
+export type Approval = {
+  kind?: PetitionKind;
+  form?: string; // I-129, I-539, I-129S
+  receipt?: string;
+  noticeDate?: string;
+  validFrom?: string;
+  validTo?: string;
+  employer?: string;
+  cls?: string; // class on the approval (H1B, L1B, H4…)
+  workLocation?: WorkLocation;
+  superseded?: boolean;
 };
 
 const KEY = 'cd.profile.v1';
