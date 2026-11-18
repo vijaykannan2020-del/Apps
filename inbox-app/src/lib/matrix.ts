@@ -701,6 +701,15 @@ export async function roomMembers(r: Room) {
   return Object.entries<any>(d.joined || {}).filter(([id]) => id !== S.userId && !isBot(id))
     .map(([id, m]) => ({ id, name: cleanName(m.display_name) || id.split(':')[0].slice(1), avatar: m.avatar_url as string | undefined }));
 }
+/** The fullest Instagram link in a message, exactly as the bridge sent it (the version with ?id=… is the one the
+ *  Instagram app opens straight to the post; the short one only opens Instagram's home for posts). */
+export function igOpenUrl(c: any, fallback: string) {
+  const all = (((c?.body || '') + ' ' + (c?.external_url || '')).match(/https?:\/\/(?:www\.)?instagram\.com\/[^\s<>()\]]+/g) || [])
+    .map((u: string) => u.replace(/[.,!?*]+$/, ''));
+  const code = (/\/(?:reel|reels|p)\/([A-Za-z0-9_-]+)/.exec(fallback) || [])[1];
+  const same = all.filter((u: string) => !code || u.includes(code));
+  return same.find((u: string) => /[?&]id=/.test(u)) || same.sort((a: string, b: string) => b.length - a.length)[0] || fallback;
+}
 export function reelLink(c: any) {
   return (/(https:\/\/(?:www\.)?instagram\.com\/(?:reel|reels|p)\/[A-Za-z0-9_-]+\/?)/.exec((c?.body || '') + ' ' + (c?.external_url || '')) || [])[1] || null;
 }
@@ -841,12 +850,19 @@ export function classifyShared(evs: MEvent[]): SharedItem[] {
     if (ev.redacted || ev.type !== 'm.room.message' && ev.type !== 'm.sticker') continue;
     const c = ev.content || {};
     const ig = reelLink(c);
-    if (ig) { out.push({ ev, kind: 'link', url: ig.split('?')[0] }); continue; } // Instagram reels/posts are links, not photos
+    if (ig) { out.push({ ev, kind: 'link', url: igOpenUrl(c, ig) }); continue; } // Instagram reels/posts are links, not photos
     if (c.msgtype === 'm.image' || c.msgtype === 'm.video' || ev.type === 'm.sticker') out.push({ ev, kind: 'media' });
     else if (c.msgtype === 'm.file') out.push({ ev, kind: 'doc' });
     const links = (c.body || '').match(URL_RE);
     // same reel often comes twice (with and without ?id=…) — list each link once
-    if (links) for (const u of [...new Set<string>(links.map((x: string) => x.replace(/[.,!?*]+$/, '').replace(/(instagram\.com\/[^?\s]+)\?\S*$/, '$1')))]) out.push({ ev, kind: 'link', url: u });
+    if (links) {
+      const seen = new Set<string>();
+      for (const raw of links) {
+        const u = raw.replace(/[.,!?*]+$/, ''); const key = u.replace(/(instagram\.com\/[^?\s]+)\?\S*$/, '$1');
+        if (seen.has(key)) continue; seen.add(key);
+        out.push({ ev, kind: 'link', url: /instagram\.com/.test(u) ? igOpenUrl(c, u) : u });
+      }
+    }
   }
   return out;
 }

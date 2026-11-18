@@ -6,7 +6,7 @@ import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
-import { mediaSource, igMediaId } from '@/lib/matrix';
+import { mediaSource, igMediaId, igOpenUrl } from '@/lib/matrix';
 import { Theme } from '@/lib/theme';
 
 // iPhone's player streams in byte ranges, which the media server doesn't serve reliably — so download the
@@ -63,7 +63,7 @@ export function ReelBubble({ c, link, maxW, t }: { c: any; link: string; maxW: n
   const src = isVideo ? mediaSource(c.url) : null;
   const cover = c.msgtype === 'm.image' ? mediaSource(c.url, 640) : mediaSource(info.thumbnail_url, 640);
   const openIg = () => {
-    Linking.openURL(link.split('?')[0]);
+    Linking.openURL(igOpenUrl(c, link));
   };
   const igButton = (
     <Pressable onPress={openIg} hitSlop={8} style={styles.reelTag} accessibilityLabel="Open in Instagram">

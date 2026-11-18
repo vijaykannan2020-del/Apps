@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { S, Room, MEvent, NETS, roomName, netOf, botNetOf, isGroup, memberName, memberCount, mediaSource, markRead, sendText, sendImage, sendMedia,
   loadOlder, react, mdPlain, captionOf, stripReply, bodyPreview, hueFor, redact, editMessage, forward, isStarred, toggleStar,
-  visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, igMediaId, isUnread, sendRich, roomMembers, setupChips , isPrivateRoom, callSummary, others, presenceText } from '@/lib/matrix';
+  visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, igMediaId, igOpenUrl, isUnread, sendRich, roomMembers, setupChips , isPrivateRoom, callSummary, others, presenceText } from '@/lib/matrix';
 import { DropZone, DroppedFile } from '@/components/DropZone';
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
@@ -29,11 +29,11 @@ const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const URL_RE = /(https?:\/\/[^\s<>()\]]+)/g;
 
 // Instagram reels/posts: just a link (no picture or video loaded) — tap opens it in the Instagram app.
-function IgLinkCard({ link, text, fg, mine, t, fs }: { link: string; text: string; fg: string; mine: boolean; t: any; fs: number }) {
+function IgLinkCard({ link, text, c, fg, mine, t, fs }: { link: string; text: string; c: any; fg: string; mine: boolean; t: any; fs: number }) {
   const what = /\/(reel|reels)\//.test(link) ? 'Instagram reel' : 'Instagram post';
   const caption = text.replace(/https?:\/\/\S+/g, '').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
   // Plain instagram.com link: iOS hands it to the Instagram app (the instagram://media?id= trick opened the wrong id → "Try Again Later")
-  const open = () => Linking.openURL(link.split('?')[0]);
+  const open = () => Linking.openURL(igOpenUrl(c, link));
   return (
     <Pressable onPress={open} accessibilityLabel={`Open ${what} in Instagram`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 220 }}>
       <View style={{ width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: mine ? 'rgba(0,0,0,0.08)' : t.fill }}>
@@ -132,7 +132,7 @@ const Bubble = memo(function Bubble({ r, ev, first, last, recent, t, onLong, onR
   const call = !mine && /\bcall/i.test(c.body || '') && /(incoming|missed|call (ended|started)|voice call|video call)/i.test(c.body || '') && (kind === 'm.notice');
   let body: React.ReactNode; let bare = false;
   if (ev.redacted) body = <Text style={[styles.txt, { color: t.soft, fontStyle: 'italic', fontSize: 16 * fs }]}>Message deleted</Text>;
-  else if (reel) body = <IgLinkCard link={reel} text={c.body || ''} fg={fg} mine={mine} t={t} fs={fs} />;
+  else if (reel) body = <IgLinkCard link={reel} text={c.body || ''} c={c} fg={fg} mine={mine} t={t} fs={fs} />;
   else if (kind === 'm.image' && c.url) {
     bare = !captionOf(c);
     const info = c.info || {}; const ratio = info.w && info.h ? info.w / info.h : 4 / 3;
@@ -166,7 +166,7 @@ const Bubble = memo(function Bubble({ r, ev, first, last, recent, t, onLong, onR
     const ig = /instagram\.com\//.test(text) ? reelLink(c) || (/(https?:\/\/(?:www\.)?instagram\.com\/[^\s]+)/.exec(text) || [])[1] : null;
     body = <View><Linked text={text} style={txtStyle} linkColor={mine ? fg : t.blue} />
       {url && !/instagram\.com|cdninstagram|fbcdn/.test(url) && <Preview url={url.replace(/[.,;:!?'")]+$/, '')} t={t} mine={mine} />}
-      {ig && <Pressable onPress={() => Linking.openURL(ig.split('?')[0])} accessibilityLabel="Open in Instagram"
+      {ig && <Pressable onPress={() => Linking.openURL(igOpenUrl(c, ig))} accessibilityLabel="Open in Instagram"
         style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: mine ? 'rgba(0,0,0,0.08)' : t.fill }}>
         <Ionicons name="logo-instagram" size={15} color={mine ? fg : t.ink} /><Text style={{ color: mine ? fg : t.ink, fontWeight: '600', fontSize: 14 }}>Open in Instagram</Text>
       </Pressable>}
