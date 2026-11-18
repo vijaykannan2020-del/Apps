@@ -9,3 +9,4 @@
 - v34 / build 12: send videos (library picker + m.video); drag photos/videos from other apps onto a chat (local Expo module modules/inbox-drop, UIDropInteraction; plain View on older builds).
 - v35: muted chats show as unread (grey count) — counted from my read receipt, since the server count skips muted chats.
 - v36: ticks ◷ sending / ✓ sent / ✓✓ grey delivered (WhatsApp delivery receipts; IG/Messenger = sent) / ✓✓ blue read / ! failed, from bridge com.beeper.message_send_status (message_status_events turned on by auto-update); muted unread no longer reset by my own non-message events (profile photo changes etc.).
+- v37: Instagram reels/posts/stories no longer fetched by the bridge (disable_xma_always via auto-update) — Instagram links show as text + "Open in Instagram" button, never previewed.

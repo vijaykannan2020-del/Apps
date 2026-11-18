@@ -30,6 +30,13 @@ if grep -qE '^\s*send_presence_on_typing: false' data/whatsapp/config.yaml 2>/de
   echo "$(date -u '+%F %T') WhatsApp typing indicators turned on"
   docker compose restart whatsapp >/dev/null 2>&1 || true
 fi
+# Instagram: don't fetch shared reels/posts/stories through your account (lots of requests from a server look automated
+# to Instagram) — they arrive as links that open in the Instagram app
+if grep -qE '^\s*disable_xma_always: false' data/instagram/config.yaml 2>/dev/null; then
+  sed -i -E 's/^(\s*)disable_xma_always: false/\1disable_xma_always: true/' data/instagram/config.yaml
+  echo "$(date -u '+%F %T') Instagram reel/post fetching turned off"
+  docker compose restart instagram >/dev/null 2>&1 || true
+fi
 # Delivery ticks: bridges report each sent message (sent / delivered to their phone / failed) to the app
 for B in whatsapp instagram messenger; do
   if grep -qE '^\s*message_status_events: false' data/$B/config.yaml 2>/dev/null; then

@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { S, Room, MEvent, NETS, roomName, netOf, botNetOf, isGroup, memberName, memberCount, mediaSource, markRead, sendText, sendImage, sendMedia,
   loadOlder, react, mdPlain, captionOf, stripReply, bodyPreview, hueFor, redact, editMessage, forward, isStarred, toggleStar,
-  visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, isUnread, sendRich, roomMembers, setupChips , isPrivateRoom, callSummary, others, presenceText } from '@/lib/matrix';
+  visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, igMediaId, isUnread, sendRich, roomMembers, setupChips , isPrivateRoom, callSummary, others, presenceText } from '@/lib/matrix';
 import { DropZone, DroppedFile } from '@/components/DropZone';
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
@@ -141,7 +141,16 @@ const Bubble = memo(function Bubble({ r, ev, first, last, recent, t, onLong, onR
   } else {
     const text = kind === 'm.emote' ? '* ' + c.body : mdPlain(stripReply(c.body || ''));
     const url = recent ? (/\bhttps?:\/\/[^\s<>()\]]+/.exec(text) || [])[0] : null;
-    body = <View><Linked text={text} style={txtStyle} linkColor={mine ? fg : t.blue} />{url && !/instagram\.com\/(reel|p)\//.test(url) && <Preview url={url.replace(/[.,;:!?'")]+$/, '')} t={t} mine={mine} />}</View>;
+    // Instagram links: never fetched or previewed (keeps your Instagram account from looking automated) — just a button
+    // that opens it in the Instagram app.
+    const ig = /instagram\.com\//.test(text) ? reelLink(c) || (/(https?:\/\/(?:www\.)?instagram\.com\/[^\s]+)/.exec(text) || [])[1] : null;
+    body = <View><Linked text={text} style={txtStyle} linkColor={mine ? fg : t.blue} />
+      {url && !/instagram\.com|cdninstagram|fbcdn/.test(url) && <Preview url={url.replace(/[.,;:!?'")]+$/, '')} t={t} mine={mine} />}
+      {ig && <Pressable onPress={() => { const id = igMediaId(ig); Linking.openURL(id ? `instagram://media?id=${id}` : ig).catch(() => Linking.openURL(ig)); }} accessibilityLabel="Open in Instagram"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: mine ? 'rgba(0,0,0,0.08)' : t.fill }}>
+        <Ionicons name="logo-instagram" size={15} color={mine ? fg : t.ink} /><Text style={{ color: mine ? fg : t.ink, fontWeight: '600', fontSize: 14 }}>Open in Instagram</Text>
+      </Pressable>}
+    </View>;
   }
   const replyTo = c['m.relates_to']?.['m.in_reply_to']?.event_id;
   const quoted = replyTo ? r.idx.get(replyTo) : null;
