@@ -840,10 +840,13 @@ export function classifyShared(evs: MEvent[]): SharedItem[] {
   for (const ev of evs) {
     if (ev.redacted || ev.type !== 'm.room.message' && ev.type !== 'm.sticker') continue;
     const c = ev.content || {};
+    const ig = reelLink(c);
+    if (ig) { out.push({ ev, kind: 'link', url: ig.split('?')[0] }); continue; } // Instagram reels/posts are links, not photos
     if (c.msgtype === 'm.image' || c.msgtype === 'm.video' || ev.type === 'm.sticker') out.push({ ev, kind: 'media' });
     else if (c.msgtype === 'm.file') out.push({ ev, kind: 'doc' });
     const links = (c.body || '').match(URL_RE);
-    if (links) for (const u of [...new Set<string>(links)]) out.push({ ev, kind: 'link', url: u.replace(/[.,!?*]+$/, '') });
+    // same reel often comes twice (with and without ?id=…) — list each link once
+    if (links) for (const u of [...new Set<string>(links.map((x: string) => x.replace(/[.,!?*]+$/, '').replace(/(instagram\.com\/[^?\s]+)\?\S*$/, '$1')))]) out.push({ ev, kind: 'link', url: u });
   }
   return out;
 }

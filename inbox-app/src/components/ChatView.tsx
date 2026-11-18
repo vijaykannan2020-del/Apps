@@ -20,13 +20,33 @@ import { DropZone, DroppedFile } from '@/components/DropZone';
 import { useTheme, useStore, Theme } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
-import { VideoBubble, VoiceBubble, ReelBubble } from '@/components/Media';
+import { VideoBubble, VoiceBubble } from '@/components/Media';
 import { quickTimes, fmtWhen, EMOJI_ALL } from '@/lib/time';
 import { PhotoViewer } from '@/components/PhotoViewer';
 
 type Item = { key: string; kind: 'day'; label: string } | { key: string; kind: 'unread' } | { key: string; kind: 'msg'; ev: MEvent; first: boolean; last: boolean; recent: boolean };
 const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const URL_RE = /(https?:\/\/[^\s<>()\]]+)/g;
+
+// Instagram reels/posts: just a link (no picture or video loaded) — tap opens it in the Instagram app.
+function IgLinkCard({ link, text, fg, mine, t, fs }: { link: string; text: string; fg: string; mine: boolean; t: any; fs: number }) {
+  const what = /\/(reel|reels)\//.test(link) ? 'Instagram reel' : 'Instagram post';
+  const caption = text.replace(/https?:\/\/\S+/g, '').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
+  // Plain instagram.com link: iOS hands it to the Instagram app (the instagram://media?id= trick opened the wrong id → "Try Again Later")
+  const open = () => Linking.openURL(link.split('?')[0]);
+  return (
+    <Pressable onPress={open} accessibilityLabel={`Open ${what} in Instagram`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 220 }}>
+      <View style={{ width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: mine ? 'rgba(0,0,0,0.08)' : t.fill }}>
+        <Ionicons name={what === 'Instagram reel' ? 'film-outline' : 'logo-instagram'} size={22} color={mine ? fg : t.ink} />
+      </View>
+      <View style={{ flexShrink: 1 }}>
+        <Text style={{ color: fg, fontWeight: '700', fontSize: 16 * fs }}>{what}</Text>
+        {!!caption && <Text numberOfLines={2} style={{ color: fg, opacity: 0.8, fontSize: 14 * fs, marginTop: 1 }}>{caption}</Text>}
+        <Text numberOfLines={1} style={{ color: mine ? fg : t.blue, fontSize: 13 * fs, marginTop: 2 }}>Open in Instagram ›</Text>
+      </View>
+    </Pressable>
+  );
+}
 
 function tickFor(r: Room, ev: MEvent): string {
   if ([...r.readBy.values()].some(id => { const x = r.idx.get(id); return x && x.origin_server_ts >= ev.origin_server_ts; })) return '✓✓';
@@ -112,7 +132,7 @@ const Bubble = memo(function Bubble({ r, ev, first, last, recent, t, onLong, onR
   const call = !mine && /\bcall/i.test(c.body || '') && /(incoming|missed|call (ended|started)|voice call|video call)/i.test(c.body || '') && (kind === 'm.notice');
   let body: React.ReactNode; let bare = false;
   if (ev.redacted) body = <Text style={[styles.txt, { color: t.soft, fontStyle: 'italic', fontSize: 16 * fs }]}>Message deleted</Text>;
-  else if (reel) { bare = true; body = <ReelBubble c={c} link={reel} maxW={maxW} t={t} />; }
+  else if (reel) body = <IgLinkCard link={reel} text={c.body || ''} fg={fg} mine={mine} t={t} fs={fs} />;
   else if (kind === 'm.image' && c.url) {
     bare = !captionOf(c);
     const info = c.info || {}; const ratio = info.w && info.h ? info.w / info.h : 4 / 3;
@@ -146,7 +166,7 @@ const Bubble = memo(function Bubble({ r, ev, first, last, recent, t, onLong, onR
     const ig = /instagram\.com\//.test(text) ? reelLink(c) || (/(https?:\/\/(?:www\.)?instagram\.com\/[^\s]+)/.exec(text) || [])[1] : null;
     body = <View><Linked text={text} style={txtStyle} linkColor={mine ? fg : t.blue} />
       {url && !/instagram\.com|cdninstagram|fbcdn/.test(url) && <Preview url={url.replace(/[.,;:!?'")]+$/, '')} t={t} mine={mine} />}
-      {ig && <Pressable onPress={() => { const id = igMediaId(ig); Linking.openURL(id ? `instagram://media?id=${id}` : ig).catch(() => Linking.openURL(ig)); }} accessibilityLabel="Open in Instagram"
+      {ig && <Pressable onPress={() => Linking.openURL(ig.split('?')[0])} accessibilityLabel="Open in Instagram"
         style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: mine ? 'rgba(0,0,0,0.08)' : t.fill }}>
         <Ionicons name="logo-instagram" size={15} color={mine ? fg : t.ink} /><Text style={{ color: mine ? fg : t.ink, fontWeight: '600', fontSize: 14 }}>Open in Instagram</Text>
       </Pressable>}

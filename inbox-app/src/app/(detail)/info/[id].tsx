@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { S, NETS, roomName, netOf, isGroup, memberCount, isPinned, isArchived, setTag, setMuted, mediaSource, roomMembers, listScheduled,
-  cancelScheduled, setReminder, hueFor } from '@/lib/matrix';
+  cancelScheduled, setReminder, hueFor, reelLink } from '@/lib/matrix';
 import { DuoBar } from '@/components/DuoBar';
 import { useTheme, useStore } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
@@ -26,7 +26,7 @@ export default function Info() {
   }, [id]);
   if (!r) return null;
   const n = netOf(r); const muted = S.muted.has(r.id);
-  const photos = r.events.filter(e => !e.redacted && (e.content?.msgtype === 'm.image') && e.content?.url).slice(-24).reverse();
+  const photos = r.events.filter(e => !e.redacted && (e.content?.msgtype === 'm.image') && e.content?.url && !reelLink(e.content)).slice(-24).reverse();
   const cell = Math.floor((Math.min(width, 600) - 32 - 8) / 3);
   const Btn = ({ icon, label, on, onPress }: { icon: any; label: string; on?: boolean; onPress: () => void }) => (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.btn, { backgroundColor: pressed ? t.fill : t.surface }]}>

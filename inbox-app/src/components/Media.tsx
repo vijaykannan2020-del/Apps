@@ -63,8 +63,7 @@ export function ReelBubble({ c, link, maxW, t }: { c: any; link: string; maxW: n
   const src = isVideo ? mediaSource(c.url) : null;
   const cover = c.msgtype === 'm.image' ? mediaSource(c.url, 640) : mediaSource(info.thumbnail_url, 640);
   const openIg = () => {
-    const id = igMediaId(link);
-    Linking.openURL(id ? `instagram://media?id=${id}` : link).catch(() => Linking.openURL(link));
+    Linking.openURL(link.split('?')[0]);
   };
   const igButton = (
     <Pressable onPress={openIg} hitSlop={8} style={styles.reelTag} accessibilityLabel="Open in Instagram">
