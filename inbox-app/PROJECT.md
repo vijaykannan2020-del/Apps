@@ -12,3 +12,4 @@
 - v37: Instagram reels/posts/stories no longer fetched by the bridge (disable_xma_always via auto-update) — Instagram links show as text + "Open in Instagram" button, never previewed.
 - v38: Instagram reels/posts render as link cards (no picture/video), listed under Links not Photos; open via plain instagram.com link (instagram://media?id= opened wrong ids → "Try Again Later"); duplicate ?id= links merged.
 - v39: Instagram links open with the full bridge URL (with ?id=…) so posts open on the post, not Instagram home.
+- v40: Instagram link cards get a "Safari ›" option (x-safari-https) to view the post page directly.

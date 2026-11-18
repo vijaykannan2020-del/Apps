@@ -42,7 +42,12 @@ function IgLinkCard({ link, text, c, fg, mine, t, fs }: { link: string; text: st
       <View style={{ flexShrink: 1 }}>
         <Text style={{ color: fg, fontWeight: '700', fontSize: 16 * fs }}>{what}</Text>
         {!!caption && <Text numberOfLines={2} style={{ color: fg, opacity: 0.8, fontSize: 14 * fs, marginTop: 1 }}>{caption}</Text>}
-        <Text numberOfLines={1} style={{ color: mine ? fg : t.blue, fontSize: 13 * fs, marginTop: 2 }}>Open in Instagram ›</Text>
+        <View style={{ flexDirection: 'row', gap: 16, marginTop: 4 }}>
+          <Text style={{ color: mine ? fg : t.blue, fontSize: 13 * fs, fontWeight: '600' }}>Open in Instagram ›</Text>
+          {/* Safari shows the post's web page directly (doesn't hand off to the Instagram app) */}
+          <Text onPress={() => Linking.openURL('x-safari-' + link.split('?')[0]).catch(() => Linking.openURL(link))} suppressHighlighting
+            style={{ color: mine ? fg : t.blue, fontSize: 13 * fs, fontWeight: '600', opacity: 0.85 }}>Safari ›</Text>
+        </View>
       </View>
     </Pressable>
   );
