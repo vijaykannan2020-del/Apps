@@ -42,6 +42,7 @@ export default function Root() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="case/add" options={{ presentation: 'modal' }} />
         <Stack.Screen name="status/add" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="status/flow" options={{ presentation: "modal" }} />
         <Stack.Screen name="tools/i9-record" options={{ presentation: 'modal' }} />
         <Stack.Screen name="alerts" />
       </Stack>

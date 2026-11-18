@@ -22,7 +22,7 @@ open "tools"; shot 04-tools
 open "profile"; shot 05-profile
 open "status/person?id=me"; shot 06-person-me
 open "status/person?id=demo-s"; shot 07-person-spouse
-open "status/add"; shot 08-add-documents
+open "status/flow"; shot 08-upload-flow
 adb shell cmd uimode night no; sleep 3
 open "status"; shot 09-documents-light
 open "" 4; shot 10-overview-light

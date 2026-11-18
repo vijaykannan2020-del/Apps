@@ -15,6 +15,7 @@ export type Found = {
   passportExpiry?: string;
   receivedDate?: string; // on receipt notices
   form?: string; // form on a USCIS notice, e.g. I-129, I-539, I-765
+  passportNo?: string; // passport number — on the passport, the visa stamp and the I-94; links documents to a person
   birthDate?: string; // passports/visas: tells a child's document from a parent's
   i94Until?: string; // I-94 printed at the bottom of an I-797A approval (extension / change of status)
   blanket?: boolean; // visa annotated "BLANKET L…": admitted under a blanket L petition
@@ -156,7 +157,7 @@ function dateAfter(text: string, label: RegExp): string | undefined {
 // Machine-readable zone (passport "P<…" or US visa "V<…"/"VN…"): expiry is YYMMDD at positions 22–27
 // of line 2 (same place on passports and visa foils). OCR often reads 0 as O, 1 as I, 5 as S, 8 as B.
 const DIG: Record<string, string> = { O: '0', Q: '0', D: '0', I: '1', L: '1', Z: '2', S: '5', B: '8', G: '6' };
-function mrz(text: string): { kind: 'P' | 'V'; expiry?: string; birth?: string; cls?: string } | null {
+function mrz(text: string): { kind: 'P' | 'V'; expiry?: string; birth?: string; cls?: string; docNo?: string } | null {
   const lines = text.toUpperCase().split(/\n/).map((l) => l.replace(/\s/g, '').replace(/[«‹(){}\[\]|]/g, '<')).filter((l) => /^[A-Z0-9<]{30,46}$/.test(l));
   const i = lines.findIndex((l) => /^[PV][A-Z<]/.test(l));
   if (i < 0) return null;
@@ -170,7 +171,9 @@ function mrz(text: string): { kind: 'P' | 'V'; expiry?: string; birth?: string; 
   const birth = /^\d{6}$/.test(b) ? iso((+b.slice(0, 2) > yy ? 1900 : 2000) + +b.slice(0, 2), +b.slice(2, 4), +b.slice(4, 6)) : undefined;
   // US visa MRZ: the visa class follows the expiry check digit ("…F2706188L2MDR…" → L2).
   const cls = kind === 'V' ? l2.slice(28, 32).match(/^(H1B|H4|L1|L2|F1|F2|J1|J2|TD|TN|O1|E3|B1|B2|R)/)?.[1] : undefined;
-  return { kind, expiry, birth, cls: cls === 'R' ? undefined : cls };
+  // Document number: the passport number on a passport; on a US visa, the holder's passport number.
+  const docNo = l2.slice(0, 9).replace(/<+$/, '').replace(/</g, '');
+  return { kind, expiry, birth, cls: cls === 'R' ? undefined : cls, docNo: /^[A-Z0-9]{6,9}$/.test(docNo) && /\d/.test(docNo) ? docNo : undefined };
 }
 const latest = (text: string) => datesIn(text).sort().pop();
 
@@ -321,6 +324,12 @@ export function parseDocument(text: string): Found {
   }
   const form = U.match(/(?:CASE TYPE|FORM)\s*[:\-]?\s*(I-?\d{3}[A-Z]?|N-?\d{3})\b/);
   if (form && /I-797|NOTICE|RECEIPT|APPROVAL/.test(U)) found.form = form[1].replace(/^([IN])-?/, '$1-');
+  // Who it belongs to: passport number and birth date (MRZ, or labels on I-94 printouts and EAD cards).
+  if (found.type === 'Passport' || found.type === 'Visa stamp' || found.type === 'I-94' || found.type === 'EAD card' || !found.type) {
+    const m = mrz(T);
+    found.passportNo = m?.docNo ?? U.match(/PASSPORT\s*(?:NO|NUMBER|#)\.?\s*[:\-]?\s*\n?\s*([A-Z]?\d{7,9})\b/)?.[1];
+    found.birthDate ||= m?.birth ?? dateAfter(T, /date of birth|birth date/i);
+  }
   const nm = mrzName(T) ?? labelledName(T);
   if (nm && nm.length >= 3 && nm.length <= 60) found.name = nm;
   return found;

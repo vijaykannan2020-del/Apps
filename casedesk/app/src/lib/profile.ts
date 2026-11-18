@@ -29,6 +29,9 @@ export type Profile = {
   i94Expiry?: string; // "Admit Until" date on the I-94
   petitionEnd?: string; // validity end on I-797 approval
   passportExpiry?: string;
+  passportNo?: string; // links this person's passport, visa stamp and I-94
+  legalName?: string; // full name as on the passport (the typed name is only what the family calls them)
+  birthDate?: string;
   visaStampExpiry?: string;
   eadExpiry?: string;
   statusStart?: string; // first day in H-1B / L-1 (for the max-stay clock)
