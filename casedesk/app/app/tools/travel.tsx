@@ -9,6 +9,7 @@ import { useTheme } from '../../src/theme';
 import { useProfile } from '../../src/lib/profile';
 import { useFamily } from '../../src/lib/family';
 import { checkTrip, Trip } from '../../src/lib/travel';
+import { people } from '../../src/lib/people';
 
 export default function Travel() {
   const t = useTheme();
@@ -36,7 +37,7 @@ export default function Travel() {
       </View>
       {family.length ? (
         <View style={{ marginTop: 12 }}>
-          <Chips options={[{ label: 'Me', value: 'me' }, ...family.map((f) => ({ label: f.name, value: f.id }))]} value={who} onChange={setWho} />
+          <Chips options={[...people(me, family).map((x) => ({ label: x.short, value: x.id }))]} value={who} onChange={setWho} />
         </View>
       ) : null}
       {!p ? (

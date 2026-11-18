@@ -49,7 +49,7 @@ export default function AddCase() {
         {plist.length > 1 ? (
           <>
             <T v="label" style={{ marginBottom: 8 }}>Whose case</T>
-            <View style={{ marginHorizontal: -20, marginBottom: 14 }}><Chips options={plist.map((x) => ({ label: x.id === 'me' ? 'Me' : x.name, value: x.id }))} value={owner} onChange={setOwner} /></View>
+            <View style={{ marginHorizontal: -20, marginBottom: 14 }}><Chips options={plist.map((x) => ({ label: x.short, value: x.id }))} value={owner} onChange={setOwner} /></View>
           </>
         ) : null}
         <Field label="Nickname (optional)" placeholder="e.g. My H-1B extension" value={nickname} onChangeText={setNickname} />

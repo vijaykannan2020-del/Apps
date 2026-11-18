@@ -110,7 +110,7 @@ export default function Vault() {
       <Section>
         <Button label="Add documents" icon="scan" onPress={() => router.push((owner !== 'all' ? `/status/add?member=${owner === 'me' ? '' : owner}` : '/status/add') as any)} />
       </Section>
-      {plist.length > 1 ? <View style={{ marginTop: 16 }}><Chips options={[{ label: 'Everyone', value: 'all' }, ...plist.map((x) => ({ label: x.id === 'me' ? 'Me' : x.name, value: x.id }))]} value={owner} onChange={setOwner} /></View> : null}
+      {plist.length > 1 ? <View style={{ marginTop: 16 }}><Chips options={[{ label: 'Everyone', value: 'all' }, ...plist.map((x) => ({ label: x.short, value: x.id }))]} value={owner} onChange={setOwner} /></View> : null}
       {docs.length > 1 ? <View style={{ marginTop: 8 }}><Chips options={types.map((x) => ({ label: x, value: x }))} value={filter} onChange={setFilter} /></View> : null}
       <Section>
         {shown.length === 0 ? (
