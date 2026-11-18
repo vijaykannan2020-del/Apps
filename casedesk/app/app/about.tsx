@@ -7,6 +7,17 @@ import { Card, T, Section, Row, Pill } from '../src/components/ui';
 import { isLive, API_BASE } from '../src/lib/api';
 import { useCases, useI9 } from '../src/lib/store';
 
+// "v1.0.0 (build 2) · updated Nov 17, 6:40 PM" — build from the installed app, update from the last over-the-air update.
+function versionLine() {
+  let build = '', upd = '';
+  try { const A = require('expo-application'); if (A.nativeBuildVersion) build = ` (build ${A.nativeBuildVersion})`; } catch {}
+  try {
+    const U = require('expo-updates');
+    if (U.createdAt && !U.isEmbeddedLaunch) upd = ` · updated ${new Date(U.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`;
+  } catch {}
+  return `v${Constants.expoConfig?.version}${build}${upd}`;
+}
+
 export default function About() {
   const router = useRouter();
   const [cases] = useCases();
@@ -15,7 +26,7 @@ export default function About() {
     <DetailScreen title="Settings">
       <View style={{ paddingHorizontal: 20, paddingTop: 6 }}>
         <T v="h1">CaseDesk</T>
-        <T v="sub" style={{ marginTop: 4 }}>Tracker & toolkit for USCIS · v{Constants.expoConfig?.version}</T>
+        <T v="sub" style={{ marginTop: 4 }}>Tracker & toolkit for USCIS · {versionLine()}</T>
       </View>
       <Section title="Notifications">
         <Card style={{ paddingVertical: 4 }}>
