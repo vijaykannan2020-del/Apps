@@ -25,6 +25,8 @@ export type Room = {
   reactIdx: Map<string, { target: string; key: string; sender: string }>; pendingEdits: Map<string, any>;
   unread: number; net: Net | null; bridgeName: string | null; bridgeAvatar: string | null; channelId: string | null;
   isSpace: boolean; prevBatch: string | null | undefined; lastTs: number; tags: Record<string, unknown>; markedUnread: boolean; myRead?: string; prevUnread?: number;
+  /** Bridge's report per sent message: s = SUCCESS / FAIL_… / PENDING, d = delivered to their phone (WhatsApp) */
+  mss: Map<string, { s: string; d: boolean; msg?: string }>;
   readBy: Map<string, string>; typing: string[]; loadingOlder: boolean; isDM?: boolean;
 };
 
@@ -99,7 +101,7 @@ function room(id: string): Room {
   if (!r) {
     r = { id, name: null, avatar: null, members: new Map(), heroes: [], joined: 0, events: [], idx: new Map(), txns: new Map(),
       reacts: new Map(), reactIdx: new Map(), pendingEdits: new Map(), unread: 0, net: null, bridgeName: null, bridgeAvatar: null,
-      channelId: null, isSpace: false, prevBatch: undefined, lastTs: 0, tags: {}, markedUnread: false, readBy: new Map(), typing: [],
+      channelId: null, isSpace: false, prevBatch: undefined, lastTs: 0, tags: {}, markedUnread: false, readBy: new Map(), mss: new Map(), typing: [],
       loadingOlder: false };
     S.rooms.set(id, r);
   }
@@ -176,7 +178,7 @@ function unreadAfterReceipt(r: Room) {
   let n = 0;
   for (let i = r.events.length - 1; i >= 0; i--) {
     const ev = r.events[i];
-    if (ev.event_id === r.myRead || ev.sender === S.userId) return n;
+    if (ev.event_id === r.myRead || (ev.sender === S.userId && SHOWN_UNREAD.has(ev.type))) return n;
     if (!ev.redacted && !ev.pending && SHOWN_UNREAD.has(ev.type) && !isBot(ev.sender)) n++;
   }
   return n; // receipt is older than what's loaded: at least this many
@@ -260,6 +262,13 @@ function addEvent(r: Room, ev: MEvent, prepend = false) {
     if (t) { t.redacted = true; return; }
     const re = r.reactIdx.get(tid);
     if (re) r.reacts.get(re.target)?.get(re.key)?.delete(re.sender);
+    return;
+  }
+  if (ev.type === 'com.beeper.message_send_status') {
+    const tid = c['m.relates_to']?.event_id; if (!tid) return;
+    const prev = r.mss.get(tid);
+    r.mss.set(tid, { s: c.status || prev?.s || '', d: (Array.isArray(c.delivered_to_users) && c.delivered_to_users.length > 0) || !!prev?.d, msg: c.message || undefined });
+    if (r.mss.size > 400) r.mss.delete(r.mss.keys().next().value!);
     return;
   }
   if (ev.type === 'm.reaction') {
@@ -710,7 +719,7 @@ export function saveSnapshot() {
       bridgeName: r.bridgeName, bridgeAvatar: r.bridgeAvatar, channelId: r.channelId, isSpace: r.isSpace, lastTs: r.lastTs,
       tags: r.tags, markedUnread: r.markedUnread, myRead: r.myRead, prevBatch: r.prevBatch ?? null,
       members: [...r.members.entries()].filter(([id]) => r.heroes.includes(id) || id === S.userId || isBot(id) || r.members.size < 30),
-      readBy: [...r.readBy.entries()],
+      readBy: [...r.readBy.entries()], mss: [...r.mss.entries()].slice(-150),
       events: r.events.filter(e => !e.pending && !e.failed).slice(-20),
       reacts: [...r.reacts.entries()].filter(([eid]) => r.events.slice(-20).some(e => e.event_id === eid)).map(([eid, m]) => [eid, [...m.entries()].map(([k, set]) => [k, [...set]])]),
     }));
@@ -728,7 +737,7 @@ async function loadSnapshot() {
       Object.assign(r, { name: x.name, avatar: x.avatar, heroes: x.heroes || [], joined: x.joined, unread: x.unread, net: x.net,
         bridgeName: x.bridgeName, bridgeAvatar: x.bridgeAvatar, channelId: x.channelId, isSpace: x.isSpace, lastTs: x.lastTs,
         tags: x.tags || {}, markedUnread: x.markedUnread, myRead: x.myRead, prevUnread: x.unread || 0, prevBatch: x.prevBatch });
-      r.members = new Map(x.members || []); r.readBy = new Map(x.readBy || []);
+      r.members = new Map(x.members || []); r.readBy = new Map(x.readBy || []); r.mss = new Map(x.mss || []);
       r.events = x.events || []; r.idx = new Map(r.events.map((e: MEvent) => [e.event_id, e]));
       r.reacts = new Map((x.reacts || []).map(([eid, list]: any) => [eid, new Map(list.map(([k, arr]: any) => [k, new Set(arr)]))]));
     }

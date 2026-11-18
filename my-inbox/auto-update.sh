@@ -30,6 +30,14 @@ if grep -qE '^\s*send_presence_on_typing: false' data/whatsapp/config.yaml 2>/de
   echo "$(date -u '+%F %T') WhatsApp typing indicators turned on"
   docker compose restart whatsapp >/dev/null 2>&1 || true
 fi
+# Delivery ticks: bridges report each sent message (sent / delivered to their phone / failed) to the app
+for B in whatsapp instagram messenger; do
+  if grep -qE '^\s*message_status_events: false' data/$B/config.yaml 2>/dev/null; then
+    sed -i -E 's/^(\s*)message_status_events: false/\1message_status_events: true/' data/$B/config.yaml
+    echo "$(date -u '+%F %T') $B delivery status reports turned on"
+    docker compose restart $B >/dev/null 2>&1 || true
+  fi
+done
 # Synapse features for scheduled messages and link previews (added once; rolled back if Synapse won't start)
 HS=data/synapse/homeserver.yaml
 if [ -f "$HS" ] && ! grep -q '^# my-inbox: features v1' "$HS"; then

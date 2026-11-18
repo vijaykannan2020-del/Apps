@@ -28,6 +28,15 @@ type Item = { key: string; kind: 'day'; label: string } | { key: string; kind: '
 const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const URL_RE = /(https?:\/\/[^\s<>()\]]+)/g;
 
+function tickFor(r: Room, ev: MEvent): string {
+  if ([...r.readBy.values()].some(id => { const x = r.idx.get(id); return x && x.origin_server_ts >= ev.origin_server_ts; })) return '✓✓';
+  const m = r.mss.get(ev.event_id);
+  if (m?.s.startsWith('FAIL')) return '!';
+  // WhatsApp reports when it reaches their phone; Instagram/Messenger only "sent" (then "seen"), so sent = delivered there.
+  if (m?.d || (m?.s === 'SUCCESS' && netOf(r) !== 'whatsapp')) return '✓✓·';
+  return '✓';
+}
+
 function dayLabel(ts: number) {
   const d = new Date(ts), now = new Date();
   if (d.toDateString() === now.toDateString()) return 'Today';
@@ -136,7 +145,8 @@ const Bubble = memo(function Bubble({ r, ev, first, last, recent, t, onLong, onR
   }
   const replyTo = c['m.relates_to']?.['m.in_reply_to']?.event_id;
   const quoted = replyTo ? r.idx.get(replyTo) : null;
-  const tick = mine ? (ev.pending ? '◷' : [...r.readBy.values()].some(id => { const x = r.idx.get(id); return x && x.origin_server_ts >= ev.origin_server_ts; }) ? '✓✓' : '✓') : '';
+  // ◷ sending · ✓ sent · ✓✓ grey delivered · ✓✓ blue read · ! not delivered (bridge reported a failure)
+  const tick = !mine ? '' : ev.pending ? '◷' : tickFor(r, ev);
   const meta = `${isStarred(ev) ? '⭐ ' : ''}${ev.edited ? 'edited · ' : ''}${time}${ev.failed ? ' · not sent' : ''}`;
   return (
     <ReanimatedSwipeable ref={sw} friction={2} leftThreshold={60} overshootLeft={false} enabled={!ev.redacted && !ev.pending}
@@ -158,9 +168,9 @@ const Bubble = memo(function Bubble({ r, ev, first, last, recent, t, onLong, onR
             )}
             {body}
             {!bare && <Text style={[styles.time, { color: mine ? (t.dark ? 'rgba(0,0,0,.45)' : 'rgba(255,255,255,.6)') : t.soft }]}>
-              {meta}{tick ? ' ' : ''}{tick ? <Text style={{ color: tick === '✓✓' ? t.blue : undefined }}>{tick}</Text> : null}</Text>}
+              {meta}{tick ? ' ' : ''}{tick ? <Text style={{ color: tick === '✓✓' ? t.blue : tick === '!' ? t.red : undefined, fontWeight: tick === '!' ? '800' : undefined }}>{tick === '✓✓·' ? '✓✓' : tick}</Text> : null}</Text>}
           </Pressable>
-          {bare && <Text style={[styles.time, { color: t.soft, marginHorizontal: 6 }]}>{meta}{tick ? ' ' + tick : ''}</Text>}
+          {bare && <Text style={[styles.time, { color: t.soft, marginHorizontal: 6 }]}>{meta}{tick ? ' ' + (tick === '✓✓·' ? '✓✓' : tick) : ''}</Text>}
           {reactList.length > 0 && (
             <View style={[styles.reacts, { alignSelf: mine ? 'flex-end' : 'flex-start' }]}>
               {reactList.map(([k, s]) => (
