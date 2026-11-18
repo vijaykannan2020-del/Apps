@@ -13,3 +13,4 @@
 - v38: Instagram reels/posts render as link cards (no picture/video), listed under Links not Photos; open via plain instagram.com link (instagram://media?id= opened wrong ids → "Try Again Later"); duplicate ?id= links merged.
 - v39: Instagram links open with the full bridge URL (with ?id=…) so posts open on the post, not Instagram home.
 - v40: Instagram link cards get a "Safari ›" option (x-safari-https) to view the post page directly.
+- v41: Instagram posts open the chat in Instagram (instagram.com/direct/t/<thread>) — private-account posts only open inside the DM; reels still open directly.
