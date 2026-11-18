@@ -59,7 +59,7 @@ const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact, edge 
             <Text style={[styles.time, { color: unread ? t.ink : t.soft, fontWeight: unread ? '600' : '400' }, compact && { fontSize: 12 }]}>{fmtTime(r.lastTs)}</Text>
           </View>
           <View style={styles.l2}>
-            {tick && !draft && <Text style={[styles.tick, { color: tick === 'read' ? t.blue : t.soft }]}>{tick === 'pending' ? '◷' : tick === 'read' ? '✓✓' : '✓'}</Text>}
+            {tick && !draft && <Text style={[styles.tick, { color: tick === 'read' ? t.blue : tick === 'failed' ? t.red : t.soft }]}>{tick === 'pending' ? '◷' : tick === 'read' || tick === 'delivered' ? '✓✓' : tick === 'failed' ? '!' : '✓'}</Text>}
             <Text numberOfLines={compact ? 1 : 2} style={[styles.prev, { color: unread ? t.ink : t.soft, fontSize: 15 * fs, lineHeight: 20 * fs }]}>
               {r.typing.length ? <Text style={{ color: t.blue }}>typing…</Text> : draft ? <><Text style={{ color: t.red }}>Draft: </Text>{draft}</> : lastIsMissed(r) ? <Text style={{ color: t.red }}>{preview(r)}</Text> : preview(r)}
             </Text>

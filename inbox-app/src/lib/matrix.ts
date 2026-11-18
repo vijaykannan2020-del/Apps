@@ -335,6 +335,10 @@ export function lastMine(r: Room) {
   if (!ev || ev.sender !== S.userId) return null;
   if (ev.pending) return 'pending';
   for (const eid of r.readBy.values()) { const t = r.idx.get(eid); if (t && t.origin_server_ts >= ev.origin_server_ts) return 'read'; }
+  // same rules as the ticks inside the chat (see tickFor in ChatView)
+  const m = r.mss.get(ev.event_id);
+  if (m?.s.startsWith('FAIL')) return 'failed';
+  if (m?.d || (m?.s === 'SUCCESS' && netOf(r) !== 'whatsapp')) return 'delivered';
   return 'sent';
 }
 
