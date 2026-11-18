@@ -20,8 +20,8 @@ open "status"; shot 02-documents
 open "cases"; shot 03-case-status
 open "tools"; shot 04-tools
 open "profile"; shot 05-profile
-open "tools/travel"; shot 06-travel
-open "tools/civics"; shot 07-civics
+open "status/person?id=me"; shot 06-person-me
+open "status/person?id=demo-s"; shot 07-person-spouse
 open "status/add"; shot 08-add-documents
 adb shell cmd uimode night no; sleep 3
 open "status"; shot 09-documents-light

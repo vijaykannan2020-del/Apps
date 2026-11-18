@@ -73,7 +73,7 @@ export default function Today() {
                 const tp = cs.find((c) => c.tone === 'red') ?? cs.find((c) => c.tone === 'amber');
                 const col = tp?.tone === 'red' ? t.red : tp ? t.amber : t.green;
                 return (
-                  <Pressable key={x.id} onPress={() => router.push('/status')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: i ? 0.5 : 0, borderTopColor: t.border }}>
+                  <Pressable key={x.id} onPress={() => router.push(`/status/person?id=${x.id}` as any)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: i ? 0.5 : 0, borderTopColor: t.border }}>
                     <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }}>
                       <T v="h3" style={{ fontSize: 13 }}>{x.named ? initials(x.name) : x.id === 'me' ? 'Me' : x.relation[0]}</T>
                     </View>

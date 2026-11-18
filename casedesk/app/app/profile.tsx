@@ -66,14 +66,14 @@ export default function Profile() {
       <Section title="Me">
         <Card style={{ paddingVertical: 4 }}>
           <Row icon="person-outline" tone="accent" title={self.named ? 'Name & status' : 'Add your name'} subtitle="Name, visa, dates and employer" onPress={() => router.push('/status/edit')} />
-          <Row icon="documents-outline" tone="accent" title="My documents" subtitle={`${docs.filter((d) => (d.owner || 'me') === 'me').length} saved`} onPress={() => router.push('/status/vault?owner=me' as any)} last />
+          <Row icon="documents-outline" tone="accent" title="My documents" subtitle={`${docs.filter((d) => (d.owner || 'me') === 'me').length} saved`} onPress={() => router.push('/status/person?id=me' as any)} last />
         </Card>
       </Section>
 
       <Section title="Family" note="Each person has their own dates, documents, cases and reminders.">
         <Card style={{ paddingVertical: 4 }}>
           {list.slice(1).map((x) => (
-            <Row key={x.id} icon="person-circle-outline" tone="neutral" title={x.named ? x.name : `${x.relation} (add name)`} subtitle={`${x.relation}${x.profile ? ' · ' + visaLabel(x.profile) : ''}`} onPress={() => router.push(`/status/edit?member=${x.id}` as any)} />
+            <Row key={x.id} icon="person-circle-outline" tone="neutral" title={x.named ? x.name : `${x.relation} (add name)`} subtitle={`${x.relation}${x.profile ? ' · ' + visaLabel(x.profile) : ''}`} onPress={() => router.push(`/status/person?id=${x.id}` as any)} />
           ))}
           <Row icon="person-add-outline" tone="accent" title="Add family member" subtitle="Spouse, child or parent" onPress={() => router.push('/status/edit?member=new' as any)} last />
         </Card>

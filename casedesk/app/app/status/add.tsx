@@ -22,6 +22,7 @@ type Item = {
   key: string; file: Picked; state: 'reading' | 'done' | 'unread';
   found?: Found; type: DocType; owner: string; validTo: string; receipt: string;
   applyDates: boolean; addCase: boolean; open: boolean;
+  edit: '' | 'name' | 'owner' | 'type' | 'receipt'; // which line of the card is open for changing
   name: string; newRelation: string; // name printed on it (editable); relation if it's a new person
 };
 const NEW = '__new';
@@ -43,7 +44,8 @@ function Avatar({ p, on, onPress }: { p: Person; on: boolean; onPress: () => voi
 export default function AddDocuments() {
   const t = useTheme();
   const router = useRouter();
-  const { member } = useLocalSearchParams<{ member?: string }>();
+  const { member, type: typeParam } = useLocalSearchParams<{ member?: string; type?: string }>();
+  const presetType = (DOC_TYPES as readonly string[]).includes(typeParam ?? '') ? (typeParam as DocType) : undefined;
   const [me] = useProfile();
   const [family] = useFamily();
   const list = useMemo(() => people(me, family), [me, family]);
@@ -60,7 +62,7 @@ export default function AddDocuments() {
     if (!files.length) return;
     const fresh: Item[] = files.map((f, i) => ({
       key: `${Date.now()}-${i}-${f.name}`, file: f, state: canRead ? 'reading' : 'unread',
-      type: 'Other', owner: fallbackOwner, validTo: '', receipt: '', applyDates: true, addCase: true, open: !canRead, name: '', newRelation: 'Child',
+      type: presetType ?? 'Other', owner: fallbackOwner, validTo: '', receipt: '', applyDates: true, addCase: true, open: false, edit: '', name: '', newRelation: 'Child',
     }));
     setItems((xs) => [...xs, ...fresh]);
     if (!canRead) return;
@@ -68,7 +70,7 @@ export default function AddDocuments() {
     for (const it of fresh) {
       queue.current = queue.current.then(async () => {
         const text = await readText(it.file.uri, it.file.mime);
-        if (!text || text.replace(/\s/g, '').length < 20) { patch(it.key, { state: 'unread', open: true }); return; }
+        if (!text || text.replace(/\s/g, '').length < 20) { patch(it.key, { state: 'unread' }); return; }
         const f = parseDocument(text);
         // Whose is it?
         // 1. Opened from someone's page → theirs, unless the name clearly belongs to someone else.
@@ -84,8 +86,8 @@ export default function AddDocuments() {
         else if (f.name && (meNamed || minor)) owner = unnamed.length === 1 ? unnamed[0].id : NEW;
         const newRelation = minor ? 'Child' : 'Spouse';
         patch(it.key, {
-          state: 'done', found: f, type: f.type ?? 'Other', validTo: f.validTo ?? '', receipt: f.receipt ?? '',
-          owner, newRelation, name: f.name ?? '', open: !f.type && !f.validTo,
+          state: 'done', found: f, type: f.type ?? presetType ?? 'Other', validTo: f.validTo ?? '', receipt: f.receipt ?? '',
+          owner, newRelation, name: f.name ?? '',
         });
       });
     }
@@ -178,7 +180,7 @@ export default function AddDocuments() {
   return (
     <DetailScreen title="Add documents" modal>
       <View style={{ paddingHorizontal: 20 }}>
-        <T v="sub">Pick one or many. CaseDesk reads each on your phone, files it under the right person, fills their dates and tracks receipt numbers.</T>
+        <T v="sub">Pick one or many. CaseDesk reads each one on your phone and shows what it found — check it and save.</T>
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
           {Platform.OS !== 'web' ? <Source icon="camera-outline" label="Camera" onPress={() => pick('camera')} /> : null}
           <Source icon="images-outline" label="Photos" onPress={() => pick('photos')} />
@@ -191,74 +193,69 @@ export default function AddDocuments() {
       <View style={{ paddingHorizontal: 20, marginTop: 18, gap: 12 }}>
         {items.map((it) => {
           const who = list.find((p) => p.id === it.owner);
-          const ups = it.state !== 'reading' ? statusUpdates({ ...(it.found || { lines: 0 }), type: it.type, validTo: it.validTo || undefined, receipt: it.receipt || undefined }) : [];
+          const whoName = it.owner === NEW ? (it.name.trim().split(' ')[0] || 'New person') : it.owner === 'me' ? 'You' : (who as any)?.short ?? who?.name ?? '';
+          const typeName = it.type === 'Other' ? 'document' : it.type.replace(/ \(.*\)/, '');
+          const toggle = (e: Item['edit']) => { tap(); patch(it.key, { edit: it.edit === e ? '' : e }); };
+          const Line = ({ label, value, edit, muted }: { label: string; value: string; edit: Item['edit']; muted?: boolean }) => (
+            <Pressable onPress={() => toggle(edit)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderTopWidth: 0.5, borderTopColor: t.border, gap: 10 }}>
+              <T v="sub" style={{ width: 96 }}>{label}</T>
+              <T v="body" numberOfLines={1} style={{ flex: 1, textAlign: 'right', fontSize: 15, color: muted ? t.accent : t.text }}>{value}</T>
+              <Ionicons name={it.edit === edit ? 'chevron-up' : 'chevron-down'} size={14} color={t.sub} />
+            </Pressable>
+          );
+          if (it.state === 'reading') return (
+            <Card key={it.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <ActivityIndicator color={t.sub} />
+              <View style={{ flex: 1 }}><T v="h3">Reading…</T><T v="small" numberOfLines={1}>{it.file.name}</T></View>
+            </Card>
+          );
           return (
             <Card key={it.key}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 }}>
                 <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }}>
                   <Ionicons name={DOC_ICON[it.type] ?? 'document-outline'} size={20} color={t.text} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <T v="h3" numberOfLines={1}>{it.state === 'reading' ? 'Reading…' : it.type === 'Other' ? 'Document' : it.type}</T>
-                  <T v="small" numberOfLines={1}>{it.file.name}</T>
+                  <T v="small">{it.state === 'unread' ? 'Couldn’t read this one — fill in below' : 'Found in your file'}</T>
+                  <T v="h3" numberOfLines={1}>{it.owner === 'me' ? 'Your' : `${whoName}’s`} {typeName}</T>
                 </View>
-                {it.state === 'reading' ? <ActivityIndicator color={t.sub} /> : (
-                  <Pressable onPress={() => setItems((xs) => xs.filter((x) => x.key !== it.key))} hitSlop={10}><Ionicons name="close-circle" size={22} color={t.faint} /></Pressable>
-                )}
+                <Pressable onPress={() => setItems((xs) => xs.filter((x) => x.key !== it.key))} hitSlop={10} accessibilityLabel="Remove"><Ionicons name="close-circle" size={22} color={t.faint} /></Pressable>
               </View>
 
-              {it.state !== 'reading' ? (
-                <>
-                  {it.state === 'unread' && canRead ? <View style={{ marginTop: 10 }}><Note tone="amber">Couldn’t read this one — choose the type and date below.</Note></View> : null}
-                  <View style={{ marginTop: 14 }}>
-                    <Field label="Name on document" value={it.name} onChangeText={(v) => patch(it.key, { name: v })} placeholder={it.state === 'done' ? 'Not found — type the name' : 'Type the name'} autoCapitalize="words" />
-                  </View>
-                  <T v="label" style={{ marginBottom: 8 }}>Whose document</T>
+              <Line label="Name" value={it.name || 'Add name'} edit="name" muted={!it.name} />
+              {it.edit === 'name' ? <Field label="Name as printed" value={it.name} onChangeText={(v) => patch(it.key, { name: v })} placeholder="Maya Thushara" autoCapitalize="words" autoFocus /> : null}
+
+              <Line label="Belongs to" value={whoName} edit="owner" />
+              {it.edit === 'owner' ? (
+                <View style={{ paddingBottom: 10 }}>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-                    {list.map((p) => <Avatar key={p.id} p={p} on={it.owner === p.id} onPress={() => patch(it.key, { owner: p.id })} />)}
+                    {list.map((p) => <Avatar key={p.id} p={p} on={it.owner === p.id} onPress={() => patch(it.key, { owner: p.id, edit: '' })} />)}
                     <Avatar p={{ id: NEW, name: 'New', relation: '+', short: 'New person', named: false } as any} on={it.owner === NEW} onPress={() => patch(it.key, { owner: NEW })} />
                   </View>
-                  {it.owner === NEW ? (
-                    <View style={{ marginTop: 10 }}>
-                      <T v="small" style={{ marginBottom: 8 }}>Adds {it.name.trim() || 'this person'} to your family as</T>
-                      <View style={{ marginHorizontal: -36 }}><Chips options={['Spouse', 'Child', 'Parent', 'Other'].map((r) => ({ label: r, value: r }))} value={it.newRelation} onChange={(v) => patch(it.key, { newRelation: v })} /></View>
-                    </View>
-                  ) : null}
-
-                  <View style={{ marginTop: 12, gap: 8 }}>
-                    {it.validTo ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Ionicons name="calendar-outline" size={16} color={t.sub} /><T v="body">Valid to <T v="h3" style={{ fontSize: 15 }}>{fmt(it.validTo)}</T></T></View> : null}
-                    {it.receipt ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Ionicons name="receipt-outline" size={16} color={t.sub} /><T v="body">{it.receipt}{it.found?.form ? ` · ${it.found.form}` : ''}</T></View> : null}
-                  </View>
-
-                  {ups.length ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-                      <T v="body" style={{ flex: 1, fontSize: 14 }}>Update {it.owner === 'me' ? 'my' : it.owner === NEW ? `${it.name.trim().split(' ')[0] || 'their'}’s` : `${(who as any)?.short ?? who?.name}’s`} {ups.map((u) => u.label.toLowerCase()).join(', ')}</T>
-                      <Switch value={it.applyDates} onValueChange={(v) => patch(it.key, { applyDates: v })} trackColor={{ true: t.green, false: t.surface2 }} thumbColor="#fff" />
-                    </View>
-                  ) : null}
-                  {it.receipt ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                      <T v="body" style={{ flex: 1, fontSize: 14 }}>Track this receipt in Cases</T>
-                      <Switch value={it.addCase} onValueChange={(v) => patch(it.key, { addCase: v })} trackColor={{ true: t.green, false: t.surface2 }} thumbColor="#fff" />
-                    </View>
-                  ) : null}
-
-                  <Pressable onPress={() => patch(it.key, { open: !it.open })} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <T v="small" style={{ color: t.accent, fontWeight: '700' }}>{it.open ? 'Hide' : 'View document & edit details'}</T>
-                    <Ionicons name={it.open ? 'chevron-up' : 'chevron-down'} size={14} color={t.accent} />
-                  </Pressable>
-                  {it.open ? (
-                    <View style={{ marginTop: 10 }}>
-                      <DocPreview uri={Platform.OS === 'web' && it.file.webFile ? URL.createObjectURL(it.file.webFile) : it.file.uri} mime={it.file.mime} height={240} />
-                      <T v="small" style={{ marginTop: 6, marginBottom: 12, textAlign: 'center' }}>Compare with the document and correct anything that’s off.</T>
-                      <T v="label" style={{ marginBottom: 8 }}>Type</T>
-                      <View style={{ marginHorizontal: -36, marginBottom: 12 }}><Chips options={DOC_TYPES.map((d) => ({ label: d, value: d }))} value={it.type} onChange={(v) => patch(it.key, { type: v })} /></View>
-                      <DateField label="Valid until" value={it.validTo} onChange={(v) => patch(it.key, { validTo: v })} />
-                      <Field label="Receipt number (if any)" value={it.receipt} onChangeText={(v) => patch(it.key, { receipt: v.toUpperCase().replace(/\s/g, '') })} autoCapitalize="characters" maxLength={13} />
-                    </View>
-                  ) : null}
-                </>
+                </View>
               ) : null}
+              {it.owner === NEW ? (
+                <View style={{ paddingBottom: 10 }}>
+                  <T v="small" style={{ marginBottom: 8 }}>Adds {it.name.trim() || 'this person'} to your family as</T>
+                  <View style={{ marginHorizontal: -36 }}><Chips options={['Spouse', 'Child', 'Parent', 'Other'].map((r) => ({ label: r, value: r }))} value={it.newRelation} onChange={(v) => patch(it.key, { newRelation: v })} /></View>
+                </View>
+              ) : null}
+
+              <Line label="Type" value={it.type === 'Other' ? 'Choose type' : it.type} edit="type" muted={it.type === 'Other'} />
+              {it.edit === 'type' ? <View style={{ marginHorizontal: -36, paddingBottom: 10 }}><Chips options={DOC_TYPES.map((d) => ({ label: d, value: d }))} value={it.type} onChange={(v) => patch(it.key, { type: v, edit: '' })} /></View> : null}
+
+              <View style={{ borderTopWidth: 0.5, borderTopColor: t.border, paddingTop: 12 }}>
+                <DateField label={it.type === 'Receipt (I-797C)' ? 'Receipt date' : 'Valid until'} value={it.validTo} onChange={(v) => patch(it.key, { validTo: v })} />
+              </View>
+
+              {it.receipt || /I-797|I-129S/.test(it.type) ? <Line label="Receipt no." value={it.receipt || 'Add'} edit="receipt" muted={!it.receipt} /> : null}
+              {it.edit === 'receipt' ? <Field label="Receipt number" value={it.receipt} onChangeText={(v) => patch(it.key, { receipt: v.toUpperCase().replace(/\s/g, '') })} autoCapitalize="characters" maxLength={13} placeholder="IOE0123456789" /> : null}
+
+              <Pressable onPress={() => patch(it.key, { open: !it.open })} style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="eye-outline" size={15} color={t.accent} />
+                <T v="small" style={{ color: t.accent, fontWeight: '700' }}>{it.open ? 'Hide document' : 'View document to check'}</T>
+              </Pressable>
+              {it.open ? <View style={{ marginTop: 10 }}><DocPreview uri={Platform.OS === 'web' && it.file.webFile ? URL.createObjectURL(it.file.webFile) : it.file.uri} mime={it.file.mime} height={240} /></View> : null}
             </Card>
           );
         })}
