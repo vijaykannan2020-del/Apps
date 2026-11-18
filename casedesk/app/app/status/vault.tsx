@@ -23,6 +23,7 @@ async function applyToStatus(f: Found, memberId?: string) {
     const m = (await loadFamily()).find((x) => x.id === memberId);
     if (!m) return 0;
     for (const u of ups) (m.profile as any)[u.field] = u.value;
+    if (f.type === 'I-129S (blanket L)') m.profile.blanket = true;
     // Fill the name from the document if it wasn't typed (it defaults to "Child", "Spouse"…)
     if (f.name && (!m.name || m.name === m.relation)) m.name = f.name.split(' ')[0];
     await saveMember(m);
@@ -30,12 +31,13 @@ async function applyToStatus(f: Found, memberId?: string) {
   }
   const p: Profile = (await loadProfile()) ?? { visa: CLASS_TO_VISA[f.classOfAdmission ?? ''] ?? 'H-1B' };
   for (const u of ups) (p as any)[u.field] = u.value;
+  if (f.type === 'I-129S (blanket L)') { p.blanket = true; if (!['L-1A', 'L-1B'].includes(p.visa)) p.visa = 'L-1A'; }
   await saveProfile(p);
   return ups.length;
 }
 
 const BIO = Platform.OS === 'android' ? 'fingerprint' : 'Face ID';
-const ICON: Record<string, any> = { 'Receipt (I-797C)': 'receipt-outline', 'Approval (I-797A/B)': 'ribbon-outline', 'I-94': 'document-text-outline', 'Visa stamp': 'card-outline', Passport: 'airplane-outline', 'EAD card': 'id-card-outline', LCA: 'briefcase-outline', 'Green card': 'card-outline', 'Pay stub / W-2': 'cash-outline', Other: 'document-outline' };
+const ICON: Record<string, any> = { 'I-129S (blanket L)': 'layers-outline', 'Receipt (I-797C)': 'receipt-outline', 'Approval (I-797A/B)': 'ribbon-outline', 'I-94': 'document-text-outline', 'Visa stamp': 'card-outline', Passport: 'airplane-outline', 'EAD card': 'id-card-outline', LCA: 'briefcase-outline', 'Green card': 'card-outline', 'Pay stub / W-2': 'cash-outline', Other: 'document-outline' };
 
 function AddSheet({ onDone, memberId, memberName }: { onDone: (msg?: string) => void; memberId?: string; memberName?: string }) {
   const t = useTheme();

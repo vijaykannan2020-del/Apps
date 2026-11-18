@@ -17,10 +17,13 @@ export function visasFor(relation?: string): VisaType[] {
 }
 // Statuses that come with their own I-797 approval (or follow the principal's)
 export const hasApprovalNotice = (v: VisaType) => ['H-1B', 'L-1A', 'L-1B', 'TN', 'H-4', 'H-4 EAD', 'L-2S', 'L-2'].includes(v);
+export const canBeBlanket = (v: VisaType) => ['L-1A', 'L-1B', 'L-2S', 'L-2'].includes(v);
+export const isBlanket = (p: { visa: VisaType; blanket?: boolean }) => !!p.blanket && canBeBlanket(p.visa);
 
 export type Profile = {
   visa: VisaType;
   employer?: string;
+  blanket?: boolean; // L-1 (or L-2 dependent) admitted under a blanket L petition with Form I-129S — no individual I-797
   i94Expiry?: string; // "Admit Until" date on the I-94
   petitionEnd?: string; // validity end on I-797 approval
   passportExpiry?: string;

@@ -4,7 +4,7 @@ import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { DetailScreen } from '../../src/components/TopBar';
 import { Field, Button, T, Chips, DateField, Note, Divider } from '../../src/components/ui';
 import { useTheme } from '../../src/theme';
-import { VisaType, Profile, loadProfile, saveProfile, usesEAD, hasPetition, visasFor, hasApprovalNotice } from '../../src/lib/profile';
+import { VisaType, Profile, loadProfile, saveProfile, usesEAD, hasPetition, visasFor, hasApprovalNotice, canBeBlanket, isBlanket } from '../../src/lib/profile';
 import { loadFamily, saveMember, removeMember, RELATIONS } from '../../src/lib/family';
 
 export default function EditStatus() {
@@ -61,7 +61,18 @@ export default function EditStatus() {
       <View style={{ padding: 20 }}>
         {!isMember && hasPetition(p.visa) ? <Field label="Employer" placeholder="e.g. HCL America Inc." value={p.employer ?? ''} onChangeText={set('employer')} /> : null}
         <DateField label="I-94 “Admit Until” date" value={p.i94Expiry} onChange={set('i94Expiry')} hint="From i94.cbp.dhs.gov — the date that controls your stay." />
-        {hasApprovalNotice(p.visa) ? <DateField label="Approval notice valid to (I-797)" value={p.petitionEnd} onChange={set('petitionEnd')} /> : null}
+        {canBeBlanket(p.visa) ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <T v="h3" style={{ fontSize: 15 }}>{p.visa.startsWith('L-2') ? 'Principal is on an L blanket' : 'Blanket L (Form I-129S)'}</T>
+              <T v="small" style={{ marginTop: 2 }}>No individual I-797 — the I-129S and I-94 set the period.</T>
+            </View>
+            <Switch value={!!p.blanket} onValueChange={set('blanket')} trackColor={{ true: t.green, false: t.surface2 }} thumbColor="#fff" />
+          </View>
+        ) : null}
+        {hasApprovalNotice(p.visa) ? (isBlanket(p)
+          ? <DateField label="I-129S period ends" value={p.petitionEnd} onChange={set('petitionEnd')} hint="The end date endorsed on the I-129S (usually up to 3 years). Leave blank if you only have the I-94." />
+          : <DateField label="Approval notice valid to (I-797)" value={p.petitionEnd} onChange={set('petitionEnd')} />) : null}
         <DateField label="Passport expires" value={p.passportExpiry} onChange={set('passportExpiry')} />
         <DateField label="Visa stamp expires" value={p.visaStampExpiry} onChange={set('visaStampExpiry')} hint="Only matters for travel." />
         {usesEAD(p.visa) ? <DateField label="EAD card valid to" value={p.eadExpiry} onChange={set('eadExpiry')} /> : null}

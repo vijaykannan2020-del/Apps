@@ -1,5 +1,5 @@
 // "Can I travel?" — checks a planned international trip against the person's saved status dates.
-import { Profile } from './profile';
+import { Profile, isBlanket } from './profile';
 
 export type Verdict = 'ok' | 'risky' | 'no';
 export type Reason = { tone: Verdict; title: string; detail: string };
@@ -20,9 +20,11 @@ export function checkTrip(p: Profile, trip: Trip): { verdict: Verdict; reasons: 
   if (in240) r.push({ tone: 'no', title: 'You’re working on a pending extension (240-day rule)', detail: 'Your I-94 has ended and you rely on the timely-filed extension. Leaving the US ends that — you’d need the approval and a valid visa stamp to come back.' });
 
   // Petition / approval valid on return
+  const bl = isBlanket(p);
   if ((work || dependent) && p.petitionEnd) {
-    if (p.petitionEnd < back) r.push({ tone: pendingExt ? 'risky' : 'no', title: `Your approval ends ${p.petitionEnd} — before you return`, detail: pendingExt ? 'Travel only once the extension is approved, and carry the new I-797. Re-entering on a pending case can shorten your I-94.' : 'You need a new approval notice before re-entering in this status.' });
-    else r.push({ tone: 'ok', title: 'Approval notice covers your return', detail: `Valid to ${p.petitionEnd}. Carry the original I-797.` });
+    const doc = bl ? 'I-129S' : 'I-797';
+    if (p.petitionEnd < back) r.push({ tone: pendingExt ? 'risky' : 'no', title: `Your ${bl ? 'I-129S period' : 'approval'} ends ${p.petitionEnd} — before you return`, detail: pendingExt ? `Travel only once the extension is approved, and carry the new I-797. Re-entering on a pending case can shorten your I-94.` : bl ? 'You need a new I-129S (or an approved individual L petition) before re-entering.' : 'You need a new approval notice before re-entering in this status.' });
+    else r.push({ tone: 'ok', title: `${bl ? 'I-129S period' : 'Approval notice'} covers your return`, detail: `Valid to ${p.petitionEnd}. Carry the original ${doc}${bl ? ' and a copy of the blanket approval notice' : ''}.` });
   }
 
   // Visa stamp

@@ -1,5 +1,5 @@
 // Personal status checks, computed on the phone from the dates the user enters.
-import { Profile, usesEAD, hasPetition } from './profile';
+import { Profile, usesEAD, hasPetition, isBlanket } from './profile';
 
 export type Check = { id: string; tone: 'red' | 'amber' | 'green' | 'neutral'; title: string; detail: string; icon: string };
 
@@ -17,6 +17,8 @@ export function runChecks(p: Profile): Check[] {
   const out: Check[] = [];
   const work = hasPetition(p.visa);
   const filedOnTime = !!p.extFiled && (!p.i94Expiry || p.extFiled <= p.i94Expiry);
+  const blanket = isBlanket(p);
+  const approval = blanket ? 'I-129S period' : 'approval notice';
 
   // 1. I-94 / status end
   const d94 = daysTo(p.i94Expiry);
@@ -35,22 +37,24 @@ export function runChecks(p: Profile): Check[] {
   } else if (d94 <= 30) {
     out.push({ id: 'i94-30', tone: 'red', icon: 'alert-circle', title: `I-94 ends in ${d94} days — file the extension now`, detail: `Your stay ends ${fmt(p.i94Expiry)}. The extension must be filed (received by USCIS) before that date.` });
   } else if (d94 <= 180) {
-    out.push({ id: 'i94-180', tone: 'amber', icon: 'time-outline', title: `I-94 ends in ${d94} days — extension window is open`, detail: work ? 'H-1B, L-1 and TN extensions can be filed up to 6 months before the end date. Start now with your employer.' : 'Plan your extension with the principal’s petition so they are filed together.' });
+    out.push({ id: 'i94-180', tone: 'amber', icon: 'time-outline', title: `I-94 ends in ${d94} days — extension window is open`, detail: blanket ? 'Blanket L: to stay past this period your employer files an individual Form I-129 with USCIS (up to 6 months before) — the blanket can’t be extended at a consulate from inside the US.' : work ? 'H-1B, L-1 and TN extensions can be filed up to 6 months before the end date. Start now with your employer.' : 'Plan your extension with the principal’s petition so they are filed together.' });
   } else {
     out.push({ id: 'i94-ok', tone: 'green', icon: 'checkmark-circle', title: `Status valid until ${fmt(p.i94Expiry)}`, detail: `${d94} days left on your I-94.` });
   }
 
   // 2. I-94 shorter than the approval
   if (p.i94Expiry && p.petitionEnd && p.i94Expiry < addDays(p.petitionEnd, -1)) {
-    out.push({ id: 'i94-short', tone: 'amber', icon: 'git-compare-outline', title: 'I-94 ends before your approval notice', detail: `Approval runs to ${fmt(p.petitionEnd)} but your I-94 ends ${fmt(p.i94Expiry)} — often because the passport expired sooner. You must leave or extend by the I-94 date; ask CBP about a correction if it is wrong.` });
+    out.push({ id: 'i94-short', tone: 'amber', icon: 'git-compare-outline', title: `I-94 ends before your ${approval}`, detail: `${blanket ? 'The I-129S period' : 'Approval'} runs to ${fmt(p.petitionEnd)} but your I-94 ends ${fmt(p.i94Expiry)} — often because the passport expired sooner. You must leave or extend by the I-94 date; ask CBP about a correction if it is wrong.` });
   }
+
+  if (blanket) out.push({ id: 'blanket', tone: 'neutral', icon: 'layers-outline', title: 'On a blanket L (I-129S)', detail: 'Keep the endorsed I-129S with your passport — it’s your proof of status with the I-94. Initial blanket periods are up to 3 years; extensions need an individual I-129 with USCIS.' });
 
   // 3. Passport
   const dp = daysTo(p.passportExpiry);
   if (dp !== null) {
     if (dp < 0) out.push({ id: 'pp-exp', tone: 'red', icon: 'airplane-outline', title: 'Passport has expired', detail: 'Renew it with your country’s embassy or consulate. Needed for travel, extensions and your I-9.' });
     else if (dp <= 180) out.push({ id: 'pp-soon', tone: 'amber', icon: 'airplane-outline', title: `Passport expires in ${dp} days`, detail: 'Renew early — on re-entry CBP usually limits your I-94 to the passport date.' });
-    else if (p.petitionEnd && p.passportExpiry! < p.petitionEnd) out.push({ id: 'pp-before', tone: 'neutral', icon: 'airplane-outline', title: 'Passport ends before your approval', detail: `Renew before your next trip so your I-94 can run to ${fmt(p.petitionEnd)}.` });
+    else if (p.petitionEnd && p.passportExpiry! < p.petitionEnd) out.push({ id: 'pp-before', tone: 'neutral', icon: 'airplane-outline', title: `Passport ends before your ${approval}`, detail: `Renew before your next trip so your I-94 can run to ${fmt(p.petitionEnd)}.` });
   }
 
   // 4. Visa stamp

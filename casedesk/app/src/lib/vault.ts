@@ -7,7 +7,7 @@ import * as Sharing from 'expo-sharing';
 import { File, Directory, Paths } from 'expo-file-system';
 import { useCallback, useEffect, useState } from 'react';
 
-export const DOC_TYPES = ['Receipt (I-797C)', 'Approval (I-797A/B)', 'I-94', 'Visa stamp', 'Passport', 'EAD card', 'LCA', 'Green card', 'Pay stub / W-2', 'Other'] as const;
+export const DOC_TYPES = ['Receipt (I-797C)', 'Approval (I-797A/B)', 'I-129S (blanket L)', 'I-94', 'Visa stamp', 'Passport', 'EAD card', 'LCA', 'Green card', 'Pay stub / W-2', 'Other'] as const;
 export type DocType = (typeof DOC_TYPES)[number];
 
 export type VaultDoc = {

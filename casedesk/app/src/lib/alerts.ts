@@ -81,7 +81,7 @@ type Reminder = { id: string; date: string; title: string; body: string; url: st
 
 const DATE_FIELDS: { k: keyof Profile; label: string }[] = [
   { k: 'i94Expiry', label: 'Your I-94' },
-  { k: 'petitionEnd', label: 'Your approval (I-797)' },
+  { k: 'petitionEnd', label: 'Your approval (I-797 / I-129S)' },
   { k: 'eadExpiry', label: 'Your EAD card' },
   { k: 'passportExpiry', label: 'Your passport' },
   { k: 'visaStampExpiry', label: 'Your visa stamp' },

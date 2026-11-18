@@ -189,6 +189,12 @@ export function parseDocument(text: string): Found {
     found.type = 'EAD card';
     found.validFrom = dateAfter(T, /valid from\s*[:\-]?/i);
     found.validTo = dateAfter(T, /card expires\s*[:\-]?|expires\s*[:\-]?/i);
+  } else if (/I-129S|BASED ON BLANKET L PETITION|BLANKET L/.test(U)) {
+    // Blanket L: the I-129S (endorsed by the consulate/CBP) sets the period — there's no individual I-797.
+    found.type = 'I-129S (blanket L)';
+    const m = T.match(/(?:intended employment|employment)[\s\S]{0,60}?from[\s\S]{0,30}?(\S+\s?\S*\s?\S*)[\s\S]{0,30}?to\s*[:\-]?\s*(.+)/i);
+    if (m) { found.validFrom = datesIn(m[1])[0]; found.validTo = datesIn(m[2])[0]; }
+    found.validTo ||= latest(T);
   } else if (/I-797|NOTICE OF ACTION|APPROVAL NOTICE|RECEIPT NOTICE/.test(U)) {
     const approval = /APPROVAL NOTICE|VALID FROM|I-797A|I-797B|HAS BEEN APPROVED/.test(U);
     found.type = approval ? 'Approval (I-797A/B)' : 'Receipt (I-797C)';
@@ -227,6 +233,7 @@ export function statusUpdates(f: Found): { field: 'i94Expiry' | 'petitionEnd' | 
   const u: ReturnType<typeof statusUpdates> = [];
   if (f.type === 'I-94' && f.validTo) u.push({ field: 'i94Expiry', label: 'I-94 admit until', value: f.validTo });
   if (f.type === 'Approval (I-797A/B)' && f.validTo) u.push({ field: 'petitionEnd', label: 'Approval valid to', value: f.validTo });
+  if (f.type === 'I-129S (blanket L)' && f.validTo) u.push({ field: 'petitionEnd', label: 'I-129S period ends', value: f.validTo });
   if (f.type === 'EAD card' && f.validTo) u.push({ field: 'eadExpiry', label: 'EAD valid to', value: f.validTo });
   if (f.type === 'Passport' && f.validTo) u.push({ field: 'passportExpiry', label: 'Passport expires', value: f.validTo });
   if (f.type === 'Visa stamp' && f.validTo) u.push({ field: 'visaStampExpiry', label: 'Visa stamp expires', value: f.validTo });

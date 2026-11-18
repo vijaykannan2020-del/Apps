@@ -96,7 +96,7 @@ export default function Status() {
           <Section title="Key dates" action="Edit" onAction={() => router.push(editPath as any)}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
               <DateTile label="I-94 admit until" value={p.i94Expiry} />
-              <DateTile label="Approval valid to" value={p.petitionEnd} />
+              <DateTile label={p.blanket && /^L-/.test(p.visa) ? "I-129S period ends" : "Approval valid to"} value={p.petitionEnd} />
               <DateTile label="Passport" value={p.passportExpiry} />
               <DateTile label="Visa stamp" value={p.visaStampExpiry} />
               {usesEAD(p.visa) ? <DateTile label="EAD card" value={p.eadExpiry} /> : null}
