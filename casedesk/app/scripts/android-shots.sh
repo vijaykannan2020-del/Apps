@@ -6,9 +6,12 @@ APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
 adb install -r "$APK"
 PKG=com.vijaykannan.casedesk
 adb shell settings put system font_scale 1.0
+adb shell settings put global hide_error_dialogs 1 || true
+adb shell pm disable-user --user 0 com.google.android.apps.nexuslauncher >/dev/null 2>&1 || true
+adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
 adb shell cmd uimode night yes
 open() { adb shell am start -W -a android.intent.action.VIEW -d "casedesk://$1" $PKG >/dev/null; sleep "${2:-6}"; }
-shot() { adb exec-out screencap -p > "shots/$1.png"; }
+shot() { adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1; sleep 1; adb exec-out screencap -p > "shots/$1.png"; }
 adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1; sleep 20
 shot 00-launch
 open "demo" 12

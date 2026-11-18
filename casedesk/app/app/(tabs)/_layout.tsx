@@ -7,7 +7,7 @@ import { useTheme } from '../../src/theme';
 export default function TabsLayout() {
   const t = useTheme();
   return (
-    <NativeTabs sidebarAdaptable minimizeBehavior="onScrollDown" tintColor={t.accent} iconColor={t.sub} labelStyle={{ fontSize: 11, fontWeight: '600' }}>
+    <NativeTabs labelVisibilityMode="labeled" sidebarAdaptable minimizeBehavior="onScrollDown" tintColor={t.accent} iconColor={t.sub} labelStyle={{ fontSize: 11, fontWeight: '600' }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
         <NativeTabs.Trigger.Label>Overview</NativeTabs.Trigger.Label>
