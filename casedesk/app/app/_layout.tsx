@@ -1,27 +1,41 @@
 import { Stack, router } from 'expo-router';
-import { useEffect } from 'react';
-import { setupNotificationHandling, applyAlerts } from '../src/lib/alerts';
-import { registerBackground } from '../src/lib/background';
-import { Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useTheme } from '../src/theme';
+import { ErrorBoundary, SheetProvider, ThemeProvider, ToastProvider, useTheme } from '../src/ui';
+import { FamilyProvider, useFamily } from '../src/data/FamilyProvider';
+import { AppLock } from '../src/screens/lock';
+import { native } from '../src/native/safe';
+
+function Themed({ children }: { children: React.ReactNode }) {
+  const f = useFamily();
+  return <ThemeProvider choice={f.settings.theme ?? 'system'}>{children}</ThemeProvider>;
+}
+
+function Nav() {
+  const t = useTheme();
+  return (
+    <>
+      <StatusBar style={t.dark ? 'light' : 'dark'} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: Platform.OS === 'android' ? 'slide_from_right' : 'default', fullScreenGestureEnabled: true }}>
+        <Stack.Screen name="index" options={{ animation: 'none' }} />
+        <Stack.Screen name="welcome" options={{ animation: 'fade', gestureEnabled: false }} />
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
+        <Stack.Screen name="flow/summary" options={{ gestureEnabled: false }} />
+      </Stack>
+    </>
+  );
+}
 
 export default function Root() {
-  const t = useTheme();
   useEffect(() => {
-    setupNotificationHandling();
-    registerBackground();
-    applyAlerts(); // refresh reminders on every launch
-    import('../src/lib/tidy').then((m) => m.unconfirmDefaultVisas()).catch(() => {});
-    import('../src/lib/pd').then((m) => m.checkPriorityDate(true)).catch(() => {});
     if (Platform.OS === 'web') return;
-    // Apply app updates straight away: if a newer version downloads within a few seconds of opening,
-    // restart into it (otherwise it's used next time the app opens).
+    // Apply a new over-the-air bundle straight away if it downloads within a few seconds of opening.
     (async () => {
       try {
-        const U = require('expo-updates');
-        if (__DEV__ || !U.isEnabled) return;
+        const U = native.updates();
+        if (__DEV__ || !U?.isEnabled) return;
         const started = Date.now();
         const r = await U.checkForUpdateAsync();
         if (!r.isAvailable) return;
@@ -29,23 +43,32 @@ export default function Root() {
         if (Date.now() - started < 12000) await U.reloadAsync();
       } catch {}
     })();
-    const N = require('expo-notifications');
-    const open = (r: any) => { const url = r?.notification?.request?.content?.data?.url; if (url) router.push(url); };
-    N.getLastNotificationResponseAsync?.().then(open).catch(() => {});
-    const sub = N.addNotificationResponseReceivedListener(open);
-    return () => sub.remove();
+    // Tapping a reminder opens that person's page.
+    const N = native.notifications();
+    if (!N?.addNotificationResponseReceivedListener) return;
+    try {
+      N.setNotificationHandler?.({ handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }) });
+      const open = (r: any) => { const url = r?.notification?.request?.content?.data?.url; if (url) router.push(url); };
+      N.getLastNotificationResponseAsync?.().then(open).catch(() => {});
+      const sub = N.addNotificationResponseReceivedListener(open);
+      return () => sub.remove();
+    } catch { return; }
   }, []);
   return (
     <SafeAreaProvider>
-      <StatusBar style={t.dark ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: Platform.OS === 'android' ? 'fade_from_bottom' : 'default' }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="case/add" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="status/add" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="status/flow" options={{ presentation: "modal" }} />
-        <Stack.Screen name="tools/i9-record" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="alerts" />
-      </Stack>
+      <ErrorBoundary>
+        <FamilyProvider>
+          <Themed>
+            <ToastProvider>
+              <SheetProvider>
+                <AppLock>
+                  <Nav />
+                </AppLock>
+              </SheetProvider>
+            </ToastProvider>
+          </Themed>
+        </FamilyProvider>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

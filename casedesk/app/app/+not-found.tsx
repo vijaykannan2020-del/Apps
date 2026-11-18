@@ -1,6 +1,5 @@
-import { Redirect } from 'expo-router';
-
-// Any unknown path (e.g. when the preview is hosted under a sub-path) opens the Today tab.
+import { EmptyState, Screen } from '../src/ui';
+import { home } from '../src/screens/common';
 export default function NotFound() {
-  return <Redirect href="/" />;
+  return <Screen><EmptyState icon="doc" title="This page doesn’t exist" action={{ title: 'Go to Home', onPress: home }} /></Screen>;
 }

@@ -1,55 +1,28 @@
+// Web preview only (screenshots / review): a JS tab bar styled like the iOS one. The phone app uses
+// the system tab bar (_layout.tsx, native tabs).
 import { Tabs } from 'expo-router';
-import { Platform, StyleSheet } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../src/theme';
-import { useLayout } from '../../src/lib/layout';
+import { Icon, useTheme } from '../../src/ui';
 
-const icons: Record<string, [any, any]> = {
-  index: ['home', 'home-outline'],
-  cases: ['file-tray-full', 'file-tray-full-outline'],
-  tools: ['calculator', 'calculator-outline'],
-  status: ['document-text', 'document-text-outline'],
-};
+const ICON: Record<string, string> = { index: 'home', family: 'users', cases: 'clock', tools: 'grid' };
+const LABEL: Record<string, string> = { index: 'Home', family: 'Family', cases: 'Cases', tools: 'Tools' };
 
-export default function TabsLayout() {
+export default function TabsWeb() {
   const t = useTheme();
-  const L = useLayout();
   return (
-    <Tabs
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: t.text,
-        tabBarInactiveTintColor: t.faint,
-        tabBarLabelStyle: { fontSize: L.wide ? 11 : 10.5, fontWeight: '600' },
-        tabBarItemStyle: L.wide ? { paddingHorizontal: 0 } : undefined,
-        tabBarPosition: L.wide ? 'left' : 'bottom',
-        tabBarVariant: L.wide ? 'material' : 'uikit',
-        tabBarLabelPosition: 'below-icon',
-        tabBarStyle: L.wide ? {
-          backgroundColor: t.surface,
-          borderRightWidth: StyleSheet.hairlineWidth,
-          borderRightColor: t.border,
-          width: 112,
-          paddingTop: 24,
-        } : {
-          position: 'absolute',
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: t.border,
-          backgroundColor: Platform.OS === 'ios' ? 'transparent' : t.surface,
-          elevation: 0,
-        },
-        tabBarBackground: () =>
-          Platform.OS === 'ios' && !L.wide ? (
-            <BlurView tint={t.dark ? 'dark' : 'light'} intensity={80} style={StyleSheet.absoluteFill} />
-          ) : null,
-        tabBarIcon: ({ focused, color }) => <Ionicons name={icons[route.name]?.[focused ? 0 : 1] ?? 'ellipse'} size={22} color={color as string} />,
-      })}
-    >
-      <Tabs.Screen name="index" options={{ title: 'Overview' }} />
-      <Tabs.Screen name="cases" options={{ title: 'Case Status' }} />
-      <Tabs.Screen name="status" options={{ title: 'Documents' }} />
-      <Tabs.Screen name="tools" options={{ title: 'Tools' }} />
+    <Tabs screenOptions={({ route }) => ({
+      headerShown: false,
+      tabBarActiveTintColor: t.accent,
+      tabBarInactiveTintColor: t.grey,
+      tabBarLabel: LABEL[route.name],
+      tabBarLabelStyle: { fontSize: 10, fontWeight: '500' },
+      tabBarStyle: { backgroundColor: t.bar, borderTopColor: t.sep, borderTopWidth: 0.5, position: 'absolute' },
+      tabBarIcon: ({ color }) => <Icon name={ICON[route.name] ?? 'grid'} size={24} color={String(color)} />,
+      sceneStyle: { backgroundColor: t.bg },
+    })}>
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="family" />
+      <Tabs.Screen name="cases" />
+      <Tabs.Screen name="tools" />
     </Tabs>
   );
 }

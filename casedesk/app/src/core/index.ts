@@ -1,0 +1,19 @@
+// CaseDesk core: pure TypeScript (no React / React Native) so every rule is testable with tsx.
+export * from './model';
+export * from './dates';
+export { readDocument, classify, type Reading } from './read';
+export { deriveRecord, deriveWithout, inStepOrder, visaFromClass, classKey, classLabel, sameEmployer, type PersonRecord, type ApprovalInfo, type CaseInfo, type PendingInfo } from './record';
+export { identityOf, belongsElsewhere, sameName, matchedBy, type Identity } from './identity';
+export { stepsFor, stepKeys, stepMeta, stepOf, stepStatus, trackOf, missingDocs, missingSteps, isRequiredStep, fillsStep, isOptionalStep, VISA_EXEMPT, type Step, type StepKey, type Track } from './steps';
+export { FIELDS, fieldRows, showField, parseField, docNote, supersededIds, docTitle, docBadges, type FieldSpec, type Note } from './docs';
+export { caseViews, formName, isPendingCase, FORMS, type CaseView, type CaseState } from './cases';
+export { encryptBackup, decryptBackup, readHeader, toBase64, fromBase64, utf8, fromUtf8, type BackupPayload } from './backup';
+export { METROS, metroOf, differentMetro } from './metro';
+export { evaluateFamily, needsAttention, principalFor, type PersonResult } from './rules/engine';
+export { worst, SEVERITY_LABEL, type Finding, type Severity, type Member, type FamilyCtx, type Bulletin } from './rules/types';
+export { statusLine, type StatusFacts } from './rules/status';
+export { RULES, RULES_CHECKED, HOLD_COUNTRIES, type RuleInfo, type Source } from './rules/catalog';
+export { describeChange } from './describe';
+export * from './bulletin';
+export { VAULT_DIR, baseName, storedRef, refKey, migrateFile, migrateDocs, orphanNames, referencedFiles } from './files';
+export { matchPeople, type PersonMatch } from './merge';

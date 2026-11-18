@@ -1,0 +1,350 @@
+// Person page, document view, layoff plan, reminders.
+import React, { useMemo, useState } from 'react';
+import { Image, Pressable, Share, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import type { Document, Person } from '../core/model';
+import { isResident, isCitizen, STATUS_LABEL } from '../core/model';
+import { stepsFor, stepKeys } from '../core/steps';
+import { docBadges, docNote, docTitle, fieldRows, parseField, FIELDS, showField } from '../core/docs';
+import { addYears, addDays, daysBetween, daysTo, fmt, today, isISO } from '../core/dates';
+import { metroOf } from '../core/metro';
+import { MAX_YEARS } from '../core/rules/status';
+import { evaluateFamily } from '../core/rules/engine';
+import { isPendingCase } from '../core/cases';
+import { useFamily, usePerson } from '../data/FamilyProvider';
+import { readText } from '../native/ocr';
+import { fileUri, keepFile, pick, preview, share as shareFile, type Source } from '../native/files';
+import { readDocument } from '../core/read';
+import {
+  Avatar, Button, Card, CheckRow, Chip, DateField, EmptyState, Field, Group, H1, Hint, Icon, LegalLine, Meter, NavButton, Note, Pill, Row, Screen, SectionHeader, Switch, T, Why, ChipToggle, Chips,
+  font, useSheet, useTheme, useToast, Spinner,
+} from '../ui';
+import { AttentionRow, back, ctaFor, go, locationChip, needsLocation, relationLabel, statusLabel, untilText } from './common';
+import { AddCase, AskWhere, Confirm, EditDetails, FixClass, RemovePerson, RenewSheet, Trips, Unemployment, WorkLocation } from './sheets';
+import { newId } from '../data/store';
+import { askNotificationPermission } from '../native/reminders';
+import { leadText } from './profile';
+
+export function PersonScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { family: f, person: p, rec, result } = usePerson(id);
+  const sheet = useSheet();
+  const t = useTheme();
+  if (!p || !rec) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="user" title="Removed" /></Screen>;
+  const you = p.relation === 'self';
+  const legal = rec.legalName;
+  const steps = stepsFor(p, rec);
+  const order = stepKeys(p, rec);
+  const docs = f.docs.filter((d) => d.ownerId === p.id).sort((a, b) => {
+    const ia = order.findIndex((k) => steps.find((s) => s.key === k)?.accepts.includes(a.type));
+    const ib = order.findIndex((k) => steps.find((s) => s.key === k)?.accepts.includes(b.type));
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || Number(f.superseded.has(a.id)) - Number(f.superseded.has(b.id));
+  });
+  const cases = f.caseList.filter((c) => c.ownerId === p.id).sort((a, b) => Number(isPendingCase(b)) - Number(isPendingCase(a)));
+  const findings = (result?.findings ?? []).filter((x) => x.severity !== 'good');
+  const handlers = {
+    askWhere: () => sheet.open(stepTitleWhere(p), <AskWhere pid={p.id} />),
+    fixClass: () => sheet.open('Fix a wrong I-94 class', <FixClass />),
+    renew: (k: string) => { sheet.open('Add or renew a document', <RenewSheet pid={p.id} />); void k; },
+  };
+  const work = ['H-1B', 'L-1A', 'L-1B', 'TN', 'E-3', 'O-1', 'F-1 OPT', 'STEM OPT'].includes(rec.visa ?? '') || (!rec.visa && ['H-1B', 'L-1A', 'L-1B', 'TN', 'E-3', 'O-1', 'F-1 OPT', 'STEM OPT'].includes(p.status ?? ''));
+  const resident = isResident(rec.visa) || isCitizen(rec.visa);
+  const dependent = !!result?.principalId && result.principalId !== p.id;
+  const principal = dependent ? f.people.find((x) => x.id === result!.principalId) : undefined;
+  const missing = f.missing[p.id] ?? [];
+  const rm = p.reminders ?? { on: true, lead: [180, 90, 30, 7] };
+
+  return (
+    <Screen nav={{ back: 'Back', onBack: back, title: p.name, right: <NavButton title="Edit" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} /> }}>
+      <View style={{ alignItems: 'center', paddingTop: 4, paddingBottom: 6 }}>
+        <Avatar name={p.name} size="lg" />
+        <T a11y="header" style={{ fontSize: 24, fontWeight: '700', marginTop: 12, letterSpacing: -0.2, textAlign: 'center' }}>{p.name}</T>
+        {legal && legal !== p.name ? <T tone="text2" style={[font.sub, { marginTop: 2 }]}>{legal}</T> : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 8 }}>
+          <T tone="text2" style={font.sub}>{`${relationLabel(p)} · ${statusLabel(p, rec, result)}`}</T><Chip text={locationChip(p, rec)} />
+        </View>
+      </View>
+      <Card style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <T style={[font.body, { fontWeight: '600', flex: 1 }]}>{untilText(p, rec, result)}</T>
+        {result ? <Pill severity={result.worst} /> : null}
+      </Card>
+
+      <SectionHeader>Needs attention</SectionHeader>
+      {findings.length || needsLocation(rec) ? (
+        <Group>
+          {needsLocation(rec) ? (
+            <Row dot="amber" alignTop title={you ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`} titleStyle={{ ...font.callout, fontWeight: '500' }} subtitle="People outside the US (for example in India) don’t have an I-94.">
+              <View style={{ marginTop: 10 }}><Button size="sm" kind="tint" title="Answer" onPress={handlers.askWhere} /></View>
+            </Row>
+          ) : null}
+          {findings.filter((x) => !(needsLocation(rec) && x.id === 'i94-missing')).map((x) => <AttentionRow key={x.id} f={x} cta={ctaFor(x, p, handlers)} />)}
+        </Group>
+      ) : (
+        <Card>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}><Icon name="checkc" size={18} color={t.green} /><T style={font.body}>All good for now</T></View>
+          <T tone="text2" style={font.foot}>We’ll remind you before dates come up.</T>
+        </Card>
+      )}
+
+      <SectionHeader>Documents</SectionHeader>
+      <Group>
+        {docs.map((d) => <DocRow key={d.id} d={d} superseded={f.superseded.has(d.id)} />)}
+        {!docs.length ? <Row title="No documents yet." titleTone="text2" /> : null}
+        {missing.map((s) => <Row key={s.key} dot="grey" title={s.title} titleTone="text2" subtitle="Missing" />)}
+        <Row icon="plus" title="Add or renew a document" titleTone="accent" chevron={false} onPress={() => sheet.open('Add or renew a document', <RenewSheet pid={p.id} />)} />
+      </Group>
+
+      <SectionHeader>Cases</SectionHeader>
+      <Group>
+        {cases.map((c) => <Row key={c.id} icon="doc" onPress={() => go(`/case/${encodeURIComponent(c.id)}`)} title={<T style={font.body}><T style={[font.body, { fontWeight: '600' }]}>{c.form ?? 'Case'}</T>{` · ${c.name}`}</T>} subtitle={c.keyDates.find((k) => k.date >= today()) ? `${c.keyDates.find((k) => k.date >= today())!.label} ${fmt(c.keyDates.find((k) => k.date >= today())!.date)}` : c.updated ? `Updated ${fmt(c.updated)}` : ''} chevron={false} value={c.status} />)}
+        {!cases.length ? <Row title="No cases yet. A receipt notice adds one." titleTone="text2" /> : null}
+        <Row icon="plus" title="Add a case" titleTone="accent" chevron={false} onPress={() => sheet.open('Add a case', <AddCase pid={p.id} />)} />
+      </Group>
+
+      {work ? (
+        <>
+          <SectionHeader>Work</SectionHeader>
+          <Group>
+            <Row icon="building" title={rec.employer ?? 'Employer not added'} subtitle="Employer" />
+            {(() => { const w = p.facts.workLocation ?? rec.approvedWorkLocation; const city = w ? [w.city, w.state].filter(Boolean).join(', ') : undefined; return <Row icon="pin" title={city ?? 'Not added'} subtitle={`${w ? metroOf(w.city, w.state) ?? 'Unknown' : 'Unknown'} metro · work location`} />; })()}
+            <Row title="Work location changed?" titleTone="accent" onPress={() => sheet.open('Work location changed?', <WorkLocation pid={p.id} />)} />
+          </Group>
+        </>
+      ) : null}
+
+      <SectionHeader>Job &amp; travel</SectionHeader>
+      <Group>
+        {!resident ? <Row icon="case" iconTone="red" onPress={() => go(`/layoff/${dependent && principal ? principal.id : p.id}`)} title={dependent && principal ? `If ${principal.name} loses the job` : you ? 'I lost my job' : 'Job ended'} subtitle="Last day in status for everyone, and what to do" /> : null}
+        <Row icon="plane" onPress={() => go('/tools/travel', { pid: p.id })} title="Plan a trip" subtitle={`Can ${you ? 'I' : p.name} travel? Checks against these documents`} />
+      </Group>
+
+      <Counters p={p} />
+
+      <SectionHeader>Details</SectionHeader>
+      <Group>
+        <Row icon="edit" title="Edit details" subtitle="Name, relation, status" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} chevron={false} />
+        <Row icon="bell" title="Reminders" subtitle={rm.on ? `On · ${leadText(rm.lead)}` : 'Off'} onPress={() => go(`/reminders/${p.id}`)} chevron={false} />
+        {!you ? <Row icon="trash" iconTone="red" title={`Remove ${p.name}`} titleTone="red" chevron={false} onPress={() => sheet.open(`Remove ${p.name}?`, <RemovePerson pid={p.id} />)} /> : null}
+      </Group>
+      <Hint center style={{ marginTop: 18 }}>General information, not legal advice.</Hint>
+    </Screen>
+  );
+}
+const stepTitleWhere = (p: Person) => (p.relation === 'self' ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`);
+
+function DocRow({ d, superseded }: { d: Document; superseded: boolean }) {
+  const note = docNote(d, { superseded });
+  const spec = FIELDS[d.type].find((s) => s.key === 'validTo') ?? FIELDS[d.type].find((s) => s.kind === 'date');
+  const v = spec ? showField(d.fields, spec) : '';
+  const tone = superseded ? 'grey' : note?.tone === 'red' || note?.tone === 'amber' || note?.tone === 'green' ? note.tone : 'grey';
+  return (
+    <Row dot={tone} onPress={() => go(`/document/${d.id}`)} title={docTitle(d)} titleTone={superseded ? 'text2' : undefined}
+      subtitle={d.type === 'travel-history' ? `${d.fields.trips?.length ?? 0} trips` : `${superseded ? 'Superseded · ' : ''}${d.type === 'ead' && d.fields.comboAP ? docBadges(d).map((b) => `${b.label} ${b.value}`).join(' · ') : `${spec?.label ?? ''} ${v || '—'}`}`} />
+  );
+}
+
+function Counters({ p }: { p: Person }) {
+  const f = useFamily();
+  const sheet = useSheet();
+  const rec = f.records[p.id], res = f.results[p.id];
+  if (!rec || !res) return null;
+  const rows: React.ReactNode[] = [];
+  const meter = (key: string, label: string, n: number, of: number, unit: string, sub: string, tone?: 'amber' | 'red', onPress?: () => void) => rows.push(
+    <Pressable key={key} disabled={!onPress} onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={`${label}: ${n} ${unit}`} style={{ paddingHorizontal: 16, paddingVertical: 13 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <T style={[font.body, { flexShrink: 1 }]}>{label}</T>
+        <T><T style={{ fontSize: 22, fontWeight: '700' }}>{String(n)}</T><T tone="text2" style={font.foot}>{` ${unit}`}</T></T>
+      </View>
+      <Meter value={n} max={of} tone={tone} />
+      <T tone="text2" style={[font.foot, { marginTop: 6 }]}>{sub}</T>
+    </Pressable>,
+  );
+  const u = res.facts.unemployment;
+  if (u) meter('unemp', 'OPT unemployment days', u.days, u.limit, `of ${u.limit}`, `${Math.max(0, u.limit - u.days)} days left · counted across OPT and STEM OPT`, u.days >= u.limit - 10 ? 'red' : u.days >= u.limit - 30 ? 'amber' : undefined, () => sheet.open('Unemployment days', <Unemployment pid={p.id} />));
+  else if (rec.visa === 'F-1 OPT' || rec.visa === 'STEM OPT') meter('unemp', 'OPT unemployment days', p.facts.unemploymentDays ?? 0, rec.visa === 'STEM OPT' ? 150 : 90, `of ${rec.visa === 'STEM OPT' ? 150 : 90}`, 'Tap to enter the days used, or add your jobs', undefined, () => sheet.open('Unemployment days', <Unemployment pid={p.id} />));
+  const lim = rec.visa ? MAX_YEARS[rec.visa] : undefined;
+  if (lim && rec.statusStart) {
+    const used = Math.max(0, daysBetween(rec.statusStart, today()) / 365.25);
+    meter('max', `Time used toward ${lim}-year ${rec.visa} limit`, Math.round(used * 10) / 10, lim, 'years', `Since ${fmt(rec.statusStart)}. Days abroad can be added back${rec.visa === 'H-1B' ? ` (recapture${res.facts.recaptureDays ? `: ${res.facts.recaptureDays} days` : ''})` : ''}.`, used > lim - 1 ? 'amber' : undefined);
+  }
+  const logged = rec.trips.filter((x) => !x.planned);
+  if ((rec.trips.length || !isResident(rec.visa)) && !res.facts.citizenship) {
+    const n = res.facts.daysOutsideByTrip.reduce((a, b) => a + b, 0);
+    meter('trips', 'Days outside the US (trips)', n, 365, 'days', rec.trips.length ? `${rec.trips.length} trip${rec.trips.length > 1 ? 's' : ''} · tap to see or add` : 'No trips yet · tap to add one', undefined, () => sheet.open('Trips outside the US', <Trips pid={p.id} />));
+  }
+  const cz = res.facts.citizenship;
+  if (cz) {
+    const left = Math.max(0, daysTo(cz.fileFrom) ?? 0);
+    meter('cz', 'Days to earliest citizenship filing', left, cz.years * 365, 'days', `You may file from ${fmt(cz.fileFrom)} (${cz.years}-year path).`);
+    meter('inus', 'Days in the US since becoming a resident', cz.daysInUS ?? 0, cz.needed, `of ${cz.needed} needed`, cz.daysInUS === undefined ? 'Add the I-94 travel history to count days' : `${res.facts.daysOutsideByTrip.reduce((a, b) => a + b, 0)} days abroad · longest trip ${Math.max(0, ...res.facts.daysOutsideByTrip)} days`, (cz.daysInUS ?? 0) < cz.needed ? 'amber' : undefined, () => sheet.open('Trips outside the US', <Trips pid={p.id} />));
+  }
+  void logged;
+  if (!rows.length) return null;
+  return <><SectionHeader>Day counters</SectionHeader><Group>{rows}</Group></>;
+}
+
+// ---------- document view ----------
+export function DocumentScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const f = useFamily();
+  const t = useTheme();
+  const sheet = useSheet();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const d = f.docs.find((x) => x.id === id);
+  const p = d ? f.people.find((x) => x.id === d.ownerId) : undefined;
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  if (!d || !p) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="doc" title="Document deleted" /></Screen>;
+  const superseded = f.superseded.has(d.id);
+  const note = docNote(d, { superseded, inUS: f.records[p.id]?.location !== 'Outside' });
+  const file = d.files?.[0];
+  const replace = async (src: Source) => {
+    const picked = await pick(src).catch((e: Error) => { toast(e.message); return null; });
+    if (!picked) return;
+    setBusy(true);
+    try {
+      const nf = await keepFile(picked, newId('doc'));
+      const text = await readText(fileUri(nf), nf.mime);
+      const r = text ? readDocument(text) : undefined;
+      await f.actions.replaceDoc(d.id, { type: r?.type ?? d.type, fields: r?.type ? r.fields : d.fields, files: [nf] });
+      toast(r?.type ? 'Replaced · fields read again' : 'Replaced · check the fields');
+    } finally { setBusy(false); }
+  };
+  const doShare = async () => {
+    if (file && (await shareFile(fileUri(file), file.mime, docTitle(d)))) return;
+    const lines = fieldRows(d).map((r) => `${r.spec.label}: ${r.value || '—'}`).join('\n');
+    try { await Share.share({ message: `${docTitle(d)}\n${lines}` }); } catch {}
+  };
+  return (
+    <Screen keyboard nav={{ back: p.name, onBack: back, title: docTitle(d) }} footer={<>
+      <Button kind="ghost" icon="refresh" title="Replace" onPress={() => sheet.open('Replace document', <ReplacePicker onPick={(s) => { sheet.close(); replace(s); }} />)} />
+      <Button kind="tint" icon="share" title="Share" onPress={doShare} />
+      <Button kind="danger" icon="trash" title="Delete" onPress={() => sheet.open(`Delete ${docTitle(d)}?`, <Confirm body="It’s removed from this phone. This can’t be undone." action="Delete" onConfirm={async () => { back(); await f.actions.deleteDoc(d.id); toast(`Deleted ${docTitle(d)}`); }} />)} />
+    </>}>
+      <Pressable onPress={() => file && preview(file)} disabled={!file} accessibilityRole={file ? 'button' : undefined} accessibilityLabel={file ? 'Open the document' : 'No image saved'}
+        style={{ borderRadius: 18, backgroundColor: t.card, padding: file?.mime.startsWith('image/') ? 0 : 18, overflow: 'hidden', minHeight: 160, alignItems: 'center', justifyContent: 'center' }}>
+        {file?.mime.startsWith('image/') ? <Image source={{ uri: fileUri(file) }} style={{ width: '100%', aspectRatio: 1.55 }} resizeMode="contain" accessibilityIgnoresInvertColors /> : (
+          <View style={{ alignItems: 'center', gap: 8 }}><Icon name="doc" size={44} color={t.text3} /><T tone="text2" style={font.foot}>{file ? `${file.name} · tap to open` : 'No image saved'}</T></View>
+        )}
+        {busy ? <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: t.shade, alignItems: 'center', justifyContent: 'center' }}><Spinner /></View> : null}
+      </Pressable>
+      {docBadges(d).map((b, i) => (
+        <Card key={b.label} style={{ marginTop: i ? 8 : 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: superseded || !note || note.tone === 'blue' ? t.grey : t[note.tone] }} />
+          <T style={[font.body, { fontWeight: '500', flex: 1 }]}>{`${b.label} ${b.value}`}</T>
+        </Card>
+      ))}
+      {note && !(note.tone === 'green' && /^(Valid until|Good for travel until|Approval valid until|Program ends)/.test(note.text)) ? <Note tone={note.tone}>{note.text}</Note> : null}
+      {d.fields.dateNote ? <Note tone="amber">{d.fields.dateNote}</Note> : null}
+      <SectionHeader>Read from the document</SectionHeader>
+      <Card style={{ paddingTop: 4 }}>
+        {FIELDS[d.type].map((spec) => {
+          const k = String(spec.key);
+          const value = draft[k] ?? showField(d.fields, spec);
+          return <Field key={k} label={spec.label} value={value} onChangeText={(x) => setDraft({ ...draft, [k]: x })} autoCapitalize={spec.key === 'name' ? 'words' : 'characters'}
+            onBlur={async () => { if (draft[k] === undefined) return; await f.actions.updateDoc(d.id, { fields: parseField(spec, draft[k]), edited: [...new Set([...(d.edited ?? []), spec.key])] }); const n = { ...draft }; delete n[k]; setDraft(n); }} />;
+        })}
+        {d.type === 'travel-history' ? (d.fields.trips ?? []).map((x, i) => <Row key={i} icon="plane" title={`${fmt(x.depart)} – ${x.return ? fmt(x.return) : 'now'}`} subtitle={x.depart && x.return ? `${daysBetween(x.depart, x.return) - 1} days outside` : ''} />) : null}
+      </Card>
+      <Hint style={{ marginHorizontal: 4 }}>Edits save on this phone. Status updates right away.</Hint>
+    </Screen>
+  );
+}
+function ReplacePicker({ onPick }: { onPick: (s: Source) => void }) {
+  return (
+    <View style={{ gap: 10, marginTop: 14 }}>
+      <Button kind="ghost" icon="camera" title="Camera" onPress={() => onPick('camera')} />
+      <Button kind="ghost" icon="photo" title="Photos" onPress={() => onPick('photos')} />
+      <Button kind="ghost" icon="folder" title="Files" onPress={() => onPick('files')} />
+    </View>
+  );
+}
+
+// ---------- layoff plan ----------
+export function LayoffScreen() {
+  const f = useFamily();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  // Wait for the saved data: the date and "Saved" state come from the person's page.
+  if (!f.ready) return <Screen nav={{ back: 'Back', onBack: back, title: 'Layoff plan' }}><Spinner /></Screen>;
+  return <LayoffPlan key={id} id={id} />;
+}
+function LayoffPlan({ id }: { id?: string }) {
+  const f = useFamily();
+  const toast = useToast();
+  const me = f.people.find((x) => x.id === id);
+  const [last, setLast] = useState<string | undefined>(me?.facts.jobEnded ?? today());
+  const [ticks, setTicks] = useState<Record<number, boolean>>({});
+  // Preview everyone's last day with this job-end date (pure: nothing saved until Save).
+  const preview = useMemo(() => {
+    if (!me || !last || !isISO(last)) return f.results;
+    const people = f.people.map((p) => (p.id === me.id ? { ...p, facts: { ...p.facts, jobEnded: last } } : p));
+    return evaluateFamily({ members: people.map((p) => ({ person: p, rec: f.records[p.id] })).filter((m) => m.rec), docs: f.docs, settings: f.settings, cases: f.cases, bulletin: f.bulletin.data });
+  }, [me, last, f]);
+  if (!me) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="user" title="Removed" /></Screen>;
+  const rec = f.records[me.id];
+  const opt = rec?.visa === 'F-1 OPT' || rec?.visa === 'STEM OPT';
+  const L = rec?.visa === 'L-1A' || rec?.visa === 'L-1B';
+  const opts: [string, string][] = opt
+    ? [['Find a new OPT job', 'Must relate to your degree. Report it in the SEVP portal within 10 days.'], ['Change status', 'e.g. a new degree program (new I-20) before the days run out.'], ['Leave the US', 'Before the last day, to keep a clean record.']]
+    : [[L ? 'New employer files an H-1B or other status' : 'New employer files an H-1B transfer', L ? 'L-1 can’t move to a new employer. A new status must be filed before the last day.' : 'You can start work when it is filed (portability).'], ['Change of status', 'e.g. to B-2 (to stay longer and wrap up) or to H-4 / L-2 if your spouse has a status.'], ['Leave the US', 'Before the last day. Family members leave too, unless they have their own status.']];
+  const week = ['Get the termination letter and last pay slips', 'Save copies of every I-94, approval and pay slip', opt ? 'Report the job end in the SEVP portal' : 'Talk to an immigration attorney', 'Set a reminder for the earliest last day'];
+  const saved = !!me.facts.jobEnded && me.facts.jobEnded === last;
+  return (
+    <Screen nav={{ back: 'Back', onBack: back, title: 'Layoff plan' }} footer={<Button title={saved ? 'Saved — undo' : me.facts.jobEnded ? `Update ${me.name}’s last day` : `Save to ${me.name}’s page`} onPress={async () => {
+      if (saved) { await f.actions.setFacts(me.id, { jobEnded: undefined }); toast('Removed'); } else { await f.actions.setFacts(me.id, { jobEnded: last }); toast('Saved · shown as Act now on Home'); }
+    }} />}>
+      <H1>{me.relation === 'self' ? 'You lost your job' : `${me.name}’s job ended`}</H1>
+      <Why>Here’s the last day in status for each person, and what to do this week.</Why>
+      <DateField label="Last day of work (last paycheck date)" value={last} onChange={setLast} />
+      <SectionHeader>Last day in status</SectionHeader>
+      <Group>
+        {f.people.map((p) => {
+          const r = f.records[p.id];
+          if (r?.location === 'Outside') return <Row key={p.id} avatar={p.name} title={p.name} subtitle="Outside the US — check before travelling in" />;
+          if (needsLocation(r)) return <Row key={p.id} avatar={p.name} title={p.name} subtitle={`Location unknown — answer on ${p.name}’s page`} />;
+          const g = preview[p.id]?.facts.graceUntil;
+          const own = p.id !== me.id && !preview[p.id]?.findings.some((x) => x.rule === 'C18');
+          const why = isResident(r?.visa) || isCitizen(r?.visa) ? 'A green card doesn’t depend on a job.' : own ? 'Own status — not affected.' : p.id === me.id ? (g && r?.i94?.until === g ? 'The I-94 ends before the 60-day grace period.' : 'Up to 60 days after the last day of work, or the I-94 end if sooner.') : `Follows ${me.name}’s date — ${statusLabel(p, r)} depends on ${me.name}’s status.`;
+          return <Row key={p.id} avatar={p.name} title={<T style={font.body}>{p.name} <T tone="text2" style={font.foot}>· {statusLabel(p, r, f.results[p.id])}</T></T>} subtitle={why}
+            value={g && !own ? fmt(g) : '—'} />;
+        })}
+      </Group>
+      <Note tone="red">
+        <T style={font.sub}>Act before the earliest date. Days only count while you are in the US.</T>
+        <LegalLine />
+      </Note>
+      <SectionHeader>Your options</SectionHeader>
+      <Group>{opts.map(([a, b]) => <Row key={a} icon="chevR" title={a} titleStyle={{ ...font.callout, fontWeight: '500' }} subtitle={b} />)}</Group>
+      <SectionHeader>This week</SectionHeader>
+      <Group>{week.map((x, i) => <CheckRow key={x} title={x} checked={!!ticks[i]} onPress={() => setTicks({ ...ticks, [i]: !ticks[i] })} />)}</Group>
+    </Screen>
+  );
+}
+
+// ---------- reminders ----------
+export function RemindersScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const f = useFamily();
+  const p = f.people.find((x) => x.id === id);
+  if (!p) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="user" title="Removed" /></Screen>;
+  const r = p.reminders ?? { on: true, lead: [180, 90, 30, 7] };
+  const set = (patch: Partial<typeof r>) => f.actions.updatePerson(p.id, { reminders: { ...r, ...patch } });
+  const what = stepsFor(p, f.records[p.id]).filter((s) => !['travel', 'receipt', 'i485', 'n400', 'i140'].includes(s.key)).map((s) => s.title).concat(['Case dates (RFE, biometrics, interview)']);
+  return (
+    <Screen nav={{ back: 'Back', onBack: back, title: 'Reminders' }}>
+      <H1>{`${p.name}’s reminders`}</H1>
+      <Why>Notifications on this phone before each date.</Why>
+      <Group style={{ marginTop: 18 }}>
+        <Row title="Reminders" trailing={<Switch value={r.on} label={`Reminders for ${p.name}`} onValueChange={async (on) => { await set({ on }); if (on) await askNotificationPermission(); }} />} />
+      </Group>
+      {r.on ? (
+        <>
+          <SectionHeader>Remind me</SectionHeader>
+          <Chips style={{ marginTop: 0 }}>{[180, 90, 60, 30, 14, 7, 1].map((d) => <ChipToggle key={d} role="checkbox" text={`${d} day${d === 1 ? '' : 's'} before`} on={r.lead.includes(d)} onPress={() => set({ lead: r.lead.includes(d) ? r.lead.filter((x) => x !== d) : [...r.lead, d].sort((a, b) => b - a) })} />)}</Chips>
+          <SectionHeader>For</SectionHeader>
+          <Group>{what.map((w) => <Row key={w} icon="check" title={w} titleStyle={font.callout} />)}</Group>
+        </>
+      ) : <Hint style={{ marginTop: 12 }}>Off. Dates still show on Home.</Hint>}
+    </Screen>
+  );
+}
