@@ -90,7 +90,6 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
           <View style={{ flex: 1, minWidth: 0 }}>
             <WalletCard name={legal ? `${p.name} · ${legal}` : p.name} line={`${statusLabel(p, rec, result)} · ${relationLabel(p)}`} corner={w.corner}
               caption={w.caption} big={w.big} foot={line} footWord={reason && w.word === 'valid' ? undefined : w.word} footTone={w.wordTone}
-              reason={reason} reasonTone={result?.worst === 'act' ? 'red' : 'amber'}
               a11y={`${p.name}. ${statusLabel(p, rec, result)}. ${w.caption} ${w.big}. ${line}${reason ? `. ${reason}` : ''}`} />
           </View>
           <View style={{ gap: 10, width: 64 }}>
@@ -100,6 +99,8 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
           </View>
         </View>
       </TourTarget>
+      {/* The card says how long; the chip says Review and opens why. Needs attention below has the full
+          list, so the reason line is not repeated here (it shows on the Home and Family cards). */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, marginHorizontal: 4 }}>
         <Chip text={locationChip(p, rec)} />
         {result ? <ReviewChip findings={result.findings} until={result.facts.statusUntil} worst={result.worst} name={p.name} /> : null}
