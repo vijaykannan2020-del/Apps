@@ -40,3 +40,19 @@ test('messages: wrong nonce or junk ignored', () => {
   assert.equal(readWebMessage('{"type":"other","nonce":"y"}', 'y'), null);
   assert.equal(readWebMessage('{"type":"egov-text","nonce":"y","text":"hi"}', 'y')!.type, 'egov-text');
 });
+
+import { describeResult, needsFallback, readPageScript, isEndpointUrl } from '../src/core/myuscisWeb';
+test('sync details: data null, non-JSON, 401 and good answers are told apart; method B script reads only API pages', () => {
+  const nul = describeResult({ id: 'case', status: 200, text: '{"data":null,"error":{"userMessage":null,"requestId":"r-1"}}' }, 'A');
+  assert.deepEqual([nul.json, nul.dataNull, nul.requestId, nul.ok], [true, true, 'r-1', false]);
+  assert.ok(needsFallback(nul));
+  const html = describeResult({ id: 'case', status: 200, text: '<html>Sign in</html>' }, 'A');
+  assert.deepEqual([html.json, html.ok], [false, false]);
+  const unauth = describeResult({ id: 'case', status: 401, text: '{"error":"unauthorized"}' }, 'A');
+  assert.equal(unauth.ok, false);
+  const good = describeResult({ id: 'case', status: 200, text: '{"data":{"receiptNumber":"IOE0000000001"}}' }, 'B');
+  assert.deepEqual([good.ok, good.method, good.size > 10], [true, 'B', true]);
+  assert.match(readPageScript('n'), /\\\/api\\\//);
+  assert.ok(isEndpointUrl('https://my.uscis.gov/account/case-service/api/cases/IOE0000000001'));
+  assert.ok(!isEndpointUrl('https://my.uscis.gov/account/applicant'));
+});

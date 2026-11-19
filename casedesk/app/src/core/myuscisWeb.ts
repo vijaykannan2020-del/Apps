@@ -75,8 +75,39 @@ export function egovScript(receipt: string, nonce: string): string {
 }catch(e){} })(); true;`;
 }
 
+/** Method B: the WebView itself opened an endpoint URL (like a browser tab); post the page text back. */
+export function readPageScript(nonce: string): string {
+  return `(function(){try{
+  if (location.hostname !== 'my.uscis.gov' || !/\\/api\\//.test(location.pathname)) return;
+  var pre = document.querySelector('pre');
+  var t = (pre ? pre.innerText : (document.body && document.body.innerText) || '').slice(0, 400000);
+  window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'myuscis-page', nonce: ${js(nonce)}, url: location.href, text: t }));
+}catch(e){} })(); true;`;
+}
+/** Is this URL one of the four endpoints (method B pages)? */
+export const isEndpointUrl = (u: string) => host(u) === 'my.uscis.gov' && /\/api\//.test(path(u));
+
+export type FetchResult = { id: string; status: number; text: string; error?: string };
+export type EndpointReport = { id: string; method: 'A' | 'B' | '-'; status: number; json: boolean; dataNull: boolean; size: number; requestId?: string; ok: boolean; error?: string };
+/** What one endpoint answered — for the Sync details panel (no case data in it). */
+export function describeResult(r: FetchResult, method: 'A' | 'B'): EndpointReport {
+  let json = false, dataNull = false, requestId: string | undefined;
+  try {
+    const v = JSON.parse(r.text);
+    json = true;
+    if (v && typeof v === 'object' && !Array.isArray(v) && 'data' in v && v.data == null) dataNull = true;
+    const rid = v?.error?.requestId ?? v?.requestId;
+    if (typeof rid === 'string') requestId = rid;
+  } catch {}
+  const ok = json && !dataNull && (r.status === 0 || (r.status >= 200 && r.status < 300));
+  return { id: r.id, method, status: r.status, json, dataNull, size: r.text.length, requestId, ok, error: r.error };
+}
+/** Method A failed → try method B for this endpoint. */
+export const needsFallback = (rep: EndpointReport) => !rep.ok;
+
 export type WebMessage =
-  | { type: 'myuscis'; nonce: string; results?: { id: string; status: number; text: string; error?: string }[]; error?: string }
+  | { type: 'myuscis'; nonce: string; results?: FetchResult[]; error?: string }
+  | { type: 'myuscis-page'; nonce: string; url: string; text: string }
   | { type: 'egov-filled'; nonce: string }
   | { type: 'egov-text'; nonce: string; text: string };
 
@@ -85,7 +116,7 @@ export function readWebMessage(data: string, nonce: string): WebMessage | null {
   try {
     const m = JSON.parse(data);
     if (!m || typeof m !== 'object' || m.nonce !== nonce) return null;
-    if (m.type === 'myuscis' || m.type === 'egov-filled' || (m.type === 'egov-text' && typeof m.text === 'string')) return m as WebMessage;
+    if (m.type === 'myuscis' || m.type === 'egov-filled' || (m.type === 'myuscis-page' && typeof m.text === 'string') || (m.type === 'egov-text' && typeof m.text === 'string')) return m as WebMessage;
     return null;
   } catch { return null; }
 }
