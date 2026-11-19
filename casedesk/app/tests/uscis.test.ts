@@ -44,3 +44,16 @@ USCIS.gov | Privacy | Accessibility`;
   assert.ok(isKnownHeading('New Card Is Being Produced'));
   assert.ok(!isKnownHeading('Groceries for the weekend'));
 });
+
+test('explanations with any wording after the date keep their date and form (As of … fingerprints …)', () => {
+  const p = parseCaseText('As of November 3, 2026, fingerprints relating to your Form I-485, Application to Register Permanent Residence or Adjust Status, Receipt Number IOE0912345678, have been applied to your case.')!;
+  assert.ok(p, 'accepted');
+  assert.equal(p.date, '2026-11-03');
+  assert.equal(p.form, 'I-485');
+  assert.equal(p.status, 'Case Was Updated To Show Fingerprints Were Taken');
+  const q = parseCaseText('On October 30, 2026, the post office delivered your new card for Receipt Number IOE0912345678, to the address that you gave us.')!;
+  assert.equal(q.date, '2026-10-30');
+  assert.equal(q.status, 'Card Was Delivered To Me By The Post Office');
+  // still junk without a form or receipt number
+  assert.equal(parseCaseText('As of November 3, 2026, the grocery list is milk, eggs and coffee for the week.'), null);
+});

@@ -53,7 +53,7 @@ const norm = (l: string) => l.toLowerCase().replace(/[’‘`]/g, "'").replace(/
 export const isKnownHeading = (l: string) => KNOWN.some((re) => re.test(norm(l)));
 /** USCIS explanation: "On November 10, 2026, we …" (or "As of …") that names a form or a receipt number. */
 const isExplanation = (l: string) =>
-  new RegExp(`^(on|as of) ${MONTH.source},? (we|uscis|the|your)`, 'i').test(l) &&
+  new RegExp(`^(on|as of) ${MONTH.source},?\\s+\\S`, 'i').test(l) && // any wording after the date
   /\bForm\s+[A-Z]-?\d{2,4}|\bReceipt Number\b|\b[A-Z]{3}\d{10}\b/i.test(l);
 
 /**
