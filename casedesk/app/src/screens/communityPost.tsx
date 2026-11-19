@@ -5,11 +5,9 @@ import { Pressable, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { COMMUNITY_DISCLAIMER, answerProblem, timeAgo } from '../core/community';
 import { acceptAnswer, deleteAnswer, deletePost, editAnswer, getPost, postAnswer, useCommunityUser, vote, type Answer, type Author, type Post } from '../data/communityApi';
-import { Button, Card, EmptyState, Field, Hint, Icon, MIN_TOUCH, Note, Row, Group, Screen, SectionHeader, SheetButtons, Spinner, T, Tag, Why, font, tint, useSheet, useTheme, useToast } from '../ui';
+import { Button, Card, EmptyState, Field, Hint, Icon, MIN_TOUCH, Note, Row, Group, Screen, SectionHeader, SheetButtons, Spinner, T, Tag, Why, font, tint, useSheet, useTheme, useToast, TourTarget, useTour } from '../ui';
 import { back, go } from './common';
 import { BlockSheet, ReportSheet, maybeAskNotify, useCommunityGate } from './communityAccount';
-import { HelpButton } from './help';
-import { useTour } from './communityTours';
 
 function VoteButton({ score, voted, onPress, disabled }: { score: number; voted: boolean; onPress: () => void; disabled?: boolean }) {
   const t = useTheme();
@@ -80,7 +78,7 @@ export function CommunityPostScreen() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
-  useTour('communityPost');
+  const tour = useTour('communityPost');
 
   const load = useCallback(async () => {
     setError('');
@@ -135,11 +133,11 @@ export function CommunityPostScreen() {
     } catch (e: any) { setSendError(e.message); } finally { setSending(false); }
   });
 
-  const nav = { title: 'Question', back: 'Back', onBack: back, right: <HelpButton topic="community" label="How the community works" /> };
+  const nav = { title: 'Question', back: 'Back', onBack: back };
   if (error && !post) return <Screen nav={nav}><EmptyState icon="chat" title="Can’t show this question" body={error} action={{ title: 'Try again', onPress: load }} /></Screen>;
   if (!post) return <Screen nav={nav}><Spinner /></Screen>;
   return (
-    <Screen nav={nav} keyboard>
+    <Screen nav={nav} keyboard tour={tour}>
       {post.hidden ? <Note tone="amber">Only you can see this right now — it was reported and is waiting for a moderator.</Note> : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{post.tags.map((g) => <Tag key={g} text={g} />)}</View>
       <T a11y="header" selectable style={[font.title2, { marginTop: 10 }]}>{post.title}</T>
@@ -147,8 +145,8 @@ export function CommunityPostScreen() {
       <Card style={{ marginTop: 12 }}>
         <T selectable style={font.body}>{post.body}</T>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
-          <VoteButton score={post.score} voted={post.voted} onPress={() => doVote('post', post)} disabled={post.mine} />
-          <MoreButton onPress={postMenu} label="More: report, block, edit or delete" />
+          <TourTarget id="vote"><VoteButton score={post.score} voted={post.voted} onPress={() => doVote('post', post)} disabled={post.mine} /></TourTarget>
+          <TourTarget id="menu"><MoreButton onPress={postMenu} label="More: report, block, edit or delete" /></TourTarget>
         </View>
       </Card>
       <Note tone="grey">{COMMUNITY_DISCLAIMER}</Note>
@@ -172,7 +170,7 @@ export function CommunityPostScreen() {
       ) : <Card><T tone="text2" style={font.sub}>No answers yet. If you’ve been through this, share what happened.</T></Card>}
 
       <SectionHeader>Your answer</SectionHeader>
-      <Field label="Share your experience" value={draft} onChangeText={(s) => { setDraft(s); if (sendError) setSendError(''); }} multiline maxLength={5000} placeholder="What happened in your case? Leave out receipt numbers and names." error={sendError || (draft.length > 20 ? answerProblem(draft) ?? undefined : undefined)} />
+      <TourTarget id="answer"><Field label="Share your experience" value={draft} onChangeText={(s) => { setDraft(s); if (sendError) setSendError(''); }} multiline maxLength={5000} placeholder="What happened in your case? Leave out receipt numbers and names." error={sendError || (draft.length > 20 ? answerProblem(draft) ?? undefined : undefined)} /></TourTarget>
       <Button block icon="chat" title={user ? 'Post answer' : 'Sign in to answer'} busy={sending} disabled={!!user && draft.trim().length < 10} onPress={send} />
       <Hint center style={{ marginTop: 12 }}>Describe your own experience. Not legal advice — for your case, talk to an immigration attorney.</Hint>
     </Screen>

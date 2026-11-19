@@ -136,6 +136,43 @@ export const TOURS: Record<string, TourDef> = {
     { target: 'toggle', title: 'Automatic iCloud backup', text: 'Backs up to your own iCloud every day and after changes, and keeps the last 3.' },
     { target: 'password', title: 'Locked with your password', text: 'Apple can’t read the file, and neither can we.' },
   ] },
+  // ---- v2.4: What to expect / Cases like mine (case page cards) ----
+  'case-expect': { help: 'expect', steps: [
+    { target: 'window', title: 'Your typical window', text: 'When cases like yours are usually decided, counted from the day USCIS received it. The dot is today. An estimate, not a promise.' },
+    { target: 'numbers', title: 'Where the numbers come from', text: 'Official USCIS statistics first — form reports, I-129 approval and RFE rates, processing times. Each shows its quarter or date.' },
+    { target: 'options', title: 'Premium and visa class', text: 'Tap Premium if you paid for it — the window becomes the USCIS business-day clock. Pick the visa class for its rates.' },
+    { target: 'office', title: 'The receipt prefix', text: 'EAC, WAC, LIN, SRC or IOE shows where USCIS received the case. Centers share work, so any of them may decide it.' },
+  ] },
+  'case-community': { help: 'expect', steps: [
+    { target: 'community', title: 'Cases like mine', text: 'Timelines other app users shared anonymously for the same form and office. Nothing shows until 10 similar cases are decided.' },
+    { target: 'share', title: 'Share anonymously', text: 'Adds only the form, office code, dates, outcome, premium and visa class — never your receipt number or name. Turn off to delete.' },
+  ] },
+  // ---- v2.4: Community Q&A ----
+  communityFeed: { help: 'community', steps: [
+    { target: 'tabs', title: 'Pick a feed', text: 'For my visa shows questions tagged with your family’s visa types and forms. All shows everything; Unanswered is where you can help.' },
+    { target: 'chips', title: 'Filter by tag', text: 'Tap a tag to see only H-1B, I-485, stamping and so on. Tap it again to clear.' },
+    { target: 'compose', title: 'Ask a question', text: 'Reading is open to everyone. To ask, answer or upvote, sign in with Apple — others only see a made-up name.' },
+    { target: 'account', title: 'Your account', text: 'Your questions, display name, notifications, blocked people and Delete account.' },
+  ] },
+  communityPost: { help: 'community', steps: [
+    { target: 'answer', title: 'Answer or say thanks', text: 'Share what happened in your case. Never post receipt numbers or other personal numbers.' },
+    { target: 'vote', title: 'Upvote helpful answers', text: 'Upvotes move the most useful answers up. The asker can mark one as accepted.' },
+    { target: 'menu', title: 'Report or block', text: 'The ••• menu reports a post or blocks its author. Blocked people disappear for you right away.' },
+  ] },
+  communityCompose: { help: 'community', steps: [
+    { target: 'title', title: 'A clear title', text: 'Say the visa, form and question in one line — e.g. “H-1B extension: RFE answered 8 weeks ago, normal?”.' },
+    { target: 'tags', title: 'Tag it', text: 'Pick up to 5 tags so people with the same visa or form find it.' },
+    { target: 'privacy', title: 'Keep it private', text: 'Leave out names, receipt numbers, A-numbers, emails and phone numbers. Say the service center (EAC, WAC…) instead.' },
+  ] },
+  communitySignIn: { help: 'community', steps: [
+    { target: 'apple', title: 'Sign in with Apple', text: 'Only needed to post, answer or vote. We never see or show your email.' },
+    { target: 'rules', title: 'Community rules', text: 'Read and accept the rules once before your first post.' },
+  ] },
+  communityAccount: { help: 'community', steps: [
+    { target: 'name', title: 'Your display name', text: 'This is all anyone sees. Change it any time — no real names needed.' },
+    { target: 'mine', title: 'My questions', text: 'Everything you asked, including anything hidden while a moderator reviews it.' },
+    { target: 'delete', title: 'Delete account', text: 'Removes your account and everything you posted. You can sign in again later as a new member.' },
+  ] },
 };
 
 /** Every screen id that must have a tour (checked by tests/tours.test.ts). */

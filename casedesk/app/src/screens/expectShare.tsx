@@ -7,14 +7,13 @@ import type { CaseView } from '../core/cases';
 import { classLabel, officeOf, receivedOf, sharePayload, type ExpectView } from '../core/expect';
 import { toggleShare, type CasePrefs } from '../data/expect';
 import { apiBase } from '../data/api';
-import { Card, Hint, LinkButton, SectionHeader, Switch, T, font, useSheet, useTheme, useToast } from '../ui';
-import { COMMUNITY_TOUR, useTour } from './expectTours';
+import { Card, Hint, LinkButton, SectionHeader, Switch, T, font, useSheet, useTheme, useToast, TourButton, TourScope, TourTarget, useTour } from '../ui';
 
 export function CasesLikeMine({ c, view, prefs, cls }: { c: CaseView; view: ExpectView; prefs: CasePrefs | null; cls?: string }) {
   const t = useTheme();
   const sheet = useSheet();
   const toast = useToast();
-  const tour = useTour('case-community', COMMUNITY_TOUR);
+  const tour = useTour('case-community');
   const [on, setOn] = useState<boolean | null>(null);
   const shared = on ?? !!prefs?.on;
   const office = officeOf(c.receipt), received = receivedOf(c);
@@ -28,27 +27,27 @@ export function CasesLikeMine({ c, view, prefs, cls }: { c: CaseView; view: Expe
   };
   const preview = sharePayload('random id', c, cls, prefs?.premium);
   return (
-    <>
-      <SectionHeader>Cases like mine</SectionHeader>
+    <TourScope tour={tour}>
+      <SectionHeader right={<TourButton label="Tips for Cases like mine" />}>Cases like mine</SectionHeader>
       <Card>
-        <View ref={tour.refs.community as never}>
+        <TourTarget id="community">
           {!view.communityHidden && view.communityLine ? (
             <T style={font.sub}>{view.communityLine}</T>
           ) : (
             <T tone="text2" style={font.sub}>{view.communityShared ? `${view.communityShared} similar case${view.communityShared === 1 ? '' : 's'} shared so far. Timelines appear once at least 10 are decided.` : 'Timelines from other app users appear here once at least 10 similar cases are decided.'}</T>
           )}
           <Hint>Shared by app users, not checked by USCIS. Fewer cases than the official numbers above.</Hint>
-        </View>
-        <View ref={tour.refs.share as never} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: t.sep }}>
+        </TourTarget>
+        <TourTarget id="share" style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: t.sep }}>
           <View style={{ flex: 1, paddingRight: 10 }}>
             <T style={[font.body, { fontWeight: '600' }]}>Add my case anonymously</T>
             <T tone="text2" style={[font.caption, { marginTop: 2 }]}>{can ? 'Only the form, office code, dates and outcome — never your receipt number or name.' : why}</T>
           </View>
           {can ? <Switch label="Add my case anonymously" value={shared} onValueChange={flip} /> : null}
-        </View>
+        </TourTarget>
         {can ? <LinkButton align="left" title="What exactly is shared?" onPress={() => sheet.open('What is shared', <SharedDetails preview={preview} cls={cls} />)} /> : null}
       </Card>
-    </>
+    </TourScope>
   );
 }
 

@@ -5,11 +5,9 @@ import { View } from 'react-native';
 import { COMMUNITY_DISCLAIMER, FEED_TABS, TAGS, familyCommunityTags, feedQuery, timeAgo, type FeedTab } from '../core/community';
 import { getFeed, useCommunityUser, type PostSummary } from '../data/communityApi';
 import { useFamily } from '../data/FamilyProvider';
-import { Button, ChipToggle, Chips, EmptyState, Field, Group, Hint, Icon, IconButton, Note, Row, Screen, Segmented, Spinner, T, Tag, font, useTheme } from '../ui';
+import { Button, ChipToggle, Chips, EmptyState, Field, Group, Hint, Icon, IconButton, Note, Row, Screen, Segmented, Spinner, T, Tag, font, useTheme, TourTarget, useTour } from '../ui';
 import { back, go } from './common';
-import { HelpButton } from './help';
 import { useCommunityGate } from './communityAccount';
-import { useTour } from './communityTours';
 
 /** Family visa types (from documents, else the status picked at setup) + forms on their cases. */
 export function useFamilyCommunityTags(): string[] {
@@ -56,7 +54,7 @@ export function CommunityFeedScreen({ backTitle = 'Back' }: { backTitle?: string
   const [error, setError] = useState('');
   const [more, setMore] = useState(false);
   const seq = useRef(0);
-  useTour('communityFeed');
+  const tour = useTour('communityFeed');
 
   const chips = tab === 'For my visa' && fam.length ? fam : [...TAGS.visa.slice(0, 6), 'I-485', 'I-140', 'Stamping', 'RFE', 'Layoff'];
   const qs = feedQuery({ tab, famTags: fam, tag, q: query });
@@ -79,12 +77,12 @@ export function CommunityFeedScreen({ backTitle = 'Back' }: { backTitle?: string
   };
 
   return (
-    <Screen nav={{ title: 'Community', back: backTitle, onBack: back, right: <View style={{ flexDirection: 'row' }}><HelpButton topic="community" label="How the community works" /><IconButton icon="user" label={user ? `Account: ${user.name}` : 'Account and sign in'} onPress={() => go('/community/account')} /></View> }}
-      footer={<Button icon="edit" title="Ask a question" onPress={() => gate(() => go('/community/compose'))} />}>
+    <Screen tour={tour} nav={{ title: 'Community', back: backTitle, onBack: back, right: <TourTarget id="account"><IconButton icon="user" label={user ? `Account: ${user.name}` : 'Account and sign in'} onPress={() => go('/community/account')} /></TourTarget> }}
+      footer={<TourTarget id="compose" style={{ flex: 1 }}><Button icon="edit" title="Ask a question" onPress={() => gate(() => go('/community/compose'))} /></TourTarget>}>
       <Hint style={{ marginTop: 0 }}>{COMMUNITY_DISCLAIMER}</Hint>
-      <Segmented options={FEED_TABS} value={tab} onChange={(v) => { setTab(v as FeedTab); setTag(null); }} />
+      <TourTarget id="tabs"><Segmented options={FEED_TABS} value={tab} onChange={(v) => { setTab(v as FeedTab); setTag(null); }} /></TourTarget>
       <Field label="Search questions" value={q} onChangeText={setQ} placeholder="e.g. stamping Chennai, RFE EAC" autoCapitalize="none" maxLength={100} />
-      <Chips>{chips.map((g) => <ChipToggle key={g} role="checkbox" text={g} on={tag === g} onPress={() => setTag(tag === g ? null : g)} />)}</Chips>
+      <TourTarget id="chips"><Chips>{chips.map((g) => <ChipToggle key={g} role="checkbox" text={g} on={tag === g} onPress={() => setTag(tag === g ? null : g)} />)}</Chips></TourTarget>
       {tab === 'For my visa' && !fam.length ? <Hint>Add your family’s visa types in Family to see questions for them here.</Hint> : null}
       {tab === 'For my visa' && fam.length && !tag ? <Hint>{`Questions tagged ${fam.slice(0, 4).join(', ')}${fam.length > 4 ? '…' : ''}`}</Hint> : null}
       {error ? <Note tone="amber" actions={<Button size="sm" kind="tint" title="Try again" onPress={load} />}>{error}</Note> : null}

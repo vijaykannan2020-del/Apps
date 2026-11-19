@@ -7,9 +7,8 @@ import type { CaseView } from '../core/cases';
 import { CLASS_CHOICES, classLabel, decidedOf, describe, fmtDate, officeOf, outcomeOf, receivedOf, type ChartModel, type ExpectInput } from '../core/expect';
 import { useExpect, usePrefs, syncShare } from '../data/expect';
 import { useFamily } from '../data/FamilyProvider';
-import { Card, ChipToggle, Chips, Hint, SectionHeader, T, font, useTheme, tint } from '../ui';
+import { Card, ChipToggle, Chips, Hint, SectionHeader, T, font, useTheme, tint, TourButton, TourScope, TourTarget, useTour } from '../ui';
 import { CasesLikeMine } from './expectShare';
-import { EXPECT_TOUR, useTour } from './expectTours';
 import { go } from './common';
 
 const PREMIUM_FORMS = /^(I-129|I-140|I-539|I-765)$/;
@@ -18,7 +17,7 @@ export function ExpectCard({ c }: { c: CaseView }) {
   const f = useFamily();
   const t = useTheme();
   const { prefs, update } = usePrefs(c.receipt);
-  const tour = useTour('case-expect', EXPECT_TOUR);
+  const tour = useTour('case-expect');
   const recCls = f.records[c.ownerId]?.cases.find((x) => x.receipt && x.receipt === c.receipt)?.cls;
   const cls = prefs?.cls ?? recCls;
   const office = officeOf(c.receipt);
@@ -32,36 +31,36 @@ export function ExpectCard({ c }: { c: CaseView }) {
   const v = describe(s.result, { live: s.live, outcome, decided: decidedOf(c), asOf: s.cachedAt && !s.live ? `saved ${fmtDate(s.cachedAt.slice(0, 10))}` : undefined });
   const choices = CLASS_CHOICES[q.form] ?? [];
   return (
-    <>
-      <SectionHeader>What to expect</SectionHeader>
+    <TourScope tour={tour}>
+      <SectionHeader right={<TourButton label="Tips for What to expect" />}>What to expect</SectionHeader>
       <Card>
-        <View ref={tour.refs.window as never}>
+        <TourTarget id="window">
           <T style={[font.headline, { lineHeight: 22 }]}>{v.headline}</T>
           {v.sub ? <T tone="text2" style={[font.foot, { marginTop: 6 }]}>{v.sub}</T> : null}
           {v.chart ? <ExpectChart m={v.chart} /> : <Hint>Add the date USCIS received the case to see your own window.</Hint>}
           {v.mine ? <T style={[font.sub, { marginTop: 4 }]}>{v.mine}</T> : null}
-        </View>
+        </TourTarget>
         {v.tiles.length ? (
-          <View ref={tour.refs.numbers as never} style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 14, rowGap: 12 }}>
+          <TourTarget id="numbers" style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 14, rowGap: 12 }}>
             {v.tiles.map((x, i) => (
               <View key={i} style={{ width: '50%', paddingRight: 8 }} accessible accessibilityLabel={`${x.value} ${x.label}`}>
                 <T style={{ fontSize: 24, fontWeight: '700', fontVariant: ['tabular-nums'], color: x.tone === 'green' ? t.inkGreen : x.tone === 'amber' ? t.inkAmber : t.text }}>{x.value}</T>
                 <T tone="text2" style={font.caption}>{x.label}</T>
               </View>
             ))}
-          </View>
+          </TourTarget>
         ) : null}
         {PREMIUM_FORMS.test(q.form) || choices.length ? (
-          <View ref={tour.refs.options as never}>
+          <TourTarget id="options">
             <Chips>
               {PREMIUM_FORMS.test(q.form) ? <ChipToggle role="checkbox" text="Premium" on={!!prefs?.premium} onPress={() => update({ premium: !prefs?.premium })} /> : null}
               {choices.map((k) => <ChipToggle key={k} text={classLabel(k)} on={cls === k || (!!cls && classLabel(cls) === classLabel(k))} onPress={() => update({ cls: cls === k ? undefined : k })} />)}
             </Chips>
-          </View>
+          </TourTarget>
         ) : null}
         {v.premiumLine ? <Hint>{v.premiumLine}</Hint> : null}
         {v.rfeLine ? <Hint>{v.rfeLine}</Hint> : null}
-        <View ref={tour.refs.office as never}><Hint>{v.officeLine}</Hint></View>
+        <TourTarget id="office"><Hint>{v.officeLine}</Hint></TourTarget>
         <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: t.sep }}>
           <T tone="text2" style={font.caption}>{`${s.live ? 'Live' : s.cachedAt ? 'Offline — last update' : `Offline — built-in summary, checked ${v.asOf}`}${s.live || s.cachedAt ? ` · ${v.asOf}` : ''}`}</T>
           {v.sources.map((x, i) => <T key={i} tone="text3" style={[font.caption, { marginTop: 2 }]}>{x}</T>)}
@@ -70,7 +69,7 @@ export function ExpectCard({ c }: { c: CaseView }) {
       </Card>
       <HowLink />
       <CasesLikeMine c={c} view={v} prefs={prefs} cls={cls} />
-    </>
+    </TourScope>
   );
 }
 function HowLink() {

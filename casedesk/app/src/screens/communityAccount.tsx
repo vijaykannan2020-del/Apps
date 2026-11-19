@@ -10,10 +10,8 @@ import {
 } from '../data/communityApi';
 import { appleModule, appleSupport, disableAnswerPush, enableAnswerPush, finishGoogle, googleConfig, googleModule, signInWithApple, type AppleSupport } from '../data/communityAuth';
 import { asyncKV } from '../native/asyncKV';
-import { Button, Card, EmptyState, Field, Group, Hint, Icon, LinkButton, Note, Option, Row, Screen, SectionHeader, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useTheme, useToast } from '../ui';
+import { Button, Card, EmptyState, Field, Group, Hint, Icon, LinkButton, Note, Option, Row, Screen, SectionHeader, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useTheme, useToast, TourButton, TourScope, TourTarget, useSheetTour, useTour } from '../ui';
 import { back, go } from './common';
-import { HelpButton } from './help';
-import { useTour } from './communityTours';
 
 const kv = asyncKV();
 const NOTIFY_ASKED = 'community.notifyAsked';
@@ -63,7 +61,7 @@ export function JoinSheet({ onReady, onClose }: { onReady: () => void; onClose: 
   const [support, setSupport] = useState<AppleSupport | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  useTour('communitySignIn');
+  const tour = useSheetTour('communitySignIn');
   useEffect(() => { appleSupport().then(setSupport); }, []);
   const showGoogle = !!googleConfig() && !!googleModule()?.useIdTokenAuthRequest;
   const done = React.useRef(false);
@@ -74,9 +72,9 @@ export function JoinSheet({ onReady, onClose }: { onReady: () => void; onClose: 
   if (user && user.banned) return <Note tone="red">This account can’t post because it broke the community rules.</Note>;
   if (user) {
     return (
-      <View>
+      <TourScope tour={tour}>
         <Why>{`You’re ${user.name}. Before your first post, please read the community rules.`}</Why>
-        <RulesList />
+        <TourTarget id="rules"><RulesList /></TourTarget>
         {error ? <Note tone="red">{error}</Note> : null}
         <SheetButtons>
           <Button kind="ghost" title="Not now" onPress={onClose} />
@@ -85,25 +83,25 @@ export function JoinSheet({ onReady, onClose }: { onReady: () => void; onClose: 
             try { await updateMe({ acceptRules: RULES_VERSION }); finish(); } catch (e: any) { setError(e.message); } finally { setBusy(false); }
           }} />
         </SheetButtons>
-      </View>
+      </TourScope>
     );
   }
   return (
-    <View>
-      <Why>Reading is open to everyone. To ask, answer or upvote, sign in — other people only see a made-up display name you can change. We never see or show your email.</Why>
+    <TourScope tour={tour}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}><View style={{ flex: 1 }}><Why>Reading is open to everyone. To ask, answer or upvote, sign in — other people only see a made-up display name you can change. We never see or show your email.</Why></View><TourButton /></View>
       <Hint>{COMMUNITY_DISCLAIMER}</Hint>
       {support === null ? <View style={{ marginTop: 18 }}><Spinner /></View> : null}
       {support === 'update' ? <Note tone="amber">Update the app from TestFlight to join the community. You can keep reading questions in this version.</Note> : null}
       {support === 'unsupported' && !showGoogle ? <Note tone="grey">Sign in with Apple isn’t available on this device. You can keep reading questions.</Note> : null}
-      {support === 'ok' ? <AppleButton busy={busy} onPress={async () => {
+      {support === 'ok' ? <TourTarget id="apple"><AppleButton busy={busy} onPress={async () => {
         setBusy(true); setError('');
         try { await signInWithApple(); } catch (e: any) { setError(e.message); } finally { setBusy(false); }
-      }} /> : null}
+      }} /></TourTarget> : null}
       {showGoogle ? <GoogleButton onSignedIn={() => {}} setError={setError} /> : null}
       {error ? <Note tone="red">{error}</Note> : null}
       <Hint center style={{ marginTop: 14 }}>By joining you agree to the community rules. Content that breaks them is removed and accounts are banned.</Hint>
-      <LinkButton align="left" title="Read the community rules" onPress={() => { onClose(); go('/community/rules'); }} />
-    </View>
+      <TourTarget id="rules"><LinkButton align="left" title="Read the community rules" onPress={() => { onClose(); go('/community/rules'); }} /></TourTarget>
+    </TourScope>
   );
 }
 
@@ -255,7 +253,7 @@ export function CommunityAccountScreen() {
   const [mine, setMine] = useState<PostSummary[] | null>(null);
   const [blocked, setBlocked] = useState<Author[]>([]);
   const [notify, setNotify] = useState(false);
-  useTour('communityAccount');
+  const tour = useTour('communityAccount', undefined, { auto: !!user });
   const load = useCallback(() => {
     if (!user) return;
     getMine().then((r) => setMine(r.posts)).catch(() => setMine([]));
@@ -274,11 +272,11 @@ export function CommunityAccountScreen() {
     );
   }
   return (
-    <Screen nav={{ title: 'Account', back: 'Community', onBack: back, right: <HelpButton topic="community" /> }}>
+    <Screen tour={tour} nav={{ title: 'Account', back: 'Community', onBack: back }}>
       {user.banned ? <Note tone="red">This account can’t post because it broke the community rules. You can still read, and delete the account below.</Note> : null}
       <SectionHeader>You in Community</SectionHeader>
       <Group>
-        <Row icon="user" title={user.name} subtitle="Display name — tap to change" onPress={() => sheet.open('Display name', <NameSheet current={user.name} onClose={sheet.close} />)} />
+        <TourTarget id="name"><Row icon="user" title={user.name} subtitle="Display name — tap to change" onPress={() => sheet.open('Display name', <NameSheet current={user.name} onClose={sheet.close} />)} /></TourTarget>
         <Row icon="bell" title="Notify me of answers" subtitle="One notification when someone answers your question" trailing={<Switch value={notify} label="Notify me of answers" onValueChange={async (on) => {
           setNotify(on);
           if (on) { const ok = await enableAnswerPush(true); if (!ok) { setNotify(false); toast('Turn on notifications for Immigration Wallet in iOS Settings'); } }
@@ -286,7 +284,7 @@ export function CommunityAccountScreen() {
         }} />} />
       </Group>
       <SectionHeader>My questions</SectionHeader>
-      {mine === null ? <Spinner /> : mine.length ? <Group>{mine.map((p) => <MyPostRow key={p.id} p={p} />)}</Group> : <Card><T tone="text2" style={font.sub}>You haven’t asked anything yet.</T></Card>}
+      <TourTarget id="mine">{mine === null ? <Spinner /> : mine.length ? <Group>{mine.map((p) => <MyPostRow key={p.id} p={p} />)}</Group> : <Card><T tone="text2" style={font.sub}>You haven’t asked anything yet.</T></Card>}</TourTarget>
       {blocked.length ? (
         <>
           <SectionHeader>Blocked</SectionHeader>
@@ -302,7 +300,7 @@ export function CommunityAccountScreen() {
       <SectionHeader>Account</SectionHeader>
       <Group>
         <Row icon="lock" title="Sign out" chevron={false} onPress={async () => { await signOut(); toast('Signed out'); back(); }} />
-        <Row icon="trash" iconTone="red" title="Delete account" titleTone="red" chevron={false} onPress={() => sheet.open('Delete your community account?', <DeleteSheet onClose={sheet.close} />)} />
+        <TourTarget id="delete"><Row icon="trash" iconTone="red" title="Delete account" titleTone="red" chevron={false} onPress={() => sheet.open('Delete your community account?', <DeleteSheet onClose={sheet.close} />)} /></TourTarget>
       </Group>
       <Hint center style={{ marginTop: 14 }}>{`Signed in with ${user.provider === 'google' ? 'Google' : 'Apple'} · member since ${timeAgo(user.createdAt)}. Your email is never stored or shown.`}</Hint>
     </Screen>
