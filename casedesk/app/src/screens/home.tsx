@@ -64,6 +64,7 @@ export function Home() {
 
   const topPart = (
     <>
+      <HomeSearchBar />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flex: 1, minWidth: 0 }}>
           <T a11y="header" numberOfLines={1} style={{ fontSize: 26, lineHeight: 32, fontWeight: '600', letterSpacing: -0.4 }}>{`Hi, ${me.name}`}</T>
@@ -193,5 +194,17 @@ function CasesGlance() {
       <SectionHeader right={<LinkButton title="See all" onPress={() => router.navigate('/(tabs)/cases' as never)} />}>Cases</SectionHeader>
       <Group>{list.map((c) => <CaseRow key={c.id} c={c} />)}</Group>
     </>
+  );
+}
+
+/** v2.9: search field at the top of Home (iOS style). Opens Search with the keyboard up. */
+function HomeSearchBar() {
+  const t = useTheme();
+  return (
+    <Pressable onPress={() => go('/search')} accessibilityRole="search" accessibilityLabel="Search people, documents, cases and tools"
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.dark ? t.card : t.card2, borderRadius: 12, paddingHorizontal: 12, minHeight: 44, marginBottom: 14, opacity: pressed ? 0.75 : 1 })}>
+      <Icon name="search" size={17} color={t.text2} />
+      <T tone="text2" style={font.body}>Search</T>
+    </Pressable>
   );
 }

@@ -19,3 +19,4 @@ export { VAULT_DIR, baseName, storedRef, refKey, migrateFile, migrateDocs, orpha
 export { matchPeople, type PersonMatch } from './merge';
 export { reviewReasons, reasonLine, whatToDo, monthYear, type Reason } from './review';
 export { REMINDER_TYPES, TYPE_DEFAULT, LEAD_CHOICES, reminderSummary, typeSetting, typesFor, typeDates, typeOfFinding, copyReminders, type ReminderType } from './reminders';
+export { search, expandQuery, STATIC_ITEMS, SYNONYMS, type SearchItem, type SearchGroup, type SearchSection } from './search';

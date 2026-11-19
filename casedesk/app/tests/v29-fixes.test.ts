@@ -118,3 +118,26 @@ test('reminders: per-type lead times, only the types the person has, a type can 
   assert.equal(reminderSummary(rm, ['passport', 'i94']), 'On · I-94');
   assert.deepEqual(copyReminders(rm, undefined).types?.passport, { on: false, lead: [180] });
 });
+
+import { search, expandQuery, STATIC_ITEMS, type SearchItem } from '../src/core';
+
+test('search: synonyms (GC, EAD, AP, stamping), grouped by section, people first', () => {
+  const items: SearchItem[] = [
+    ...STATIC_ITEMS,
+    { id: 'p1', section: 'People', title: 'Arun Kumar', sub: 'You · H-1B', path: '/person/me' },
+    { id: 'd1', section: 'Documents', title: 'EAD card', sub: 'Meera · ends Jan 1, 2027', path: '/document/x', keywords: ['ead', 'work permit'] },
+    { id: 'd2', section: 'Documents', title: 'I-485 receipt', sub: 'Arun', path: '/document/y', keywords: ['receipt', 'I-485'] },
+    { id: 'd3', section: 'Documents', title: 'Visa stamp', sub: 'Arun', path: '/document/z', keywords: ['visa'] },
+    { id: 'd4', section: 'Documents', title: 'Advance Parole', sub: 'Meera', path: '/document/w', keywords: ['advance parole'] },
+  ];
+  assert.ok(expandQuery('GC').includes('i485'));
+  const gc = search(items, 'gc');
+  assert.ok(gc.some((g) => g.section === 'Documents' && g.items.some((i) => i.id === 'd2')));
+  assert.ok(gc.some((g) => g.section === 'Tools' && g.items.some((i) => i.path === '/tools/vb')));
+  assert.equal(search(items, 'work permit')[0].items[0].id, 'd1');
+  assert.equal(search(items, 'AP').find((g) => g.section === 'Documents')?.items[0].id, 'd4');
+  assert.equal(search(items, 'stamping').find((g) => g.section === 'Documents')?.items[0].id, 'd3');
+  assert.equal(search(items, 'arun')[0].section, 'People');
+  assert.deepEqual(search(items, ''), []);
+  assert.ok(search(items, 'processing').some((g) => g.items.some((i) => i.path === '/tools/proc')));
+});
