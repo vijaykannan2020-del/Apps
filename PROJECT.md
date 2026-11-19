@@ -151,6 +151,9 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-19, ChatGPT: Deployed isolated `ai-dev-hub/index.html` to GitHub Pages on `main` at `/Apps/ai-dev-hub/`. Read-only public GitHub folder browsing, device-local project notes, context copying, and official Claude/ChatGPT/Codex links. No existing app files changed; no API keys or automatic code editing. Live phone test pending.
+
+
 - 2026-11-17, ChatGPT: Segue Version 42 adds an opt-in audience-replay trial, private YTAPI Worker/Node backend adapters and phone connection UI. Checks release-audio title/artist/duration, derives peak regions from graph valleys or named chapters, rejects malformed/missing data and caches recording results. No Gemini, audio upload, direct YouTube scrape or automatic fallback/skip. Existing method remains until configured. 78 controller cases, 12 backend cases, mocked replay connection/SDK/cache browser flow and existing lyric/catalog/file/player/14-layout checks pass. **Backend is not deployed and no provider account/key is connected; actual replay/Tamil audio coverage is unverified.** Setup/dependency details in segue/replay-service/README.md. No provider credits purchased or live lookups made.
 
 - 2026-11-17, Claude: CaseDesk Alerts: user-chosen local date reminders, background case-status checks, and server push for official updates / Visa Bulletin by topic (server stores only push token + topics in data/subscribers.json).
