@@ -120,10 +120,11 @@ test('disclaimer: exact launch wording; every source is an official https link',
 });
 test('About: version, build and OTA update id rows', () => {
   const r = versionRows({ version: '1.0.0', build: '12', updateId: 'a1b2c3d4-e5f6', updateAt: '2026-11-18T10:00:00Z', embedded: false, channel: 'production' });
-  assert.deepEqual(r.map((x) => x.label), ['Version', 'Update', 'Channel']);
-  assert.equal(r[0].value, '1.0.0 (build 12)');
-  assert.match(r[1].value, /^a1b2c3d4 · Nov 18, 2026$/);
-  assert.match(versionRows({ version: '1.0.0', embedded: true, updateId: 'x' })[1].value, /Built-in/);
+  assert.deepEqual(r.map((x) => x.label), ['Version', 'App Store version', 'Update', 'Channel']);
+  assert.match(r[0].value, /^2\.\d+\.\d+ \(build 12\)$/);
+  assert.equal(r[1].value, '1.0.0');
+  assert.match(r[2].value, /^a1b2c3d4 · Nov 18, 2026$/);
+  assert.match(versionRows({ version: '1.0.0', embedded: true, updateId: 'x' })[2].value, /Built-in/);
 });
 test('data sources: every built-in data set has a date, an official source and a check status', () => {
   for (const d of DATA_SOURCES) { assert.ok(d.asOf && d.asOf !== '—', d.id); assert.match(d.source.url, /^https:\/\//); assert.ok(d.note.length > 10); }

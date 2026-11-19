@@ -2,6 +2,7 @@
 // gear in Profile) — no longer a tab. iOS: large title, inset grouped rows with icon tiles. Android:
 // Material 3 preference list under a top app bar with a back arrow. One <SettingsList> draws both.
 // Deep link: casedesk://settings (app/settings.tsx).
+import { RELEASE } from '../content/release';
 import React, { useEffect } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -40,8 +41,7 @@ export function SettingsScreen() {
     if (o) setTimeout(() => sheet.open(o[0], o[1]), 350);
   }, [params.open, sheet]);
   const lastBackup = f.settings.lastBackupAt ? fmt(f.settings.lastBackupAt.slice(0, 10)) : 'Never';
-  let version = '2.1';
-  try { version = require('expo-constants').default?.expoConfig?.version ?? version; } catch {}
+  const version = RELEASE;
   const me = f.main;
   const faceId = async (on: boolean) => {
     if (on && !(await canUseBiometrics())) { toast('Set up Face ID or a passcode in the system settings first'); return; }
