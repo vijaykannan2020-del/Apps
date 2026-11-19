@@ -1,10 +1,11 @@
-// Design tokens from the approved prototype (iOS system palette). Dark is the default look; light
-// mode supported; the user can follow the system or pick one (Profile → Appearance).
+// Design tokens for the pastel look (v2.7): true black + dark grey cards + pastel blocks; light mode
+// is the soft-grey equivalent. One brand palette; the user picks System / Light / Dark only.
 import React, { createContext, useContext } from 'react';
-import { useColorScheme, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, useColorScheme, useWindowDimensions } from 'react-native';
 import type { Severity } from '../core/rules/types';
-import { DARK, LIGHT } from './tokens';
-export { DARK, LIGHT, contrast } from './tokens';
+import { DARK, LIGHT, PASTEL, TONE_PASTEL, onPastel, type PastelTone } from './tokens';
+export { DARK, LIGHT, PASTEL, INK, INK2, contrast, m3Roles, onPastel, TONE_PASTEL } from './tokens';
+export type { PastelTone } from './tokens';
 
 const dark = DARK;
 const light = LIGHT;
@@ -19,11 +20,12 @@ export const tint = (hex: string, a: number) => {
 };
 
 export const space = { xs: 4, s: 8, m: 12, l: 16, xl: 24, xxl: 32 };
-export const radius = { card: 18, button: 14, field: 12, chip: 999 };
+export const radius = { card: 28, hero: 34, tile: 28, row: 26, button: 26, field: 16, chip: 999, sheet: 34 };
 export const font = {
-  largeTitle: { fontSize: 34, lineHeight: 41, fontWeight: '700' as const, letterSpacing: -0.6 },
+  hero: { fontSize: 44, lineHeight: 52, fontWeight: '700' as const, letterSpacing: -1 },
+  largeTitle: { fontSize: 32, lineHeight: 39, fontWeight: '700' as const, letterSpacing: -0.6 },
   title: { fontSize: 28, fontWeight: '700' as const, letterSpacing: -0.5, lineHeight: 33 },
-  title2: { fontSize: 22, fontWeight: '700' as const, letterSpacing: -0.2 },
+  title2: { fontSize: 22, fontWeight: '600' as const, letterSpacing: -0.2 },
   big: { fontSize: 20, fontWeight: '600' as const, letterSpacing: -0.2, lineHeight: 25 },
   headline: { fontSize: 17, fontWeight: '600' as const },
   body: { fontSize: 17, lineHeight: 22 },
@@ -42,6 +44,29 @@ export function ThemeProvider({ choice = 'system', children }: { choice?: ThemeC
   return <Ctx.Provider value={{ t, choice }}>{children}</Ctx.Provider>;
 }
 export const useTheme = () => useContext(Ctx).t;
+
+/** Inside a pastel block: the theme's text colours become ink (see tokens.onPastel). */
+export function PastelScope({ tone, children }: { tone: PastelTone; children: React.ReactNode }) {
+  const c = useContext(Ctx);
+  const base = c.t.onPastel ? (c.t.dark ? DARK : LIGHT) : c.t;
+  const value = React.useMemo(() => ({ t: onPastel(base, PASTEL[tone]), choice: c.choice }), [base, tone, c.choice]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+/** Back to the normal theme (a dark card nested in a pastel block). */
+export function PlainScope({ children }: { children: React.ReactNode }) {
+  const c = useContext(Ctx);
+  if (!c.t.onPastel) return <>{children}</>;
+  return <Ctx.Provider value={{ t: c.t.dark ? DARK : LIGHT, choice: c.choice }}>{children}</Ctx.Provider>;
+}
+/** A stable pastel for a name / key (avatars, tool tiles): identity colours, never status. */
+const IDENTITY: PastelTone[] = ['sage', 'blush', 'sky', 'butter', 'mint'];
+export const pastelFor = (key: string, i?: number): PastelTone => {
+  if (i !== undefined) return IDENTITY[i % IDENTITY.length];
+  let h = 0; for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return IDENTITY[h % IDENTITY.length];
+};
+/** Meaning → pastel block (red urgent · amber attention · green good · blue information). */
+export const tonePastel = (tone: Tone): PastelTone => TONE_PASTEL[tone];
 
 export type Tone = 'red' | 'amber' | 'green' | 'blue' | 'grey';
 export const toneColor = (t: Theme, tone: Tone) => (tone === 'red' ? t.red : tone === 'amber' ? t.amber : tone === 'green' ? t.green : tone === 'blue' ? t.accent : t.grey);
@@ -69,4 +94,16 @@ export function useLayout() {
   const wideMax = Math.min(1180, width - 2 * (wide ? 24 : 16));
   const side = width < 360 ? 12 : wide ? 24 : 16;
   return { width, height, wide, twoCol, wideMax, landscape: width > height, maxWidth, side, fontScale, compact: width < 380 || fontScale > 1.35 };
+}
+
+/** iOS Reduce Motion / Android Remove animations: springs and fades are skipped when on. */
+export function useReduceMotion() {
+  const [rm, setRm] = React.useState(false);
+  React.useEffect(() => {
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled?.().then((v) => { if (alive) setRm(!!v); }).catch(() => {});
+    const sub = AccessibilityInfo.addEventListener?.('reduceMotionChanged', (v: boolean) => setRm(!!v));
+    return () => { alive = false; sub?.remove?.(); };
+  }, []);
+  return rm;
 }

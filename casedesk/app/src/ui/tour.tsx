@@ -11,8 +11,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions, type ScrollViewProps } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { normalizeSteps, placeTip, shouldAutoShow, stepLabel, type Rect, type TourStep } from '../core/tours';
-import { useTheme, MIN_TOUCH, font } from './theme';
+import { autoSteps, normalizeSteps, placeTip, shouldAutoShow, stepLabel, type Rect, type TourStep } from '../core/tours';
+import { useTheme, useReduceMotion, MIN_TOUCH, font } from './theme';
 import { Icon } from './Icon';
 import { T } from './kit';
 
@@ -49,6 +49,8 @@ type Ctx = {
   seen: string[];
   ready: boolean;
   off: boolean;
+  /** Settings → Help → Show tips on each screen (off by default: only Home's one tip auto-shows) */
+  all: boolean;
   disabled: boolean;
 };
 const TourCtx = createContext<Ctx | null>(null);
@@ -65,8 +67,8 @@ function autoDisabled(): boolean {
   return false;
 }
 
-export function TourProvider({ children, seen, ready, off, onSeen, onSkipAll, onHelp }: {
-  children: React.ReactNode; seen: string[]; ready: boolean; off?: boolean;
+export function TourProvider({ children, seen, ready, off, all, onSeen, onSkipAll, onHelp }: {
+  children: React.ReactNode; seen: string[]; ready: boolean; off?: boolean; all?: boolean;
   onSeen: (id: string) => void; onSkipAll?: () => void; onHelp?: (topic: string) => void;
 }) {
   const [active, setActive] = useState<Active>(null);
@@ -76,7 +78,7 @@ export function TourProvider({ children, seen, ready, off, onSeen, onSkipAll, on
     if (all) onSkipAll?.();
   }, [onSeen, onSkipAll]);
   const disabled = useMemo(autoDisabled, []);
-  const value = useMemo<Ctx>(() => ({ active, show, seen, ready, off: !!off, disabled }), [active, show, seen, ready, off, disabled]);
+  const value = useMemo<Ctx>(() => ({ active, show, seen, ready, off: !!off, all: !!all, disabled }), [active, show, seen, ready, off, all, disabled]);
   return (
     <TourCtx.Provider value={value}>
       <View style={{ flex: 1 }} importantForAccessibility={active ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={!!active}>{children}</View>
@@ -107,11 +109,15 @@ function useTourCore(id: string, steps: TourStep[] | undefined, opts: { help?: s
     if (!auto) return undefined;
     const timer = setTimeout(() => {
       const c = ctxRef.current;
-      if (c && shouldAutoShow(id, { ready: c.ready, seen: c.seen, off: c.off, active: c.active?.tour.id ?? null, steps: tourRef.current.steps.length, disabled: c.disabled })) c.show(tourRef.current);
+      if (!c) return;
+      // calm by default: Home shows its one tip once; other screens only when the user asked for tips
+      const st = autoSteps(id, tourRef.current.steps, c.all);
+      if (!shouldAutoShow(id, { ready: c.ready, seen: c.seen, off: c.off, active: c.active?.tour.id ?? null, steps: st.length, disabled: c.disabled })) return;
+      c.show(c.all ? tourRef.current : { ...tourRef.current, steps: st, help: undefined });
     }, 700);
     return () => clearTimeout(timer);
   };
-  return { tour: tourRef.current, trigger, deps: [id, auto, ctx?.ready, ctx?.seen.length] as unknown[] };
+  return { tour: tourRef.current, trigger, deps: [id, auto, ctx?.ready, ctx?.seen.length, ctx?.all] as unknown[] };
 }
 
 /**
@@ -165,7 +171,7 @@ export function TourButton({ tour, label }: { tour?: Tour | null; label?: string
     <TourTarget id="help" tour={owner}>
       <Pressable onPress={owner.start} accessibilityRole="button" accessibilityLabel={label ?? 'Tips for this screen'} accessibilityHint="Shows what each part of this screen does" hitSlop={6}
         style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name="help" size={22} color={t.inkAccent} />
+        <Icon name="help" size={22} color={t.text2} />
       </Pressable>
     </TourTarget>
   );
@@ -173,17 +179,6 @@ export function TourButton({ tour, label }: { tour?: Tour | null; label?: string
 
 /** Is a tour on screen right now (e.g. to pause other prompts)? */
 export const useTourActive = () => !!useContext(TourCtx)?.active;
-
-function useReduceMotion() {
-  const [rm, setRm] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    AccessibilityInfo.isReduceMotionEnabled?.().then((v) => { if (alive) setRm(!!v); }).catch(() => {});
-    const sub = AccessibilityInfo.addEventListener?.('reduceMotionChanged', (v: boolean) => setRm(!!v));
-    return () => { alive = false; sub?.remove?.(); };
-  }, []);
-  return rm;
-}
 
 function TourOverlay({ tour, i, onNext, onBack, onSkip, onHelp }: { tour: Tour; i: number; onNext: () => void; onBack: () => void; onSkip: () => void; onHelp?: () => void }) {
   const t = useTheme();
@@ -231,7 +226,7 @@ function TourOverlay({ tour, i, onNext, onBack, onSkip, onHelp }: { tour: Tour; 
   const hole = rect ? { x: rect.x - pad, y: rect.y - pad, w: rect.width + 2 * pad, h: rect.height + 2 * pad } : null;
   const place = placeTip(hole ? { x: hole.x, y: hole.y, width: hole.w, height: hole.h } : null, win, tipH);
   const shade = t.dark ? 'rgba(0,0,0,0.66)' : 'rgba(0,0,0,0.5)';
-  const card = t.dark ? '#2C2C2E' : '#FFFFFF';
+  const card = t.dark ? t.card2 : '#FFFFFF';
 
   return (
     <View ref={rootRef} style={[StyleSheet.absoluteFill, { zIndex: 80, elevation: 80 }]} collapsable={false}>
@@ -243,13 +238,13 @@ function TourOverlay({ tour, i, onNext, onBack, onSkip, onHelp }: { tour: Tour; 
             <Pressable accessible={false} onPress={onSkip} style={{ position: 'absolute', left: 0, right: 0, top: hole.y + hole.h, bottom: 0, backgroundColor: shade }} />
             <Pressable accessible={false} onPress={onSkip} style={{ position: 'absolute', left: 0, width: Math.max(0, hole.x), top: hole.y, height: hole.h, backgroundColor: shade }} />
             <Pressable accessible={false} onPress={onSkip} style={{ position: 'absolute', left: hole.x + hole.w, right: 0, top: hole.y, height: hole.h, backgroundColor: shade }} />
-            <View pointerEvents="none" style={{ position: 'absolute', left: hole.x, top: hole.y, width: hole.w, height: hole.h, borderRadius: 14, borderWidth: 2.5, borderColor: t.accent }} />
+            <View pointerEvents="none" style={{ position: 'absolute', left: hole.x, top: hole.y, width: hole.w, height: hole.h, borderRadius: 22, borderWidth: 2.5, borderColor: t.pastel.sky }} />
           </>
         ) : <Pressable accessible={false} onPress={onSkip} style={[StyleSheet.absoluteFill, { backgroundColor: shade }]} />}
 
         <View onLayout={(e) => { const h = e.nativeEvent.layout.height; if (Math.abs(h - tipH) > 1) setTipH(h); }}
           accessibilityViewIsModal accessible={false}
-          style={{ position: 'absolute', top: place.top, left: place.left, width: place.width, backgroundColor: card, borderRadius: 16, padding: 16, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 10 }}>
+          style={{ position: 'absolute', top: place.top, left: place.left, width: place.width, backgroundColor: card, borderRadius: 26, padding: 18, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 10 }}>
           {place.arrow ? (
             <View pointerEvents="none" style={{ position: 'absolute', left: place.arrowX - 9, [place.arrow === 'up' ? 'top' : 'bottom']: -8, width: 18, height: 18, backgroundColor: card, transform: [{ rotate: '45deg' }], borderRadius: 3 }} />
           ) : null}
@@ -268,7 +263,7 @@ function TourOverlay({ tour, i, onNext, onBack, onSkip, onHelp }: { tour: Tour; 
               <T tone="text2" style={font.sub}>Skip</T>
             </Pressable>
             <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 5 }} accessible={false}>
-              {tour.steps.map((_, k) => <View key={k} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: k === i ? t.accent : t.text3 }} />)}
+              {tour.steps.map((_, k) => <View key={k} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: k === i ? t.text : t.outline }} />)}
             </View>
             {i > 0 ? (
               <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Previous tip" style={{ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' }}>
@@ -276,8 +271,8 @@ function TourOverlay({ tour, i, onNext, onBack, onSkip, onHelp }: { tour: Tour; 
               </Pressable>
             ) : null}
             <Pressable onPress={onNext} accessibilityRole="button" accessibilityLabel={last ? 'Done' : 'Next tip'}
-              style={({ pressed }) => ({ minHeight: MIN_TOUCH, paddingHorizontal: 18, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.8 : 1 })}>
-              <T style={[font.sub, { color: '#fff', fontWeight: '600' }]}>{last ? 'Got it' : 'Next'}</T>
+              style={({ pressed }) => ({ minHeight: MIN_TOUCH, paddingHorizontal: 18, borderRadius: 22, backgroundColor: t.primary, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.8 : 1 })}>
+              <T style={[font.sub, { color: t.onPrimary, fontWeight: '600' }]}>{last ? 'Got it' : 'Next'}</T>
             </Pressable>
           </View>
         </View>

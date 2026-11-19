@@ -129,12 +129,10 @@ test('light mode: body, secondary, tertiary text and tone inks pass 4.5:1 on car
     const r = contrast(ink, tintOf(c, LIGHT.pillAlpha), LIGHT.card);
     assert.ok(r >= 4.5, `${ink} on ${c} pill: ${r.toFixed(2)}`);
   }
-  // white text on the primary button
-  assert.ok(contrast('#FFFFFF', LIGHT.inkAccent) >= 4.5);
-  // secondary text is much darker than before (was rgba(60,60,67,0.6) ≈ 4.0:1 on the grey page)
-  assert.ok(contrast(LIGHT.text2, LIGHT.bg) > 7);
-  // dark mode unchanged
-  assert.equal(DARK.text2, 'rgba(235,235,245,0.6)');
+  // primary button (v2.7 pastel look): white on black
+  assert.ok(contrast(LIGHT.onPrimary, LIGHT.primary) >= 7);
+  // secondary text stays well above AA on the grey page
+  assert.ok(contrast(LIGHT.text2, LIGHT.bg) >= 6);
 });
 
 // ---------- help ----------
@@ -144,16 +142,17 @@ test('help: every tab card and "?" button points at a real topic; required topic
   assert.ok(HELP.find((h) => h.id === 'cases')!.steps!.some((s) => /Paste what USCIS says/.test(s)));
 });
 
-test('dark mode (v2.1.1): captions, pills and tinted buttons pass 4.5:1; primary stays Apple white-on-blue', () => {
+test('dark mode: captions, pills and pastel buttons pass 4.5:1; primary is black on white (v2.7 pastel look)', () => {
   for (const bg of [DARK.card, DARK.bg, DARK.card2]) {
     for (const fg of [DARK.text, DARK.text2, DARK.inkAccent, DARK.inkAmber, DARK.inkRed, DARK.inkGreen]) assert.ok(contrast(fg, bg) >= 4.5, `${fg} on ${bg}`);
-    assert.ok(contrast(DARK.inkAccent, tintOf(DARK.accent, 0.16), bg) >= 4.5, 'tinted button');
-    assert.ok(contrast(DARK.inkRed, tintOf(DARK.red, 0.15), bg) >= 4.5, 'danger button');
+    assert.ok(contrast(DARK.ink, DARK.pastel.sky) >= 4.5, 'secondary (sky) button');
+    assert.ok(contrast(DARK.ink, DARK.pastel.blush) >= 4.5, 'danger (blush) button');
   }
   for (const [c, ink] of [[DARK.amber, DARK.inkAmber], [DARK.red, DARK.inkRed], [DARK.green, DARK.inkGreen], [DARK.accent, DARK.inkAccent]] as const) {
     assert.ok(contrast(ink, tintOf(c, DARK.pillAlpha), DARK.card) >= 4.5, `${ink} pill`);
   }
-  assert.equal(DARK.accent, '#0A84FF');
+  assert.ok(contrast(DARK.onPrimary, DARK.primary) >= 7);
+  assert.equal(DARK.bg, '#000000', 'true black');
 });
 
 test('update rows show the family’s own tags first', () => {

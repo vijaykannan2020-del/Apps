@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
-import { font, MIN_TOUCH, radius, space, tint, toneColor, toneInk, TONE_WORD, useLayout, useTheme, type Tone } from './theme';
+import { font, MIN_TOUCH, radius, space, tint, toneColor, toneInk, TONE_WORD, useLayout, useTheme, useReduceMotion, PastelScope, PlainScope, pastelFor, tonePastel, type Tone, type PastelTone } from './theme';
 import type { Severity } from '../core/rules/types';
 import { fmt, isISO } from '../core/dates';
 
@@ -67,7 +67,8 @@ export function Columns({ left, right, ratio = 1, gap = 20, stack }: { left: Rea
   );
 }
 export const H1 = ({ children }: { children: React.ReactNode }) => <T a11y="header" style={font.title}>{children}</T>;
-export const Why = ({ children }: { children: React.ReactNode }) => <T tone="text2" style={[font.body, { marginTop: 6, lineHeight: 23 }]}>{children}</T>;
+/** One short line under a title (longer explanations live behind the ? tips). */
+export const Why = ({ children }: { children: React.ReactNode }) => <T tone="text2" style={[font.sub, { marginTop: 4 }]}>{children}</T>;
 export const Hint = ({ children, center, style }: { children: React.ReactNode; center?: boolean; style?: TextStyle }) => <T tone="text2" style={[font.caption, { marginTop: 8 }, center ? { textAlign: 'center' } : {}, style ?? {}]}>{children}</T>;
 
 export function LargeTitle({ title, right }: { title: string; right?: React.ReactNode }) {
@@ -81,8 +82,8 @@ export function LargeTitle({ title, right }: { title: string; right?: React.Reac
 
 export function SectionHeader({ children, right }: { children: string; right?: React.ReactNode }) {
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 28, marginBottom: 8, marginHorizontal: 4, gap: 8 }}>
-      <T tone="text2" a11y="header" style={[font.caption, { textTransform: 'uppercase', letterSpacing: 0.4, flexShrink: 1 }]}>{children}</T>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 26, marginBottom: 12, marginHorizontal: 2, gap: 8, minHeight: 28 }}>
+      <T a11y="header" style={[font.title2, { fontSize: 20, lineHeight: 26, flexShrink: 1 }]}>{children}</T>
       {right}
     </View>
   );
@@ -91,7 +92,8 @@ export function SectionHeader({ children, right }: { children: string; right?: R
 // ---------- bars ----------
 function Bar({ children, style, edge }: { children: React.ReactNode; style?: ViewStyle; edge: 'top' | 'bottom' }) {
   const t = useTheme();
-  const border = edge === 'top' ? { borderBottomWidth: 0.5, borderBottomColor: t.sep } : { borderTopWidth: 0.5, borderTopColor: t.sep };
+  const border = {};
+  void edge;
   if (BlurView && Platform.OS === 'ios') {
     return <BlurView intensity={60} tint={t.dark ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'} style={[border, style]}>{children}</BlurView>;
   }
@@ -111,8 +113,8 @@ export function NavBar({ title, back, onBack, right, progress }: NavProps) {
           {back !== undefined ? (
             <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={`Back to ${back}`} hitSlop={6}
               style={{ flexDirection: 'row', alignItems: 'center', minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, paddingHorizontal: 4 }}>
-              <Icon name="chevL" size={22} color={t.accent} weight="semibold" />
-              {!L.compact ? <T tone="accent" numberOfLines={1} style={{ maxWidth: 110, marginLeft: 2 }}>{back}</T> : null}
+              <Icon name="chevL" size={22} color={t.text} weight="semibold" />
+              {!L.compact ? <T numberOfLines={1} style={{ maxWidth: 110, marginLeft: 2 }}>{back}</T> : null}
             </Pressable>
           ) : null}
         </View>
@@ -127,7 +129,7 @@ export function NavBar({ title, back, onBack, right, progress }: NavProps) {
 export function NavButton({ title, onPress, label }: { title: string; onPress: () => void; label?: string }) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label ?? title} hitSlop={6} style={{ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' }}>
-      <T tone="accent">{title}</T>
+      <T style={{ fontWeight: '600' }}>{title}</T>
     </Pressable>
   );
 }
@@ -143,8 +145,8 @@ function Progress({ label, right, value }: { label: string; right?: string; valu
         <T style={[font.caption, { fontWeight: '600' }]}>{label}</T>
         {right ? <T tone="text2" style={font.caption}>{right}</T> : null}
       </View>
-      <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(value) }} style={{ height: 4, borderRadius: 2, backgroundColor: t.fill, overflow: 'hidden' }}>
-        <Animated.View style={{ height: 4, borderRadius: 2, backgroundColor: t.accent, width: w.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }} />
+      <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(value) }} style={{ height: 6, borderRadius: 3, backgroundColor: t.fill, overflow: 'hidden' }}>
+        <Animated.View style={{ height: 6, borderRadius: 3, backgroundColor: t.green, width: w.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }} />
       </View>
     </View>
   );
@@ -195,86 +197,121 @@ export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard
 // ---------- surfaces ----------
 export function Card({ children, onPress, style, label }: { children: React.ReactNode; onPress?: () => void; style?: ViewStyle | ViewStyle[]; label?: string }) {
   const t = useTheme();
-  const base: ViewStyle = { backgroundColor: t.card, borderRadius: radius.card, padding: 16 };
-  if (!onPress) return <View style={[base, ...(Array.isArray(style) ? style : style ? [style] : [])]}>{children}</View>;
-  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [base, ...(Array.isArray(style) ? style : style ? [style] : []), pressed && { transform: [{ scale: 0.98 }] }]}>{children}</Pressable>;
+  // a normal card nested in a pastel block keeps the page's own colours
+  const base: ViewStyle = { backgroundColor: t.onPastel ? (t.dark ? '#1C1D1F' : '#FFFFFF') : t.card, borderRadius: radius.card, padding: 18 };
+  const kids = t.onPastel ? <PlainScope>{children}</PlainScope> : children;
+  if (!onPress) return <View style={[base, ...(Array.isArray(style) ? style : style ? [style] : [])]}>{kids}</View>;
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [base, ...(Array.isArray(style) ? style : style ? [style] : []), pressed && { transform: [{ scale: 0.98 }] }]}>{kids}</Pressable>;
+}
+
+/**
+ * A pastel block (hero, tiles, notes, wallet header). Everything inside reads the "ink" theme, so
+ * text, icons, pills and buttons placed in it stay AA-readable without knowing where they are.
+ */
+export function Pastel({ tone, children, onPress, style, label, r = radius.card, pad = 18 }: { tone: PastelTone; children: React.ReactNode; onPress?: () => void; style?: ViewStyle | ViewStyle[]; label?: string; r?: number; pad?: number }) {
+  const t = useTheme();
+  const base: ViewStyle = { backgroundColor: t.pastel[tone], borderRadius: r, padding: pad };
+  const extra = Array.isArray(style) ? style : style ? [style] : [];
+  const kids = <PastelScope tone={tone}>{children}</PastelScope>;
+  if (!onPress) return <View style={[base, ...extra]}>{kids}</View>;
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [base, ...extra, pressed && { transform: [{ scale: 0.98 }], opacity: 0.94 }]}>{kids}</Pressable>;
 }
 export const Stack = ({ children, gap = 12, style }: { children: React.ReactNode; gap?: number; style?: ViewStyle }) => <View style={[{ gap }, style]}>{children}</View>;
 
-export function Group({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+/**
+ * A list of rows. Pastel look: each row is its own rounded pill with a small gap (the mock's rows).
+ * `joined` keeps the rows in one card with hairlines (long tables).
+ */
+export function Group({ children, style, joined }: { children: React.ReactNode; style?: ViewStyle; joined?: boolean }) {
   const t = useTheme();
   const items = React.Children.toArray(children).filter(Boolean);
+  const { backgroundColor, ...rest } = (StyleSheet.flatten(style) ?? {}) as ViewStyle;
+  const bg = backgroundColor ?? t.card;
+  if (joined) {
+    return (
+      <View style={[{ backgroundColor: bg, borderRadius: radius.card, overflow: 'hidden' }, rest]}>
+        {items.map((c, i) => (
+          <View key={i}>
+            {i > 0 ? <View style={{ height: 0.5, backgroundColor: t.sep, marginLeft: 18 }} /> : null}
+            {c}
+          </View>
+        ))}
+      </View>
+    );
+  }
   return (
-    <View style={[{ backgroundColor: t.card, borderRadius: radius.card, overflow: 'hidden' }, style]}>
-      {items.map((c, i) => (
-        <View key={i}>
-          {i > 0 ? <View style={{ height: 0.5, backgroundColor: t.sep, marginLeft: 16 }} /> : null}
-          {c}
-        </View>
-      ))}
+    <View style={[{ gap: 8 }, rest]}>
+      {items.map((c, i) => <View key={i} style={{ backgroundColor: bg, borderRadius: radius.row, overflow: 'hidden' }}>{c}</View>)}
     </View>
   );
 }
 
-export function Avatar({ name, size = 'md', accent }: { name: string; size?: 'sm' | 'md' | 'lg'; accent?: boolean }) {
+export function Avatar({ name, size = 'md', accent, tone }: { name: string; size?: 'sm' | 'md' | 'lg'; accent?: boolean; tone?: PastelTone }) {
   const t = useTheme();
-  const d = size === 'sm' ? 34 : size === 'lg' ? 76 : 44;
+  const d = size === 'sm' ? 40 : size === 'lg' ? 76 : 46;
   const initials = (name || '?').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
+  void accent;
+  // identity colour: the same person always gets the same pastel (never a status colour by itself)
   return (
-    <View accessible={false} style={{ width: d, height: d, borderRadius: d / 2, backgroundColor: accent ? (t.dark ? t.accent : t.inkAccent) : t.avatar, alignItems: 'center', justifyContent: 'center' }}>
-      <Text allowFontScaling={false} style={{ color: accent ? '#fff' : t.text, fontWeight: '600', fontSize: size === 'sm' ? 13 : size === 'lg' ? 28 : 16 }}>{initials}</Text>
+    <View accessible={false} style={{ width: d, height: d, borderRadius: d / 2, backgroundColor: t.pastel[tone ?? pastelFor(name || '?')], alignItems: 'center', justifyContent: 'center' }}>
+      <Text allowFontScaling={false} style={{ color: t.ink, fontWeight: '700', fontSize: size === 'sm' ? 14 : size === 'lg' ? 28 : 16 }}>{initials}</Text>
     </View>
   );
 }
 
-export function Pill({ severity, text }: { severity: Severity; text?: string }) {
+export function Pill({ severity, text, plain }: { severity: Severity; text?: string; plain?: boolean }) {
   const t = useTheme();
   const tone: Tone = severity === 'act' ? 'red' : severity === 'review' ? 'amber' : severity === 'good' ? 'green' : 'blue';
   const c = toneColor(t, tone);
   const label = text ?? (severity === 'info' ? 'Info' : TONE_WORD[tone]);
+  // plain = the coloured word alone, as at the end of a row in the mock
+  if (plain) return <Text accessible accessibilityLabel={`Status: ${label}`} style={[font.sub, { color: toneInk(t, tone), fontWeight: '600' }]}>{label}</Text>;
   return (
-    <View accessible accessibilityLabel={`Status: ${label}`} style={{ backgroundColor: tint(c, t.pillAlpha), borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' }}>
+    <View accessible accessibilityLabel={`Status: ${label}`} style={{ backgroundColor: t.onPastel ? t.fill : tint(c, t.pillAlpha), borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start' }}>
       <Text style={[font.caption, { color: toneInk(t, tone), fontWeight: '600' }]}>{label}</Text>
     </View>
   );
 }
 export function Chip({ text }: { text: string }) {
   const t = useTheme();
-  return <View style={{ backgroundColor: t.fill, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ color: t.text, fontSize: 12, fontWeight: '600' }}>{text}</Text></View>;
+  return <View style={{ backgroundColor: t.fill, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}><Text style={{ color: t.text, fontSize: 12, fontWeight: '600' }}>{text}</Text></View>;
 }
 export function Tag({ text }: { text: string }) {
   const t = useTheme();
-  return <View style={{ backgroundColor: t.fill, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, alignSelf: 'flex-start' }}><Text style={[font.tiny, { color: t.text2, textTransform: 'uppercase' }]}>{text}</Text></View>;
+  return <View style={{ backgroundColor: t.fill, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, alignSelf: 'flex-start' }}><Text style={[font.tiny, { color: t.text2, textTransform: 'uppercase' }]}>{text}</Text></View>;
 }
 export function Dot({ tone, label }: { tone: Tone; label?: string }) {
   const t = useTheme();
   return <View accessible={!!label} accessibilityLabel={label} style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: toneColor(t, tone) }} />;
 }
 
-export function RowIcon({ name, tone }: { name: string; tone?: Tone }) {
+/** Leading icon of a row: a pastel disc with an ink glyph. With a tone the disc carries the meaning
+ *  (red urgent · amber attention · green good); without one it is sky (information). */
+export function RowIcon({ name, tone, pastel, size = 40 }: { name: string; tone?: Tone; pastel?: PastelTone; size?: number }) {
   const t = useTheme();
-  return <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: t.fill, alignItems: 'center', justifyContent: 'center' }}><Icon name={name} size={17} color={tone ? toneColor(t, tone) : t.accent} /></View>;
+  const bg = t.onPastel ? t.fill : t.pastel[pastel ?? (tone ? tonePastel(tone) : 'sky')];
+  return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}><Icon name={name} size={Math.round(size * 0.47)} color={t.ink} /></View>;
 }
 
 /** Grouped-list row: leading icon / avatar / dot, title + subtitle, trailing value / pill / chevron. */
-export function Row({ title, subtitle, value, icon, iconTone, avatar, dot, pill, chevron, onPress, titleTone, titleStyle, children, label, alignTop, trailing }: {
-  trailing?: React.ReactNode;
+export function Row({ title, subtitle, value, icon, iconTone, iconPastel, avatar, dot, pill, chevron, onPress, titleTone, titleStyle, children, label, alignTop, trailing }: {
+  trailing?: React.ReactNode; iconPastel?: PastelTone;
   title: React.ReactNode; subtitle?: React.ReactNode; value?: string; icon?: string; iconTone?: Tone; avatar?: string; dot?: Tone; pill?: Severity; chevron?: boolean;
   onPress?: () => void; titleTone?: 'accent' | 'red' | 'text2'; titleStyle?: TextStyle; children?: React.ReactNode; label?: string; alignTop?: boolean;
 }) {
   const t = useTheme();
   const inner = (
-    <View style={{ flexDirection: 'row', alignItems: alignTop ? 'flex-start' : 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13, minHeight: 54 }}>
+    <View style={{ flexDirection: 'row', alignItems: alignTop ? 'flex-start' : 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 14, minHeight: 60 }}>
       {dot ? <View style={{ marginTop: alignTop ? 7 : 0 }}><Dot tone={dot} label={TONE_WORD[dot]} /></View> : null}
       {avatar !== undefined ? <Avatar name={avatar} size="sm" /> : null}
-      {icon ? <RowIcon name={icon} tone={iconTone} /> : null}
+      {icon ? <RowIcon name={icon} tone={iconTone} pastel={iconPastel} /> : null}
       <View style={{ flex: 1, minWidth: 0 }}>
-        {typeof title === 'string' ? <T tone={titleTone === 'text2' ? 'text2' : titleTone ?? 'text'} style={[font.body, titleStyle ?? {}]}>{title}</T> : title}
+        {typeof title === 'string' ? <T tone={titleTone === 'text2' ? 'text2' : titleTone ?? 'text'} style={[font.callout, { fontWeight: '600' }, titleStyle ?? {}]}>{title}</T> : title}
         {subtitle ? (typeof subtitle === 'string' ? <T tone="text2" style={[font.foot, { marginTop: 2 }]}>{subtitle}</T> : subtitle) : null}
         {children}
       </View>
       {value ? <T tone="text2" style={[font.sub, { textAlign: 'right', flexShrink: 0, maxWidth: '45%' }]}>{value}</T> : null}
-      {pill ? <Pill severity={pill} /> : null}
+      {pill ? <Pill severity={pill} plain /> : null}
       {trailing}
       {chevron ?? !!onPress ? <Icon name="chevR" size={14} color={t.text3} weight="semibold" /> : null}
     </View>
@@ -287,17 +324,26 @@ export function Row({ title, subtitle, value, icon, iconTone, avatar, dot, pill,
 }
 
 // ---------- notes ----------
+/** Notes: urgent / attention / good are pastel blocks (blush / butter / sage) with ink text;
+ *  information stays a calm grey card so a screen never has more colour than meaning. */
 export function Note({ tone, children, actions, style }: { tone: Tone; children: React.ReactNode; actions?: React.ReactNode; style?: ViewStyle }) {
   const t = useTheme();
-  const c = toneColor(t, tone);
-  const bg = tone === 'blue' || tone === 'grey' ? (t.dark ? t.fill : tint(t.accent, 0.1)) : tint(c, t.dark ? 0.14 : 0.16);
-  return (
-    <View accessibilityRole="text" style={[{ borderRadius: 14, padding: 12, paddingHorizontal: 14, flexDirection: 'row', gap: 10, backgroundColor: bg, marginTop: 14 }, style]}>
-      <View style={{ marginTop: 1 }}><Icon name={tone === 'red' || tone === 'amber' ? 'alert' : tone === 'green' ? 'checkc' : 'info'} size={19} color={tone === 'grey' || tone === 'blue' ? t.inkAccent : toneInk(t, tone)} /></View>
+  const icon = tone === 'red' || tone === 'amber' ? 'alert' : tone === 'green' ? 'checkc' : 'info';
+  const body = (c: string) => (
+    <>
+      <View style={{ marginTop: 1 }}><Icon name={icon} size={19} color={c} /></View>
       <View style={{ flex: 1, minWidth: 0 }}>
         {typeof children === 'string' ? <T style={font.sub}>{children}</T> : children}
         {actions ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>{actions}</View> : null}
       </View>
+    </>
+  );
+  if (tone === 'blue' || tone === 'grey' || t.onPastel) {
+    return <View accessibilityRole="text" style={[{ borderRadius: 22, padding: 14, paddingHorizontal: 16, flexDirection: 'row', gap: 10, backgroundColor: t.onPastel ? t.fill : t.card2, marginTop: 14 }, style]}>{body(t.inkAccent)}</View>;
+  }
+  return (
+    <View accessibilityRole="text" style={[{ borderRadius: 22, backgroundColor: t.pastel[tonePastel(tone)], marginTop: 14 }, style]}>
+      <PastelScope tone={tonePastel(tone)}><View style={{ padding: 14, paddingHorizontal: 16, flexDirection: 'row', gap: 10 }}>{body(t.ink)}</View></PastelScope>
     </View>
   );
 }
@@ -306,45 +352,50 @@ export function LegalLine() {
   return (
     <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 6 }}>
       <Icon name="scale" size={13} color={t.text2} />
-      <T tone="text2" style={font.caption}>Not legal advice — talk to an attorney.</T>
+      <T tone="text2" style={font.caption}>Not legal advice · talk to an attorney</T>
     </View>
   );
 }
 
 // ---------- buttons ----------
+/**
+ * Buttons. primary = white on black (dark) / black on light — the one main action; tint = sky pastel
+ * and danger = blush pastel with ink text (secondary actions); ghost = quiet grey.
+ */
 export function Button({ title, onPress, kind = 'primary', icon, busy, disabled, size, grow, block, label }: {
   title: string; onPress: () => void; kind?: 'primary' | 'ghost' | 'tint' | 'danger'; icon?: string; busy?: boolean; disabled?: boolean; size?: 'sm'; grow?: boolean; block?: boolean; label?: string;
 }) {
   const t = useTheme();
-  const bg = kind === 'primary' ? (t.dark ? t.accent : t.inkAccent) : kind === 'ghost' ? t.fill : kind === 'tint' ? tint(t.accent, t.dark ? 0.16 : 0.14) : tint(t.red, t.dark ? 0.15 : 0.12);
-  const fg = kind === 'primary' ? '#FFFFFF' : kind === 'ghost' ? t.text : kind === 'tint' ? t.inkAccent : t.inkRed;
+  const bg = kind === 'primary' ? t.primary : kind === 'ghost' ? (t.onPastel ? t.fill : t.card2) : t.onPastel ? t.fill : kind === 'tint' ? t.pastel.sky : t.pastel.blush;
+  const fg = kind === 'primary' ? t.onPrimary : kind === 'ghost' ? t.text : t.ink;
   const sm = size === 'sm';
   return (
     <Pressable onPress={onPress} disabled={disabled || busy} accessibilityRole="button" accessibilityLabel={label ?? title} accessibilityState={{ disabled: !!(disabled || busy), busy: !!busy }}
       style={({ pressed }) => ({
-        flexGrow: sm ? 0 : grow ? 2 : 1, flexShrink: 1, flexBasis: sm ? 'auto' : block ? '100%' : 0, minWidth: sm ? undefined : 96, minHeight: sm ? MIN_TOUCH : 50,
-        borderRadius: sm ? 11 : radius.button, backgroundColor: bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-        paddingHorizontal: sm ? 14 : 12, paddingVertical: 6, opacity: disabled ? 0.35 : pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }],
-        marginTop: block ? 18 : 0, alignSelf: sm ? 'flex-start' : undefined,
+        flexGrow: sm ? 0 : grow ? 2 : 1, flexShrink: 1, flexBasis: sm ? 'auto' : block ? '100%' : 0, minWidth: sm ? undefined : 96, minHeight: sm ? MIN_TOUCH : 52,
+        borderRadius: sm ? 22 : radius.button, backgroundColor: bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+        paddingHorizontal: sm ? 16 : 14, paddingVertical: 6, opacity: disabled ? 0.35 : pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }],
+        marginTop: block ? 16 : 0, alignSelf: sm ? 'flex-start' : undefined,
       })}>
       {busy ? <ActivityIndicator color={fg} /> : icon ? <Icon name={icon} size={sm ? 16 : 18} color={fg} weight="semibold" /> : null}
-      <Text style={{ color: fg, fontSize: sm ? 15 : 17, fontWeight: '600', textAlign: 'center' }}>{title}</Text>
+      <Text style={{ color: fg, fontSize: sm ? 15 : 16, fontWeight: '600', textAlign: 'center' }}>{title}</Text>
     </Pressable>
   );
 }
-export function IconButton({ icon, label, onPress, filled }: { icon: string; label: string; onPress: () => void; filled?: boolean }) {
+/** Round-square icon button (the mock's + in the header): outlined, or filled = primary. */
+export function IconButton({ icon, label, onPress, filled, pastel }: { icon: string; label: string; onPress: () => void; filled?: boolean; pastel?: PastelTone }) {
   const t = useTheme();
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} hitSlop={4}
-      style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: filled ? t.accent : t.fill, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
-      <Icon name={icon} size={20} color={filled ? '#fff' : t.text} />
+      style={({ pressed }) => ({ width: 46, height: 46, borderRadius: 17, backgroundColor: pastel ? t.pastel[pastel] : filled ? t.primary : 'transparent', borderWidth: filled || pastel ? 0 : 1.5, borderColor: t.outline, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
+      <Icon name={icon} size={20} color={pastel ? t.ink : filled ? t.onPrimary : t.text} />
     </Pressable>
   );
 }
 export function LinkButton({ title, onPress, align = 'right' }: { title: string; onPress: () => void; align?: 'left' | 'right' }) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={title} style={{ minHeight: MIN_TOUCH, justifyContent: 'center', alignSelf: align === 'right' ? 'flex-end' : 'flex-start', paddingHorizontal: 6 }}>
-      <T tone="accent" style={[font.sub, { fontWeight: '500' }]}>{title}</T>
+      <T tone="text2" style={[font.sub, { fontWeight: '600' }]}>{title}</T>
     </Pressable>
   );
 }
@@ -354,8 +405,8 @@ export function ChipToggle({ text, on, onPress, role = 'radio' }: { text: string
   const t = useTheme();
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={role} accessibilityState={{ checked: role !== 'button' ? !!on : undefined, selected: !!on }} accessibilityLabel={text}
-      style={({ pressed }) => ({ minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: 999, backgroundColor: on ? (t.dark ? t.accent : t.inkAccent) : t.fill, justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}>
-      <Text style={{ color: on ? '#fff' : t.text, fontSize: 15, fontWeight: '500' }}>{text}</Text>
+      style={({ pressed }) => ({ minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: 999, backgroundColor: on ? t.primary : t.onPastel ? t.fill : t.card2, justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}>
+      <Text style={{ color: on ? t.onPrimary : t.text, fontSize: 15, fontWeight: '600' }}>{text}</Text>
     </Pressable>
   );
 }
@@ -365,8 +416,8 @@ export function Option({ title, subtitle, selected, onPress, style }: { title: s
   const t = useTheme();
   return (
     <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ checked: !!selected }} accessibilityLabel={[title, subtitle].filter(Boolean).join(', ')}
-      style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, backgroundColor: t.card, borderRadius: radius.card, borderWidth: 2, borderColor: selected ? t.accent : 'transparent' }, style]}>
-      <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: selected ? 7 : 2, borderColor: selected ? t.accent : t.text3 }} />
+      style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, backgroundColor: t.card, borderRadius: radius.row, borderWidth: 2, borderColor: selected ? t.text : 'transparent' }, style]}>
+      <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: selected ? 7 : 2, borderColor: selected ? t.text : t.text3 }} />
       <View style={{ flex: 1 }}>
         <T style={[font.body, { fontWeight: '500' }]}>{title}</T>
         {subtitle ? <T tone="text2" style={[font.foot, { marginTop: 2 }]}>{subtitle}</T> : null}
@@ -378,9 +429,9 @@ export function Option({ title, subtitle, selected, onPress, style }: { title: s
 export function CheckRow({ title, checked, onPress }: { title: string; checked: boolean; onPress: () => void }) {
   const t = useTheme();
   return (
-    <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked }} accessibilityLabel={title} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13, minHeight: 54 }, pressed && { backgroundColor: t.fill }]}>
-      <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: checked ? t.accent : t.text3, backgroundColor: checked ? t.accent : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-        {checked ? <Icon name="check" size={13} color="#fff" weight="bold" /> : null}
+    <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked }} accessibilityLabel={title} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 14, minHeight: 60 }, pressed && { backgroundColor: t.fill }]}>
+      <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: checked ? t.pastel.sageD : t.text3, backgroundColor: checked ? t.pastel.sageD : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+        {checked ? <Icon name="check" size={14} color={t.ink} weight="bold" /> : null}
       </View>
       <T style={[font.callout, { flex: 1 }]}>{title}</T>
     </Pressable>
@@ -394,11 +445,11 @@ export function Segmented({ options, value, onChange }: { options: string[]; val
   const longest = Math.max(...options.map((o) => o.length));
   const stack = L.fontScale > 1.35 || (options.length > 2 && longest * 9 * L.fontScale * options.length > L.width - 2 * L.side - 40);
   return (
-    <View accessibilityRole="tablist" style={{ flexDirection: stack ? 'column' : 'row', backgroundColor: t.fill, borderRadius: 10, padding: 2, marginTop: 10, gap: stack ? 2 : 0 }}>
+    <View accessibilityRole="tablist" style={{ flexDirection: stack ? 'column' : 'row', backgroundColor: t.onPastel ? t.fill : t.card2, borderRadius: 18, padding: 3, marginTop: 10, gap: stack ? 2 : 0 }}>
       {options.map((o) => (
         <Pressable key={o} onPress={() => onChange(o)} accessibilityRole="tab" accessibilityState={{ selected: o === value }} accessibilityLabel={o}
-          style={{ flex: stack ? undefined : 1, minHeight: MIN_TOUCH, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: o === value ? t.segOn : 'transparent', paddingHorizontal: 6, paddingVertical: 4 }}>
-          <Text style={{ color: t.text, fontSize: 15, fontWeight: '500', textAlign: 'center' }}>{o}</Text>
+          style={{ flex: stack ? undefined : 1, minHeight: MIN_TOUCH, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: o === value ? t.primary : 'transparent', paddingHorizontal: 6, paddingVertical: 4 }}>
+          <Text style={{ color: o === value ? t.onPrimary : t.text2, fontSize: 14, fontWeight: '600', textAlign: 'center' }}>{o}</Text>
         </Pressable>
       ))}
     </View>
@@ -407,7 +458,7 @@ export function Segmented({ options, value, onChange }: { options: string[]; val
 
 export function Switch({ value, onValueChange, label }: { value: boolean; onValueChange: (v: boolean) => void; label: string }) {
   const t = useTheme();
-  return <RNSwitch value={value} onValueChange={onValueChange} accessibilityLabel={label} trackColor={{ true: t.accent, false: t.fill }} thumbColor="#fff" ios_backgroundColor={t.fill} />;
+  return <RNSwitch value={value} onValueChange={onValueChange} accessibilityLabel={label} trackColor={{ true: t.pastel.sageD, false: t.dark ? '#3A3B3F' : '#D5D7DB' }} thumbColor="#fff" ios_backgroundColor={t.dark ? '#3A3B3F' : '#D5D7DB'} />;
 }
 
 // ---------- fields ----------
@@ -423,7 +474,7 @@ export function Field({ label, value, onChangeText, placeholder, secure, keyboar
       <TextInput nativeID={nativeID} value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={t.text3} secureTextEntry={secure} keyboardType={keyboardType}
         autoCapitalize={autoCapitalize} autoCorrect={false} autoFocus={autoFocus} maxLength={maxLength} accessibilityLabel={label} multiline={multiline} textAlignVertical={multiline ? 'top' : undefined}
         onFocus={() => setFocus(true)} onBlur={() => { setFocus(false); onBlur?.(); }}
-        style={[font.body, { minHeight: multiline ? 110 : 46, borderRadius: radius.field, backgroundColor: t.field, color: t.text, paddingHorizontal: 12, paddingVertical: 10, borderWidth: t.dark ? 2 : 1, borderColor: focus ? t.accent : t.dark ? 'transparent' : t.fieldBorder, fontFamily: mono ? Platform.select({ ios: 'Menlo', default: 'monospace' }) : undefined }]} />
+        style={[font.body, { minHeight: multiline ? 110 : 50, borderRadius: radius.field, backgroundColor: t.field, color: t.text, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1.5, borderColor: focus ? t.text : t.fieldBorder, fontFamily: mono ? Platform.select({ ios: 'Menlo', default: 'monospace' }) : undefined }]} />
       {error ? <T tone="red" style={[font.caption, { marginTop: 6 }]}>{error}</T> : null}
     </View>
   );
@@ -443,13 +494,13 @@ export function DateField({ label, value, onChange, allowDS }: { label: string; 
     <View style={{ marginTop: 12 }}>
       <T tone="text2" style={[font.caption, { marginBottom: 5, marginLeft: 2 }]}>{label}</T>
       <Pressable onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel={`${label}: ${value ? (isISO(value) ? fmt(value) : value) : 'not set'}`} accessibilityHint="Opens a date picker"
-        style={{ minHeight: 46, borderRadius: radius.field, backgroundColor: t.field, paddingHorizontal: 12, justifyContent: 'center', borderWidth: t.dark ? 0 : 1, borderColor: t.fieldBorder }}>
+        style={{ minHeight: 50, borderRadius: radius.field, backgroundColor: t.field, paddingHorizontal: 14, justifyContent: 'center', borderWidth: 1.5, borderColor: t.fieldBorder }}>
         <T tone={value ? 'text' : 'text3'}>{value ? (isISO(value) ? fmt(value) : value) : 'Choose a date'}</T>
       </Pressable>
       {open && Platform.OS === 'android' ? <Picker value={d} mode="date" onChange={(_: unknown, x?: Date) => { setOpen(false); if (x) onChange(toIso(x)); }} /> : null}
       {Platform.OS === 'ios' ? (
         <Sheet visible={open} onClose={() => setOpen(false)} title={label}>
-          <Picker value={d} mode="date" display="inline" themeVariant={t.dark ? 'dark' : 'light'} accentColor={t.accent} onChange={(_: unknown, x?: Date) => { if (x) onChange(toIso(x)); }} />
+          <Picker value={d} mode="date" display="inline" themeVariant={t.dark ? 'dark' : 'light'} accentColor={t.dark ? t.pastel.sage : t.inkGreen} onChange={(_: unknown, x?: Date) => { if (x) onChange(toIso(x)); }} />
           <SheetButtons>
             {allowDS ? <Button kind="ghost" title="D/S" onPress={() => { onChange('D/S'); setOpen(false); }} /> : null}
             {value ? <Button kind="ghost" title="Clear" onPress={() => { onChange(undefined); setOpen(false); }} /> : null}
@@ -470,7 +521,7 @@ export function SelectField<V extends string>({ label, value, options, onChange,
   const all = groups ? groups.flatMap((g) => g.options) : options ?? [];
   const cur = all.find((o) => o.value === value);
   const list = (opts: { value: V; label: string; sub?: string }[]) => (
-    <Group style={{ backgroundColor: t.card2 }}>
+    <Group style={{ backgroundColor: t.dark ? t.card2 : t.card }}>
       {opts.map((o) => (
         <Row key={o.value} title={o.label} subtitle={o.sub} onPress={() => { onChange(o.value); setOpen(false); }} chevron={false} label={o.label}
           value={o.value === value ? '✓' : undefined} />
@@ -481,7 +532,7 @@ export function SelectField<V extends string>({ label, value, options, onChange,
     <View style={{ marginTop: label ? 12 : 12 }}>
       {label ? <T tone="text2" style={[font.caption, { marginBottom: 5, marginLeft: 2 }]}>{label}</T> : null}
       <Pressable onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel={`${label ?? 'Choose'}: ${cur?.label ?? 'none'}`}
-        style={{ minHeight: 46, borderRadius: radius.field, backgroundColor: t.field, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: t.dark ? 0 : 1, borderColor: t.fieldBorder }}>
+        style={{ minHeight: 50, borderRadius: radius.field, backgroundColor: t.field, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1.5, borderColor: t.fieldBorder }}>
         <T style={[font.callout, { flex: 1 }]}>{cur?.label ?? 'Choose'}</T>
         <Icon name="chevR" size={13} color={t.grey} />
       </Pressable>
@@ -493,12 +544,13 @@ export function SelectField<V extends string>({ label, value, options, onChange,
 }
 
 // ---------- meters / timeline ----------
+/** Progress pill. Colour = meaning: sage by default, butter (amber) = attention, blush (red) = urgent. */
 export function Meter({ value, max, tone }: { value: number; max: number; tone?: 'amber' | 'red' }) {
   const t = useTheme();
   const pct = Math.max(0, Math.min(100, (value / Math.max(1, max)) * 100));
   return (
-    <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max, now: value }} style={{ height: 8, borderRadius: 4, backgroundColor: t.fill, overflow: 'hidden', marginTop: 10 }}>
-      <View style={{ width: `${pct}%`, height: 8, borderRadius: 4, backgroundColor: tone === 'red' ? t.red : tone === 'amber' ? t.amber : t.accent }} />
+    <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max, now: value }} style={{ height: 8, borderRadius: 4, backgroundColor: t.onPastel ? t.track : t.fill, overflow: 'hidden', marginTop: 10 }}>
+      <View style={{ width: `${pct}%`, height: 8, borderRadius: 4, backgroundColor: t.onPastel ? t.ink : tone === 'red' ? t.red : tone === 'amber' ? t.amber : t.green }} />
     </View>
   );
 }
@@ -509,7 +561,7 @@ export function Timeline({ items }: { items: { title: string; sub?: string; stat
       <View style={{ position: 'absolute', left: 5, top: 6, bottom: 6, width: 2, backgroundColor: t.sep, borderRadius: 1 }} />
       {items.map((it, i) => (
         <Pressable key={i} onPress={it.onPress} disabled={!it.onPress} accessibilityRole={it.onPress ? 'button' : undefined} accessibilityLabel={it.onPress ? it.title : undefined} style={{ paddingBottom: i === items.length - 1 ? 0 : 16, minHeight: it.onPress ? MIN_TOUCH : undefined }}>
-          <View style={{ position: 'absolute', left: -24, top: 4, width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: it.state === 'done' ? t.green : it.state === 'now' ? t.accent : t.text3, backgroundColor: it.state === 'done' ? t.green : it.state === 'now' ? t.accent : t.card }} />
+          <View style={{ position: 'absolute', left: -24, top: 4, width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: it.state === 'done' ? t.green : it.state === 'now' ? t.text : t.text3, backgroundColor: it.state === 'done' ? t.green : it.state === 'now' ? t.text : t.card }} />
           <T style={[font.callout, { fontWeight: '600' }]}>{it.title}</T>
           {it.sub ? <T tone="text2" style={[font.foot, { marginTop: 2 }]}>{it.sub}</T> : null}
           {it.extra}
@@ -519,14 +571,14 @@ export function Timeline({ items }: { items: { title: string; sub?: string; stat
   );
 }
 
-export const Spinner = () => { const t = useTheme(); return <ActivityIndicator color={t.accent} />; };
+export const Spinner = () => { const t = useTheme(); return <ActivityIndicator color={t.text2} />; };
 
 export function EmptyState({ icon = 'users', title, body, action, small }: { icon?: string; title: string; body?: string; action?: { title: string; onPress: () => void }; small?: boolean }) {
   const t = useTheme();
   return (
     <View style={{ alignItems: 'center', paddingVertical: small ? 28 : 72, paddingHorizontal: 16 }}>
-      <Icon name={icon} size={42} color={t.text3} />
-      <T style={[font.body, { marginTop: 12, textAlign: 'center' }]}>{title}</T>
+      <View style={{ width: 72, height: 72, borderRadius: 26, backgroundColor: t.pastel.sky, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={30} color={t.ink} /></View>
+      <T style={[font.headline, { marginTop: 14, textAlign: 'center' }]}>{title}</T>
       {body ? <T tone="text2" style={[font.foot, { marginTop: 6, textAlign: 'center' }]}>{body}</T> : null}
       {action ? <View style={{ alignSelf: 'stretch' }}><Button block title={action.title} onPress={action.onPress} /></View> : null}
     </View>
@@ -577,7 +629,12 @@ function SheetView({ onClose, title, children }: { onClose: () => void; title?: 
   const insets = useSafeAreaInsets();
   const L = useLayout();
   const a = useRef(new Animated.Value(0)).current;
-  useEffect(() => { Animated.timing(a, { toValue: 1, duration: 240, useNativeDriver: Platform.OS !== 'web' }).start(); }, [a]);
+  const reduce = useReduceMotion();
+  // subtle spring up (fade only with Reduce Motion)
+  useEffect(() => {
+    if (reduce) { a.setValue(1); return; }
+    Animated.spring(a, { toValue: 1, damping: 26, stiffness: 260, mass: 0.9, useNativeDriver: Platform.OS !== 'web' }).start();
+  }, [a, reduce]);
   useEffect(() => { const sub = BackHandler.addEventListener('hardwareBackPress', () => { onClose(); return true; }); return () => sub.remove(); }, [onClose]);
   return (
     <View style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end', zIndex: 50, elevation: 50 }]}>
@@ -585,8 +642,8 @@ function SheetView({ onClose, title, children }: { onClose: () => void; title?: 
         <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: t.shade }]} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
       </Animated.View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ maxHeight: '92%', alignSelf: 'center', width: '100%', maxWidth: L.wide ? 560 : undefined }}>
-        <Animated.View accessibilityViewIsModal style={{ transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }], backgroundColor: t.dark ? '#1C1C1E' : t.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingTop: 8, paddingHorizontal: 16, paddingBottom: 16 + insets.bottom }}>
-          <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: t.text3, alignSelf: 'center', marginBottom: 14 }} />
+        <Animated.View accessibilityViewIsModal style={{ transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }], backgroundColor: t.dark ? '#141516' : t.bg, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, paddingTop: 10, paddingHorizontal: 18, paddingBottom: 18 + insets.bottom }}>
+          <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: t.outline, alignSelf: 'center', marginBottom: 14 }} />
           <ScrollView keyboardShouldPersistTaps="handled" bounces={false}>
             {title ? <T a11y="header" style={font.title2}>{title}</T> : null}
             {children}
@@ -642,7 +699,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const show = useCallback((m: string) => {
     setMsg(m);
-    Animated.timing(a, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    Animated.timing(a, { toValue: 1, duration: 220, useNativeDriver: true }).start();
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => Animated.timing(a, { toValue: 0, duration: 260, useNativeDriver: true }).start(() => setMsg(null)), 2300);
   }, [a]);
@@ -653,8 +710,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {msg ? (
         <Animated.View pointerEvents="none" accessibilityLiveRegion="polite" accessibilityRole="alert"
           style={{ position: 'absolute', top: insets.top + 10, alignSelf: 'center', maxWidth: '92%', opacity: a, transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] }) }],
-            backgroundColor: t.dark ? t.card2 : '#fff', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 15, shadowOffset: { width: 0, height: 10 }, elevation: 6 }}>
-          <Text numberOfLines={2} style={[font.sub, { color: t.text, fontWeight: '500', textAlign: 'center' }]}>{msg}</Text>
+            backgroundColor: t.primary, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 15, shadowOffset: { width: 0, height: 10 }, elevation: 6 }}>
+          <Text numberOfLines={2} style={[font.sub, { color: t.onPrimary, fontWeight: '600', textAlign: 'center' }]}>{msg}</Text>
         </Animated.View>
       ) : null}
     </ToastCtx.Provider>

@@ -1,11 +1,21 @@
-// System tab bar (native tabs: Liquid Glass on iOS 26, Material on Android) — same component as the installed build.
+// The SYSTEM tab bar on both platforms (owner rule: latest platform conventions, no custom bar):
+//  · iOS 26 — the native UITabBar: Liquid Glass, SF Symbols (outline → fill when selected), minimises
+//    on scroll, Dynamic Type labels. Only the selection tint comes from the brand (sage).
+//  · Android 16 — Material 3 Expressive bottom navigation bar: pill indicator behind the selected
+//    icon, labels always shown, edge-to-edge. Colours are the pastel palette mapped to M3 roles
+//    (ui/tokens.m3Roles): surface container bar, secondary-container pill, on-surface-variant icons.
+import { Platform } from 'react-native';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useTheme } from '../../src/ui';
+import { m3Roles, useTheme } from '../../src/ui';
 
 export default function TabsLayout() {
   const t = useTheme();
+  const m = m3Roles(t);
+  const android = Platform.OS === 'android'
+    ? { backgroundColor: m.surfaceContainer, indicatorColor: m.secondaryContainer, rippleColor: m.secondaryContainer, tintColor: m.onSecondaryContainer }
+    : { tintColor: m.primary };
   return (
-    <NativeTabs labelVisibilityMode="labeled" minimizeBehavior="onScrollDown" tintColor={t.accent} iconColor={t.grey} labelStyle={{ fontSize: 11, fontWeight: '600' }}>
+    <NativeTabs labelVisibilityMode="labeled" minimizeBehavior="onScrollDown" iconColor={m.onSurfaceVariant} labelStyle={{ fontSize: 11, fontWeight: '600', color: Platform.OS === 'android' ? m.onSurface : undefined }} {...android}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>

@@ -139,15 +139,16 @@ test('bulletin: built-in EB-2 India matches the November 2026 bulletin (final No
 });
 
 test('quiz colours: answer text, labels and icons meet contrast in light and dark (not colour-only: ✓/✕ + words)', async () => {
-  const { DARK, LIGHT, contrast, tintOf } = await import('../src/ui/tokens');
+  const { DARK, LIGHT, PASTEL, INK, contrast } = await import('../src/ui/tokens');
+  // v2.7 pastel look: a chosen answer is a sage (right) or blush (wrong) block with ink text
+  for (const bg of [PASTEL.sage, PASTEL.blush]) {
+    assert.ok(contrast(INK, bg) >= 7, `answer text and label on ${bg}`);
+    assert.ok(contrast('#FFFFFF', INK) >= 7, 'the ✓ / ✕ on the ink disc');
+    assert.ok(contrast(INK, bg) >= 3, 'ink disc stands out on the block (3:1 non-text)');
+  }
   for (const [name, t] of [['light', LIGHT], ['dark', DARK]] as const) {
-    const okBg = tintOf(t.green, name === 'dark' ? 0.28 : 0.2), badBg = tintOf(t.red, name === 'dark' ? 0.28 : 0.16);
-    assert.ok(contrast(t.text, okBg, t.card) >= 7, `${name}: answer text on green`);
-    assert.ok(contrast(t.text, badBg, t.card) >= 7, `${name}: answer text on red`);
-    assert.ok(contrast(t.inkGreen, okBg, t.card) >= 4.5, `${name}: “Correct” label ${contrast(t.inkGreen, okBg, t.card).toFixed(2)}`);
-    assert.ok(contrast(t.inkRed, badBg, t.card) >= 4.5, `${name}: “Not quite” label ${contrast(t.inkRed, badBg, t.card).toFixed(2)}`);
     assert.ok(contrast(t.inkGreen, t.card) >= 4.5 && contrast(t.inkRed, t.card) >= 4.5, `${name}: right answer label on card`);
-    const disc = name === 'dark' ? [t.green, t.red] : [t.inkGreen, t.inkRed];
-    for (const c of disc) assert.ok(contrast(c, okBg, t.card) >= 3 || contrast(c, t.card) >= 3, `${name}: icon disc stands out (3:1 non-text)`);
+    assert.ok(contrast(t.green, t.card) >= 3, `${name}: right-answer outline and disc (3:1 non-text)`);
   }
 });
+
