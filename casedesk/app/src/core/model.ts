@@ -238,6 +238,7 @@ export type Case = {
   history: { date: string; text: string }[];
   fromDocId?: string;
   hidden?: boolean; // a case read from a document that the user deleted from Cases
+  checkedAt?: string; // last time the status was checked on uscis.gov (paste-back or picked)
 };
 
 // ---------- settings ----------

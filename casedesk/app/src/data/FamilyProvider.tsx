@@ -32,7 +32,7 @@ export type FamilyState = Snapshot & {
   main?: Person;
   store: Store;
   actions: Actions;
-  bulletin: { data: VisaBulletin; live: boolean };
+  bulletin: { data: VisaBulletin; live: boolean; fetchedAt?: string };
 };
 
 const empty: Snapshot = { people: [], docs: [], cases: [], settings: DEFAULT_SETTINGS };
@@ -64,7 +64,7 @@ export function FamilyProvider({ children, store = appStore() }: { children: Rea
   }, [store]);
   useICloudAuto(store); // iCloud automatic backup (no-op on builds without the module)
   const actions = useMemo(() => makeActions(store), [store]);
-  const [bulletin, setBulletin] = useState<{ data: VisaBulletin; live: boolean }>({ data: BULLETIN, live: false });
+  const [bulletin, setBulletin] = useState<{ data: VisaBulletin; live: boolean; fetchedAt?: string }>({ data: BULLETIN, live: false });
   useEffect(() => { fetchOr<VisaBulletin>('/api/visa-bulletin', BULLETIN).then((b) => { if (b.data?.rows?.length) setBulletin(b); }).catch(() => {}); }, []);
 
   const derived = useMemo(() => {

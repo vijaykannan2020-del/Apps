@@ -15,7 +15,7 @@ export type CaseState = 'Pending' | 'Approved' | 'RFE' | 'Denied' | 'Withdrawn';
 export type CaseView = {
   id: string; receipt?: string; form?: string; name: string; ownerId: string; status: CaseState;
   filed?: string; updated?: string; keyDates: { label: string; date: string }[]; history: { date: string; text: string }[];
-  consular?: boolean; manual?: Case; docIds: string[];
+  consular?: boolean; manual?: Case; docIds: string[]; checkedAt?: string;
 };
 export const isPendingCase = (c: CaseView) => c.status === 'Pending' || c.status === 'RFE';
 const KD: Record<string, string> = { biometrics: 'Biometrics', interview: 'Interview', 'rfe-due': 'RFE response due', 'noid-due': 'NOID response due', oath: 'Oath ceremony', other: 'Date' };
@@ -51,6 +51,7 @@ export function caseViews(people: Person[], records: Record<string, PersonRecord
     const k = key(m.ownerId, m.receipt);
     const v = out.get(k) ?? { id: k, receipt: m.receipt, form: m.form, name: formName(m.form), ownerId: m.ownerId, status: 'Pending' as CaseState, filed: m.receivedDate, keyDates: [], history: [], docIds: [] };
     v.manual = m;
+    v.checkedAt = m.checkedAt;
     if (m.status === 'approved') v.status = 'Approved';
     else if (m.status === 'denied') v.status = 'Denied';
     else if (m.status === 'withdrawn') v.status = 'Withdrawn';

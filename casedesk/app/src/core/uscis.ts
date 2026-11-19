@@ -113,5 +113,6 @@ export function applyCaseText(c: Case, p: Parsed, todayIso: string): Case {
     status: statusOf(p.status),
     history: dup ? c.history : [{ date, text }, ...c.history],
     keyDates: kd && !hasKd ? [...c.keyDates, kd] : c.keyDates,
+    checkedAt: new Date().toISOString(),
   };
 }

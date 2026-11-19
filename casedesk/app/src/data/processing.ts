@@ -3,14 +3,14 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { PROCESSING, type PT } from '../content/processing';
 import { fetchOr } from './api';
 
-let state: { data: PT[]; live: boolean } = { data: PROCESSING, live: false };
+let state: { data: PT[]; live: boolean; fetchedAt?: string } = { data: PROCESSING, live: false };
 const subs = new Set<() => void>();
 let started = false;
 export function useProcessing() {
   const s = useSyncExternalStore((cb) => { subs.add(cb); return () => { subs.delete(cb); }; }, () => state, () => state);
   useEffect(() => {
     if (started) return; started = true;
-    fetchOr<PT[]>('/api/processing-times', PROCESSING).then((r) => { if (Array.isArray(r.data) && r.data.length) { state = { data: r.data, live: r.live }; subs.forEach((f) => f()); } }).catch(() => { started = false; });
+    fetchOr<PT[]>('/api/processing-times', PROCESSING).then((r) => { if (Array.isArray(r.data) && r.data.length) { state = { data: r.data, live: r.live, fetchedAt: r.fetchedAt }; subs.forEach((f) => f()); } }).catch(() => { started = false; });
   }, []);
   return s;
 }

@@ -21,6 +21,7 @@ export async function getJSON<T>(path: string, timeoutMs = 8000): Promise<T> {
     return (await r.json()) as T;
   } finally { clearTimeout(timer); }
 }
-export async function fetchOr<T>(path: string, fallback: T): Promise<{ data: T; live: boolean }> {
-  try { return { data: await getJSON<T>(path), live: true }; } catch { return { data: fallback, live: false }; }
+/** Live copy from the server, or the built-in one. `fetchedAt` = when the live copy arrived. */
+export async function fetchOr<T>(path: string, fallback: T): Promise<{ data: T; live: boolean; fetchedAt?: string }> {
+  try { return { data: await getJSON<T>(path), live: true, fetchedAt: new Date().toISOString() }; } catch { return { data: fallback, live: false }; }
 }

@@ -274,7 +274,7 @@ export function CheckStatus({ view, copied }: { view: CaseView; copied: boolean 
   };
   const set = async (label: string) => {
     const status = label === 'Approved' ? 'approved' : label === 'Request for Evidence' ? 'rfe' : 'pending';
-    await f.actions.editCase(view, (c) => ({ ...c, status, history: [{ date: new Date().toISOString(), text: label === 'Still pending' ? 'Checked · still pending' : label }, ...c.history] }));
+    await f.actions.editCase(view, (c) => ({ ...c, status, checkedAt: new Date().toISOString(), history: [{ date: new Date().toISOString(), text: label === 'Still pending' ? 'Checked · still pending' : label }, ...c.history] }));
     s.close(); toast(`Status saved · ${label}`);
   };
   return (
