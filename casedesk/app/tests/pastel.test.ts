@@ -126,9 +126,10 @@ test('colour themes: Pastel (default) plus six families, each in dark and light,
     assert.equal(t.colour, id);
     // structure: page, cards, text, primary button are the base ones
     for (const k of ['bg', 'card', 'card2', 'text', 'text2', 'text3', 'primary', 'onPrimary', 'ink', 'sep', 'fill'] as const) assert.equal(t[k], base[k], `${id}: ${k}`);
-    // status colours never change with the theme
+    // urgent blocks and status pills never change with the theme; good / warn blocks follow it (v2.9)
     for (const k of ['green', 'amber', 'red', 'inkGreen', 'inkAmber', 'inkRed', 'pos'] as const) assert.equal(t[k], base[k], `${id}: ${k}`);
-    assert.deepEqual([t.pastel.good, t.pastel.warn, t.pastel.urgent, t.pastel.sageD], [PASTEL.sage, PASTEL.butter, PASTEL.blush, PASTEL.sageD], `${id}: status blocks`);
+    assert.deepEqual([t.pastel.urgent, t.pastel.sageD], [PASTEL.blush, PASTEL.sageD], `${id}: fixed blocks`);
+    if (id !== 'pastel') assert.notEqual(t.pastel.warn, PASTEL.butter, `${id}: attention block follows the theme`);
     assert.ok(swatchOf(id).length >= 2);
   }
   // a family changes the brand blocks, and its five tints are different from each other

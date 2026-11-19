@@ -13,7 +13,8 @@ export const INK2 = 'rgba(29,42,36,0.78)';
 /**
  * Colour themes (Settings → Appearance → Colour). Pastel is the default four-pastel look. The six
  * others keep the SAME structure and only swap the brand / identity / information blocks for soft
- * tints of one colour family. Status colours (good, warn, urgent) never change with the theme.
+ * tints of one colour family. Since v2.9 the good and attention BLOCKS (big cards) follow the theme too;
+ * urgent blocks and every status pill, dot and text colour stay fixed.
  */
 export type ColourTheme = 'pastel' | 'indigo' | 'emerald' | 'ocean' | 'sunset' | 'rose' | 'graphite';
 /** The blocks a screen can use: five identity slots (sky is the main brand / information block) and
@@ -122,7 +123,9 @@ export function themeFor(dark: boolean, colour: ColourTheme = 'pastel'): typeof 
     const s = Math.max(f.s, 6);
     t = {
       ...base, colour,
-      pastel: { ...base.pastel, ...b },
+      // v2.9 (owner): the big Home cards must change with the theme too. Good and attention blocks take the
+      // family's tints (meaning stays in the icon, label and status pills); urgent stays the fixed red.
+      pastel: { ...base.pastel, ...b, good: b.sky, warn: b.butter },
       accent: dark ? b.sky : deep(f.h, Math.min(70, s), 3.3), inkAccent: dark ? b.sky : deep(f.h, Math.min(72, s + 6), 5),
       chipOn: b.sky, onChipOn: INK,
       tab: dark ? b.sky : deep(f.h, Math.min(72, s + 6), 5),
