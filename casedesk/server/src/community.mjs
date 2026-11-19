@@ -14,6 +14,7 @@ const FORMS = /^(I-129|I-130|I-131|I-140|I-485|I-539|I-765|I-751|I-90|I-821D|N-4
 const OFFICES = /^(EAC|WAC|LIN|SRC|NBC|MSC|IOE|YSC|NSC|TSC|VSC|CSC)$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const OUTCOMES = ['approved', 'denied', 'rfe', 'pending'];
+const CLASSES = /^(H1B|L1A|L1B|L1|O1|TN|E3|H4|L2|F1|C9|C26)$/;
 
 // id = random value made on the phone, so a person can update their own entry later.
 export function submit(b) {
@@ -26,8 +27,9 @@ export function submit(b) {
   const today = new Date().toISOString().slice(0, 10);
   if (b.received > today || (decided && (decided < b.received || decided > today))) throw Object.assign(new Error('Dates look wrong'), { status: 400 });
   const premium = !!b.premium;
+  const cls = CLASSES.test(String(b.cls || '').toUpperCase()) ? String(b.cls).toUpperCase() : undefined; // optional visa class, e.g. L1A
   const hid = crypto.createHash('sha256').update(id).digest('hex').slice(0, 24);
-  const row = { h: hid, form, office, received: b.received, decided, outcome, premium, at: today };
+  const row = { h: hid, form, office, received: b.received, decided, outcome, premium, at: today, ...(cls ? { cls } : {}) };
   const i = rows.findIndex((r) => r.h === hid);
   if (i >= 0) rows[i] = row; else rows.push(row);
   if (rows.length > 200000) rows = rows.slice(-200000);
@@ -64,3 +66,7 @@ export function stats(q) {
   };
 }
 export const communityStatus = () => ({ entries: rows.length });
+// Read-only copy of matching rows (used by expect.mjs). Rows hold no receipt numbers or ids beyond the hash.
+export const cohort = (pred) => rows.filter(pred).map(({ h, ...r }) => r);
+// Tests only: replace the in-memory rows.
+export const _setRows = (r) => { rows = r; };

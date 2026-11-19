@@ -11,6 +11,7 @@ import { subscribe, unsubscribe, pushStatus } from './push.mjs';
 import { getWaits, waitsStatus } from './waits.mjs';
 import { submit as communitySubmit, remove as communityRemove, stats as communityStats, communityStatus } from './community.mjs';
 import { bulletinStatus } from './bulletin.mjs';
+import { expectFor, formStatsStatus } from './expect.mjs';
 
 const PORT = Number(process.env.PORT) || 8787;
 const ORIGIN = process.env.ALLOWED_ORIGIN || '*';
@@ -25,7 +26,7 @@ const limited = (ip) => {
 };
 
 const routes = {
-  '/api/health': () => ({ ok: true, uscis: !!process.env.USCIS_CLIENT_ID, wages: wageStatus(), employers: h1bStatus(), push: pushStatus(), waits: waitsStatus(), bulletin: bulletinStatus(), community: communityStatus(), data: (() => { try { const d = JSON.parse(fs.readFileSync('data/update-status.json', 'utf8')); return { at: d.at, h1bFiles: d.h1b?.length || 0, permFiles: d.perm?.length || 0, errors: d.errors || [] }; } catch { return null; } })(), time: new Date().toISOString() }),
+  '/api/health': () => ({ ok: true, uscis: !!process.env.USCIS_CLIENT_ID, wages: wageStatus(), employers: h1bStatus(), push: pushStatus(), waits: waitsStatus(), bulletin: bulletinStatus(), community: communityStatus(), formStats: formStatsStatus(), data: (() => { try { const d = JSON.parse(fs.readFileSync('data/update-status.json', 'utf8')); return { at: d.at, h1bFiles: d.h1b?.length || 0, permFiles: d.perm?.length || 0, errors: d.errors || [] }; } catch { return null; } })(), time: new Date().toISOString() }),
   '/api/news': () => getNews(),
   '/api/wage': (q) => wage(q.get('soc') || '', q.get('area') || ''),
   '/api/wage/soc': (q) => searchSoc(q.get('q') || ''),
@@ -37,6 +38,7 @@ const routes = {
   '/api/visa-bulletin': () => getBulletin(),
   '/api/visa-waits': () => getWaits(),
   '/api/community/stats': (q) => communityStats(q),
+  '/api/expect': (q) => expectFor(q),
   '/api/processing-times': () => processingTimes(),
   '/api/content/guides': () => guides(),
 };
