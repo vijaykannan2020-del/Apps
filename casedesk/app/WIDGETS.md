@@ -7,6 +7,15 @@ Two widgets, in the next TestFlight build (native change; iOS 17+):
 | **Next deadline** (`NextDeadline`) | small; Lock Screen circular, rectangular, inline | who, what, days left — red ≤ 30 days, amber ≤ 90, green after | that person (`casedesk://person/<id>`) |
 | **Family status** (`FamilyStatus`) | medium (4 people), large / iPad extra large (+ latest case update, next Visa Bulletin, next deadline) | status + valid-until per person | the person row / the case (`casedesk://open/case/<key>`) |
 
+**v2.8 Edit Widget** (AppIntents `ConfigIntent`, `targets/widget/Intent.swift`): long-press → Edit Widget →
+**Person** (Whole family by default, or one person — options read from the snapshot; only Whole family while
+Face ID lock hides details) and **Show**: Current status (default), Next deadline, Passport, Visa stamp, I-94, EAD,
+Advance parole, Green card stage, Latest case update, Priority date. Current status: in the US, valid until the latest
+I-94 admit-until date with days left; outside the US, I-797 approval expiry, visa stamp yes/no and days left. Anything
+not saved for that person shows “Not added yet — open the app”. Snapshot `items` / `familyItems`
+(`src/core/widgets.ts` `personItems`, raw values = `WIDGET_KINDS`) carry dates, labels and yes/no flags only.
+Pastel blocks (sage / butter / blush / sky with ink text) on true black.
+
 Every size with room carries “For personal reference — not an official document”. Light/dark, tinted/accented
 Home Screens (`widgetAccentable`), Dynamic Type (system text styles + `minimumScaleFactor`), iPad sizes.
 Timeline: one entry per day for 7 days (days-left changes at midnight) plus a reload whenever the app writes.
@@ -65,6 +74,9 @@ names, then bump `ios-build.txt` again.
 4. Settings → Face ID lock on → widgets show only “Open Immigration Wallet”. Turn “Hide details…” off → details return.
 5. Dark mode, tinted Home Screen (Edit → Customize → Tinted), largest text size, iPad: nothing clipped.
 6. Add a document with a nearer date → Next deadline updates.
+7. Long-press a widget → Edit Widget: Person lists Whole family + each person; Show lists the ten options; pick a
+   person and EAD with no EAD saved → “Not added yet — open the app”; pick Current status for someone outside the
+   US → I-797 date, Visa stamp Yes/No, days left.
 
 Not verifiable here (no Mac/device): Swift compile, on-device rendering, timeline reloads. Verified here: JS
 types/tests, prebuild output (target, bundle id, deployment target, entitlements on both targets, EAS appExtensions).
