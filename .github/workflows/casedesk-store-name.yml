@@ -1,0 +1,20 @@
+name: CaseDesk store name
+on:
+  workflow_dispatch:
+    inputs:
+      name: {description: App Store name, required: true}
+      subtitle: {description: App Store subtitle, required: true}
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pyjwt cryptography -q
+      - run: python3 casedesk/app/scripts/store-name.py
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_APP_ID: ${{ vars.CASEDESK_ASC_APP_ID || '6836097003' }}
+          STORE_NAME: ${{ inputs.name }}
+          STORE_SUBTITLE: ${{ inputs.subtitle }}
