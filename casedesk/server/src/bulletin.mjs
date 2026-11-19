@@ -5,7 +5,7 @@ import path from 'node:path';
 import { notifyBulletin } from './push.mjs';
 
 const INDEX = 'https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html';
-const FILE = path.resolve('data/content/bulletin.json');
+const FILE = path.resolve(process.env.BULLETIN_FILE || 'data/content/bulletin.json');
 const COLS = ['all', 'china', 'india', 'mexico', 'philippines'];
 const MONTHS = { JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06', JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12' };
 const CATS = [
@@ -19,7 +19,7 @@ const CATS = [
 let state = null;
 let lastError = null;
 const UA = { headers: { 'User-Agent': 'CaseDesk/1.0 (immigration info app; +https://casedeskapp.duckdns.org)', Accept: 'text/html' } };
-export const bulletinStatus = () => ({ loaded: !!state, month: state?.month || null, error: lastError });
+export const bulletinStatus = () => ({ loaded: !!state, month: state?.month || null, historyMonths: state?.history?.length ?? 0, error: lastError });
 try { state = JSON.parse(fs.readFileSync(FILE, 'utf8')); } catch {}
 
 const cell = (s) => {
@@ -102,40 +102,85 @@ export async function refreshBulletin() {
   return state;
 }
 
-/** v2.9: fill up to `n` earlier months from travel.state.gov (official pages only), once a day at most. */
-let lastBackfill = 0;
-export async function backfillHistory(n = 13, fetcher = (u) => fetch(u, UA)) {
-  if (!state?.month) return 0;
-  lastBackfill = Date.now();
-  const [name, year] = state.month.split(' ');
-  let i = MONTH_NAMES.indexOf(name.toLowerCase()), y = +year;
-  const have = new Set([state.month, ...(state.history || []).map((h) => h.month)]);
-  const add = [];
+/** v2.9 planner: the earlier months the history still lacks, newest first (at most `n` months back). */
+export function missingMonths(current, history, n = HISTORY_MAX) {
+  const [name, year] = String(current || '').split(' ');
+  let i = MONTH_NAMES.indexOf(String(name).toLowerCase()), y = +year;
+  if (i < 0 || !y) return [];
+  const have = new Set([current, ...(history || []).map((h) => h.month)]);
+  const out = [];
   for (let k = 0; k < n; k++) {
     i -= 1; if (i < 0) { i = 11; y -= 1; }
     const m = label(MONTH_NAMES[i], y);
-    if (have.has(m)) continue;
-    try {
-      const r = await fetcher(bulletinUrl(MONTH_NAMES[i], y));
-      if (!r.ok) continue;
-      const p = parseBulletin(await r.text(), bulletinUrl(MONTH_NAMES[i], y));
-      if (p?.month) add.push(p);
-    } catch { /* one month missing is fine */ }
+    if (!have.has(m)) out.push({ month: m, url: bulletinUrl(MONTH_NAMES[i], y) });
   }
-  if (add.length) {
-    state.history = mergeHistory(state.history, add, state.month);
-    state.previous = state.history[state.history.length - 1];
-    fs.mkdirSync(path.dirname(FILE), { recursive: true });
-    fs.writeFileSync(FILE, JSON.stringify(state, null, 2));
-  }
-  return add.length;
+  return out;
 }
 
-export async function getBulletin() {
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+/** One page, politely: retries network errors, 429 and 5xx with a growing pause. 404 = not published; 401 / 403 = blocked. */
+async function politeGet(url, { fetcher, retries, delayMs, sleep }) {
+  for (let attempt = 0; ; attempt++) {
+    let res = null;
+    try { res = await fetcher(url); } catch { res = null; }
+    if (res?.ok) { try { return { html: await res.text() }; } catch { res = null; } }
+    if (res && (res.status === 404 || res.status === 410)) return { missing: true };
+    if (res && (res.status === 401 || res.status === 403)) return { blocked: true };
+    if (attempt >= retries) return { failed: true };
+    await sleep(delayMs * 2 ** (attempt + 1));
+  }
+}
+
+/**
+ * v2.9: fill the last 24 months of employment-based bulletins from travel.state.gov (official pages only).
+ * Sequential with a pause between pages, a few retries, and it gives up quietly when the site blocks us or
+ * stays unreachable — the planner then says it needs more months. Runs at most once a day.
+ */
+let lastBackfill = 0;
+let backfilling = null;
+export async function backfillHistory(opts = {}) {
+  if (typeof opts === 'number') opts = { months: opts };
+  const { months = HISTORY_MAX, fetcher = (u) => fetch(u, UA), delayMs = 1500, retries = 2, giveUpAfter = 3, sleep = wait } = opts;
+  if (!state?.month) return 0;
+  if (backfilling) return backfilling;
+  lastBackfill = Date.now();
+  backfilling = (async () => {
+    const todo = missingMonths(state.month, state.history, months);
+    const add = [];
+    let failures = 0, stopped = '';
+    for (let k = 0; k < todo.length; k++) {
+      if (k) await sleep(delayMs);
+      const r = await politeGet(todo[k].url, { fetcher, retries, delayMs, sleep });
+      if (r.blocked) { stopped = 'blocked by travel.state.gov'; break; }
+      if (r.failed) { if (++failures >= giveUpAfter) { stopped = 'travel.state.gov unreachable'; break; } continue; }
+      failures = 0;
+      if (r.missing) continue;
+      const p = parseBulletin(r.html, todo[k].url);
+      if (p?.month && p.rows.length) add.push(p);
+    }
+    if (add.length) {
+      state.history = mergeHistory(state.history, add, state.month);
+      state.previous = state.history[state.history.length - 1];
+      try { fs.mkdirSync(path.dirname(FILE), { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(state, null, 2)); } catch (e) { console.error('bulletin history save:', e.message); }
+    }
+    if (stopped) console.error(`bulletin history: ${stopped}; have ${state.history?.length ?? 0} of ${HISTORY_MAX} earlier months, will try again tomorrow`);
+    return add.length;
+  })();
+  try { return await backfilling; } finally { backfilling = null; }
+}
+
+/** First run (and whenever fewer than 24 earlier months are kept): load the bulletin, then fill the history. Never throws. */
+export async function ensureBulletinHistory(opts) {
+  try { await getBulletin({ backfill: false }); } catch { return 0; }
+  if ((state?.history?.length ?? 0) >= HISTORY_MAX) return 0;
+  try { return await backfillHistory(opts); } catch (e) { console.error('bulletin history:', e.message); return 0; }
+}
+
+export async function getBulletin({ backfill = true } = {}) {
   if (!state || Date.now() - (fs.existsSync(FILE) ? fs.statSync(FILE).mtimeMs : 0) > 24 * 3600e3) {
     try { await refreshBulletin(); lastError = null; } catch (e) { lastError = e.message; console.error('bulletin:', e.message); }
   }
   if (!state) throw Object.assign(new Error('Visa Bulletin not loaded yet'), { status: 503 });
-  if ((state.history?.length ?? 0) < 6 && Date.now() - lastBackfill > 24 * 3600e3) backfillHistory().catch((e) => console.error('bulletin history:', e.message));
+  if (backfill && (state.history?.length ?? 0) < HISTORY_MAX && !backfilling && Date.now() - lastBackfill > 24 * 3600e3) backfillHistory().catch((e) => console.error('bulletin history:', e.message));
   return state;
 }
