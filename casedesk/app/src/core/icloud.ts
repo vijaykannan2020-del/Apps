@@ -72,7 +72,7 @@ export function friendlyICloudError(e: unknown): string {
   if (/\b640\b/.test(text) && /nscocoaerrordomain|cocoa/i.test(text)) return 'iCloud storage is full — free up space in iOS Settings → your name → iCloud';
   if (/err_quota_exceeded|quota|out of space|enough (icloud )?(storage|space)|storage (is )?full|nsfilewriteoutofspaceerror|\b4354\b/.test(t)) return 'iCloud storage is full — free up space in iOS Settings → your name → iCloud';
   if (/not signed in|no icloud account|sign in to icloud|ubiquityidentitytoken|identity token|err_authentication_failed|signed-out/.test(t)) return 'Sign in to iCloud in iOS Settings';
-  if (/\b4353\b|nsubiquitousfileunavailableerror|icloud drive (is )?(off|disabled)|container (is )?(unavailable|not available)|ubiquity container/.test(t)) return 'Turn on iCloud Drive for CaseDesk in iOS Settings → your name → iCloud';
+  if (/\b4353\b|nsubiquitousfileunavailableerror|icloud drive (is )?(off|disabled)|container (is )?(unavailable|not available)|ubiquity container/.test(t)) return 'Turn on iCloud Drive for Immigration Wallet in iOS Settings → your name → iCloud';
   const m = String(x.message ?? (typeof e === 'string' ? e : '') ?? '').trim();
   return m || 'Couldn’t back up to iCloud';
 }

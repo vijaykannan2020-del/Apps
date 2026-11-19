@@ -124,7 +124,7 @@ export class Store {
   async exportJSON() { return JSON.stringify({ app: 'casedesk', schema: SCHEMA, exportedAt: new Date().toISOString(), ...(await this.snapshot()) }); }
   async importJSON(json: string) {
     const x = JSON.parse(json);
-    if (x?.app !== 'casedesk' || typeof x.schema !== 'number' || x.schema > SCHEMA) throw new Error('Not a CaseDesk backup from this version');
+    if (x?.app !== 'casedesk' || typeof x.schema !== 'number' || x.schema > SCHEMA) throw new Error('Not an Immigration Wallet backup from this version');
     await this.savePeople(x.people ?? []); await this.saveDocs(x.docs ?? []); await this.saveCases(x.cases ?? []); await this.saveSettings({ ...DEFAULT_SETTINGS, ...(x.settings ?? {}) });
   }
   /** Delete all data: every cd2.* key (never the old app's cd.* keys). */

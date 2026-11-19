@@ -194,10 +194,10 @@ export function AboutScreen() {
     <Screen nav={{ back: 'Settings', onBack: back, title: 'About' }}>
       <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 4 }}>
         <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name="shield" size={34} color="#fff" /></View>
-        <BigText size={24} style={{ marginTop: 12 }}>CaseDesk</BigText>
+        <BigText size={24} style={{ marginTop: 12 }}>Immigration Wallet</BigText>
         <T tone="text2" style={font.sub}>{`Version ${version} · rules checked ${fmt(RULES_CHECKED)}`}</T>
       </View>
-      <Note tone="amber">Not legal advice. CaseDesk gives general information from official sources. It can be wrong or out of date. For decisions — especially “Act now” items — talk to an immigration attorney or, for students, your DSO.</Note>
+      <Note tone="amber">Not legal advice. Immigration Wallet gives general information from official sources. It can be wrong or out of date. For decisions — especially “Act now” items — talk to an immigration attorney or, for students, your DSO.</Note>
       <SectionHeader>Privacy</SectionHeader>
       <Card>
         {['Documents are read and stored only on this phone.', 'No account, no ads, no tracking, no selling data.', 'Never logs in to USCIS, CBP or SEVP for you.', 'Backups are encrypted with your password before they leave the app.'].map((x) => (
@@ -227,7 +227,7 @@ export function DiagSheet() {
       </ScrollView>
       <SheetButtons>
         <Button kind="ghost" title="Clear" onPress={async () => { await clearDiag(); setLines([]); }} />
-        <Button grow title="Share" onPress={async () => { const u = await writeCacheText('casedesk-diagnostics.txt', text); if (!u || !(await share(u, 'text/plain', 'CaseDesk diagnostics'))) toast('Couldn’t open the share sheet'); }} />
+        <Button grow title="Share" onPress={async () => { const u = await writeCacheText('immigration-wallet-diagnostics.txt', text); if (!u || !(await share(u, 'text/plain', 'Immigration Wallet diagnostics'))) toast('Couldn’t open the share sheet'); }} />
       </SheetButtons>
     </View>
   );

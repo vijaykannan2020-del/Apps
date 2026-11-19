@@ -122,7 +122,7 @@ export function CaseBody({ id }: { id: string }) {
               </View>
             ))}
             <T tone="text2" style={[font.foot, { marginTop: 8 }]}>{c.checkedAt ? `Last checked on uscis.gov: ${asOfText({ live: true, fetchedAt: c.checkedAt }).replace(/^Live · updated /, '')}` : 'Not checked on uscis.gov yet'}</T>
-            <Hint>CaseDesk never logs in to USCIS or reads the site for you.</Hint>
+            <Hint>Immigration Wallet never logs in to USCIS or reads the site for you.</Hint>
             <Button block icon="compass" title="Copy number & open uscis.gov" onPress={() => startCaseCheck(c, sheet.open)} />
           </Card>
         </>
@@ -133,7 +133,7 @@ export function CaseBody({ id }: { id: string }) {
         <Button kind="ghost" icon="share" title="Share" onPress={() => Share.share({ message: `${c.form ?? 'Case'} · ${c.name}\nStatus: ${c.status}${c.updated ? ` (updated ${fmt(c.updated)})` : ''}` }).catch(() => {})} />
         <Button kind="danger" icon="trash" title="Delete" onPress={() => sheet.open('Delete this case?', <Confirm body="It’s removed from this phone only. Nothing changes at USCIS." action="Delete" onConfirm={async () => { back(); await f.actions.deleteCase(c); toast('Case deleted'); }} />)} />
       </View>
-      <DataFooter source={SOURCES.caseStatus} note="Case status comes only from what you copy from uscis.gov — CaseDesk doesn’t contact USCIS." />
+      <DataFooter source={SOURCES.caseStatus} note="Case status comes only from what you copy from uscis.gov — Immigration Wallet doesn’t contact USCIS." />
     </>
   );
 }

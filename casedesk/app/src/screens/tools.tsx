@@ -296,7 +296,7 @@ function Planner() {
       <Card style={{ marginTop: 18 }}>
         <Timeline items={S.map((x, i) => ({ title: x.t, state: x.st, sub: x.n, onPress: () => setOpen(i), extra: open === i ? <T tone="text2" style={[font.foot, { marginTop: 2 }]}>{x.s}</T> : null }))} />
       </Card>
-      <Hint>Tap a step to see what happens. Based on the cases saved in CaseDesk.</Hint>
+      <Hint>Tap a step to see what happens. Based on the cases saved in Immigration Wallet.</Hint>
     </>
   );
 }
@@ -382,7 +382,7 @@ function Fees() {
       </Group>
       <Card style={{ marginTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><T style={font.headline}>Total</T><View style={{ flexShrink: 1, minWidth: 0 }}><BigText size={28}>{`$${total.toLocaleString()}`}</BigText></View></Card>
       {fc.alert ? <Note tone="amber">{fc.alert}</Note> : null}
-      <DataFooter live={false} asOf={`${FEES_AS_OF} (USCIS fee rule of Apr 1, 2024; premium processing from Mar 1, 2026)`} source={SOURCES.fees} note="Check uscis.gov/fees before you pay. CaseDesk never takes payments." />
+      <DataFooter live={false} asOf={`${FEES_AS_OF} (USCIS fee rule of Apr 1, 2024; premium processing from Mar 1, 2026)`} source={SOURCES.fees} note="Check uscis.gov/fees before you pay. Immigration Wallet never takes payments." />
     </>
   );
 }
@@ -418,7 +418,7 @@ function LcaPerm({ setFoot }: { setFoot: (n: React.ReactNode) => void }) {
       <Segmented options={['LCA', 'PERM']} value={kind} onChange={setKind} />
       <Card style={{ marginTop: 14 }}>
         <Field label={`${kind} case number`} value={q} onChangeText={(x) => { setQ(x.toUpperCase()); setErr(undefined); }} placeholder={kind === 'LCA' ? 'I-200-26001-000001' : 'G-100-26001-000001'} autoCapitalize="characters" mono error={err} />
-        <Hint>The Department of Labor’s official FLAG site shows the status. CaseDesk opens it in Safari — it never logs in or reads the site for you.</Hint>
+        <Hint>The Department of Labor’s official FLAG site shows the status. Immigration Wallet opens it in Safari — it never logs in or reads the site for you.</Hint>
       </Card>
     </>
   );

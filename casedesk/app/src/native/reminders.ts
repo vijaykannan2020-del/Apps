@@ -29,7 +29,7 @@ export function reminderItems(people: Person[], records: Record<string, PersonRe
       for (const lead of rm.lead) {
         const at = addDays(d, -lead);
         if (at <= t) continue;
-        items.push({ at, title: `${p.name}: ${what}`, body: `${fmt(d)} — in ${lead} day${lead === 1 ? '' : 's'}. Open CaseDesk to see what to do.`, url: `/person/${p.id}` });
+        items.push({ at, title: `${p.name}: ${what}`, body: `${fmt(d)} — in ${lead} day${lead === 1 ? '' : 's'}. Open Immigration Wallet to see what to do.`, url: `/person/${p.id}` });
       }
     }
   }

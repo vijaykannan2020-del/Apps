@@ -6,7 +6,14 @@
 import { gcm } from '@noble/ciphers/aes.js';
 import { scryptAsync } from '@noble/hashes/scrypt.js';
 
-export const MAGIC = 'CASEDESK-BACKUP 1';
+export const MAGIC = 'CASEDESK-BACKUP 1'; // file format id: unchanged by the rename, so old backups still open
+
+/** File-backup name: "Immigration Wallet backup 2026-11-18.casedesk" (local date). The .casedesk
+ *  extension and the format stay the same, so files made by CaseDesk still restore. */
+export function backupFileName(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `Immigration Wallet backup ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.casedesk`;
+}
 // scrypt cost chosen for phones running JavaScript without a JIT (Hermes): N = 2^13, r = 8, p = 1
 // (8 MB, about 2–4 s on a recent iPhone). Stored in each file's header, so it can be raised later
 // without breaking older backups.
@@ -89,9 +96,9 @@ export async function encryptBackup(payload: string, password: string, onProgres
 
 export function readHeader(text: string): Header {
   const [magic, head] = text.split('\n', 2);
-  if (magic !== MAGIC) throw new Error('This isn’t a CaseDesk backup file');
+  if (magic !== MAGIC) throw new Error('This isn’t an Immigration Wallet backup file');
   const h = JSON.parse(head) as Header;
-  if (h.v !== 1 || h.kdf !== 'scrypt') throw new Error('This backup was made by a newer CaseDesk — update the app first');
+  if (h.v !== 1 || h.kdf !== 'scrypt') throw new Error('This backup was made by a newer Immigration Wallet — update the app first');
   return h;
 }
 

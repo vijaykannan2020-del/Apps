@@ -56,7 +56,7 @@ export async function canUseBiometrics() {
   const LA = native.localAuth();
   try { return !!LA && (await LA.hasHardwareAsync()) && (await LA.isEnrolledAsync()); } catch { return false; }
 }
-export async function authenticate(reason = 'Unlock CaseDesk'): Promise<boolean> {
+export async function authenticate(reason = 'Unlock Immigration Wallet'): Promise<boolean> {
   const LA = native.localAuth();
   if (!LA?.authenticateAsync) return true; // no module: never lock the user out
   try { const r = await LA.authenticateAsync({ promptMessage: reason, fallbackLabel: 'Use passcode' }); return !!r.success; } catch { return false; }

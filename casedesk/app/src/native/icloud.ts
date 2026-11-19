@@ -27,7 +27,7 @@ export async function iCloudSupport(): Promise<Support> {
   if (!hasICloudModule()) return { ok: false, reason: 'old-build' };
   try { return (await api()?.isCloudAvailable?.()) ? { ok: true } : { ok: false, reason: 'signed-out' }; } catch { return { ok: false, reason: 'signed-out' }; }
 }
-export const supportText = (s: Support) => (s.ok ? '' : s.reason === 'old-build' ? 'Needs the latest app version from TestFlight' : s.reason === 'not-ios' ? 'iCloud backup is for iPhone and iPad' : 'Sign in to iCloud in iOS Settings, and turn on iCloud Drive for CaseDesk');
+export const supportText = (s: Support) => (s.ok ? '' : s.reason === 'old-build' ? 'Needs the latest app version from TestFlight' : s.reason === 'not-ios' ? 'iCloud backup is for iPhone and iPad' : 'Sign in to iCloud in iOS Settings, and turn on iCloud Drive for Immigration Wallet');
 
 async function ensureDir() {
   const CS = api();

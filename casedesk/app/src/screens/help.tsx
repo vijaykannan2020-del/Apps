@@ -43,10 +43,10 @@ export function HelpListScreen() {
   return (
     <Screen nav={{ back: 'Settings', onBack: back, title: 'Help' }}>
       <T a11y="header" style={font.title}>Help</T>
-      <Why>How CaseDesk works, step by step.</Why>
+      <Why>How Immigration Wallet works, step by step.</Why>
       <Group style={{ marginTop: 18 }}>{HELP.map((h) => <Row key={h.id} icon="help" title={h.title} subtitle={h.sub} onPress={() => go(`/help/${h.id}`)} />)}</Group>
       <SectionHeader>More</SectionHeader>
-      <Group><Row icon="play" title="How CaseDesk works" subtitle="A 4-screen tour" onPress={() => go('/tour')} /></Group>
+      <Group><Row icon="play" title="How Immigration Wallet works" subtitle="A 4-screen tour" onPress={() => go('/tour')} /></Group>
       <Hint center style={{ marginTop: 18 }}>General information, not legal advice.</Hint>
     </Screen>
   );

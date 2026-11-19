@@ -4,7 +4,7 @@
 import { Platform } from 'react-native';
 import type { Case, Document, Person, Settings } from '../core/model';
 import { DEFAULT_SETTINGS } from '../core/model';
-import { decryptBackup, encryptBackup, readHeader, type BackupPayload, type Progress } from '../core/backup';
+import { backupFileName, decryptBackup, encryptBackup, readHeader, type BackupPayload, type Progress } from '../core/backup';
 import { SCHEMA, newId, type Store } from './store';
 import { migrateFile } from '../core/files';
 import { matchPeople } from '../core/merge';
@@ -31,10 +31,10 @@ export async function backUpNow(store: Store, password: string, onProgress?: Pro
   const { payload, missing } = await buildPayload(store);
   const text = await encryptBackup(JSON.stringify(payload), password, onProgress);
   const d = new Date();
-  const name = `CaseDesk-backup-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.casedesk`;
+  const name = backupFileName(d);
   const uri = await writeCacheText(name, text);
   let shared = false;
-  if (uri) shared = await share(uri, 'application/octet-stream', 'Save your CaseDesk backup');
+  if (uri) shared = await share(uri, 'application/octet-stream', 'Save your Immigration Wallet backup');
   // The share sheet doesn't say whether the file was saved: the screen asks, then calls markBackedUp().
   return { uri: uri ?? undefined, shared, files: Object.keys(payload.files).length, missingFiles: missing };
 }
@@ -50,7 +50,7 @@ export async function pickBackupFile(): Promise<{ text: string; name: string } |
   const a = r.assets[0];
   const text = a.file && typeof a.file.text === 'function' ? await a.file.text() : await readText(a.uri);
   if (!text) throw new Error('Couldn’t open that file');
-  readHeader(text); // throws a friendly error if it isn't a CaseDesk backup
+  readHeader(text); // throws a friendly error if it isn't an Immigration Wallet backup
   return { text, name: a.name ?? 'backup.casedesk' };
 }
 
@@ -59,8 +59,8 @@ export type RestorePreview = { payload: BackupPayload; people: number; docs: num
 export async function openBackup(text: string, password: string, onProgress?: Progress): Promise<RestorePreview> {
   const json = await decryptBackup(text, password, onProgress);
   const payload = JSON.parse(json) as BackupPayload;
-  if (payload.app !== 'casedesk') throw new Error('This isn’t a CaseDesk backup file');
-  if (payload.schema > SCHEMA) throw new Error('This backup was made by a newer CaseDesk — update the app first');
+  if (payload.app !== 'casedesk') throw new Error('This isn’t an Immigration Wallet backup file');
+  if (payload.schema > SCHEMA) throw new Error('This backup was made by a newer Immigration Wallet — update the app first');
   return { payload, people: payload.people.length, docs: payload.docs.length, files: Object.keys(payload.files).length, cases: payload.cases.length, exportedAt: payload.exportedAt };
 }
 

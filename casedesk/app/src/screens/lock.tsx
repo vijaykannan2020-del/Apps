@@ -37,7 +37,7 @@ export function AppLock({ children }: { children: React.ReactNode }) {
       {on && (locked || cover) ? (
         <View accessibilityViewIsModal style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: t.bg, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 }}>
           <Icon name="lock" size={44} color={t.accent} />
-          <T style={font.title2}>CaseDesk is locked</T>
+          <T style={font.title2}>Immigration Wallet is locked</T>
           {locked ? <Button title="Unlock" icon="face" onPress={() => authenticate().then((ok) => ok && setLocked(false))} /> : null}
         </View>
       ) : null}

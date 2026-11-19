@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "CaseDesk",
+    "name": "Immigration Wallet",
     "slug": "casedesk",
     "scheme": "casedesk",
     "version": "1.0.0",
@@ -49,14 +49,14 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow CaseDesk to use Face ID to unlock your immigration documents."
+          "faceIDPermission": "Allow Immigration Wallet to use Face ID to unlock your immigration documents."
         }
       ],
       [
         "expo-image-picker",
         {
-          "cameraPermission": "CaseDesk uses the camera to scan your immigration documents. Text is read on your phone and never uploaded.",
-          "photosPermission": "CaseDesk lets you pick photos of your immigration documents to store them on this phone.",
+          "cameraPermission": "Immigration Wallet uses the camera to scan your immigration documents. Text is read on your phone and never uploaded.",
+          "photosPermission": "Immigration Wallet lets you pick photos of your immigration documents to store them on this phone.",
           "microphonePermission": false
         }
       ],

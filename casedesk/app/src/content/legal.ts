@@ -1,6 +1,6 @@
 // App Store launch: independence disclaimer (Welcome, About, every data screen) and the official
 // source behind each government-data screen.
-export const DISCLAIMER = 'CaseDesk is not affiliated with USCIS, DHS, DOL, the State Department or any government agency. Information comes from official public sources linked in the app. Not legal advice.';
+export const DISCLAIMER = 'Immigration Wallet is not affiliated with USCIS, DHS, DOL, the State Department or any government agency. Information comes from official public sources linked in the app. Not legal advice.';
 export const DISCLAIMER_SHORT = 'Not affiliated with USCIS or any government agency · not legal advice';
 
 export type Source = { label: string; url: string };

@@ -4,9 +4,9 @@ export type HelpTopic = { id: string; title: string; sub: string; body: string[]
 
 export const HELP: HelpTopic[] = [
   {
-    id: 'overview', title: 'What CaseDesk covers', sub: 'Everything the app does, in one page',
+    id: 'overview', title: 'What Immigration Wallet covers', sub: 'Everything the app does, in one page',
     body: [
-      'CaseDesk keeps your family’s US immigration papers in one place, on this phone, and tells you what needs attention.',
+      'Immigration Wallet keeps your family’s US immigration papers in one place, on this phone, and tells you what needs attention.',
       'Home: everyone’s status at a glance, what needs attention first, your cases and the latest updates for your visa types.',
       'Family: one page per person — their status, documents, cases, reminders, job and travel plans, and their next filing with the earliest date and typical processing time.',
       'Cases: every USCIS receipt by person. Check the status on uscis.gov in Safari and paste the result back.',
@@ -19,7 +19,7 @@ export const HELP: HelpTopic[] = [
     body: [
       'Add each person once — you, a spouse, children, parents — with the status they hold now. People outside the US (for example in India) can be added too.',
       'Then add documents step by step: passport, visa stamp, I-94, approval notice and any receipts. Take a photo, pick one from Photos or a PDF from Files. The text is read on this phone.',
-      'Skip anything you don’t have. Each document makes the checks more accurate. If a document looks like someone else’s (a different passport number), CaseDesk asks before saving it.',
+      'Skip anything you don’t have. Each document makes the checks more accurate. If a document looks like someone else’s (a different passport number), Immigration Wallet asks before saving it.',
     ],
     steps: ['Family → Add family member', 'Home → Add documents (or “Continue adding documents”)', 'A person’s page → Add or renew a document'],
   },
@@ -36,13 +36,13 @@ export const HELP: HelpTopic[] = [
     id: 'cases', title: 'Adding a case and checking USCIS', sub: 'Copy the receipt → Safari → copy the result → paste back',
     body: [
       'A receipt notice (I-797C) adds a case automatically. You can also add one by hand: Cases → +, then type the 13-character receipt number.',
-      'CaseDesk never logs in to USCIS or reads the site for you. Instead it makes the official check quick:',
+      'Immigration Wallet never logs in to USCIS or reads the site for you. Instead it makes the official check quick:',
     ],
     steps: [
       'Open the case and tap “Copy number & open uscis.gov”. The receipt number is copied.',
       'Safari opens Case Status Online. Paste the number and tap Check Status.',
       'Select the status heading and the sentence under it, and tap Copy.',
-      'Tap Done to come back. Tap “Paste what USCIS says” — CaseDesk reads the status, date and form and updates the case, its history and key dates.',
+      'Tap Done to come back. Tap “Paste what USCIS says” — Immigration Wallet reads the status, date and form and updates the case, its history and key dates.',
     ],
   },
   {
@@ -62,7 +62,7 @@ export const HELP: HelpTopic[] = [
   {
     id: 'backups', title: 'Backups', sub: 'Keep everything safe when you change phones',
     body: [
-      'iCloud backup (Settings → Backup & restore): turn it on once and set a password. Like WhatsApp, CaseDesk then backs up to your own iCloud every day and after changes, and keeps the last 3. Restore from iCloud on a new phone from the Welcome screen.',
+      'iCloud backup (Settings → Backup & restore): turn it on once and set a password. Like WhatsApp, Immigration Wallet then backs up to your own iCloud every day and after changes, and keeps the last 3. Restore from iCloud on a new phone from the Welcome screen.',
       'Settings → Back up to a file makes one password-protected .casedesk file with every person, document (images and PDFs) and case. Save it to Files, iCloud Drive or Google Drive, or AirDrop it to your new phone.',
       'To restore, choose the file and type its password. On a new phone everything is restored; on a phone that already has data you can replace it or merge (you’ll see exactly what was added).',
       'Nobody can open the file without the password — and we can’t recover it, so keep it somewhere safe.',
@@ -72,7 +72,7 @@ export const HELP: HelpTopic[] = [
     id: 'privacy', title: 'Privacy', sub: 'Your documents stay on this phone',
     body: [
       'Documents are read and stored only on this phone. There is no account, no ads and no tracking.',
-      'CaseDesk never logs in to USCIS, CBP or SEVP. Updates, the Visa Bulletin and processing times come from the CaseDesk server or a built-in copy — nothing about you is sent.',
+      'Immigration Wallet never logs in to USCIS, CBP or SEVP. Updates, the Visa Bulletin and processing times come from the Immigration Wallet server or a built-in copy — nothing about you is sent.',
       'Turn on Face ID in Settings to lock the app and hide documents in the app switcher.',
     ],
   },
@@ -80,28 +80,28 @@ export const HELP: HelpTopic[] = [
     id: 'priority-date', title: 'Priority date', sub: 'Is your green card date current?',
     body: [
       'Your priority date is on the I-140 (or PERM) approval. Each month the State Department’s Visa Bulletin lists a cut-off date for each category and country of birth.',
-      'If your date is earlier than the cut-off, it is “current”. USCIS says each month whether it uses the Final Action dates or the Dates for Filing chart for I-485 filings — CaseDesk uses the chart USCIS picked.',
+      'If your date is earlier than the cut-off, it is “current”. USCIS says each month whether it uses the Final Action dates or the Dates for Filing chart for I-485 filings — Immigration Wallet uses the chart USCIS picked.',
     ],
   },
   {
     id: 'processing', title: 'Processing times', sub: 'How long USCIS is taking',
     body: [
-      'USCIS publishes how long it takes to decide 8 in 10 cases of each form and category. CaseDesk shows those numbers, live when the server answers and a dated built-in copy otherwise.',
-      'For each person, CaseDesk shows the next filing their status needs, the earliest date it can be filed, and — if filed that day — when a decision is likely. Premium processing, where it exists, gives a decision within the listed time for an extra fee.',
+      'USCIS publishes how long it takes to decide 8 in 10 cases of each form and category. Immigration Wallet shows those numbers, live when the server answers and a dated built-in copy otherwise.',
+      'For each person, Immigration Wallet shows the next filing their status needs, the earliest date it can be filed, and — if filed that day — when a decision is likely. Premium processing, where it exists, gives a decision within the listed time for an extra fee.',
       'Times change month to month and differ by service center. Plan with the earliest date, not the deadline.',
     ],
   },
   {
     id: 'travel', title: 'Can I travel?', sub: 'Checking a trip',
     body: [
-      'Pick who is travelling, the dates and the country. CaseDesk runs the same checks it uses on Home with the trip added: passport validity on return, visa stamp, pending cases that abandon on travel, advance parole, and days outside the US for citizenship.',
+      'Pick who is travelling, the dates and the country. Immigration Wallet runs the same checks it uses on Home with the trip added: passport validity on return, visa stamp, pending cases that abandon on travel, advance parole, and days outside the US for citizenship.',
       'If a new visa stamp is needed, you get a stamping checklist. Trips under 30 days to Canada or Mexico may use automatic visa revalidation.',
     ],
   },
   {
     id: 'layoff', title: 'Layoff plan', sub: 'If a job ends',
     body: [
-      'Enter the last day of work. CaseDesk shows the last day in status for everyone who depends on that job (up to 60 days of grace, never past the I-94), and the options: a new employer files, change of status, or leaving the US.',
+      'Enter the last day of work. Immigration Wallet shows the last day in status for everyone who depends on that job (up to 60 days of grace, never past the I-94), and the options: a new employer files, change of status, or leaving the US.',
       'Dependents’ status follows the principal’s. Talk to an attorney as early as you can — options narrow as the grace period runs out.',
     ],
   },

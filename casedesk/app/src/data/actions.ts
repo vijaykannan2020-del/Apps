@@ -63,7 +63,7 @@ export function makeActions(store: Store) {
     },
     // ---- cases ----
     async addCase(c: Omit<Case, 'id' | 'keyDates' | 'history'> & Partial<Pick<Case, 'keyDates' | 'history'>>) {
-      await store.upsertCase({ id: newId('case'), keyDates: [], history: [{ date: nowIso(), text: 'Added in CaseDesk' }], ...c });
+      await store.upsertCase({ id: newId('case'), keyDates: [], history: [{ date: nowIso(), text: 'Added in Immigration Wallet' }], ...c });
     },
     editCase,
     async deleteCase(view: CaseView) {

@@ -68,7 +68,7 @@ function ICloudPasswordSheet({ mode }: { mode: 'enable' | 'once' }) {
   return (
     <View>
       <Why>{mode === 'enable'
-        ? 'Like WhatsApp: CaseDesk backs up to your iCloud every day and after you change something, and keeps the last 3 backups. The file is locked with this password — Apple can’t read it, and neither can we.'
+        ? 'Like WhatsApp: Immigration Wallet backs up to your iCloud every day and after you change something, and keeps the last 3 backups. The file is locked with this password — Apple can’t read it, and neither can we.'
         : 'One backup to your iCloud, locked with this password.'}</Why>
       {mode === 'enable' && !keychain ? <Note tone="amber">This version can’t keep the password in the keychain, so backups can’t run on their own. Update from TestFlight for automatic backups.</Note> : null}
       <Field label="Backup password" value={pw} onChangeText={setPw} secure placeholder="At least 8 characters" autoCapitalize="none" />
@@ -99,7 +99,7 @@ export function ICloudRestore({ onDone }: { onDone: () => void }) {
             try { setPicked({ text: await readICloudBackup(x.name), name: x.name }); } catch { toast('Couldn’t download this backup from iCloud yet — try again in a moment'); }
           }} />)}
         </Group>
-      ) : <Note tone="blue">No CaseDesk backups in this iCloud account yet.</Note>}
+      ) : <Note tone="blue">No Immigration Wallet backups in this iCloud account yet.</Note>}
       <SheetButtons><Button kind="ghost" title="Close" onPress={onDone} /></SheetButtons>
     </View>
   );

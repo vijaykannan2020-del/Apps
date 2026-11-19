@@ -7,7 +7,7 @@ import { timely } from './status';
 const usesEAD = (v?: string) => !!v && ['H-4 EAD', 'Green card pending'].includes(v);
 
 export function visaUnconfirmed(c: RuleCtx): Finding[] {
-  return c.me.rec.visa ? [] : [finding('C19', 'review', 'visa-unset', 'Confirm the visa type', 'CaseDesk doesn’t assume one. Add the I-94 or visa stamp — it shows the class — or pick the status under Edit details.')];
+  return c.me.rec.visa ? [] : [finding('C19', 'review', 'visa-unset', 'Confirm the visa type', 'Immigration Wallet doesn’t assume one. Add the I-94 or visa stamp — it shows the class — or pick the status under Edit details.')];
 }
 
 export function passportRules(c: RuleCtx, inUS: boolean): Finding[] {

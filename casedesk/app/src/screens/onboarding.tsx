@@ -24,7 +24,7 @@ export function Welcome() {
           <View style={{ width: 84, height: 84, borderRadius: 24, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="shield" size={42} color="#fff" />
           </View>
-          <T a11y="header" style={[font.largeTitle, { marginTop: 22, textAlign: 'center' }]}>CaseDesk</T>
+          <T a11y="header" style={[font.largeTitle, { marginTop: 22, textAlign: 'center' }]}>Immigration Wallet</T>
           <T tone="text2" style={[font.body, { marginTop: 6, textAlign: 'center' }]}>US immigration status for you and your family.</T>
         </View>
         <View style={{ marginTop: 36, gap: 22 }}>
@@ -43,7 +43,7 @@ export function Welcome() {
         <Button title="Get started" onPress={() => router.push('/about-you' as never)} block={false} />
         <Button kind="ghost" icon="restore" title="Restore from a backup" onPress={() => router.push('/restore' as never)} />
         {Platform.OS === 'ios' ? <Button kind="ghost" icon="backup" title="Restore from iCloud" onPress={() => router.push('/restore-icloud' as never)} /> : null}
-        <T tone="text2" style={[font.caption, { textAlign: 'center' }]}>CaseDesk gives general information, not legal advice.</T>
+        <T tone="text2" style={[font.caption, { textAlign: 'center' }]}>Immigration Wallet gives general information, not legal advice.</T>
       </Footer>
     </View>
   );

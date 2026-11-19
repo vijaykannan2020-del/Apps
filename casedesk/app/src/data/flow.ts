@@ -184,7 +184,7 @@ export async function upload(pid: string, k: StepKey, source: Source, fam: Famil
     diag(`kept file for ${k}`);
     const text = await readText(fileUri(file), file.mime);
     diag(`read ${k}: ${text ? text.length + ' chars' : 'no text'}`);
-    if (!text) { setUpload(pid, k, { state: 'error', error: 'Reading works in the CaseDesk app on your phone. You can type the details instead.', doc: draftDoc(id, pid, k, fam, file) }); return; }
+    if (!text) { setUpload(pid, k, { state: 'error', error: 'Reading works in the Immigration Wallet app on your phone. You can type the details instead.', doc: draftDoc(id, pid, k, fam, file) }); return; }
     const r = readDocument(text);
     if (!r.type) { setUpload(pid, k, { state: 'error', error: 'Couldn’t read this one. Try a flatter, brighter photo — or type the dates yourself.', doc: draftDoc(id, pid, k, fam, file) }); return; }
     const doc: Document = { id, ownerId: pid, type: r.type, fields: r.fields, addedAt: new Date().toISOString(), files: [file] };

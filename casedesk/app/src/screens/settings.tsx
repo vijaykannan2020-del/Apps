@@ -61,14 +61,14 @@ export function SettingsTab() {
       <SectionHeader>Help</SectionHeader>
       <Group>
         {HELP.slice(0, 8).map((h) => <Row key={h.id} icon="help" title={h.title} subtitle={h.sub} onPress={() => go(`/help/${h.id}`)} />)}
-        <Row icon="play" title="How CaseDesk works" subtitle="A 4-screen tour" onPress={() => go('/tour')} />
+        <Row icon="play" title="How Immigration Wallet works" subtitle="A 4-screen tour" onPress={() => go('/tour')} />
         <Row icon="users" title="Example family" subtitle="Look around with made-up data (replaces what’s here)" chevron={false} onPress={() => sheet.open('Load the example family?', <Confirm body="Everything on this phone is replaced by a made-up H-1B family. Back up first if you need your data." action="Load example" onConfirm={() => { try { router.dismissAll(); } catch {} replace('/demo'); }} />)} />
       </Group>
       <SectionHeader>More</SectionHeader>
       <Group>
         <Row icon="hr" title="Show HR tools" subtitle="Expiring documents across the family" trailing={<Switch value={!!f.settings.hrTools} label="Show HR tools" onValueChange={(on) => f.actions.updateSettings({ hrTools: on })} />} />
         <Row icon="info" title="Diagnostics" subtitle="What the app did — send this if something goes wrong" chevron={false} onPress={() => sheet.open('Diagnostics', <DiagSheet />)} />
-        <Row icon="shield" title="About CaseDesk" subtitle={`Version ${version} · not legal advice · sources`} onPress={() => go('/about')} />
+        <Row icon="shield" title="About Immigration Wallet" subtitle={`Version ${version} · not legal advice · sources`} onPress={() => go('/about')} />
       </Group>
       <Hint center style={{ marginTop: 18 }}>{`Not affiliated with USCIS or any government agency. Rules checked ${fmt(RULES_CHECKED)}.`}</Hint>
     </>
