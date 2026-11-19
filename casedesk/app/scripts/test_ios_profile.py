@@ -57,6 +57,18 @@ class Test(unittest.TestCase):
         self.assertIn('Reusing', msg)
         self.assertNotIn(('POST', '/v1/profiles'), api.calls)
 
+    def test_skips_profile_without_sign_in_with_apple(self):
+        ent = b'com.apple.developer.applesignin'
+        old = {'id': 'P-OLD', 'attributes': {'name': 'v2', 'profileType': 'IOS_APP_STORE', 'profileState': 'ACTIVE', 'profileContent': b64(f'<plist>{C}</plist>')}}
+        api = FakeApi(profiles=[old])
+        content, msg = pick_or_make_profile(api, 'B1', 'CERT', C, 1, require=[ent])
+        self.assertIn(('POST', '/v1/profiles'), api.calls, 'v2 profile without the entitlement is not reused')
+        withit = {'id': 'P-V3', 'attributes': {'name': 'v3', 'profileType': 'IOS_APP_STORE', 'profileState': 'ACTIVE', 'profileContent': b64(f'<plist>{C} com.apple.developer.applesignin</plist>')}}
+        api2 = FakeApi(profiles=[old, withit])
+        content, msg = pick_or_make_profile(api2, 'B1', 'CERT', C, 1, require=[ent])
+        self.assertIn('Reusing', msg)
+        self.assertNotIn(('POST', '/v1/profiles'), api2.calls)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -12,8 +12,9 @@ class ContainerMissing(Exception):
     pass
 
 
-def pick_or_make_profile(api, bid, cert_id, container, stamp):
-    """api(method, path, body=None, ...) -> dict (the App Store Connect helper). Returns (content, message)."""
+def pick_or_make_profile(api, bid, cert_id, container, stamp, require=()):
+    """api(method, path, body=None, ...) -> dict (the App Store Connect helper). Returns (content, message).
+    require: extra entitlement keys (bytes) a reused profile must carry, e.g. b'com.apple.developer.applesignin'."""
     want = container.encode()
     # 1. What Apple says about the iCloud capability (it doesn't always list containers).
     try:  # this relationship endpoint takes no query parameters
@@ -36,7 +37,7 @@ def pick_or_make_profile(api, bid, cert_id, container, stamp):
         at = pr.get('attributes', {})
         certs = [c['id'] for c in (pr.get('relationships', {}).get('certificates', {}).get('data') or [])]
         raw = base64.b64decode(at.get('profileContent') or '')
-        if at.get('profileType') == 'IOS_APP_STORE' and at.get('profileState') == 'ACTIVE' and want in raw and (not certs or cert_id in certs):
+        if at.get('profileType') == 'IOS_APP_STORE' and at.get('profileState') == 'ACTIVE' and want in raw and all(r in raw for r in require) and (not certs or cert_id in certs):
             return raw, f"Reusing App Store profile {at.get('name')} (has the iCloud container) ✓"
     # 3. Make one; delete it again if the container isn't in it.
     prof = api('POST', '/v1/profiles', {'data': {'type': 'profiles', 'attributes': {'name': f'CaseDesk App Store {stamp}', 'profileType': 'IOS_APP_STORE'},
@@ -48,4 +49,8 @@ def pick_or_make_profile(api, bid, cert_id, container, stamp):
         print('stopped at step 3: new profile iCloud ids = ' + repr(sorted(set(ents)))[:800], file=sys.stderr)
         api('DELETE', f"/v1/profiles/{prof['id']}", tries=2)
         raise ContainerMissing()
+    missing = [r.decode() for r in require if r not in content]
+    if missing:
+        import sys
+        print('warning: new profile lacks ' + ', '.join(missing) + ' (capability may still be propagating)', file=sys.stderr)
     return content, 'Created provisioning profile (with iCloud container) ✓'
