@@ -265,6 +265,9 @@ export type Settings = {
   alerts?: { cases?: boolean; bulletin?: boolean; docs?: boolean }; // which alerts (default all on)
   bulletinSeen?: string; // last Visa Bulletin month the app saw (for the new-bulletin alert)
   icloud?: { on: boolean; wifiOnly: boolean; lastAt?: string; lastError?: string; lastAttemptAt?: string; failures?: number }; // iCloud automatic backup (v2.2)
+  widgetNames?: 'initials' | 'first'; // v2.5 home-screen widgets: how names show (default initials)
+  widgetHideLocked?: boolean; // v2.5: hide widget details while Face ID lock is on (default true)
+  walletName?: 'full' | 'first' | 'initials'; // v2.5 Wallet status card: last name style picked
 };
 
 export const DEFAULT_SETTINGS: Settings = { reminderLeadDays: [180, 90, 30, 7] };
