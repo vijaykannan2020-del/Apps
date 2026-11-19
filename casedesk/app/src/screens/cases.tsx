@@ -11,6 +11,7 @@ import { asOfText, back, DataFooter, go } from './common';
 import { SOURCES } from '../content/legal';
 import { AddCase, AddKeyDate, CheckStatus, Confirm, startCaseCheck } from './sheets';
 import { copy } from '../native/device';
+import { ExpectCard } from './expect';
 
 const inDays = (n: number) => (n < 0 ? `${-n} day${n === -1 ? '' : 's'} ago` : n === 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`);
 
@@ -128,6 +129,7 @@ export function CaseBody({ id }: { id: string }) {
           </Card>
         </>
       )}
+      {!c.consular ? <ExpectCard c={c} /> : null}
       <SectionHeader>History</SectionHeader>
       <TourTarget id="history"><Card>{c.history.length ? <Timeline items={c.history.map((h, i) => ({ title: h.text, sub: fmt(h.date), state: i ? 'done' : 'now' }))} /> : <T tone="text2" style={font.foot}>No history yet.</T>}</Card></TourTarget>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>

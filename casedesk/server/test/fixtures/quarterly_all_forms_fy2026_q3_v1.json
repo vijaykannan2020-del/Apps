@@ -1,0 +1,251 @@
+[
+[
+"Number of Service-wide Forms By Quarter, Form Status, and Processing Time"
+],
+[
+"April 1, 2026 - June 30, 2026"
+],
+[],
+[
+"",
+"",
+"3rd Quarter, Fiscal Year 2026",
+"",
+"",
+"",
+"",
+"",
+"Fiscal Year 2026 - To Date"
+],
+[
+"Form Number",
+"Form Description",
+"Received\u00b9",
+"Approved\u00b2",
+"Denied\u00b3",
+"Total Completions\u2074",
+"Pending\u2075",
+"Processing Time\u2076 (Months)",
+"Received",
+"Approved",
+"Denied",
+"Total Completions",
+"Pending"
+],
+[
+"Family-Based"
+],
+[
+"I-130",
+"Petition for Alien Relative (Immediate Relative)",
+126417,
+82636,
+16661,
+99297,
+786723,
+13,
+399808,
+382993,
+49806,
+432799,
+786723
+],
+[
+"",
+"Petition for Alien Relative (All Other Relative)",
+39905,
+7951,
+8883,
+16834,
+1617823,
+43.3,
+125362,
+42386,
+30032,
+72418,
+1617823
+],
+[
+"I-751",
+"Petition to Remove Conditions on Residence",
+51225,
+10368,
+626,
+10994,
+339830,
+22.6,
+129647,
+49606,
+1850,
+51456,
+339830
+],
+[
+"Employment-Based"
+],
+[
+"I-129",
+"Petition for a Nonimmigrant Worker",
+112000,
+118500,
+9300,
+127800,
+121000,
+"4.6",
+341000,
+352000,
+27100,
+379100,
+121000
+],
+[
+"I-140",
+"Immigrant Petition for Alien Workers",
+36000,
+25500,
+6200,
+31700,
+166000,
+7.9,
+104000,
+80100,
+17900,
+98000,
+166000
+],
+[
+"I-765",
+"Application for Employment Authorization (Adjustment of Status)",
+153039,
+46405,
+35767,
+82172,
+671362,
+6.4,
+462314,
+147956,
+70239,
+218195,
+671362
+],
+[
+"I-765",
+"Application for Employment Authorization (All Other)",
+212410,
+125656,
+19787,
+145443,
+1098913,
+3.3,
+569566,
+376284,
+47957,
+424241,
+1098913
+],
+[
+"I-924",
+"Application For Regional Center Designation",
+"-",
+"-",
+"-",
+"-",
+139,
+"N/A",
+"-",
+"-",
+"-",
+"-",
+139
+],
+[
+"Other"
+],
+[
+"I-539",
+"Application to Extend/Change Nonimmigrant Status",
+61000,
+52000,
+7400,
+59400,
+190000,
+"D",
+170000,
+150000,
+21000,
+171000,
+190000
+],
+[
+"Lawful Permanent Residence"
+],
+[
+"I-485",
+"Application to Register Permanent Residence or Adjust Status (Family)",
+95175,
+54678,
+12240,
+66918,
+611067,
+7,
+325552,
+220547,
+36384,
+256931,
+611067
+],
+[
+"I-485",
+"Application to Register Permanent Residence or Adjust Status (Employment)",
+97501,
+42076,
+3160,
+45236,
+268408,
+6,
+210738,
+105979,
+7953,
+113932,
+268408
+],
+[
+"Citizenship and Naturalization"
+],
+[
+"N-400",
+"Application for Naturalization (All Other)",
+140179,
+54974,
+12591,
+67565,
+727371,
+9.5,
+523605,
+279685,
+45482,
+325167,
+727371
+],
+[
+"Total - All Forms",
+"",
+2900000,
+2000000,
+190000,
+2190000,
+11000000,
+"",
+"",
+"",
+"",
+"",
+""
+],
+[
+"Notes:"
+],
+[
+"1) The report reflects the most up-to-date estimate available at the time the data is extracted."
+]
+]

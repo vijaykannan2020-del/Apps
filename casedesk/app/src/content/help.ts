@@ -1,6 +1,7 @@
 // Help topics (Settings → Help, the "?" buttons, and "Learn more" on each tab's first-time card).
 // Plain English, short paragraphs. General information, not legal advice.
 export type HelpTopic = { id: string; title: string; sub: string; body: string[]; steps?: string[] };
+import { EXPECT_HELP } from '../core/expect';
 
 export const HELP: HelpTopic[] = [
   {
@@ -105,6 +106,7 @@ export const HELP: HelpTopic[] = [
       'Dependents’ status follows the principal’s. Talk to an attorney as early as you can — options narrow as the grace period runs out.',
     ],
   },
+  EXPECT_HELP,
 ];
 
 export const helpTopic = (id?: string) => HELP.find((h) => h.id === id);
