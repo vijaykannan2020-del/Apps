@@ -61,7 +61,7 @@ export function useVoteColors() {
 }
 
 /** ▲ 24 ▽ — one pill; the arrow you picked is coloured, tapping it again clears the vote. */
-export function VoteCluster({ score, myVote, onVote, disabled, small }: { score: number; myVote: Dir; onVote: (d: 1 | -1) => void; disabled?: boolean; small?: boolean }) {
+export function VoteCluster({ score, myVote, onVote, disabled, small, noDown }: { score: number; myVote: Dir; onVote: (d: 1 | -1) => void; disabled?: boolean; small?: boolean; noDown?: boolean }) {
   const t = useTheme();
   const c = useVoteColors();
   const tone = myVote === 1 ? c.up : myVote === -1 ? c.down : t.text2;
@@ -76,7 +76,7 @@ export function VoteCluster({ score, myVote, onVote, disabled, small }: { score:
     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: small ? 'transparent' : t.fill, borderRadius: 22 }}>
       {btn(1)}
       <Text accessibilityLabel={`${score} points`} style={{ color: tone, fontSize: small ? 13.5 : 14.5, fontWeight: '700', minWidth: 16, textAlign: 'center', fontVariant: ['tabular-nums'] }}>{fmtCount(score)}</Text>
-      {btn(-1)}
+      {noDown ? <View style={{ width: 12 }} /> : btn(-1)}
     </View>
   );
 }

@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { COMMUNITY_DISCLAIMER, LIMITS, MAX_TAGS, OFFICES, POST_TYPES, STEPS, TAGS, draftProblem, orderedTags, privacyProblem, timelineProblem, timelineTitle, toggleTag, type PostType, type TimelineData, type TimelineStep } from '../core/community';
+import { COMMUNITY_DISCLAIMER, composePrefill, LIMITS, MAX_TAGS, OFFICES, POST_TYPES, STEPS, TAGS, draftProblem, orderedTags, privacyProblem, timelineProblem, timelineTitle, toggleTag, type PostType, type TimelineData, type TimelineStep } from '../core/community';
 import { createPost, editPost, getPost, type NewPost } from '../data/communityApi';
 import { Button, ChipToggle, Chips, DateField, Field, Hint, LinkButton, Note, Row, Group, Screen, SectionHeader, SelectField, Spinner, Switch, T, font, useSheet, useToast, TourTarget, useTour } from '../ui';
 import { back, replace } from './common';
@@ -16,11 +16,12 @@ const opt = (list: readonly string[]) => list.map((v) => ({ value: v, label: v }
 const blankSteps = (): TimelineStep[] => [{ label: 'Filed', date: '' }, { label: 'Approved', date: '' }];
 
 export function CommunityComposeScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  // type / tag: a Start a conversation prompt (v2.9) opens New post with these picked
+  const { id, type: pType, tag: pTag } = useLocalSearchParams<{ id?: string; type?: string; tag?: string }>();
   const fam = useFamilyCommunityTags();
   const sheet = useSheet();
   const toast = useToast();
-  const [type, setType] = useState<PostType>('question');
+  const [type, setType] = useState<PostType>(() => (id ? 'question' : composePrefill({ type: pType, tag: pTag }, []).type));
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -35,7 +36,7 @@ export function CommunityComposeScreen() {
   const tour = useTour('communityCompose', undefined, { auto: false });
 
   useEffect(() => {
-    if (!id) { setTags(fam.slice(0, 1)); return; }
+    if (!id) { setTags(composePrefill({ type: pType, tag: pTag }, fam).tags); return; }
     getPost(String(id)).then((r) => {
       setType(r.post.type); setTitle(r.post.title); setBody(r.post.body); setTags(r.post.tags); setIsRepost(!!r.post.repost);
       if (r.post.poll) setOptions(r.post.poll.options.map((o) => o.text));

@@ -3,9 +3,9 @@
 // menu (edit / delete own; report / block others — App Review 1.2).
 import React, { useState } from 'react';
 import { Share, View } from 'react-native';
-import { applyVote, nextVote, privacyProblem, shareText, type Dir } from '../core/community';
+import { WELCOME_POINTS, WELCOME_START, applyVote, nextVote, privacyProblem, shareText, type Dir } from '../core/community';
 import { deletePost, repost, savePost, vote, votePoll, type Post, type PostSummary } from '../data/communityApi';
-import { Button, Field, SheetButtons, T, Why, font, useSheet, useTheme, useToast } from '../ui';
+import { Button, Field, Icon, SheetButtons, T, Why, font, useSheet, useTheme, useToast } from '../ui';
 import { back, go } from './common';
 import { BlockSheet, ReportSheet, useCommunityGate } from './communityAccount';
 import { ActionButton, AuthorLine, ConfirmSheet, EmbedCard, MenuSheet, PollCard, PostShell, TagChip, Tags, TimelineCard, TypeChip, VoteCluster, type MenuItem } from './communityUi';
@@ -90,12 +90,12 @@ export function PostActions<P extends AnyPost>({ p, onChange, onRemoved, onComme
   const t = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, marginHorizontal: -8 }}>
-      <VoteCluster score={p.score} myVote={p.myVote} onVote={a.doVote} disabled={p.mine || p.deleted} />
+      <VoteCluster score={p.score} myVote={p.myVote} onVote={a.doVote} disabled={p.mine || p.deleted} noDown={p.official} />
       <ActionButton icon="comment" text={`${p.comments}`} label={`${p.comments} comments`} onPress={onComment ?? (() => go(`/community/post/${p.id}`))} />
       <View style={{ flex: 1 }} />
       {p.deleted ? null : <ActionButton icon="share" label="Share or repost" onPress={a.doShare} />}
       {p.deleted ? null : <ActionButton icon={p.saved ? 'bookmarkOn' : 'bookmark'} label={p.saved ? 'Remove from saved' : 'Save post'} active={p.saved} color={p.saved ? t.inkAmber : undefined} onPress={a.doSave} />}
-      {p.deleted ? null : <ActionButton icon="more" label="More: report, block, edit or delete" onPress={a.doMenu} />}
+      {p.deleted || p.official ? null : <ActionButton icon="more" label="More: report, block, edit or delete" onPress={a.doMenu} />}
     </View>
   );
 }
@@ -123,10 +123,39 @@ export function PostTags({ p }: { p: AnyPost }) {
   );
 }
 
+/** v2.9 pinned Welcome card (server post flagged pinned): pin + team byline, title, the three rules, how to start. */
+export function PinnedCard({ p, onChange }: { p: PostSummary; onChange: (p: PostSummary) => void }) {
+  const t = useTheme();
+  const open = () => go(`/community/post/${p.id}`);
+  return (
+    <PostShell onPress={open} label={`Pinned: ${p.title}, from the ${p.author.name}. Opens the post`} style={{ borderWidth: 1, borderColor: t.outline }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Icon name="pinned" size={13} color={t.text2} />
+        <T tone="text2" style={[font.caption, { fontWeight: '600' }]}>Pinned</T>
+        <T tone="text2" style={font.caption}>·</T>
+        <T tone="text2" numberOfLines={1} style={[font.caption, { flexShrink: 1 }]}>{p.author.name}</T>
+        <Icon name="seal" size={13} color={t.inkAccent} />
+      </View>
+      <T style={{ fontSize: 16.5, lineHeight: 22, fontWeight: '600', marginTop: 8, color: t.text }}>{p.title}</T>
+      <View style={{ marginTop: 6, gap: 4 }}>
+        {WELCOME_POINTS.map((w) => (
+          <View key={w.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name={w.icon} size={15} color={t.text2} />
+            <T tone="text2" style={[font.foot, { flex: 1 }]}>{w.text}</T>
+          </View>
+        ))}
+      </View>
+      <T style={[font.caption, { marginTop: 8, fontWeight: '600' }]}>{WELCOME_START}</T>
+      <PostActions p={p} onChange={onChange} onComment={open} />
+    </PostShell>
+  );
+}
+
 /** Feed card: avatar, name · flair · time, title, 3-line preview, tags, action row. */
 export function PostCard({ p, onChange, onRemoved }: { p: PostSummary; onChange: (p: PostSummary) => void; onRemoved?: (id: string) => void }) {
   const t = useTheme();
   const open = () => go(`/community/post/${p.id}`);
+  if (p.pinned) return <PinnedCard p={p} onChange={onChange} />;
   return (
     <PostShell onPress={open} label={`${p.title}. ${p.score} points, ${p.comments} comments, by ${p.author.name}`}>
       <AuthorLine a={p.author} at={p.createdAt} edited={p.editedAt} />

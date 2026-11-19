@@ -9,7 +9,7 @@ import { asyncKV } from '../native/asyncKV';
 
 import type { Dir, PostType, TimelineData } from '../core/community';
 
-export type Author = { id: string | null; name: string; avatar?: string | null; flair?: string | null; deleted?: boolean };
+export type Author = { id: string | null; name: string; avatar?: string | null; flair?: string | null; deleted?: boolean; official?: boolean };
 export type Stats = { karma: number; postKarma: number; commentKarma: number; posts: number; comments: number };
 export type CommunityUser = { id: string; name: string; avatar?: string | null; flair?: string | null; provider: string; createdAt: string; rulesAccepted: boolean; rulesVersion: number; banned: boolean; notify: boolean; unread?: number } & Partial<Stats>;
 export type Poll = { options: { text: string; votes: number }[]; total: number; myVote: number | null };
@@ -18,6 +18,8 @@ export type PostSummary = {
   id: string; type: PostType; title: string; excerpt: string; tags: string[]; author: Author; createdAt: string; editedAt: string | null;
   score: number; myVote: Dir; voted: boolean; comments: number; answers: number; accepted: boolean; saved: boolean; mine: boolean; hidden: 'review' | null; deleted: boolean;
   timeline: TimelineData | null; poll: Poll | null; repost: Embed | null;
+  /** v2.9 server: the Welcome post (older servers leave these out). */
+  pinned?: boolean; official?: boolean;
 };
 export type Post = PostSummary & { body: string };
 export type Comment = { id: string; postId: string; parentId: string | null; depth: number; body: string; author: Author; createdAt: string; editedAt: string | null; score: number; up: number; down: number; myVote: Dir; voted: boolean; accepted: boolean; op: boolean; mine: boolean; hidden: 'review' | null; deleted: boolean };

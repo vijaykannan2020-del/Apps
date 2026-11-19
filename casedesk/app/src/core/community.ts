@@ -359,3 +359,37 @@ export function googleRedirect(o: { platform: string; iosClientId?: string | nul
   if (o.allowBundleScheme && o.bundleId) return { show: true, redirectUri: `${o.bundleId}:/oauthredirect` };
   return { show: false };
 }
+
+// ---------- v2.9: pinned Welcome card and conversation starters ----------
+/** The three rules on the pinned Welcome card (the full text is the server's Welcome post). */
+export const WELCOME_POINTS: { icon: string; text: string }[] = [
+  { icon: 'lock', text: 'No receipt, A or passport numbers' },
+  { icon: 'users', text: 'Be kind' },
+  { icon: 'info', text: 'Not legal advice' },
+];
+export const WELCOME_START = 'Ask, share a timeline or answer someone.';
+/** Under the first post when there is no Welcome card (older server, filtered feed). */
+export const DISCLAIMER_CAPTION = 'Answers are from other members, not lawyers. Not legal advice.';
+export type Starter = { id: string; title: string; icon: string; type: PostType; tag: string };
+/** Start a conversation: each one opens New post with this type and tag picked. */
+export const STARTERS: Starter[] = [
+  { id: 'stamping', title: 'Share your stamping experience', icon: 'plane', type: 'discussion', tag: 'Stamping' },
+  { id: 'extension', title: 'Ask about H-1B or L-1 extension timing', icon: 'help', type: 'question', tag: 'I-129' },
+  { id: 'gc', title: 'Post your green card timeline', icon: 'cal', type: 'timeline', tag: 'Green card' },
+  { id: 'poll', title: 'Poll: how long did your EAD take?', icon: 'chart', type: 'poll', tag: 'I-765' },
+];
+/** Fewer real posts than this (the pinned post does not count): show the starters under the feed. */
+export const STARTERS_BELOW = 5;
+export const showStarters = (o: { posts: { pinned?: boolean }[] | null; query: string; error?: string }) => !!o.posts && !o.query && !o.error && o.posts.filter((p) => !p.pinned).length < STARTERS_BELOW;
+/** Compose deep link params → the type and first tags of a new post (unknown values are ignored). */
+export function composePrefill(p: { type?: string; tag?: string }, fam: string[]): { type: PostType; tags: string[] } {
+  const type = POST_TYPES.some((x) => x.id === p.type) ? (p.type as PostType) : 'question';
+  const tag = p.tag && ALL_TAGS.includes(p.tag) ? [p.tag] : [];
+  return { type, tags: [...new Set([...tag, ...fam.slice(0, 1)])].slice(0, MAX_TAGS) };
+}
+/** "Hot", "New", "Top · Week", "Unanswered" for the sort menu button. */
+export function sortLabel(sort: SortId, range: TopRange): string {
+  const s = SORTS.find((x) => x.id === sort)?.label ?? 'Hot';
+  if (sort !== 'top') return s;
+  return `Top · ${range === 'day' ? 'Today' : range === 'week' ? 'Week' : 'All time'}`;
+}
