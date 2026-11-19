@@ -35,7 +35,7 @@ Items marked **CONFIRM** need the owner before submission; the full list is at t
 >
 > TRACK USCIS CASES
 > • Add receipt numbers from your I-797C notices, by person
-> • Check status on uscis.gov in one tap: the app copies your receipt number and opens the official site; paste the result back and the status, date and history update
+> • Check status on uscis.gov inside the app, or sync a case you filed online with myUSCIS (you sign in on USCIS’s own page) — see changes and silent updates since your last check
 > • Key dates for biometrics, interviews and RFE deadlines
 >
 > ADD DOCUMENTS IN SECONDS
@@ -53,7 +53,7 @@ Items marked **CONFIRM** need the owner before submission; the full list is at t
 >
 > PRIVATE BY DESIGN
 > • No account, no ads, no analytics, no tracking
-> • Your documents, names and receipt numbers never leave your phone
+> • Your documents and names never leave your phone (receipt numbers only for the optional Live check)
 > • Optional encrypted backups to your own iCloud or a file, locked with your password
 > • Face ID lock
 >
@@ -94,12 +94,15 @@ With Community Q&A and Cases like mine merged (integ), the answer is **no longer
 | **User Content → Other User Content** | Community questions, answers, display name, reports | Yes | No | App Functionality |
 | **Identifiers → Device ID** | Only if “Notify me of answers” is on (Expo push token) | Yes | No | App Functionality |
 | **Other Data** (anonymous case timeline: form, office code, dates, outcome, premium, class) | Only if “Add my case anonymously” is on | **No** (random id made on the phone, no account) | No | App Functionality |
+| **Other Data → receipt numbers** (v2.6 Live check) | Only if Live check is offered (server has production USCIS keys) and the user taps Check now or turns on automatic checks | **No** (no account, not stored or logged; answer cached in server memory up to 3 h) | No | App Functionality |
+
+Apple counts data sent off the device and processed in real time without storage as not collected; we still declare receipt numbers for Live check to be safe. If Live check stays hidden (no production keys), this row can be dropped. myUSCIS sync and the in-app uscis.gov check send nothing to our server (the WebView talks to USCIS directly; data is saved on the device only).
 
 Everything else stays as before:
 
 - People, documents, files, cases, receipt numbers and settings are stored only on the device (`src/data/store.ts`). OCR runs on the device (`src/native/ocr.ts`).
 - Public-data GETs (`src/data/api.ts`): `/api/news`, `/api/visa-bulletin`, `/api/processing-times`, `/api/visa-waits`, `/api/wage*` and `/api/employer` (only what the user types), and `/api/expect` (form, office code, received date, premium, class — `src/data/expect.ts`). Processed in real time, not stored → not “collected”.
-- No receipt number is ever sent to our server. USCIS case status is checked by the user on uscis.gov in Safari.
+- Receipt numbers go to our server only for Live check (opt-in, hidden unless the server reports `uscisMode: production` in `/api/health`). The server redacts receipts from error logs (`redactPath`, `server/src/uscis.mjs`). Other checks (in-app uscis.gov, in-app myUSCIS sign-in, Safari + paste, paste/import) never reach our server.
 - Email: never stored (`server/src/auth.mjs` keeps only a hash of the provider’s user id).
 - Backups go only to the user’s own iCloud or a file. Diagnostics are shared only by the user.
 - No third-party analytics, ads or crash SDKs.
