@@ -27,6 +27,19 @@ export function shouldAutoShow(id: string, o: { ready: boolean; seen?: readonly 
   return !isSeen(o.seen, id);
 }
 
+/** The one tip a new user sees (on Home): where the tips live. */
+export const HOME_TIP: TourStep = { target: 'help', title: 'Tips', text: 'Tap ? on any screen for tips.' };
+
+/**
+ * What auto-shows on a first visit (v2.7, calmer help). By default tips are OFF: only Home shows,
+ * once, the single "Tap ? on any screen for tips". With Settings → Help → "Show tips on each
+ * screen" on (`all`), every screen shows its own tips once, as before. The ? always replays them.
+ */
+export function autoSteps(id: string, steps: readonly TourStep[], all?: boolean): TourStep[] {
+  if (all) return [...steps];
+  return id === 'home' ? [HOME_TIP] : [];
+}
+
 /** Tours are short: 2–4 steps. Extra steps are dropped; empty texts removed. */
 export function normalizeSteps(steps: readonly TourStep[]): TourStep[] {
   return steps.filter((s) => s && s.text && s.text.trim()).slice(0, MAX_STEPS);

@@ -8,7 +8,7 @@ const helpStep = (text = 'Tap ? any time to see these tips again and open the he
 
 export const TOURS: Record<string, TourDef> = {
   home: { help: 'overview', steps: [
-    { target: 'attention', title: 'Needs attention', text: 'The most urgent items for your family come first. Tap one to see what to do.' },
+    { target: 'hero', title: 'Most urgent first', text: 'The big card is the one thing that matters most right now. The two below are the next most useful. Tap any of them.' },
     { target: 'family', title: 'Your family', text: 'Each person’s status and how long they can stay. Tap a name for their page.' },
     { target: 'updates', title: 'Updates', text: 'Updates for your family’s visa types first, then everything else — filter by topic right here.' },
     helpStep(),

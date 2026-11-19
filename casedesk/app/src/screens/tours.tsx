@@ -12,7 +12,7 @@ export function Tours({ children }: { children: React.ReactNode }) {
   const f = useFamily();
   const onSeen = useCallback((id: string) => { f.actions.updateSettings({ toursSeen: markSeen(f.settings.toursSeen, id) }).catch(() => {}); }, [f.actions, f.settings.toursSeen]);
   return (
-    <TourProvider seen={f.settings.toursSeen ?? []} ready={f.ready && f.people.length > 0} off={f.settings.toursOff} onSeen={onSeen} onHelp={(topic) => go(`/help/${topic}`)}>
+    <TourProvider seen={f.settings.toursSeen ?? []} ready={f.ready && f.people.length > 0} off={f.settings.toursOff} all={f.settings.toursAll} onSeen={onSeen} onHelp={(topic) => go(`/help/${topic}`)}>
       {children}
     </TourProvider>
   );

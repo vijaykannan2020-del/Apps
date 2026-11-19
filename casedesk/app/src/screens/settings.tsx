@@ -9,7 +9,7 @@ import { useFamily } from '../data/FamilyProvider';
 import { canUseBiometrics, authenticate } from '../native/device';
 import { askNotificationPermission } from '../native/reminders';
 import { Button, ChipToggle, Chips, Group, Hint, LargeTitle, Row, Screen, SectionHeader, Segmented, SheetButtons, Switch, T, Why, font, useLayout, useSheet, useToast, Columns, TourButton, TourTarget, useTour } from '../ui';
-import { go, replace } from './common';
+import { go, LegalFooter, replace } from './common';
 import { useThemeChoice } from './themeChoice';
 import { Confirm } from './sheets';
 import { BackupSheet, DiagSheet, RestoreSheet, WipeSheet, leadText } from './profile';
@@ -36,7 +36,7 @@ export function SettingsTab() {
       <SectionHeader>Appearance &amp; privacy</SectionHeader>
       <Group>
         <Row icon={theme.value === 'light' ? 'sun' : 'moon'} title="Appearance">
-          <Segmented options={['System', 'Dark', 'Light']} value={theme.value[0].toUpperCase() + theme.value.slice(1)} onChange={(v) => theme.set(v.toLowerCase() as never)} />
+          <Segmented options={['System', 'Light', 'Dark']} value={theme.value[0].toUpperCase() + theme.value.slice(1)} onChange={(v) => theme.set(v.toLowerCase() as never)} />
         </Row>
         <Row icon="face" title="Face ID lock" subtitle="Also hides documents in the app switcher" trailing={<Switch value={!!f.settings.faceId} label="Face ID lock" onValueChange={async (on) => {
           if (on && !(await canUseBiometrics())) { toast('Set up Face ID or a passcode in iOS Settings first'); return; }
@@ -69,7 +69,8 @@ export function SettingsTab() {
         {HELP.slice(0, 8).map((h) => <Row key={h.id} icon="help" title={h.title} subtitle={h.sub} onPress={() => go(`/help/${h.id}`)} />)}
         <Row icon="play" title="How Immigration Wallet works" subtitle="A 4-screen tour" onPress={() => go('/tour')} />
         <Row icon="users" title="Example family" subtitle="Look around with made-up data (replaces what’s here)" chevron={false} onPress={() => sheet.open('Load the example family?', <Confirm body="Everything on this phone is replaced by a made-up H-1B family. Back up first if you need your data." action="Load example" onConfirm={() => { try { router.dismissAll(); } catch {} replace('/demo'); }} />)} />
-        <Row icon="bulb" title="Show all tips again" subtitle="The first-visit tips on every screen" chevron={false} onPress={async () => { await f.actions.updateSettings({ toursSeen: [], toursOff: false, helpSeen: [] }); toast('Tips will show again on each screen'); tour.start(); }} />
+        <Row icon="bulb" title="Show tips on each screen" subtitle="Off: tap ? on a screen when you want them" trailing={<Switch value={!!f.settings.toursAll} label="Show tips on each screen" onValueChange={(on) => { f.actions.updateSettings({ toursAll: on, toursOff: false }); toast(on ? 'Tips show once on each screen' : 'Tips off · tap ? any time'); }} />} />
+        <Row icon="refresh" title="Show all tips again" subtitle="Replays the tips on every screen once" chevron={false} onPress={async () => { await f.actions.updateSettings({ toursSeen: [], toursOff: false, toursAll: true, helpSeen: [] }); toast('Tips will show again on each screen'); tour.start(); }} />
       </Group></TourTarget>
       <SectionHeader>More</SectionHeader>
       <Group>
@@ -77,13 +78,12 @@ export function SettingsTab() {
         <Row icon="info" title="Diagnostics" subtitle="What the app did — send this if something goes wrong" chevron={false} onPress={() => sheet.open('Diagnostics', <DiagSheet />)} />
         <Row icon="shield" title="About Immigration Wallet" subtitle={`Version ${version} · data sources, privacy, licences`} onPress={() => go('/about')} />
       </Group>
-      <Hint center style={{ marginTop: 18 }}>{`Not affiliated with USCIS or any government agency. Rules checked ${fmt(RULES_CHECKED)}.`}</Hint>
+      <LegalFooter asOf={fmt(RULES_CHECKED)} />
     </>
   );
   return (
     <Screen tabRoot wide tour={tour} panes={{ left: <>
       <LargeTitle title="Settings" right={<TourButton />} />
-      <T tone="text2" style={[font.sub, { marginTop: 2 }]}>Your data stays on this phone.</T>
       {look}
     </>, right: <>{L.twoCol ? <View style={{ height: 70 }} /> : null}{help}</> }} />
   );

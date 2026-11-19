@@ -261,6 +261,7 @@ export type Settings = {
   icloudAsk?: boolean; // after a restore: ask "Turn on iCloud backup on this phone?"
   toursSeen?: string[]; // first-visit tips already shown (screen ids)
   toursOff?: boolean; // "Skip all tips"
+  toursAll?: boolean; // v2.7: "Show tips on each screen" (off by default — only Home's one tip auto-shows)
   notifAskedAt?: string; // when the notification explainer was shown
   alerts?: { cases?: boolean; bulletin?: boolean; docs?: boolean }; // which alerts (default all on)
   bulletinSeen?: string; // last Visa Bulletin month the app saw (for the new-bulletin alert)
