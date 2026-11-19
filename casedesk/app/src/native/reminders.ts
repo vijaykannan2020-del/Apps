@@ -1,6 +1,7 @@
 // Local notifications before each person's dates (N1). Re-scheduled from scratch after every save.
 // iOS keeps at most 64 pending notifications, so the nearest 60 are scheduled.
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
+import type { Alert as NotifyAlert, Perm } from '../core/notify';
 import { native } from './safe';
 import type { Person } from '../core/model';
 import type { PersonResult } from '../core/rules/engine';
@@ -19,6 +20,7 @@ export function reminderItems(people: Person[], records: Record<string, PersonRe
     const dates: [string, string | undefined][] = [
       ['passport expires', r?.passportExpiry], ['I-94 ends', r?.i94?.until], ['work permit ends', r?.ead?.expires],
       ['green card expires', r?.greenCard?.expires], ['approval ends', r?.petitionEnd], ['travel document ends', r?.advanceParole?.expires],
+      ['visa stamp expires', r?.visaStamp?.expires],
     ];
     for (const f of results[p.id]?.findings ?? []) if (f.date && (f.severity === 'act' || f.severity === 'review')) dates.push([f.title, f.date]);
     for (const k of keyDates.filter((x) => x.ownerId === p.id)) dates.push([k.label, k.date]);
@@ -61,4 +63,35 @@ export async function askNotificationPermission() {
   const N = native.notifications();
   try { if (N?.requestPermissionsAsync) { const r = await N.requestPermissionsAsync(); return !!r.granted; } } catch {}
   return false;
+}
+
+/** Permission state for Settings and the "ask at a useful moment" prompt. */
+export async function notificationPermission(): Promise<Perm> {
+  if (Platform.OS === 'web') return 'unavailable';
+  const N = native.notifications();
+  if (!N?.getPermissionsAsync) return 'unavailable';
+  try {
+    const p = await N.getPermissionsAsync();
+    if (p.granted || p.ios?.status === 3 /* provisional */) return 'granted';
+    if (p.status === 'denied' || p.canAskAgain === false) return 'denied';
+    return 'undetermined';
+  } catch { return 'unavailable'; }
+}
+
+/** Show an alert now (case status change, new Visa Bulletin). Silent no-op without permission. */
+export async function notifyNow(a: NotifyAlert): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  const N = native.notifications();
+  if (!N?.scheduleNotificationAsync) return false;
+  try {
+    const p = await N.getPermissionsAsync();
+    if (!p.granted) return false;
+    await N.scheduleNotificationAsync({ content: { title: a.title, body: a.body, data: { cd2alert: true, url: a.url } }, trigger: null });
+    return true;
+  } catch { return false; }
+}
+
+/** iOS Settings → Immigration Wallet (to allow notifications after "Don't Allow"). */
+export async function openNotificationSettings() {
+  try { await Linking.openSettings(); } catch {}
 }

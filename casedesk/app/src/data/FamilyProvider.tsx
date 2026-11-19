@@ -1,7 +1,7 @@
 // App-wide state: loads the store once, derives every person's record, the compliance results,
 // missing steps and the case list (all in src/core), and re-derives after every save.
 // Screens read from useFamily() and change things through `actions` — no logic in screens.
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Case, Document, Person, Settings } from '../core/model';
 import { DEFAULT_SETTINGS } from '../core/model';
 import { deriveRecord, type PersonRecord } from '../core/record';
@@ -18,7 +18,8 @@ import { fetchOr } from './api';
 import { bindDraft, draftFiles, restoreDraft, type Flow } from './flow';
 import { sweepOrphans } from '../native/files';
 import { referencedFiles } from '../core/files';
-import { reminderItems, scheduleReminders } from '../native/reminders';
+import { notifyNow, reminderItems, scheduleReminders } from '../native/reminders';
+import { alertOn, bulletinAlert, caseChanges, statusMap } from '../core/notify';
 import { useICloudAuto } from './icloudBackup';
 
 export type FamilyState = Snapshot & {
@@ -90,8 +91,25 @@ export function FamilyProvider({ children, store = appStore() }: { children: Rea
   useEffect(() => {
     if (!ready || !snap.people.length) return;
     const kd = derived.caseList.flatMap((c) => c.keyDates.map((k) => ({ ownerId: c.ownerId, label: `${c.form ?? 'Case'}: ${k.label}`, date: k.date, caseId: c.id })));
-    scheduleReminders(reminderItems(derived.people, derived.records, derived.results, kd)).catch(() => {});
+    scheduleReminders(alertOn(snap.settings, 'docs') ? reminderItems(derived.people, derived.records, derived.results, kd) : []).catch(() => {});
   }, [ready, derived, snap.people.length]);
+
+  // Alerts (v2.3): a case's status changed (paste-back, pick, or any later check) …
+  const lastStatus = useRef<Record<string, string> | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    const now = derived.caseList.map((c) => ({ id: c.id, status: c.status, form: c.form, ownerName: derived.people.find((p) => p.id === c.ownerId)?.name }));
+    const alerts = caseChanges(lastStatus.current, now);
+    lastStatus.current = statusMap(now);
+    if (alertOn(snap.settings, 'cases')) for (const a of alerts) notifyNow(a).catch(() => {});
+  }, [ready, derived.caseList]);
+  // … and a new monthly Visa Bulletin arrived from the server.
+  useEffect(() => {
+    if (!ready) return;
+    const r = bulletinAlert(snap.settings.bulletinSeen, bulletin.data.month, bulletin.live);
+    if (r.seen && r.seen !== snap.settings.bulletinSeen) store.updateSettings({ bulletinSeen: r.seen }).catch(() => {});
+    if (r.alert && alertOn(snap.settings, 'bulletin')) notifyNow(r.alert).catch(() => {});
+  }, [ready, bulletin.live, bulletin.data.month]);
 
   const value = useMemo<FamilyState>(() => ({ ...snap, ...derived, ready, store, actions, bulletin }), [snap, derived, ready, store, actions, bulletin]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
