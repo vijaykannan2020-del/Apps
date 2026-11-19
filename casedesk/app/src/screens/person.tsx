@@ -33,6 +33,7 @@ import { newId } from '../data/store';
 import { askNotificationPermission } from '../native/reminders';
 import { leadText } from './profile';
 import { WalletCardRow } from './wallet';
+import { ShareRow } from './share';
 
 export function PersonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -162,6 +163,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
       </Group>
 
       <Counters p={p} />
+      <ShareRow pid={p.id} section />
 
       {(you || p.isMain) && f.people.length > 1 ? (
         <>

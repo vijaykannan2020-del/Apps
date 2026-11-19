@@ -43,6 +43,7 @@ export function Welcome() {
       <Footer column>
         <Button title="Get started" onPress={() => router.push('/about-you' as never)} block={false} />
         <Button kind="ghost" icon="restore" title="Restore from a backup" onPress={() => router.push('/restore' as never)} />
+        <Button kind="ghost" icon="download" title="Import documents shared with me" onPress={() => router.push('/share-import' as never)} />
         {Platform.OS === 'ios' ? <Button kind="ghost" icon="backup" title="Restore from iCloud" onPress={() => router.push('/restore-icloud' as never)} /> : null}
         <Pressable onPress={() => router.push('/about' as never)} accessibilityRole="link" accessibilityLabel={`${DISCLAIMER_LINE} Read more`} style={{ minHeight: MIN_TOUCH, justifyContent: 'center' }}>
           <T tone="text2" style={[font.caption, { textAlign: 'center' }]}>{DISCLAIMER_LINE} <T tone="accent" style={[font.caption, { fontWeight: '600' }]}>Read more</T></T>

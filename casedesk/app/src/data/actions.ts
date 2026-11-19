@@ -48,13 +48,13 @@ export function makeActions(store: Store) {
     },
     async updateDoc(id: string, patch: Partial<Document>) {
       const all = await store.docs();
-      await store.saveDocs(all.map((d) => (d.id === id ? { ...d, ...patch, fields: { ...d.fields, ...(patch.fields ?? {}) } } : d)));
+      await store.saveDocs(all.map((d) => (d.id === id ? { ...d, ...patch, fields: { ...d.fields, ...(patch.fields ?? {}) }, updatedAt: nowIso() } : d)));
     },
     async replaceDoc(id: string, next: Pick<Document, 'type' | 'fields' | 'files'>) {
       const all = await store.docs();
       const old = all.find((d) => d.id === id);
       for (const f of old?.files ?? []) if (!next.files?.some((n) => n.file === f.file)) deleteFile(f);
-      await store.saveDocs(all.map((d) => (d.id === id ? { ...d, ...next, edited: [] } : d)));
+      await store.saveDocs(all.map((d) => (d.id === id ? { ...d, ...next, edited: [], updatedAt: nowIso() } : d)));
     },
     async deleteDoc(id: string) {
       const all = await store.docs();

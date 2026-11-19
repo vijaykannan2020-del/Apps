@@ -85,13 +85,57 @@ export function randomBytes(n: number): Uint8Array {
 type Header = { v: 1; kdf: 'scrypt'; N: number; r: number; p: number; salt: string; nonce: string; createdAt: string };
 export type Progress = (fraction: number) => void;
 
+/** The sealed-file format shared by backups (.casedesk) and family shares (.iwshare):
+ *  MAGIC line, JSON header line, base64 ciphertext. scrypt(secret, salt) -> AES-256-GCM.
+ *  bindHeader: the exact header line is also authenticated (GCM associated data), so changing any
+ *  header field (for a share: the expiry date) makes the file fail to open. Backups keep
+ *  bindHeader off so files made by older versions still restore. */
+export type SealOptions = { kdf?: typeof KDF; onProgress?: Progress; extra?: Record<string, string | number>; bindHeader?: boolean };
+
+export async function sealText(magic: string, payload: string, secret: string, o: SealOptions = {}): Promise<string> {
+  const kdf = o.kdf ?? KDF;
+  const salt = randomBytes(16), nonce = randomBytes(12);
+  const key = await scryptAsync(utf8(secret), salt, { ...kdf, onProgress: o.onProgress });
+  const header: Header = { v: 1, kdf: 'scrypt', N: kdf.N, r: kdf.r, p: kdf.p, salt: toBase64(salt), nonce: toBase64(nonce), createdAt: new Date().toISOString(), ...(o.extra ?? {}) } as Header;
+  const head = JSON.stringify(header);
+  const ct = o.bindHeader ? gcm(key, nonce, utf8(`${magic}\n${head}`)).encrypt(utf8(payload)) : gcm(key, nonce).encrypt(utf8(payload));
+  return `${magic}\n${head}\n${toBase64(ct)}`;
+}
+
+/** Split a sealed file into its header line (raw text, as authenticated) and parsed header. */
+export function splitSealed(text: string, magic: string, notOurs: string): { head: string; header: Header & Record<string, unknown>; body: string } {
+  const a = text.indexOf('\n'), b = a < 0 ? -1 : text.indexOf('\n', a + 1);
+  if (a < 0 || b < 0 || text.slice(0, a).replace(/\r$/, '') !== magic) throw new Error(notOurs);
+  const head = text.slice(a + 1, b);
+  let header: Header & Record<string, unknown>;
+  try { header = JSON.parse(head); } catch { throw new Error(notOurs); }
+  return { head, header, body: text.slice(b + 1) };
+}
+
+/** Sanity limits on the KDF parameters read from a file, so a crafted file can't make the phone
+ *  run out of memory or spin for minutes before the code is even checked. */
+export function checkKdf(h: { N: number; r: number; p: number }) {
+  const ok = Number.isInteger(h.N) && h.N >= 2 ** 10 && h.N <= 2 ** 18 && (h.N & (h.N - 1)) === 0 && Number.isInteger(h.r) && h.r >= 1 && h.r <= 16 && Number.isInteger(h.p) && h.p >= 1 && h.p <= 4;
+  if (!ok) throw new Error('This file isn’t valid');
+}
+
+export async function openSealed(text: string, magic: string, secret: string, o: { onProgress?: Progress; bindHeader?: boolean; notOurs: string; wrong: string }): Promise<string> {
+  const { head, header: h, body } = splitSealed(text, magic, o.notOurs);
+  if (h.v !== 1 || h.kdf !== 'scrypt') throw new Error('This file was made by a newer Immigration Wallet — update the app first');
+  if (o.bindHeader) checkKdf(h);
+  const key = await scryptAsync(utf8(secret), fromBase64(h.salt), { N: h.N, r: h.r, p: h.p, dkLen: 32, onProgress: o.onProgress });
+  try {
+    const nonce = fromBase64(h.nonce);
+    const c = o.bindHeader ? gcm(key, nonce, utf8(`${magic}\n${head}`)) : gcm(key, nonce);
+    return fromUtf8(c.decrypt(fromBase64(body)));
+  } catch {
+    throw new Error(o.wrong);
+  }
+}
+
 export async function encryptBackup(payload: string, password: string, onProgress?: Progress, kdf = KDF): Promise<string> {
   if (password.length < 8) throw new Error('Use at least 8 characters');
-  const salt = randomBytes(16), nonce = randomBytes(12);
-  const key = await scryptAsync(utf8(password), salt, { ...kdf, onProgress });
-  const ct = gcm(key, nonce).encrypt(utf8(payload));
-  const header: Header = { v: 1, kdf: 'scrypt', N: kdf.N, r: kdf.r, p: kdf.p, salt: toBase64(salt), nonce: toBase64(nonce), createdAt: new Date().toISOString() };
-  return `${MAGIC}\n${JSON.stringify(header)}\n${toBase64(ct)}`;
+  return sealText(MAGIC, payload, password, { kdf, onProgress });
 }
 
 export function readHeader(text: string): Header {
@@ -103,14 +147,8 @@ export function readHeader(text: string): Header {
 }
 
 export async function decryptBackup(text: string, password: string, onProgress?: Progress): Promise<string> {
-  const h = readHeader(text);
-  const body = text.slice(text.indexOf('\n', text.indexOf('\n') + 1) + 1);
-  const key = await scryptAsync(utf8(password), fromBase64(h.salt), { N: h.N, r: h.r, p: h.p, dkLen: 32, onProgress });
-  try {
-    return fromUtf8(gcm(key, fromBase64(h.nonce)).decrypt(fromBase64(body)));
-  } catch {
-    throw new Error('Wrong password, or the file is damaged');
-  }
+  readHeader(text);
+  return openSealed(text, MAGIC, password, { onProgress, notOurs: 'This isn’t an Immigration Wallet backup file', wrong: 'Wrong password, or the file is damaged' });
 }
 
 /** What's inside a backup (the payload, after decrypting). Files are base64 by document file name. */

@@ -12,7 +12,35 @@
       "bundleIdentifier": "com.vijaykannan.casedesk",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSSupportsOpeningDocumentsInPlace": false,
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Immigration Wallet share",
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Owner",
+            "LSItemContentTypes": [
+              "com.vijaykannan.casedesk.share"
+            ]
+          }
+        ],
+        "UTExportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.vijaykannan.casedesk.share",
+            "UTTypeDescription": "Immigration Wallet share",
+            "UTTypeConformsTo": [
+              "public.data"
+            ],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": [
+                "iwshare"
+              ],
+              "public.mime-type": [
+                "application/x-immigration-wallet-share"
+              ]
+            }
+          }
+        ]
       },
       "requireFullScreen": false,
       "appleTeamId": "95A592GEVD",
