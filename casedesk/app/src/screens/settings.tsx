@@ -8,6 +8,7 @@ import { Linking, Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fmt } from '../core/dates';
 import { RULES_CHECKED } from '../core/rules/catalog';
+import { rerunProgress } from '../core/onboarding';
 import { useFamily } from '../data/FamilyProvider';
 import { canUseBiometrics, authenticate } from '../native/device';
 import { askNotificationPermission } from '../native/reminders';
@@ -104,6 +105,7 @@ export function SettingsScreen() {
         <SectionHeader>Help</SectionHeader>
         <TourTarget id="helpsec"><Group>
           <Row icon="help" iconPastel="blush" title="Help topics" subtitle={`${HELP.length} short guides`} onPress={() => go('/help')} />
+          <Row icon="list" iconPastel="blush" title="Run setup again" subtitle="Keeps your data and fills the gaps" onPress={async () => { await f.actions.updateSettings({ setup: rerunProgress() }); go('/setup', { mode: 'rerun' }); }} />
           <Row icon="play" iconPastel="blush" title="How Immigration Wallet works" subtitle="A 4-screen tour" onPress={() => go('/tour')} />
           <Row icon="users" iconPastel="blush" title="Example family" subtitle="Look around with made-up data" chevron={false} onPress={() => sheet.open('Load the example family?', <Confirm body="Everything on this phone is replaced by a made-up H-1B family. Back up first if you need your data." action="Load example" onConfirm={() => { try { router.dismissAll(); } catch {} replace('/demo'); }} />)} />
           <Row icon="bulb" iconPastel="blush" title="Show tips on every screen" subtitle="Off: only the harder screens show tips; tap ? anywhere" trailing={<Switch value={!!f.settings.toursAll} label="Show tips on every screen" onValueChange={(on) => { f.actions.updateSettings({ toursAll: on, toursOff: false }); toast(on ? 'Tips show once on every screen' : 'Tips only on the harder screens'); }} />} />

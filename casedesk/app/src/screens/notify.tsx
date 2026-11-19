@@ -51,13 +51,14 @@ export function NotifyExplainer({ onDone }: { onDone?: (granted: boolean) => voi
   );
 }
 
-/** Mounted once (app/_layout): after the first case or document, show the explainer once. */
+/** Mounted once (app/_layout): after the first case or document, show the explainer once. Not during the
+ *  onboarding (v3.0), which has its own Alerts step. */
 export function NotifyPrompt() {
   const f = useFamily(); const sheet = useSheet();
   const touring = useTourActive();
   const [perm] = usePermission();
   const shown = useRef(false);
-  const want = !!perm && f.ready && shouldAskNotifications({ perm, settings: f.settings, docs: f.docs.length, cases: f.cases.length });
+  const want = !!perm && f.ready && !!f.settings.setupDone && !(f.settings.setup && !f.settings.setup.later) && shouldAskNotifications({ perm, settings: f.settings, docs: f.docs.length, cases: f.cases.length });
   useEffect(() => {
     if (!want || touring || shown.current) return;
     const timer = setTimeout(() => { shown.current = true; sheet.open('Get alerts?', <NotifyExplainer />); }, 1500);

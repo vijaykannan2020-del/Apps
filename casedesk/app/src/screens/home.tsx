@@ -22,6 +22,7 @@ import { ICloudAfterRestore } from './icloud';
 import { listNames, type AttentionItem } from '../core/rules/engine';
 import { familyTags, orderTags, updateAlerts } from '../core/updates';
 import { useNews, type NewsItem } from '../data/news';
+import { SETUP_ORDER, setupProgress, setupSteps, showContinueCard, type SetupStep } from '../core/onboarding';
 
 export const UPDATES = [
   { tag: 'EAD', t: 'EAD renewals filed on or after Oct 30, 2025 don’t get an automatic extension', src: 'uscis.gov', url: 'https://www.uscis.gov/i-765', body: 'If a work permit renewal is pending when the card ends, work has to stop until the new card arrives. Plan renewals up to 180 days early.' },
@@ -49,7 +50,7 @@ export function Home() {
     return (
       <Screen tabRoot>
         <LargeTitle title="Home" />
-        <EmptyState icon="users" title="No one added yet" body="Tell us about you to see your status." action={{ title: 'Get started', onPress: () => go('/about-you') }} />
+        <EmptyState icon="users" title="No one added yet" body="Tell us about you to see your status." action={{ title: 'Get started', onPress: () => go('/welcome') }} />
       </Screen>
     );
   }
@@ -67,7 +68,7 @@ export function Home() {
       <HomeSearchBar />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <T a11y="header" numberOfLines={1} style={{ fontSize: 26, lineHeight: 32, fontWeight: '600', letterSpacing: -0.4 }}>{`Hi, ${me.name}`}</T>
+          <T a11y="header" numberOfLines={1} style={{ fontSize: 26, lineHeight: 32, fontWeight: '600', letterSpacing: -0.4 }}>{`Hi, ${me.name.trim().split(/\s+/)[0] || me.name}`}</T>
           <T tone="text2" style={[font.foot, { marginTop: 2 }]}>{subline}</T>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
@@ -85,6 +86,8 @@ export function Home() {
           {tiles.map((x) => <StatTile key={x.key} tone={meaningBlock(x.tone)} icon={x.icon} label={x.label} big={x.big} sub={x.sub} onPress={() => open(x.target)} />)}
         </Appear>
       </TourTarget>
+
+      <ContinueSetupCard />
 
       {draft && unsaved > 0 ? (
         <Pastel tone="warn" style={{ marginTop: 10 }}>
@@ -206,5 +209,33 @@ function HomeSearchBar() {
       <Icon name="search" size={17} color={t.text2} />
       <T tone="text2" style={font.body}>Search</T>
     </Pressable>
+  );
+}
+
+/** v3.0: setup was put off with Finish later — pick up where it stopped, or close the card. */
+function ContinueSetupCard() {
+  const f = useFamily();
+  const t = useTheme();
+  if (!showContinueCard(f.settings, f.people.length)) return null;
+  const s = f.settings.setup!;
+  const steps = setupSteps({ status: f.main?.status, locationFromDocs: !!(f.main && f.records[f.main.id]?.i94), notif: 'undetermined' });
+  const cur = (SETUP_ORDER.includes(s.step as SetupStep) ? s.step : 'you') as SetupStep;
+  const pr = setupProgress(cur, steps);
+  const open = async () => { await f.actions.updateSettings({ setup: { ...s, later: false } }); go('/setup'); };
+  const dismiss = () => f.actions.updateSettings({ setup: undefined, setupDone: true });
+  return (
+    <Pastel tone="sky" style={{ marginTop: 10 }} onPress={open} label={`Continue setup, step ${pr.at} of ${pr.total}`}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <T style={font.headline}>Continue setup</T>
+          <T style={[font.foot, { marginTop: 2 }]}>{`Step ${pr.at} of ${pr.total} · a few quick questions left`}</T>
+        </View>
+        <Pressable onPress={dismiss} accessibilityRole="button" accessibilityLabel="Close setup card" hitSlop={6} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: -10, marginRight: -10 }}><Icon name="x" size={16} color={t.ink} /></Pressable>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 4, marginTop: 12 }}>
+        {Array.from({ length: pr.total }).map((_, i) => <View key={i} style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: i < pr.at - 1 ? t.ink : 'rgba(0,0,0,0.14)' }} />)}
+      </View>
+      <View style={{ flexDirection: 'row', marginTop: 14 }}><Button size="sm" title="Continue" onPress={open} /></View>
+    </Pastel>
   );
 }
