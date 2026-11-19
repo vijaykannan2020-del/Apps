@@ -140,6 +140,7 @@ export function deriveRecord(person: Person, allDocs: Document[]): PersonRecord 
     if (!r.nationality && d.fields.nationality) r.nationality = d.fields.nationality;
   }
   if (r.passportNo && !r.passportNos.includes(r.passportNo)) r.passportNos.unshift(r.passportNo);
+  if (!r.birthDate && facts.birthDate) r.birthDate = facts.birthDate; // typed in Edit details
 
   // ---- visa type (strongest current source wins) ----
   let visaRank = -1;
@@ -202,6 +203,7 @@ export function deriveRecord(person: Person, allDocs: Document[]): PersonRecord 
     offer(visaFromClass(cur.cls, relation, 'approval'), 'approval');
   }
   if (of('i129s').length) r.blanket = true;
+  if (!r.employer && facts.employer) r.employer = facts.employer; // typed in Edit details
   r.approvedWorkLocation = withMetro(facts.approvedWorkLocation) ?? list.find((a) => !a.superseded && a.workLocation)?.workLocation ?? list.find((a) => a.workLocation)?.workLocation;
   r.statusStart = facts.statusStart ?? list.map((a) => a.validFrom).filter(Boolean).sort()[0];
 
@@ -286,7 +288,10 @@ export function deriveRecord(person: Person, allDocs: Document[]): PersonRecord 
   r.pending = latestBy(pend, (p) => p.filed);
 
   // ---- where they are ----
-  if (of('i94').length) { r.location = 'US'; r.locationKnown = true; }
+  // An answer given in Edit details (dated) wins over an I-94 saved before it (they left after that entry).
+  const lastEntry = of('i94').map((d) => d.fields.entryDate ?? d.addedAt?.slice(0, 10) ?? '').sort().pop() ?? '';
+  if (facts.location && facts.locationOn && facts.locationOn >= lastEntry) { r.location = facts.location; r.locationKnown = true; if (facts.location === 'Outside') r.country = facts.country ?? 'India'; }
+  else if (of('i94').length) { r.location = 'US'; r.locationKnown = true; }
   else if (facts.location) { r.location = facts.location; r.locationKnown = true; if (facts.location === 'Outside') r.country = facts.country ?? 'India'; }
 
   // ---- trips: travel history + typed trips ----

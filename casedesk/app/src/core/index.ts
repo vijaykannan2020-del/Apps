@@ -8,7 +8,7 @@ export { stepsFor, stepKeys, stepMeta, stepOf, stepStatus, trackOf, missingDocs,
 export { FIELDS, fieldRows, showField, parseField, docNote, supersededIds, docTitle, docBadges, type FieldSpec, type Note } from './docs';
 export { caseViews, formName, isPendingCase, FORMS, type CaseView, type CaseState } from './cases';
 export { encryptBackup, decryptBackup, readHeader, toBase64, fromBase64, utf8, fromUtf8, type BackupPayload } from './backup';
-export { METROS, metroOf, differentMetro } from './metro';
+export { METROS, metroOf, metroOfZip, parsePlace, placeText, differentMetro } from './metro';
 export { evaluateFamily, needsAttention, principalFor, type PersonResult } from './rules/engine';
 export { worst, SEVERITY_LABEL, type Finding, type Severity, type Member, type FamilyCtx, type Bulletin } from './rules/types';
 export { statusLine, type StatusFacts } from './rules/status';

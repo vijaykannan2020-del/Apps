@@ -41,3 +41,49 @@ export function differentMetro(a?: WorkLocation, b?: WorkLocation) {
   if (a.state && b.state) return a.state.toUpperCase() !== b.state.toUpperCase();
   return false;
 }
+
+// v2.9: ZIP code → metro, by the first three digits (USPS sectional centers). Covers the metros above;
+// any other ZIP gives no metro (the screen then says it couldn't tell).
+const ZIP3: Record<string, string> = {};
+const zips = (m: string, list: (number | [number, number])[]) => { for (const z of list) { const [a, b] = Array.isArray(z) ? z : [z, z]; for (let i = a; i <= b; i++) ZIP3[String(i).padStart(3, '0')] = m; } };
+zips('Dallas–Fort Worth', [[750, 753], [760, 762]]);
+zips('Houston', [770, [772, 775]]);
+zips('Austin', [786, 787]);
+zips('San Antonio', [[780, 782]]);
+zips('New York', [[100, 107], [110, 114], [70, 73], [68, 69]]);
+zips('New Jersey (Central)', [85, [88, 89]]);
+zips('San Francisco Bay Area', [[940, 941], [943, 951]]);
+zips('Los Angeles', [[900, 908], [910, 918], [926, 927]]);
+zips('Seattle', [[980, 984]]);
+zips('Chicago', [[600, 608]]);
+zips('Atlanta', [[300, 301], 303, 311]);
+zips('Washington DC', [[200, 209], [220, 223]]);
+zips('Boston', [[18, 22], 24]);
+zips('Phoenix', [850, [852, 853]]);
+zips('Charlotte', [[280, 282]]);
+zips('Raleigh', [[275, 277]]);
+zips('Detroit', [[480, 483]]);
+zips('Minneapolis', [[553, 555]]);
+zips('Denver', [[800, 803]]);
+
+export function metroOfZip(zip?: string): string | undefined {
+  const z = (zip || '').trim().match(/^(\d{5})(?:-\d{4})?$/);
+  return z ? ZIP3[z[1].slice(0, 3)] : undefined;
+}
+
+/** What someone typed for a work location: "Austin, TX", "Austin TX 78701", "78701". */
+export function parsePlace(input: string): WorkLocation & { zip?: string } | undefined {
+  const s = (input || '').trim();
+  if (!s) return undefined;
+  const zip = s.match(/\b(\d{5})(?:-\d{4})?\b/)?.[1];
+  const rest = s.replace(/\b\d{5}(?:-\d{4})?\b/, '').replace(/[,\s]+$/, '').trim();
+  const m = rest.match(/^([^,]+?)(?:\s*,\s*|\s+)([A-Za-z]{2})$/) ?? rest.match(/^([^,]+?)$/);
+  const city = m?.[1]?.trim() || undefined;
+  const state = m?.[2]?.toUpperCase();
+  const metro = metroOf(city, state) ?? metroOfZip(zip);
+  if (!city && !zip) return undefined;
+  return { city, state, zip, metro };
+}
+
+/** One line for a saved work location: "Austin, TX" or "ZIP 78701". */
+export const placeText = (w?: WorkLocation & { zip?: string }) => (w ? [w.city, w.state].filter(Boolean).join(', ') || (w.zip ? `ZIP ${w.zip}` : '') : '');

@@ -50,3 +50,29 @@ test('the name typed at setup tells whose document it is when no passport of the
   const ids2 = [ids[0], identityOf('sp', [], { displayName: 'Mom' })];
   assert.equal(belongsElsewhere(hers.fields, 'me', ids2), undefined);
 });
+
+import { parsePlace, metroOfZip, placeText } from '../src/core';
+
+test('work location from a city, City ST or a ZIP code gives the metro', () => {
+  assert.equal(parsePlace('Austin, TX')?.metro, 'Austin');
+  assert.equal(parsePlace('Plano TX')?.metro, 'Dallas–Fort Worth');
+  assert.equal(parsePlace('75038')?.metro, 'Dallas–Fort Worth');
+  assert.equal(parsePlace('Irving, TX 75038')?.city, 'Irving');
+  assert.equal(metroOfZip('94085'), 'San Francisco Bay Area');
+  assert.equal(metroOfZip('07302'), 'New York');
+  assert.equal(metroOfZip('59001'), undefined);
+  assert.equal(parsePlace(''), undefined);
+  assert.equal(placeText({ zip: '75038' }), 'ZIP 75038');
+});
+
+test('Outside the US set in Edit details wins over an older I-94; birth date and employer typed are used when documents have none', () => {
+  const i94 = doc('me', T.i94('2027 July 21', '2026 March 10', 'H1B', 'Z1'));
+  const me = person('me', 'self', { name: 'Arun Kumar', facts: { location: 'Outside', country: 'India', locationOn: '2026-11-01', birthDate: '1990-01-02', employer: 'Acme Tech Inc' } });
+  const r = deriveRecord(me, [i94]);
+  assert.equal(r.location, 'Outside');
+  assert.equal(r.birthDate ?? '', '1990-01-02');
+  assert.equal(r.employer, 'Acme Tech Inc');
+  // without a date the I-94 still says In the US (old answers)
+  const old = person('me', 'self', { facts: { location: 'Outside' } });
+  assert.equal(deriveRecord(old, [i94]).location, 'US');
+});

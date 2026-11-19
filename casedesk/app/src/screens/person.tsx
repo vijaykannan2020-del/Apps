@@ -7,7 +7,7 @@ import { isResident, isCitizen, STATUS_LABEL } from '../core/model';
 import { stepsFor, stepKeys } from '../core/steps';
 import { docBadges, docNote, docTitle, fieldRows, parseField, FIELDS, showField } from '../core/docs';
 import { addYears, addDays, daysBetween, daysTo, fmt, today, isISO } from '../core/dates';
-import { metroOf } from '../core/metro';
+import { metroOf, placeText } from '../core/metro';
 import { MAX_YEARS } from '../core/rules/status';
 import { evaluateFamily } from '../core/rules/engine';
 import { isPendingCase } from '../core/cases';
@@ -142,9 +142,10 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
         <>
           <SectionHeader>Work</SectionHeader>
           <Group>
-            <Row icon="building" title={rec.employer ?? 'Employer not added'} subtitle="Employer" />
-            {(() => { const w = p.facts.workLocation ?? rec.approvedWorkLocation; const city = w ? [w.city, w.state].filter(Boolean).join(', ') : undefined; return <Row icon="pin" title={city ?? 'Not added'} subtitle={`${w ? metroOf(w.city, w.state) ?? 'Unknown' : 'Unknown'} metro · work location`} />; })()}
-            <Row icon="edit" iconPastel="mint" title="Work location changed?" onPress={() => sheet.open('Work location changed?', <WorkLocation pid={p.id} />)} />
+            <Row icon="building" title={p.facts.employer ?? rec.employer ?? 'Employer not added'} subtitle="Employer" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} />
+            {(() => { const w = p.facts.workLocation ?? rec.approvedWorkLocation; const city = w ? placeText(w) : ''; const metro = w ? metroOf(w.city, w.state) ?? w.metro : undefined; return w && city
+              ? <Row icon="pin" title={city} subtitle={`${metro ?? 'Unknown'} metro · work location`} onPress={() => sheet.open('Work location changed?', <WorkLocation pid={p.id} />)} />
+              : <Row icon="pin" iconPastel="butter" title="Add work location" subtitle="City or ZIP · tells the metro for H-1B worksite checks" onPress={() => sheet.open('Work location', <WorkLocation pid={p.id} />)} />; })()}
           </Group>
         </>
       ) : null}
@@ -157,9 +158,22 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
 
       <Counters p={p} />
 
+      {(you || p.isMain) && f.people.length > 1 ? (
+        <>
+          <SectionHeader>Family members</SectionHeader>
+          <Group>
+            {f.people.filter((o) => o.id !== p.id).map((o) => {
+              const follows = f.results[o.id]?.principalId;
+              const sub = [relationLabel(o), follows === p.id ? `follows ${you ? 'you' : p.name}` : follows ? `follows ${f.people.find((x) => x.id === follows)?.name ?? 'someone'}` : 'own status'].join(' · ');
+              return <Row key={o.id} avatar={o.name} title={o.name} subtitle={sub} value="Edit" chevron={false} label={`Edit ${o.name}: ${sub}`} onPress={() => sheet.open(`Edit ${o.name}`, <EditDetails pid={o.id} />)} />;
+            })}
+          </Group>
+        </>
+      ) : null}
+
       <SectionHeader>Details</SectionHeader>
       <Group>
-        <Row icon="edit" title="Edit details" subtitle="Name, relation, status" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} chevron={false} />
+        <Row icon="edit" title="Edit details" subtitle="Name, relationship, birth date, status, employer, where now" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} chevron={false} />
         <Row icon="bell" title="Reminders" subtitle={rm.on ? `On · ${leadText(rm.lead)}` : 'Off'} onPress={() => go(`/reminders/${p.id}`)} chevron={false} />
         {!you ? <Row icon="trash" iconTone="red" title={`Remove ${p.name}`} titleTone="red" chevron={false} onPress={() => sheet.open(`Remove ${p.name}?`, <RemovePerson pid={p.id} />)} /> : null}
       </Group>
