@@ -109,6 +109,26 @@ export const HELP: HelpTopic[] = [
   },
   EXPECT_HELP,
   {
+    id: 'widgets', title: 'Widgets', sub: 'Next deadline and family status on your Home Screen',
+    body: [
+      'Immigration Wallet has two widgets. Next deadline (small, and on the Lock Screen) shows who, what and how many days are left, coloured by how close it is: red within 30 days, amber within 90. Family status (medium and large) lists up to 4 people with their status and valid-until date; the large size adds the latest case update and when the next Visa Bulletin is expected.',
+      'To add one: touch and hold an empty part of the Home Screen → Edit → Add Widget → Immigration Wallet → pick a size. For the Lock Screen: touch and hold the Lock Screen → Customize → Lock Screen → tap the widget area. Tapping a widget opens that person or case.',
+      'Widgets show only a short summary — initials or first names (Settings → Widgets), status labels and dates. Never passport, receipt or A-numbers. When Face ID lock is on, widgets hide everything and only say “Open Immigration Wallet” (you can change this in Settings → Widgets).',
+      'Widgets update when you change something in the app and once a day. They are for your reference — not an official document, and not legal advice. Widgets need the latest app version from TestFlight and iOS 17 or later.',
+    ],
+    steps: ['Home Screen → touch and hold → Edit → Add Widget → Immigration Wallet', 'Settings → Widgets → Show names on widgets'],
+  },
+  {
+    id: 'wallet-card', title: 'Wallet card', sub: 'A status reminder card in Apple Wallet',
+    body: [
+      'Each person can have an “Immigration status card” in Apple Wallet: name (full, first or initials — you choose), status (for example L-2S dependent), valid until (I-94), visa stamp until, passport until and the next deadline. Wallet brings it up on your Lock Screen as the valid-until date gets close.',
+      'It is for your personal reference only — NOT an official document, ID or proof of status, and not issued or checked by any government agency. The front says so, and the back has the full disclaimer and where the dates come from. Always carry and rely on your original documents.',
+      'No passport, receipt or A-numbers ever go on the card. To make it, the card fields are sent once to our server, which signs the pass so Wallet accepts it, and stores nothing.',
+      'The card doesn’t change by itself. After you add a new document, open the person and tap Add to Apple Wallet again — the new card replaces the old one. To remove it, open it in Wallet → ••• → Remove Pass.',
+    ],
+    steps: ['A person’s page → Add to Apple Wallet → check the preview → Add', 'Family → Wallet status cards → pick a person'],
+  },
+  {
     id: 'community', title: 'How the community works', sub: 'Ask and answer with people on the same visa',
     body: [
       'Community Q&A (Tools → Community Q&A) is where people share real experience: stamping, RFEs, transfers, green card steps. Anyone can read. Community answers are from other users, not lawyers — not legal advice.',
