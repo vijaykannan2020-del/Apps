@@ -1,17 +1,20 @@
-// Community account: the join sheet (Sign in with Apple → accept the rules), the "Get notified when
-// someone answers" ask, report / block sheets, contact moderators, and the Account screen (display
-// name, my questions, notifications, blocked people, sign out, Delete account — Apple 5.1.1(v)).
+// Community account: the join sheet (Sign in with Apple, or Google once it is set up → accept the rules),
+// the "Get notified" ask, report / block sheets (posts, comments and profiles), contact moderators, and
+// the Account screen (avatar, display name, visa flair, karma, saved posts, notifications, blocked
+// people, sign out, Delete account — Apple 5.1.1(v)).
 import React, { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
-import { COMMUNITY_DISCLAIMER, COMMUNITY_RULES, REPORT_REASONS, RULES_VERSION, nameProblem, timeAgo } from '../core/community';
+import { Pressable, Text, View } from 'react-native';
+import { AVATARS, COMMUNITY_DISCLAIMER, COMMUNITY_RULES, FLAIRS, REPORT_REASONS, RULES_VERSION, fmtCount, joined, nameProblem } from '../core/community';
+import { INK, PASTEL } from '../core/communityColors';
 import {
-  blockUser, contactModerators, deleteAccount, getBlocks, getMine, getRules, report, signOut, unblockUser, updateMe, useCommunityUser,
-  type Author, type PostSummary,
+  blockUser, contactModerators, deleteAccount, getBlocks, getRules, refreshMe, report, signOut, unblockUser, updateMe, useCommunityUser,
+  type Author, type CommunityUser,
 } from '../data/communityApi';
-import { appleModule, appleSupport, disableAnswerPush, enableAnswerPush, finishGoogle, googleConfig, googleModule, signInWithApple, type AppleSupport } from '../data/communityAuth';
+import { appleModule, appleSupport, disableAnswerPush, enableAnswerPush, finishGoogle, googleModule, googleSupport, signInWithApple, type AppleSupport } from '../data/communityAuth';
 import { asyncKV } from '../native/asyncKV';
-import { Button, Card, EmptyState, Field, Group, Hint, Icon, LinkButton, Note, Option, Row, Screen, SectionHeader, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useTheme, useToast, TourButton, TourScope, TourTarget, useSheetTour, useTour } from '../ui';
+import { Button, Card, ChipToggle, Chips, EmptyState, Field, Group, Hint, LinkButton, MIN_TOUCH, Note, Option, Row, Screen, SectionHeader, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useTheme, useToast, TourButton, TourScope, TourTarget, useSheetTour, useTour } from '../ui';
 import { back, go } from './common';
+import { CAvatar, TagChip } from './communityUi';
 
 const kv = asyncKV();
 const NOTIFY_ASKED = 'community.notifyAsked';
@@ -29,17 +32,29 @@ function AppleButton({ onPress, busy }: { onPress: () => void; busy: boolean }) 
   return <Button block icon="lock" title="Sign in with Apple" busy={busy} onPress={onPress} />;
 }
 
-function GoogleButton({ onSignedIn, setError }: { onSignedIn: () => void; setError: (s: string) => void }) {
-  const cfg = googleConfig()!;
+type GoogleCfg = { iosClientId: string; webClientId?: string; redirectUri?: string };
+/** Shown beside Sign in with Apple only when googleSupport() says this build can finish the Google flow (see GOOGLE.md). */
+function GoogleButton({ cfg, setError }: { cfg: GoogleCfg; setError: (s: string) => void }) {
+  const t = useTheme();
   const G = googleModule();
-  const [req, res, prompt] = G.useIdTokenAuthRequest({ iosClientId: cfg.iosClientId, webClientId: cfg.webClientId });
+  const [req, res, prompt] = G.useIdTokenAuthRequest({ iosClientId: cfg.iosClientId, webClientId: cfg.webClientId, redirectUri: cfg.redirectUri, scopes: ['openid'] });
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (res?.type !== 'success') return;
+    if (!res) return;
+    if (res.type === 'error') { setError('Google sign-in didn’t finish. Try again.'); return; }
+    if (res.type !== 'success') return;
     const idToken = res.params?.id_token || res.authentication?.idToken;
     if (!idToken) { setError('Google didn’t return a sign-in token. Try again.'); return; }
-    finishGoogle(idToken).then(onSignedIn).catch((e) => setError(e.message));
+    setBusy(true);
+    finishGoogle(idToken).catch((e) => setError(e.message)).finally(() => setBusy(false));
   }, [res]);
-  return <Button block kind="ghost" icon="globe" title="Sign in with Google" disabled={!req} onPress={() => prompt()} />;
+  return (
+    <Pressable onPress={() => { setError(''); prompt(); }} disabled={!req || busy} accessibilityRole="button" accessibilityLabel="Sign in with Google" accessibilityState={{ disabled: !req || busy }}
+      style={({ pressed }) => ({ height: 50, width: '100%', marginTop: 10, borderRadius: 14, backgroundColor: t.dark ? '#FFFFFF' : t.card, borderWidth: t.dark ? 0 : 1, borderColor: t.fieldBorder, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: !req || busy ? 0.5 : pressed ? 0.8 : 1 })}>
+      <Text allowFontScaling={false} style={{ color: '#4285F4', fontSize: 20, fontWeight: '700' }}>G</Text>
+      <Text style={{ color: '#000000', fontSize: 19, fontWeight: '600' }}>Sign in with Google</Text>
+    </Pressable>
+  );
 }
 
 export function RulesList() {
@@ -61,9 +76,10 @@ export function JoinSheet({ onReady, onClose }: { onReady: () => void; onClose: 
   const [support, setSupport] = useState<AppleSupport | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const tour = useSheetTour('communitySignIn');
-  useEffect(() => { appleSupport().then(setSupport); }, []);
-  const showGoogle = !!googleConfig() && !!googleModule()?.useIdTokenAuthRequest;
+  const [google, setGoogle] = useState<GoogleCfg | null>(null);
+  const tour = useSheetTour('communitySignIn', undefined, { auto: false });
+  useEffect(() => { appleSupport().then(setSupport); googleSupport().then(setGoogle).catch(() => {}); }, []);
+  const showGoogle = !!google;
   const done = React.useRef(false);
   const finish = () => { if (done.current) return; done.current = true; onClose(); setTimeout(onReady, 50); };
   useEffect(() => { if (user?.rulesAccepted && !user.banned) finish(); }, [user?.rulesAccepted, user?.banned]);
@@ -88,16 +104,16 @@ export function JoinSheet({ onReady, onClose }: { onReady: () => void; onClose: 
   }
   return (
     <TourScope tour={tour}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}><View style={{ flex: 1 }}><Why>Reading is open to everyone. To ask, answer or upvote, sign in — other people only see a made-up display name you can change. We never see or show your email.</Why></View><TourButton /></View>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}><View style={{ flex: 1 }}><Why>Reading is open to everyone. To post, comment or vote, sign in — other people only see a made-up display name you can change. We never see or show your email.</Why></View><TourButton /></View>
       <Hint>{COMMUNITY_DISCLAIMER}</Hint>
       {support === null ? <View style={{ marginTop: 18 }}><Spinner /></View> : null}
-      {support === 'update' ? <Note tone="amber">Update the app from TestFlight to join the community. You can keep reading questions in this version.</Note> : null}
-      {support === 'unsupported' && !showGoogle ? <Note tone="grey">Sign in with Apple isn’t available on this device. You can keep reading questions.</Note> : null}
+      {support === 'update' ? <Note tone="amber">Update the app from TestFlight to join the community. You can keep reading in this version.</Note> : null}
+      {support === 'unsupported' && !showGoogle ? <Note tone="grey">Sign in with Apple isn’t available on this device. You can keep reading.</Note> : null}
       {support === 'ok' ? <TourTarget id="apple"><AppleButton busy={busy} onPress={async () => {
         setBusy(true); setError('');
         try { await signInWithApple(); } catch (e: any) { setError(e.message); } finally { setBusy(false); }
       }} /></TourTarget> : null}
-      {showGoogle ? <GoogleButton onSignedIn={() => {}} setError={setError} /> : null}
+      {google ? <GoogleButton cfg={google} setError={setError} /> : null}
       {error ? <Note tone="red">{error}</Note> : null}
       <Hint center style={{ marginTop: 14 }}>By joining you agree to the community rules. Content that breaks them is removed and accounts are banned.</Hint>
       <TourTarget id="rules"><LinkButton align="left" title="Read the community rules" onPress={() => { onClose(); go('/community/rules'); }} /></TourTarget>
@@ -119,23 +135,23 @@ export function useCommunityGate() {
 export async function maybeAskNotify(open: (title: string, node: React.ReactNode) => void, close: () => void) {
   if (await kv.getItem(NOTIFY_ASKED)) return;
   await kv.setItem(NOTIFY_ASKED, '1');
-  open('Get notified when someone answers', <NotifySheet onClose={close} />);
+  open('Get notified of replies', <NotifySheet onClose={close} />);
 }
 function NotifySheet({ onClose }: { onClose: () => void }) {
   const toast = useToast();
   return (
     <View>
-      <Why>We’ll send one notification when someone answers your question. Nothing else, and you can turn it off in Community → Account.</Why>
+      <Why>We’ll notify you when someone replies to you, and when a post or comment of yours reaches an upvote milestone. Nothing else, and you can turn it off in Community → Account.</Why>
       <SheetButtons>
         <Button kind="ghost" title="Not now" onPress={onClose} />
-        <Button grow icon="bell" title="Notify me" onPress={async () => { const ok = await enableAnswerPush(true); onClose(); toast(ok ? 'You’ll be notified of answers' : 'Notifications are off in iOS Settings'); }} />
+        <Button grow icon="bell" title="Notify me" onPress={async () => { const ok = await enableAnswerPush(true); onClose(); toast(ok ? 'You’ll be notified of replies' : 'Notifications are off in iOS Settings'); }} />
       </SheetButtons>
     </View>
   );
 }
 
 // ---------- report / block / contact ----------
-export function ReportSheet({ kind, id, onDone, onClose }: { kind: 'post' | 'answer'; id: string; onDone: () => void; onClose: () => void }) {
+export function ReportSheet({ kind, id, onDone, onClose }: { kind: 'post' | 'comment' | 'user'; id: string; onDone: () => void; onClose: () => void }) {
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -143,7 +159,7 @@ export function ReportSheet({ kind, id, onDone, onClose }: { kind: 'post' | 'ans
   const toast = useToast();
   return (
     <View>
-      <Why>{`Why are you reporting this ${kind === 'post' ? 'question' : 'answer'}? Moderators review reports within 24 hours. You won’t see it again.`}</Why>
+      <Why>{kind === 'user' ? 'Why are you reporting this profile? Moderators review reports within 24 hours. To stop seeing this person, block them too.' : `Why are you reporting this ${kind}? Moderators review reports within 24 hours. You won’t see it again.`}</Why>
       <View style={{ gap: 8, marginTop: 12 }}>{REPORT_REASONS.map((r) => <Option key={r.id} title={r.label} selected={reason === r.id} onPress={() => setReason(r.id)} />)}</View>
       <Field label="More detail (optional)" value={note} onChangeText={setNote} maxLength={300} multiline />
       {error ? <Note tone="red">{error}</Note> : null}
@@ -164,13 +180,13 @@ export function BlockSheet({ author, onDone, onClose }: { author: Author; onDone
   const toast = useToast();
   return (
     <View>
-      <Why>{`You won’t see questions or answers from ${author.name}, and they can’t notify you. They aren’t told. Undo it any time in Community → Account.`}</Why>
+      <Why>{`You won’t see posts or comments from ${author.name}, and they can’t notify you. They aren’t told. Undo it any time in Community → Account.`}</Why>
       {error ? <Note tone="red">{error}</Note> : null}
       <SheetButtons>
         <Button kind="ghost" title="Cancel" onPress={onClose} />
         <Button grow kind="danger" icon="block" title={`Block ${author.name}`} busy={busy} onPress={async () => {
           setBusy(true); setError('');
-          try { await blockUser(author.id); onClose(); toast(`${author.name} blocked`); onDone(); } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+          try { await blockUser(String(author.id)); onClose(); toast(`${author.name} blocked`); onDone(); } catch (e: any) { setError(e.message); } finally { setBusy(false); }
         }} />
       </SheetButtons>
     </View>
@@ -228,7 +244,7 @@ function DeleteSheet({ onClose }: { onClose: () => void }) {
   const toast = useToast();
   return (
     <View>
-      <Why>This deletes your community account and every question, answer and vote you made. It can’t be undone. Your family’s documents on this phone are not affected.</Why>
+      <Why>This deletes your community account, votes, saved posts and notifications. Posts and comments nobody replied to are removed. Where others replied, your name and words are replaced with [deleted] so their thread still makes sense. It can’t be undone. Your family’s documents on this phone are not affected.</Why>
       {error ? <Note tone="red">{error}</Note> : null}
       <SheetButtons>
         <Button kind="ghost" title="Cancel" onPress={onClose} />
@@ -241,22 +257,93 @@ function DeleteSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function MyPostRow({ p }: { p: PostSummary }) {
-  return <Row title={p.title} titleStyle={font.callout} onPress={() => go(`/community/post/${p.id}`)}
-    subtitle={`${p.hidden ? 'Hidden while a moderator reviews it · ' : ''}${p.answers} answer${p.answers === 1 ? '' : 's'} · ${p.score} upvote${p.score === 1 ? '' : 's'} · ${timeAgo(p.createdAt)}`} />;
+/** Pick a look: your initials on a pastel circle, or one of the 24 built-in avatars. No photo uploads (moderation). */
+function AvatarSheet({ user, onClose }: { user: CommunityUser; onClose: () => void }) {
+  const t = useTheme();
+  const [pick, setPick] = useState<string | null>(user.avatar ?? null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const cell = (id: string | null, label: string) => (
+    <Pressable key={id ?? 'initials'} onPress={() => setPick(id)} accessibilityRole="radio" accessibilityState={{ checked: pick === id }} accessibilityLabel={label}
+      style={{ width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: pick === id ? t.text : 'transparent' }}>
+      <CAvatar a={{ ...user, avatar: id }} size={48} />
+    </Pressable>
+  );
+  return (
+    <View>
+      <Why>Shown next to your posts and comments. Photos aren’t supported, so nobody can upload anything unsafe.</Why>
+      <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 14, justifyContent: 'center' }}>
+        {cell(null, 'Your initials')}
+        {AVATARS.map((a) => cell(a.id, a.name))}
+      </View>
+      {error ? <Note tone="red">{error}</Note> : null}
+      <SheetButtons>
+        <Button kind="ghost" title="Cancel" onPress={onClose} />
+        <Button grow title="Save" disabled={pick === (user.avatar ?? null)} busy={busy} onPress={async () => { setBusy(true); setError(''); try { await updateMe({ avatar: pick }); onClose(); } catch (e: any) { setError(e.message); } finally { setBusy(false); } }} />
+      </SheetButtons>
+    </View>
+  );
+}
+
+function FlairSheet({ user, onClose }: { user: CommunityUser; onClose: () => void }) {
+  const [pick, setPick] = useState<string | null>(user.flair ?? null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  return (
+    <View>
+      <Why>Optional. A small label next to your name, such as L-1A, so people know which experience you’re speaking from. Everyone can see it.</Why>
+      <Chips>
+        <ChipToggle text="None" on={pick === null} onPress={() => setPick(null)} />
+        {FLAIRS.map((f) => <ChipToggle key={f} text={f} on={pick === f} onPress={() => setPick(f)} />)}
+      </Chips>
+      {error ? <Note tone="red">{error}</Note> : null}
+      <SheetButtons>
+        <Button kind="ghost" title="Cancel" onPress={onClose} />
+        <Button grow title="Save" disabled={pick === (user.flair ?? null)} busy={busy} onPress={async () => { setBusy(true); setError(''); try { await updateMe({ flair: pick }); onClose(); } catch (e: any) { setError(e.message); } finally { setBusy(false); } }} />
+      </SheetButtons>
+    </View>
+  );
+}
+
+/** Karma · posts · comments */
+export function StatRow({ karma, posts, comments }: { karma: number; posts: number; comments: number }) {
+  const t = useTheme();
+  const cell = (n: number, label: string, pastel: keyof typeof PASTEL) => (
+    <View accessible accessibilityLabel={`${n} ${label}`} style={{ flex: 1, backgroundColor: PASTEL[pastel], borderRadius: 22, paddingVertical: 12, paddingHorizontal: 14 }}>
+      <Text style={{ color: INK, fontSize: 22, fontWeight: '700', letterSpacing: -0.4 }}>{fmtCount(n)}</Text>
+      <Text style={{ color: INK, fontSize: 12.5, fontWeight: '600', opacity: 0.85 }}>{label}</Text>
+    </View>
+  );
+  void t;
+  return <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>{cell(karma, 'karma', 'sage')}{cell(posts, posts === 1 ? 'post' : 'posts', 'blush')}{cell(comments, comments === 1 ? 'comment' : 'comments', 'butter')}</View>;
+}
+
+/** Big avatar, name, flair and join date — the top of the Account screen and of public profiles. */
+export function ProfileHeader({ a, createdAt, onAvatar }: { a: { id: string | null; name: string; avatar?: string | null; flair?: string | null }; createdAt: string; onAvatar?: () => void }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+      {onAvatar ? <Pressable onPress={onAvatar} accessibilityRole="button" accessibilityLabel="Change avatar" style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH }}><CAvatar a={a} size={76} /></Pressable> : <CAvatar a={a} size={76} />}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <T a11y="header" style={font.title2}>{a.name}</T>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 6 }}>
+          {a.flair ? <TagChip text={a.flair} pastel="sky" /> : null}
+          <T tone="text2" style={font.caption}>{joined(createdAt)}</T>
+        </View>
+      </View>
+    </View>
+  );
 }
 
 export function CommunityAccountScreen() {
   const { user, ready } = useCommunityUser();
   const sheet = useSheet();
   const toast = useToast();
-  const [mine, setMine] = useState<PostSummary[] | null>(null);
   const [blocked, setBlocked] = useState<Author[]>([]);
   const [notify, setNotify] = useState(false);
-  const tour = useTour('communityAccount', undefined, { auto: !!user });
+  const tour = useTour('communityAccount', undefined, { auto: false });
   const load = useCallback(() => {
     if (!user) return;
-    getMine().then((r) => setMine(r.posts)).catch(() => setMine([]));
+    refreshMe().catch(() => {});
     getBlocks().then((r) => setBlocked(r.blocked)).catch(() => {});
   }, [user?.id]);
   useEffect(load, [load]);
@@ -266,29 +353,43 @@ export function CommunityAccountScreen() {
   if (!user) {
     return (
       <Screen nav={{ title: 'Account', back: 'Community', onBack: back }}>
-        <EmptyState icon="user" title="You’re reading as a guest" body="Sign in with Apple to ask, answer and upvote. Others only see a made-up name." action={{ title: 'Join the community', onPress: () => sheet.open('Join the community', <JoinSheet onReady={() => {}} onClose={sheet.close} />) }} />
+        <EmptyState icon="user" title="You’re reading as a guest" body="Sign in to post, comment, vote and save. Others only see a made-up name." action={{ title: 'Join the community', onPress: () => sheet.open('Join the community', <JoinSheet onReady={() => {}} onClose={sheet.close} />) }} />
         <Group><Row icon="book" title="Community rules" onPress={() => go('/community/rules')} /><Row icon="chat" title="Contact moderators" chevron={false} onPress={() => sheet.open('Contact moderators', <ContactSheet onClose={sheet.close} />)} /></Group>
       </Screen>
     );
   }
+  const avatarSheet = () => sheet.open('Choose an avatar', <AvatarSheet user={user} onClose={sheet.close} />);
   return (
     <Screen tour={tour} nav={{ title: 'Account', back: 'Community', onBack: back }}>
-      {user.banned ? <Note tone="red">This account can’t post because it broke the community rules. You can still read, and delete the account below.</Note> : null}
-      <SectionHeader>You in Community</SectionHeader>
+      {user.banned ? <Note tone="red" style={{ marginBottom: 12 }}>This account can’t post because it broke the community rules. You can still read, and delete the account below.</Note> : null}
+      <ProfileHeader a={user} createdAt={user.createdAt} onAvatar={avatarSheet} />
+      <StatRow karma={user.karma ?? 0} posts={user.posts ?? 0} comments={user.comments ?? 0} />
+      <Hint>Karma is the upvotes on your posts and comments, minus downvotes.</Hint>
+      <SectionHeader>How others see you</SectionHeader>
       <Group>
-        <TourTarget id="name"><Row icon="user" title={user.name} subtitle="Display name — tap to change" onPress={() => sheet.open('Display name', <NameSheet current={user.name} onClose={sheet.close} />)} /></TourTarget>
-        <Row icon="bell" title="Notify me of answers" subtitle="One notification when someone answers your question" trailing={<Switch value={notify} label="Notify me of answers" onValueChange={async (on) => {
+        <TourTarget id="avatar"><Row icon="user" title="Avatar" subtitle={user.avatar ? AVATARS.find((a) => a.id === user.avatar)?.name ?? 'Built-in avatar' : 'Your initials'} onPress={avatarSheet} /></TourTarget>
+        <TourTarget id="name"><Row icon="edit" title="Display name" subtitle={user.name} onPress={() => sheet.open('Display name', <NameSheet current={user.name} onClose={sheet.close} />)} /></TourTarget>
+        <Row icon="idcard" title="Visa flair" subtitle={user.flair ?? 'None — optional'} onPress={() => sheet.open('Visa flair', <FlairSheet user={user} onClose={sheet.close} />)} />
+      </Group>
+      <SectionHeader>Your activity</SectionHeader>
+      <TourTarget id="mine">
+        <Group>
+          <Row icon="users" title="My profile" subtitle="Your posts and comments, as others see them" onPress={() => go(`/community/user/${user.id}`)} />
+          <Row icon="bookmark" title="Saved posts" onPress={() => go('/community/saved')} />
+          <Row icon="bell" title="Notifications" value={user.unread ? `${user.unread} new` : undefined} onPress={() => go('/community/notifications')} />
+        </Group>
+      </TourTarget>
+      <Group style={{ marginTop: 12 }}>
+        <Row icon="bell" title="Push notifications" subtitle="Replies to you and upvote milestones" trailing={<Switch value={notify} label="Push notifications for replies and upvote milestones" onValueChange={async (on) => {
           setNotify(on);
           if (on) { const ok = await enableAnswerPush(true); if (!ok) { setNotify(false); toast('Turn on notifications for Immigration Wallet in iOS Settings'); } }
           else await disableAnswerPush();
         }} />} />
       </Group>
-      <SectionHeader>My questions</SectionHeader>
-      <TourTarget id="mine">{mine === null ? <Spinner /> : mine.length ? <Group>{mine.map((p) => <MyPostRow key={p.id} p={p} />)}</Group> : <Card><T tone="text2" style={font.sub}>You haven’t asked anything yet.</T></Card>}</TourTarget>
       {blocked.length ? (
         <>
           <SectionHeader>Blocked</SectionHeader>
-          <Group>{blocked.map((b) => <Row key={b.id} icon="block" title={b.name} trailing={<LinkButton title="Unblock" onPress={async () => { try { setBlocked((await unblockUser(b.id)).blocked); toast(`${b.name} unblocked`); } catch (e: any) { toast(e.message); } }} />} />)}</Group>
+          <Group>{blocked.map((b) => <Row key={b.id} icon="block" title={b.name} trailing={<LinkButton title="Unblock" onPress={async () => { try { setBlocked((await unblockUser(String(b.id))).blocked); toast(`${b.name} unblocked`); } catch (e: any) { toast(e.message); } }} />} />)}</Group>
         </>
       ) : null}
       <SectionHeader>Help</SectionHeader>
@@ -302,7 +403,7 @@ export function CommunityAccountScreen() {
         <Row icon="lock" title="Sign out" chevron={false} onPress={async () => { await signOut(); toast('Signed out'); back(); }} />
         <TourTarget id="delete"><Row icon="trash" iconTone="red" title="Delete account" titleTone="red" chevron={false} onPress={() => sheet.open('Delete your community account?', <DeleteSheet onClose={sheet.close} />)} /></TourTarget>
       </Group>
-      <Hint center style={{ marginTop: 14 }}>{`Signed in with ${user.provider === 'google' ? 'Google' : 'Apple'} · member since ${timeAgo(user.createdAt)}. Your email is never stored or shown.`}</Hint>
+      <Hint center style={{ marginTop: 14 }}>{`Signed in with ${user.provider === 'google' ? 'Google' : 'Apple'}. Your email is never stored or shown.`}</Hint>
     </Screen>
   );
 }
@@ -318,11 +419,10 @@ export function CommunityRulesScreen() {
       <Note tone="amber">{COMMUNITY_DISCLAIMER}</Note>
       <SectionHeader>Moderation</SectionHeader>
       <Card>
-        <T style={font.sub}>Every question and answer has a ••• menu with Report and Block. Content reported by several people is hidden until a moderator reviews it. Content that breaks the rules is removed and the account is banned. We act on reports within 24 hours.</T>
+        <T style={font.sub}>Every post, comment and profile has a ••• menu with Report and Block. Content reported by several people is hidden until a moderator reviews it. Content that breaks the rules is removed and the account is banned. We act on reports within 24 hours.</T>
         {email ? <T tone="text2" style={[font.foot, { marginTop: 8 }]}>{`Moderators: ${email}`}</T> : null}
       </Card>
       <Button block kind="tint" icon="chat" title="Contact moderators" onPress={() => sheet.open('Contact moderators', <ContactSheet onClose={sheet.close} />)} />
     </Screen>
   );
 }
-void Icon;

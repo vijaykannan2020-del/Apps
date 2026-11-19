@@ -154,31 +154,33 @@ export const TOURS: Record<string, TourDef> = {
     { target: 'community', title: 'Cases like mine', text: 'Timelines other app users shared anonymously for the same form and office. Nothing shows until 10 similar cases are decided.' },
     { target: 'share', title: 'Share anonymously', text: 'Adds only the form, office code, dates, outcome, premium and visa class — never your receipt number or name. Turn off to delete.' },
   ] },
-  // ---- v2.4: Community Q&A ----
+  // ---- v2.7: Community (Reddit-style). ONE first-visit tip, on the feed; the other screens only show tips from their ? button. ----
   communityFeed: { help: 'community', steps: [
-    { target: 'tabs', title: 'Pick a feed', text: 'For my visa shows questions tagged with your family’s visa types and forms. All shows everything; Unanswered is where you can help.' },
-    { target: 'chips', title: 'Filter by tag', text: 'Tap a tag to see only H-1B, I-485, stamping and so on. Tap it again to clear.' },
-    { target: 'compose', title: 'Ask a question', text: 'Reading is open to everyone. To ask, answer or upvote, sign in with Apple — others only see a made-up name.' },
-    { target: 'account', title: 'Your account', text: 'Your questions, display name, notifications, blocked people and Delete account.' },
+    { target: 'sort', title: 'Your feed', text: 'Hot shows what’s active now — switch to New, Top or Unanswered. Tap a post to read; sign in to vote, comment or post.' },
   ] },
   communityPost: { help: 'community', steps: [
-    { target: 'answer', title: 'Answer or say thanks', text: 'Share what happened in your case. Never post receipt numbers or other personal numbers.' },
-    { target: 'vote', title: 'Upvote helpful answers', text: 'Upvotes move the most useful answers up. The asker can mark one as accepted.' },
-    { target: 'menu', title: 'Report or block', text: 'The ••• menu reports a post or blocks its author. Blocked people disappear for you right away.' },
+    { target: 'vote', title: 'Vote, share, save', text: 'Up or down vote, share the link or repost it, bookmark it for later. ••• reports the post or blocks its author.' },
+    { target: 'answer', title: 'Join the thread', text: 'Comment here, or tap Reply under a comment. Never post receipt numbers or other personal numbers.' },
   ] },
   communityCompose: { help: 'community', steps: [
-    { target: 'title', title: 'A clear title', text: 'Say the visa, form and question in one line — e.g. “H-1B extension: RFE answered 8 weeks ago, normal?”.' },
+    { target: 'type', title: 'Pick a type', text: 'Question, Discussion, Timeline (your case dates as a small card) or Poll with 2–4 choices.' },
+    { target: 'title', title: 'A clear title', text: 'Say the visa, form and point in one line — e.g. “H-1B extension: RFE answered 8 weeks ago, normal?”.' },
     { target: 'tags', title: 'Tag it', text: 'Pick up to 5 tags so people with the same visa or form find it.' },
     { target: 'privacy', title: 'Keep it private', text: 'Leave out names, receipt numbers, A-numbers, emails and phone numbers. Say the service center (EAC, WAC…) instead.' },
   ] },
   communitySignIn: { help: 'community', steps: [
-    { target: 'apple', title: 'Sign in with Apple', text: 'Only needed to post, answer or vote. We never see or show your email.' },
+    { target: 'apple', title: 'Sign in with Apple', text: 'Only needed to post, comment or vote. We never see or show your email.' },
     { target: 'rules', title: 'Community rules', text: 'Read and accept the rules once before your first post.' },
   ] },
   communityAccount: { help: 'community', steps: [
-    { target: 'name', title: 'Your display name', text: 'This is all anyone sees. Change it any time — no real names needed.' },
-    { target: 'mine', title: 'My questions', text: 'Everything you asked, including anything hidden while a moderator reviews it.' },
-    { target: 'delete', title: 'Delete account', text: 'Removes your account and everything you posted. You can sign in again later as a new member.' },
+    { target: 'avatar', title: 'Your avatar', text: 'Your initials on a pastel circle, or one of 24 built-in avatars. No photos.' },
+    { target: 'name', title: 'Your display name', text: 'A made-up name is all anyone sees. Change it any time — no real names needed.' },
+    { target: 'mine', title: 'Your activity', text: 'Your public profile, the posts you saved and your notifications.' },
+    { target: 'delete', title: 'Delete account', text: 'Removes your account. Threads others replied to stay, with your name and words replaced by [deleted].' },
+  ] },
+  communityProfile: { help: 'community', steps: [
+    { target: 'who', title: 'A member', text: 'A made-up name, an optional visa flair and karma — the upvotes on their posts and comments.' },
+    { target: 'more', title: 'Report or block', text: 'The ••• menu reports this profile or blocks the person, so you stop seeing them.' },
   ] },
 };
 

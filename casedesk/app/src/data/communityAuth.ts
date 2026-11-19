@@ -2,11 +2,12 @@
 // build). On an older installed build the require fails and the sheet says to update from TestFlight.
 // No name or email is requested — the server gives each person a made-up display name.
 // Google: only when app.json has extra.googleIosClientId (see GOOGLE.md); uses expo-auth-session.
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { randomBytes } from '../core/backup';
 import { native } from '../native/safe';
+import { googleRedirect, reversedClientId } from '../core/community';
 import { signInWith, updateMe } from './communityApi';
 
 export const appleModule = (): any => { try { return require('expo-apple-authentication'); } catch { return undefined; } };
@@ -44,14 +45,27 @@ export async function signInWithApple(): Promise<boolean> {
   return true;
 }
 
-// ---------- Google (off until configured) ----------
-export function googleConfig(): { iosClientId: string; webClientId?: string } | null {
+// ---------- Google (off until a client id is in app.json — see GOOGLE.md) ----------
+export function googleConfig(): { iosClientId: string; webClientId?: string; allowBundleScheme: boolean; bundleId?: string } | null {
   try {
-    const extra = require('expo-constants').default?.expoConfig?.extra ?? {};
-    return extra.googleIosClientId ? { iosClientId: String(extra.googleIosClientId), webClientId: extra.googleWebClientId ? String(extra.googleWebClientId) : undefined } : null;
+    const cfg = require('expo-constants').default?.expoConfig ?? {};
+    const extra = cfg.extra ?? {};
+    if (!reversedClientId(extra.googleIosClientId)) return null;
+    return { iosClientId: String(extra.googleIosClientId).trim(), webClientId: extra.googleWebClientId ? String(extra.googleWebClientId) : undefined, allowBundleScheme: extra.googleUseBundleScheme === true, bundleId: cfg.ios?.bundleIdentifier };
   } catch { return null; }
 }
 export const googleModule = (): any => { try { return require('expo-auth-session/providers/google'); } catch { return undefined; } };
+/** Null = hide the Google button (no client id, no module, or this installed build can't receive Google's redirect). */
+export async function googleSupport(): Promise<{ iosClientId: string; webClientId?: string; redirectUri?: string } | null> {
+  const cfg = googleConfig();
+  if (!cfg) return null;
+  const hasModule = !!googleModule()?.useIdTokenAuthRequest;
+  let schemeInBuild = false;
+  const scheme = reversedClientId(cfg.iosClientId);
+  if (Platform.OS === 'ios' && scheme && hasModule) { try { schemeInBuild = !!(await Linking.canOpenURL(`${scheme}:/oauthredirect`)); } catch { schemeInBuild = false; } }
+  const r = googleRedirect({ platform: Platform.OS, iosClientId: cfg.iosClientId, webClientId: cfg.webClientId, hasModule, schemeInBuild, bundleId: cfg.bundleId, allowBundleScheme: cfg.allowBundleScheme });
+  return r.show ? { iosClientId: cfg.iosClientId, webClientId: cfg.webClientId, redirectUri: r.redirectUri } : null;
+}
 export async function finishGoogle(idToken: string) { await signInWith('google', { idToken }); }
 
 // ---------- push for "someone answered" ----------

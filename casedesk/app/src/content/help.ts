@@ -129,16 +129,19 @@ export const HELP: HelpTopic[] = [
     steps: ['A person’s page → Add to Apple Wallet → check the preview → Add', 'Family → Wallet status cards → pick a person'],
   },
   {
-    id: 'community', title: 'How the community works', sub: 'Ask and answer with people on the same visa',
+    id: 'community', title: 'How the community works', sub: 'Posts, threads and votes with people on the same visa',
     body: [
-      'Community Q&A (Tools → Community Q&A) is where people share real experience: stamping, RFEs, transfers, green card steps. Anyone can read. Community answers are from other users, not lawyers — not legal advice.',
-      'Feeds: For my visa shows questions tagged with your family’s visa types and case forms; All shows everything; Unanswered is where you can help. Tap a tag to filter, or search.',
-      'To ask, answer or upvote, sign in with Apple. Others only see a made-up display name you can change — never your email or anything from your documents. Accept the community rules once before your first post.',
+      'Community (Tools → Community Q&A) is where people share real experience: stamping, RFEs, transfers, green card steps. Anyone can read. Community answers are from other users, not lawyers — not legal advice.',
+      'The feed: Hot shows what is active now, New the latest, Top the most upvoted (today, this week or all time) and Unanswered is where you can help. For my visa keeps it to your family’s visa types and case forms. Tap a tag to filter, or search. Pull down to refresh.',
+      'Four kinds of post: a Question (you can mark one answer as accepted), a Discussion, a Timeline share (form, office and dates shown as a small card — never the receipt number) and a Poll with 2–4 choices, one vote each.',
+      'Comments are threaded: reply to a comment to answer that person, tap the arrow on a comment to collapse its thread, and sort by Best or New. Up and down votes move the most useful posts and comments up. Karma on a profile is the upvotes that person received.',
+      'Share sends a link through the iPhone share sheet, or reposts it to the community with your comment above the original. The bookmark saves a post to Community → Account → Saved posts.',
+      'To post, comment or vote, sign in with Apple. Others only see a made-up display name, an avatar (your initials or one of 24 built-in ones — no photos) and an optional visa flair. Never your email or anything from your documents. Accept the community rules once before your first post.',
       'Keep it private: never post receipt numbers, A-numbers, passport numbers, emails or phone numbers. Say the form and service center instead (for example I-129 at EAC).',
-      'Every question and answer has a ••• menu: Report sends it to the moderators and hides it for you; Block hides everything from that person. Content reported by several people is hidden until reviewed — moderators act within 24 hours and ban accounts that break the rules. Contact moderators from Community → Account.',
-      'Turn on “Notify me of answers” to get one notification when someone answers your question. Delete your community account (and everything you posted) in Community → Account → Delete account.',
+      'Every post, comment and profile has a ••• menu: Report sends it to the moderators and hides it for you; Block hides everything from that person. Content reported by several people is hidden until reviewed — moderators act within 24 hours and ban accounts that break the rules. Contact moderators from Community → Account.',
+      'Notifications tell you about replies to you and upvote milestones; turn push on or off in Community → Account. Delete account removes your account: posts and comments nobody replied to are deleted, and where others replied your name and words become [deleted] so their thread still reads.',
     ],
-    steps: ['Tools → Community Q&A', 'Ask a question → sign in with Apple → accept the rules', 'Question → ••• → Report or Block', 'Community → Account → Delete account'],
+    steps: ['Tools → Community Q&A', 'New post → sign in with Apple → accept the rules', 'Post or comment → ••• → Report or Block', 'Community → Account → Delete account'],
   },
 ];
 

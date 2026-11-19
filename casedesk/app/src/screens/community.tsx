@@ -1,13 +1,17 @@
-// Community Q&A feed: For my visa / All / Unanswered, tag chips from the family's visa types and
-// case forms, search, and "Ask a question". Reading works signed out; asking opens the join sheet.
+// Community feed (v2.7, Reddit-style): post cards with avatar, flair, votes, comments, Share and Save;
+// sort by Hot / New / Top (today, week, all) / Unanswered; For my visa or everything; tag chips; search;
+// pull to refresh and endless scroll. Reading works signed out; anything else opens the join sheet.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View } from 'react-native';
-import { COMMUNITY_DISCLAIMER, FEED_TABS, TAGS, familyCommunityTags, feedQuery, timeAgo, type FeedTab } from '../core/community';
-import { getFeed, useCommunityUser, type PostSummary } from '../data/communityApi';
+import { FlatList, RefreshControl, ScrollView, View } from 'react-native';
+import { COMMUNITY_DISCLAIMER, SORTS, TAGS, TOP_RANGES, familyCommunityTags, feedQuery, mergePage, type FeedTab, type SortId, type TopRange } from '../core/community';
+import { PASTEL } from '../core/communityColors';
+import { getFeed, usePostBus, useCommunityUser, type PostSummary } from '../data/communityApi';
 import { useFamily } from '../data/FamilyProvider';
-import { Button, ChipToggle, Chips, EmptyState, Field, Group, Hint, Icon, IconButton, Note, Row, Screen, Segmented, Spinner, T, Tag, font, useTheme, TourTarget, useTour } from '../ui';
+import { Button, ChipToggle, EmptyState, Field, Hint, IconButton, Note, Screen, Segmented, Spinner, useTheme, TourTarget, useTour } from '../ui';
 import { back, go } from './common';
 import { useCommunityGate } from './communityAccount';
+import { PostCard } from './communityCards';
+import { CAvatar } from './communityUi';
 
 /** Family visa types (from documents, else the status picked at setup) + forms on their cases. */
 export function useFamilyCommunityTags(): string[] {
@@ -15,37 +19,16 @@ export function useFamilyCommunityTags(): string[] {
   return useMemo(() => familyCommunityTags(f.people.map((p) => f.records[p.id]?.visa), f.caseList.map((c) => c.form)), [f.people, f.records, f.caseList]);
 }
 
-export function PostRow({ p }: { p: PostSummary }) {
-  const t = useTheme();
-  return (
-    <Row onPress={() => go(`/community/post/${p.id}`)} title={p.title} titleStyle={font.callout} alignTop
-      label={`${p.title}. ${p.answers} answers, ${p.score} upvotes, by ${p.author.name}`}
-      subtitle={
-        <View style={{ marginTop: 4, gap: 6 }}>
-          <T tone="text2" style={font.foot} numberOfLines={2}>{p.excerpt}</T>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-            {p.tags.slice(0, 3).map((g) => <Tag key={g} text={g} />)}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-              <Icon name={p.accepted ? 'checkc' : 'chat'} size={13} color={p.accepted ? t.green : t.text2} />
-              <T tone={p.accepted ? 'green' : 'text2'} style={font.caption}>{`${p.answers}`}</T>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-              <Icon name="up" size={13} color={p.voted ? t.accent : t.text2} />
-              <T tone={p.voted ? 'accent' : 'text2'} style={font.caption}>{`${p.score}`}</T>
-            </View>
-            <T tone="text2" style={font.caption}>{`${p.author.name} · ${timeAgo(p.createdAt)}`}</T>
-          </View>
-          {p.hidden ? <T tone="amber" style={font.caption}>Hidden while a moderator reviews it</T> : null}
-        </View>
-      } />
-  );
-}
+const SCOPES: FeedTab[] = ['For my visa', 'All'];
 
 export function CommunityFeedScreen({ backTitle = 'Back' }: { backTitle?: string }) {
+  const t = useTheme();
   const fam = useFamilyCommunityTags();
   const { user } = useCommunityUser();
   const gate = useCommunityGate();
-  const [tab, setTab] = useState<FeedTab>(fam.length ? 'For my visa' : 'All');
+  const [scope, setScope] = useState<FeedTab>(fam.length ? 'For my visa' : 'All');
+  const [sort, setSort] = useState<SortId>('hot');
+  const [range, setRange] = useState<TopRange>('week');
   const [tag, setTag] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [query, setQuery] = useState('');
@@ -53,11 +36,14 @@ export function CommunityFeedScreen({ backTitle = 'Back' }: { backTitle?: string
   const [next, setNext] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [more, setMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const seq = useRef(0);
   const tour = useTour('communityFeed');
+  usePostBus(setPosts);
 
-  const chips = tab === 'For my visa' && fam.length ? fam : [...TAGS.visa.slice(0, 6), 'I-485', 'I-140', 'Stamping', 'RFE', 'Layoff'];
-  const qs = feedQuery({ tab, famTags: fam, tag, q: query });
+  const chips = scope === 'For my visa' && fam.length ? fam : [...TAGS.visa.slice(0, 6), 'I-485', 'I-140', 'Stamping', 'RFE', 'Layoff'];
+  const args = { tab: scope, famTags: fam, tag, q: query, sort, range };
+  const qs = feedQuery(args);
   const load = useCallback(async () => {
     const my = ++seq.current;
     setError('');
@@ -71,30 +57,66 @@ export function CommunityFeedScreen({ backTitle = 'Back' }: { backTitle?: string
   useEffect(() => { const h = setTimeout(() => setQuery(q), 400); return () => clearTimeout(h); }, [q]);
 
   const loadMore = async () => {
-    if (!next) return;
+    if (!next || more) return;
+    const my = seq.current;
     setMore(true);
-    try { const r = await getFeed(feedQuery({ tab, famTags: fam, tag, q: query, cursor: next })); setPosts((p) => [...(p ?? []), ...r.posts]); setNext(r.next); } catch (e: any) { setError(e.message); } finally { setMore(false); }
+    try { const r = await getFeed(feedQuery({ ...args, cursor: next })); if (my === seq.current) { setPosts((p) => mergePage(p ?? [], r.posts)); setNext(r.next); } } catch (e: any) { setError(e.message); } finally { setMore(false); }
   };
+  const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+  const compose = () => gate(() => go('/community/compose'));
+  const change = (p: PostSummary) => setPosts((list) => (list ? list.map((x) => (x.id === p.id ? p : x)) : list));
+  const removed = (id: string) => setPosts((list) => (list ? list.filter((x) => x.id !== id) : list));
+
+  const header = (
+    <View style={{ paddingBottom: 12 }}>
+      {fam.length ? <Segmented options={SCOPES} value={scope} onChange={(v) => { setScope(v as FeedTab); setTag(null); }} /> : null}
+      <Field label="Search posts" value={q} onChangeText={setQ} placeholder="e.g. stamping Chennai, RFE EAC" autoCapitalize="none" maxLength={100} />
+      <TourTarget id="sort">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 6, paddingTop: 12 }}>
+          {SORTS.map((s) => <ChipToggle key={s.id} text={s.label} on={sort === s.id} onPress={() => setSort(s.id)} />)}
+        </ScrollView>
+      </TourTarget>
+      {sort === 'top' ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 6, paddingTop: 8 }}>
+          {TOP_RANGES.map((r) => <ChipToggle key={r.id} text={r.label} on={range === r.id} onPress={() => setRange(r.id)} />)}
+        </ScrollView>
+      ) : null}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 6, paddingTop: 8 }}>
+        {chips.map((g) => <ChipToggle key={g} role="checkbox" text={g} on={tag === g} onPress={() => setTag(tag === g ? null : g)} />)}
+      </ScrollView>
+      <Hint>{COMMUNITY_DISCLAIMER}</Hint>
+      {error ? <Note tone="amber" actions={<Button size="sm" kind="tint" title="Try again" onPress={load} />}>{error}</Note> : null}
+    </View>
+  );
+  const empty = posts === null ? <View style={{ paddingVertical: 40 }}><Spinner /></View> : !error ? (
+    <EmptyState small icon="chat" title={sort === 'unanswered' ? 'Every post has a reply' : sort === 'top' && range !== 'all' ? 'Nothing in this period yet' : 'No posts here yet'}
+      body="Be the first — ask a question, start a discussion, share your timeline or run a poll." action={{ title: 'New post', onPress: compose }} />
+  ) : null;
 
   return (
-    <Screen tour={tour} nav={{ title: 'Community', back: backTitle, onBack: back, right: <TourTarget id="account"><IconButton icon="user" label={user ? `Account: ${user.name}` : 'Account and sign in'} onPress={() => go('/community/account')} /></TourTarget> }}
-      footer={<TourTarget id="compose" style={{ flex: 1 }}><Button icon="edit" title="Ask a question" onPress={() => gate(() => go('/community/compose'))} /></TourTarget>}>
-      <Hint style={{ marginTop: 0 }}>{COMMUNITY_DISCLAIMER}</Hint>
-      <TourTarget id="tabs"><Segmented options={FEED_TABS} value={tab} onChange={(v) => { setTab(v as FeedTab); setTag(null); }} /></TourTarget>
-      <Field label="Search questions" value={q} onChangeText={setQ} placeholder="e.g. stamping Chennai, RFE EAC" autoCapitalize="none" maxLength={100} />
-      <TourTarget id="chips"><Chips>{chips.map((g) => <ChipToggle key={g} role="checkbox" text={g} on={tag === g} onPress={() => setTag(tag === g ? null : g)} />)}</Chips></TourTarget>
-      {tab === 'For my visa' && !fam.length ? <Hint>Add your family’s visa types in Family to see questions for them here.</Hint> : null}
-      {tab === 'For my visa' && fam.length && !tag ? <Hint>{`Questions tagged ${fam.slice(0, 4).join(', ')}${fam.length > 4 ? '…' : ''}`}</Hint> : null}
-      {error ? <Note tone="amber" actions={<Button size="sm" kind="tint" title="Try again" onPress={load} />}>{error}</Note> : null}
-      <View style={{ marginTop: 14 }}>
-        {posts === null ? <Spinner /> : posts.length ? (
-          <Group>{posts.map((p) => <PostRow key={p.id} p={p} />)}</Group>
-        ) : !error ? (
-          <EmptyState small icon="chat" title={tab === 'Unanswered' ? 'Every question has an answer' : 'No questions here yet'} body="Be the first — ask what you’d like to know. Others with the same visa can answer." action={{ title: 'Ask a question', onPress: () => gate(() => go('/community/compose')) }} />
-        ) : null}
-        {next ? <Button block kind="ghost" title="Show more" busy={more} onPress={loadMore} /> : null}
-      </View>
-      <Hint center style={{ marginTop: 16 }}>Never post receipt numbers or other personal details. Report anything that breaks the rules from its ••• menu.</Hint>
+    <Screen tour={tour} scroll={false}
+      nav={{ title: 'Community', back: backTitle, onBack: back, right: (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          {user ? (
+            <View>
+              <IconButton icon="bell" label={user.unread ? `Notifications, ${user.unread} new` : 'Notifications'} onPress={() => go('/community/notifications')} />
+              {user.unread ? <View pointerEvents="none" style={{ position: 'absolute', top: 6, right: 6, width: 10, height: 10, borderRadius: 5, backgroundColor: PASTEL.blush, borderWidth: 1.5, borderColor: t.bg }} /> : null}
+            </View>
+          ) : null}
+          {user ? <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><CAvatar a={user} size={34} onPress={() => go('/community/account')} /></View>
+            : <IconButton icon="user" label="Account and sign in" onPress={() => go('/community/account')} />}
+        </View>
+      ) }}
+      footer={<Button icon="edit" title="New post" onPress={compose} />}>
+      <FlatList
+        data={posts ?? []} keyExtractor={(p) => p.id} style={{ flex: 1, marginHorizontal: -4 }} contentContainerStyle={{ paddingHorizontal: 4, paddingBottom: 24 }}
+        renderItem={({ item }) => <PostCard p={item} onChange={change} onRemoved={removed} />}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        ListHeaderComponent={header} ListEmptyComponent={empty ?? undefined}
+        ListFooterComponent={more ? <View style={{ paddingVertical: 16 }}><Spinner /></View> : posts?.length && !next ? <Hint center style={{ marginTop: 16 }}>You’re all caught up. Never post receipt numbers or other personal details.</Hint> : undefined}
+        onEndReached={loadMore} onEndReachedThreshold={0.6} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.text2} colors={[t.accent]} />}
+      />
     </Screen>
   );
 }

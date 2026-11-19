@@ -2,6 +2,7 @@
 // server's src/forum.mjs TAGS), which tags fit this family, client-side checks that mirror the server
 // so people get instant feedback, and small formatting helpers. Nothing here talks to the network.
 import type { VisaType } from './model';
+import { PASTEL_NAMES, type PastelName } from './communityColors';
 
 export const COMMUNITY_DISCLAIMER = 'Community answers are from other users, not lawyers — not legal advice.';
 export const RULES_VERSION = 1;
@@ -21,7 +22,7 @@ export const TAGS = {
 } as const;
 export const ALL_TAGS: string[] = [...TAGS.visa, ...TAGS.form, ...TAGS.topic];
 export const MAX_TAGS = 5;
-export const LIMITS = { title: [10, 150], body: [20, 5000], answer: [10, 5000], name: [3, 24] } as const;
+export const LIMITS = { title: [10, 150], body: [20, 5000], answer: [10, 5000], comment: [2, 5000], name: [3, 24], pollOption: [1, 80], pollOptions: [2, 4], steps: [2, 6] } as const;
 
 export const REPORT_REASONS: { id: string; label: string }[] = [
   { id: 'spam', label: 'Spam or ads' },
@@ -76,15 +77,33 @@ export function privacyProblem(s: string): string | null {
 }
 
 const len = (s: string) => s.trim().length;
-export type Draft = { title: string; body: string; tags: string[] };
-/** First problem with a question draft (or null when it can be posted). */
-export function draftProblem(d: Draft): string | null {
-  if (len(d.title) < LIMITS.title[0]) return `Title needs at least ${LIMITS.title[0]} characters.`;
-  if (len(d.title) > LIMITS.title[1]) return `Title can be at most ${LIMITS.title[1]} characters.`;
-  if (len(d.body) < LIMITS.body[0]) return `Add a bit more detail (at least ${LIMITS.body[0]} characters).`;
+export type PostType = 'question' | 'discussion' | 'timeline' | 'poll';
+export type TimelineStep = { label: string; date: string };
+export type TimelineData = { form: string; office: string; premium: boolean; steps: TimelineStep[] };
+export type Draft = { title: string; body: string; tags: string[]; type?: PostType; poll?: string[]; timeline?: TimelineData; repost?: boolean };
+/** First problem with a draft (or null when it can be posted). Mirrors the server's checks per post type. */
+export function draftProblem(d: Draft, today = new Date().toISOString().slice(0, 10)): string | null {
+  const type = d.type ?? 'question';
+  if (!(d.repost && !len(d.title))) {
+    if (len(d.title) < LIMITS.title[0]) return `Title needs at least ${LIMITS.title[0]} characters.`;
+    if (len(d.title) > LIMITS.title[1]) return `Title can be at most ${LIMITS.title[1]} characters.`;
+  }
+  const bodyOptional = d.repost || type === 'timeline' || type === 'poll';
+  if (!bodyOptional && len(d.body) < LIMITS.body[0]) return `Add a bit more detail (at least ${LIMITS.body[0]} characters).`;
   if (len(d.body) > LIMITS.body[1]) return `Details can be at most ${LIMITS.body[1]} characters.`;
-  if (!d.tags.length) return 'Pick at least one tag so the right people see it.';
-  return privacyProblem(`${d.title}\n${d.body}`);
+  if (type === 'poll' && !d.repost) {
+    const o = (d.poll ?? []).map((x) => x.trim()).filter(Boolean);
+    if (o.length < LIMITS.pollOptions[0]) return `A poll needs at least ${LIMITS.pollOptions[0]} options.`;
+    if (o.length > LIMITS.pollOptions[1]) return `A poll can have at most ${LIMITS.pollOptions[1]} options.`;
+    if (o.some((x) => x.length > LIMITS.pollOption[1])) return `Poll options can be at most ${LIMITS.pollOption[1]} characters.`;
+    if (new Set(o.map((x) => x.toLowerCase())).size !== o.length) return 'Make each poll option different.';
+  }
+  if (type === 'timeline' && !d.repost) {
+    const p = timelineProblem(d.timeline, today);
+    if (p) return p;
+  }
+  if (!d.tags.length && !d.repost) return 'Pick at least one tag so the right people see it.';
+  return privacyProblem([d.title, d.body, ...(d.poll ?? [])].join('\n'));
 }
 export function answerProblem(body: string): string | null {
   if (len(body) < LIMITS.answer[0]) return `Write at least ${LIMITS.answer[0]} characters.`;
@@ -115,9 +134,11 @@ export function timeAgo(iso: string, now = Date.now()): string {
 export type FeedTab = 'For my visa' | 'All' | 'Unanswered';
 export const FEED_TABS: FeedTab[] = ['For my visa', 'All', 'Unanswered'];
 /** Query string for GET /api/forum/posts. A picked chip wins over the family's tags. */
-export function feedQuery(o: { tab: FeedTab; famTags: string[]; tag?: string | null; q?: string; cursor?: string | null; sort?: 'new' | 'top' }): string {
+export function feedQuery(o: { tab: FeedTab; famTags: string[]; tag?: string | null; q?: string; cursor?: string | null; sort?: SortId; range?: TopRange }): string {
   const p: [string, string][] = [];
-  p.push(['sort', o.tab === 'Unanswered' ? 'unanswered' : o.sort ?? 'new']);
+  const sort = o.tab === 'Unanswered' ? 'unanswered' : o.sort ?? 'new';
+  p.push(['sort', sort]);
+  if (sort === 'top' && o.range && o.range !== 'all') p.push(['t', o.range]);
   const tags = o.tag ? [o.tag] : o.tab === 'For my visa' ? o.famTags : [];
   if (tags.length) p.push(['tags', tags.join(',')]);
   if (o.q?.trim()) p.push(['q', o.q.trim().slice(0, 100)]);
@@ -134,5 +155,205 @@ export function errorAction(e: { status?: number; code?: string }): 'signin' | '
   return 'show';
 }
 
+/** What a failed write means for the screen */
+export const isAuthError = (e: { status?: number; code?: string }) => errorAction(e) === 'signin' || errorAction(e) === 'rules';
+
 /** Ask for notification permission once, after the first question or answer. */
 export const shouldAskNotify = (o: { asked: boolean; granted: boolean }) => !o.asked && !o.granted;
+
+// ====================== v2.7: Reddit-style community ======================
+export const POST_TYPES: { id: PostType; label: string; icon: string; hint: string }[] = [
+  { id: 'question', label: 'Question', icon: 'help', hint: 'Ask something. You can mark one answer as accepted.' },
+  { id: 'discussion', label: 'Discussion', icon: 'chat', hint: 'Share news, an experience or an opinion.' },
+  { id: 'timeline', label: 'Timeline', icon: 'clock', hint: 'Share your case dates: form, office and each step.' },
+  { id: 'poll', label: 'Poll', icon: 'hr', hint: 'Ask with 2–4 choices. One vote each.' },
+];
+export const typeLabel = (t: PostType | string) => POST_TYPES.find((x) => x.id === t)?.label ?? 'Post';
+export const MAX_DEPTH = 4;
+export const OFFICES = ['EAC', 'WAC', 'LIN', 'SRC', 'IOE', 'NBC', 'MSC', 'YSC', 'Consulate', 'Other'] as const;
+export const STEPS = ['Filed', 'Receipt notice', 'Biometrics', 'RFE received', 'RFE response', 'Interview', 'Transferred', 'Approved', 'Denied', 'Card received'] as const;
+export const FLAIRS = ['H-1B', 'H-4', 'L-1A', 'L-1B', 'L-2', 'F-1', 'OPT', 'STEM OPT', 'TN', 'E-3', 'O-1', 'J-1', 'B-1/B-2', 'Green card', 'Citizen'] as const;
+/** The 24 built-in avatars (same ids as the server's AVATARS). No photo uploads. */
+export const AVATARS: { id: string; emoji: string; name: string }[] = [
+  { id: 'fox', emoji: '🦊', name: 'Fox' }, { id: 'owl', emoji: '🦉', name: 'Owl' }, { id: 'cat', emoji: '🐱', name: 'Cat' }, { id: 'dog', emoji: '🐶', name: 'Dog' },
+  { id: 'panda', emoji: '🐼', name: 'Panda' }, { id: 'koala', emoji: '🐨', name: 'Koala' }, { id: 'tiger', emoji: '🐯', name: 'Tiger' }, { id: 'penguin', emoji: '🐧', name: 'Penguin' },
+  { id: 'whale', emoji: '🐳', name: 'Whale' }, { id: 'turtle', emoji: '🐢', name: 'Turtle' }, { id: 'bee', emoji: '🐝', name: 'Bee' }, { id: 'butterfly', emoji: '🦋', name: 'Butterfly' },
+  { id: 'cactus', emoji: '🌵', name: 'Cactus' }, { id: 'tulip', emoji: '🌷', name: 'Tulip' }, { id: 'maple', emoji: '🍁', name: 'Maple leaf' }, { id: 'mountain', emoji: '⛰️', name: 'Mountain' },
+  { id: 'wave', emoji: '🌊', name: 'Wave' }, { id: 'moon', emoji: '🌙', name: 'Moon' }, { id: 'sun', emoji: '☀️', name: 'Sun' }, { id: 'star', emoji: '⭐', name: 'Star' },
+  { id: 'rocket', emoji: '🚀', name: 'Rocket' }, { id: 'globe', emoji: '🌍', name: 'Globe' }, { id: 'compass', emoji: '🧭', name: 'Compass' }, { id: 'kite', emoji: '🪁', name: 'Kite' },
+];
+
+/** Stable small hash (same person / tag → same pastel on every phone). */
+export function hash(s: string): number { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+export const pastelFor = (key: string): PastelName => PASTEL_NAMES[hash(key) % PASTEL_NAMES.length];
+/** "Quiet Falcon 42" → "QF"; "dallasdad" → "DA"; [deleted] → "–". */
+export function initials(name: string): string {
+  const words = (name || '').replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/).filter((w) => /\p{L}/u.test(w));
+  if (!words.length) return '–';
+  return (words.length === 1 ? words[0].slice(0, 2) : words[0][0] + words[1][0]).toUpperCase();
+}
+export type AuthorLike = { id: string | null; name: string; avatar?: string | null; flair?: string | null; deleted?: boolean };
+/** What to draw in the avatar circle: a built-in emoji or the initials, on a pastel picked from the person's id. */
+export function avatarOf(a: AuthorLike): { pastel: PastelName; text: string; emoji: boolean } {
+  const pastel = pastelFor(a.id || a.name || '?');
+  const built = a.avatar ? AVATARS.find((x) => x.id === a.avatar) : undefined;
+  return built ? { pastel, text: built.emoji, emoji: true } : { pastel, text: initials(a.name), emoji: false };
+}
+/** "QuietFalcon · L-1A · 2 h" */
+export const byline = (a: AuthorLike, at: string, now = Date.now()) => [a.name, a.deleted ? '' : a.flair || '', timeAgo(at, now)].filter(Boolean).join(' · ');
+
+export const fmtCount = (n: number): string => (Math.abs(n) < 1000 ? String(n) : Math.abs(n) < 10000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : `${Math.round(n / 1000)}k`);
+export function joined(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `Joined ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+// ---------- votes ----------
+export type Dir = 1 | 0 | -1;
+/** Tapping the arrow you already picked clears it; tapping the other one switches. */
+export const nextVote = (current: Dir, tapped: 1 | -1): Dir => (current === tapped ? 0 : tapped);
+/** Optimistic score while the request is on its way. */
+export const applyVote = <T extends { score: number; myVote: Dir }>(it: T, dir: Dir): T => ({ ...it, score: it.score - it.myVote + dir, myVote: dir, voted: dir === 1 });
+
+// ---------- feed ----------
+export type SortId = 'hot' | 'new' | 'top' | 'unanswered';
+export type TopRange = 'day' | 'week' | 'all';
+export const SORTS: { id: SortId; label: string }[] = [{ id: 'hot', label: 'Hot' }, { id: 'new', label: 'New' }, { id: 'top', label: 'Top' }, { id: 'unanswered', label: 'Unanswered' }];
+export const TOP_RANGES: { id: TopRange; label: string }[] = [{ id: 'day', label: 'Today' }, { id: 'week', label: 'This week' }, { id: 'all', label: 'All time' }];
+/** Same formula as the server (src/forum.mjs hotScore): votes on a log scale + a steady bonus for newer posts. */
+export function hotScore(score: number, comments: number, createdMs: number): number {
+  const s = score + comments * 0.5;
+  const order = Math.log10(Math.max(Math.abs(s), 1));
+  return (s > 0 ? order : s < 0 ? -order : 0) + createdMs / 1000 / 45000;
+}
+/** Add a page to the list without repeating posts that moved between pages. */
+export function mergePage<T extends { id: string }>(have: T[], page: T[]): T[] {
+  const seen = new Set(have.map((p) => p.id));
+  return [...have, ...page.filter((p) => !seen.has(p.id))];
+}
+
+// ---------- comment threads ----------
+export type CommentLike = { id: string; parentId: string | null; score: number; up?: number; down?: number; createdAt: string; accepted?: boolean };
+export type CommentSort = 'best' | 'new';
+export type Node<C> = C & { replies: Node<C>[]; depth: number };
+function wilson(up: number, down: number): number {
+  const n = up + down;
+  if (!n) return 0;
+  const z = 1.2816, ph = up / n;
+  return (ph + (z * z) / (2 * n) - z * Math.sqrt((ph * (1 - ph) + (z * z) / (4 * n)) / n)) / (1 + (z * z) / n);
+}
+/** Flat list from the server → nested tree. Best: accepted answer, then vote confidence; New: newest first. */
+export function buildTree<C extends CommentLike>(list: C[], sort: CommentSort = 'best'): Node<C>[] {
+  const nodes = new Map<string, Node<C>>(list.map((c) => [c.id, { ...c, replies: [], depth: 0 }]));
+  const roots: Node<C>[] = [];
+  for (const n of nodes.values()) {
+    const parent = n.parentId ? nodes.get(n.parentId) : undefined;
+    if (parent) parent.replies.push(n); else if (!n.parentId) roots.push(n);
+  }
+  const acc = (a: Node<C>, b: Node<C>) => (b.accepted ? 1 : 0) - (a.accepted ? 1 : 0);
+  const byNew = (a: Node<C>, b: Node<C>) => b.createdAt.localeCompare(a.createdAt);
+  const best = (a: Node<C>, b: Node<C>) => wilson(b.up ?? Math.max(0, b.score), b.down ?? 0) - wilson(a.up ?? Math.max(0, a.score), a.down ?? 0) || b.score - a.score || a.createdAt.localeCompare(b.createdAt);
+  const cmp = sort === 'new' ? byNew : best;
+  const walk = (arr: Node<C>[], depth: number) => { arr.sort((a, b) => (depth === 0 ? acc(a, b) : 0) || cmp(a, b)); for (const n of arr) { n.depth = depth; walk(n.replies, depth + 1); } return arr; };
+  return walk(roots, 0);
+}
+export const countReplies = <C>(n: Node<C>): number => n.replies.reduce((a, r) => a + 1 + countReplies(r), 0);
+export type ThreadRow<C> = { c: Node<C>; depth: number; collapsed: boolean; hidden: number };
+/** Tree → the rows to draw, top to bottom. A collapsed comment keeps its own row and hides everything below it. */
+export function threadRows<C extends { id: string }>(tree: Node<C>[], collapsed: ReadonlySet<string>): ThreadRow<C>[] {
+  const out: ThreadRow<C>[] = [];
+  const walk = (arr: Node<C>[]) => { for (const n of arr) { const isC = collapsed.has(n.id); out.push({ c: n, depth: Math.min(n.depth, MAX_DEPTH - 1), collapsed: isC, hidden: isC ? countReplies(n) : 0 }); if (!isC) walk(n.replies); } };
+  walk(tree);
+  return out;
+}
+export function commentProblem(body: string): string | null {
+  if (len(body) < LIMITS.comment[0]) return 'Write a comment first.';
+  if (len(body) > LIMITS.comment[1]) return `At most ${LIMITS.comment[1]} characters.`;
+  return privacyProblem(body);
+}
+
+// ---------- polls ----------
+/** Whole-number percentages that add up to 100 (largest remainder). All zero when nobody voted. */
+export function pollPercents(votes: number[]): number[] {
+  const total = votes.reduce((a, b) => a + b, 0);
+  if (!total) return votes.map(() => 0);
+  const raw = votes.map((v) => (v / total) * 100);
+  const out = raw.map(Math.floor);
+  let left = 100 - out.reduce((a, b) => a + b, 0);
+  for (const i of raw.map((r, i) => [r - Math.floor(r), i] as const).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map((x) => x[1])) { if (left-- <= 0) break; out[i]++; }
+  return out;
+}
+
+// ---------- timeline shares ----------
+const DAY = 864e5;
+const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s + 'T00:00:00Z'));
+export const daysBetween = (a: string, b: string) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / DAY);
+export function timelineProblem(tl: TimelineData | undefined, today = new Date().toISOString().slice(0, 10)): string | null {
+  if (!tl?.form) return 'Pick the form.';
+  if (!tl.office) return 'Pick the office.';
+  const steps = tl.steps.filter((s) => s.label || s.date);
+  if (steps.some((s) => !s.label || !s.date)) return 'Give every step a name and a date.';
+  if (steps.length < LIMITS.steps[0]) return `Add at least ${LIMITS.steps[0]} dates (for example Filed and Approved).`;
+  if (steps.length > LIMITS.steps[1]) return `At most ${LIMITS.steps[1]} dates.`;
+  if (steps.some((s) => !isDate(s.date))) return 'Write dates as YYYY-MM-DD.';
+  if (steps.some((s) => s.date > today)) return 'Dates can’t be in the future.';
+  if (new Set(steps.map((s) => s.label)).size !== steps.length) return 'Use each step once.';
+  return null;
+}
+/** Steps in date order with the days since the step before, and the total from first to last. */
+export function timelineView(tl: TimelineData): { rows: { label: string; date: string; gap: number | null }[]; totalDays: number; outcome: 'approved' | 'denied' | 'pending' } {
+  const steps = [...tl.steps].filter((s) => isDate(s.date)).sort((a, b) => a.date.localeCompare(b.date));
+  const rows = steps.map((s, i) => ({ label: s.label, date: s.date, gap: i ? daysBetween(steps[i - 1].date, s.date) : null }));
+  const labels = steps.map((s) => s.label);
+  return { rows, totalDays: steps.length > 1 ? daysBetween(steps[0].date, steps[steps.length - 1].date) : 0, outcome: labels.includes('Denied') ? 'denied' : labels.includes('Approved') || labels.includes('Card received') ? 'approved' : 'pending' };
+}
+/** "Aug 14, 2026" from "2026-08-14" (no time zones involved). */
+export function shortDate(isoDay: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDay);
+  if (!m) return isoDay;
+  return `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][+m[2] - 1]} ${+m[3]}, ${m[1]}`;
+}
+/** "81 days" / "1 day" / "same day" */
+export const daysLabel = (n: number) => (n === 0 ? 'same day' : `${n} day${n === 1 ? '' : 's'}`);
+/** Title suggestion for a timeline share: "I-765 at IOE: filed Aug 2026, approved Nov 2026 (81 days)". */
+export function timelineTitle(tl: TimelineData): string {
+  const v = timelineView(tl);
+  if (v.rows.length < 2) return '';
+  const my = (d: string) => shortDate(d).replace(/ \d+,/, '');
+  const last = v.rows[v.rows.length - 1];
+  return `${tl.form} at ${tl.office}: filed ${my(v.rows[0].date)}, ${last.label.toLowerCase()} ${my(last.date)} (${daysLabel(v.totalDays)})`;
+}
+
+// ---------- sharing ----------
+export const postLink = (id: string) => `casedesk://community/post/${id}`;
+/** Text for the system share sheet: the title, then the in-app link. */
+export const shareText = (p: { id: string; title: string }) => `${p.title}\n${postLink(p.id)}`;
+/** A link someone pasted or tapped → the post id (casedesk://community/post/<id> or /community/post/<id>). */
+export function postIdFromLink(url: string): string | null {
+  const m = /(?:^casedesk:\/\/|^\/|\/\/[^/]+\/)community\/post\/([\w-]{3,40})(?:[/?#]|$)/.exec(url.trim());
+  return m ? m[1] : null;
+}
+
+// ---------- Google sign-in (off until a client id is pasted — see GOOGLE.md) ----------
+/** "1234-abcd.apps.googleusercontent.com" → Google's iOS URL scheme "com.googleusercontent.apps.1234-abcd" (null when it isn't a client id). */
+export function reversedClientId(clientId: string | undefined | null): string | null {
+  const m = /^([\w-]+)\.apps\.googleusercontent\.com$/.exec(String(clientId ?? '').trim());
+  return m ? `com.googleusercontent.apps.${m[1]}` : null;
+}
+/**
+ * Should the Google button show, and where does Google send the person back to?
+ * iOS: only when this installed build has the reversed-client-id URL scheme (added by plugins/withGoogleSignIn.js at
+ * the next build) — an over-the-air update on an older build keeps the button hidden. `allowBundleScheme`
+ * (extra.googleUseBundleScheme) lets the lead try it on the current build through the bundle-id scheme.
+ */
+export function googleRedirect(o: { platform: string; iosClientId?: string | null; webClientId?: string | null; hasModule: boolean; schemeInBuild: boolean; bundleId?: string; allowBundleScheme?: boolean }): { show: boolean; redirectUri?: string } {
+  if (!o.hasModule) return { show: false };
+  if (o.platform === 'web') return { show: !!o.webClientId };
+  if (o.platform !== 'ios') return { show: false };
+  const scheme = reversedClientId(o.iosClientId);
+  if (!scheme) return { show: false };
+  if (o.schemeInBuild) return { show: true, redirectUri: `${scheme}:/oauthredirect` };
+  if (o.allowBundleScheme && o.bundleId) return { show: true, redirectUri: `${o.bundleId}:/oauthredirect` };
+  return { show: false };
+}
