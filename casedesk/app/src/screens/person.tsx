@@ -15,6 +15,7 @@ import { useFamily, usePerson } from '../data/FamilyProvider';
 import { readText } from '../native/ocr';
 import { fileUri, keepFile, pick, preview, share as shareFile, type Source } from '../native/files';
 import { readDocument } from '../core/read';
+import { copyReminders, reminderSummary, LEAD_CHOICES, REMINDER_TYPES, typeDates, typeSetting, typesFor, type ReminderType } from '../core/reminders';
 import { belongsElsewhere, identityOf, sameName } from '../core/identity';
 import {
   Avatar, Button, Card, CheckRow, Chip, DateField, EmptyState, Field, Group, H1, Hint, Icon, LegalLine, Meter, NavButton, Note, Pill, Row, Screen, SectionHeader, Switch, T, Why, ChipToggle, Chips,
@@ -178,7 +179,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
       <SectionHeader>Details</SectionHeader>
       <Group>
         <Row icon="edit" title="Edit details" subtitle="Name, relationship, birth date, status, employer, where now" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} chevron={false} />
-        <Row icon="bell" title="Reminders" subtitle={rm.on ? `On · ${leadText(rm.lead)}` : 'Off'} onPress={() => go(`/reminders/${p.id}`)} chevron={false} />
+        <Row icon="bell" title="Reminders" subtitle={reminderSummary(rm, typesFor(rec, f.caseList.some((c) => c.ownerId === p.id && c.keyDates.some((k) => k.date >= today()))))} onPress={() => go(`/reminders/${p.id}`)} chevron={false} />
         {!you ? <Row icon="trash" iconTone="red" title={`Remove ${p.name}`} titleTone="red" chevron={false} onPress={() => sheet.open(`Remove ${p.name}?`, <RemovePerson pid={p.id} />)} /> : null}
       </Group>
     </>
@@ -459,14 +460,27 @@ function LayoffPlan({ id }: { id?: string }) {
 }
 
 // ---------- reminders ----------
+// v2.9: real per-type switches with their own lead times, only for the types this person has;
+// the same settings can be copied to everyone or to chosen people.
 export function RemindersScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const f = useFamily();
+  const toast = useToast();
+  const [to, setTo] = useState<string[]>([]);
   const p = f.people.find((x) => x.id === id);
   if (!p) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="user" title="Removed" /></Screen>;
   const r = p.reminders ?? { on: true, lead: [180, 90, 30, 7] };
   const set = (patch: Partial<typeof r>) => f.actions.updatePerson(p.id, { reminders: { ...r, ...patch } });
-  const what = stepsFor(p, f.records[p.id]).filter((s) => !['travel', 'receipt', 'i485', 'n400', 'i140'].includes(s.key)).map((s) => s.title).concat(['Case dates (RFE, biometrics, interview)']);
+  const hasCaseDates = f.caseList.some((c) => c.ownerId === p.id && c.keyDates.some((k) => k.date >= today()));
+  const kinds = typesFor(f.records[p.id], hasCaseDates);
+  const dates = typeDates(f.records[p.id]);
+  const setType = (k: ReminderType, s: { on: boolean; lead: number[] }) => set({ types: { ...(r.types ?? {}), [k]: s } });
+  const others = f.people.filter((x) => x.id !== p.id);
+  const apply = async () => {
+    const ids = to.includes('*') ? others.map((x) => x.id) : to;
+    for (const oid of ids) { const o = f.people.find((x) => x.id === oid); if (o) await f.actions.updatePerson(oid, { reminders: copyReminders(r, o.reminders) }); }
+    setTo([]); toast(ids.length ? `Same reminders for ${ids.length === others.length ? 'everyone' : listOf(ids.map((x) => f.people.find((o) => o.id === x)?.name ?? ''))}` : 'Choose people first');
+  };
   return (
     <Screen nav={{ back: 'Back', onBack: back, title: 'Reminders' }}>
       <H1>{`${p.name}’s reminders`}</H1>
@@ -476,12 +490,47 @@ export function RemindersScreen() {
       </Group>
       {r.on ? (
         <>
-          <SectionHeader>Remind me</SectionHeader>
-          <Chips style={{ marginTop: 0 }}>{[180, 90, 60, 30, 14, 7, 1].map((d) => <ChipToggle key={d} role="checkbox" text={`${d} day${d === 1 ? '' : 's'} before`} on={r.lead.includes(d)} onPress={() => set({ lead: r.lead.includes(d) ? r.lead.filter((x) => x !== d) : [...r.lead, d].sort((a, b) => b - a) })} />)}</Chips>
           <SectionHeader>For</SectionHeader>
-          <Group>{what.map((w) => <Row key={w} icon="check" title={w} titleStyle={font.callout} />)}</Group>
+          {kinds.length ? (
+            <Group>
+              {kinds.map((k) => {
+                const s = typeSetting(r, k);
+                const meta = REMINDER_TYPES.find((x) => x.key === k)!;
+                const d = k === 'cases' ? undefined : dates[k];
+                return (
+                  <View key={k} style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <T style={[font.body, { fontWeight: '600' }]}>{meta.title}</T>
+                        <T tone="text2" style={font.foot}>{d ? `${meta.what[0].toUpperCase()}${meta.what.slice(1)} ${fmt(d)}` : 'Biometrics, interview, RFE due dates'}</T>
+                      </View>
+                      <Switch value={s.on} label={`${meta.title} reminders`} onValueChange={(on) => setType(k, { ...s, on })} />
+                    </View>
+                    {s.on ? (
+                      <Chips style={{ marginTop: 10 }}>
+                        {LEAD_CHOICES.map((n) => <ChipToggle key={n} role="checkbox" text={`${n} day${n === 1 ? '' : 's'}`} on={s.lead.includes(n)}
+                          onPress={() => setType(k, { on: true, lead: s.lead.includes(n) ? s.lead.filter((x) => x !== n) : [...s.lead, n].sort((a, b) => b - a) })} />)}
+                      </Chips>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </Group>
+          ) : <Hint>No dated documents yet. Add a passport, I-94 or approval to get reminders.</Hint>}
+          <Hint style={{ marginHorizontal: 4 }}>Days before the date. Checks that need action (for example the I-94 ending before the approval) follow the same type.</Hint>
+          {others.length ? (
+            <>
+              <SectionHeader>Use the same reminders for</SectionHeader>
+              <Chips style={{ marginTop: 0 }}>
+                <ChipToggle role="checkbox" text="Everyone" on={to.includes('*')} onPress={() => setTo(to.includes('*') ? [] : ['*'])} />
+                {others.map((o) => <ChipToggle key={o.id} role="checkbox" text={o.name} on={to.includes('*') || to.includes(o.id)} onPress={() => setTo(to.includes(o.id) ? to.filter((x) => x !== o.id) : [...to.filter((x) => x !== '*'), o.id])} />)}
+              </Chips>
+              <View style={{ flexDirection: 'row', marginTop: 12 }}><Button kind="tint" title="Apply" disabled={!to.length} onPress={apply} /></View>
+            </>
+          ) : null}
         </>
       ) : <Hint style={{ marginTop: 12 }}>Off. Dates still show on Home.</Hint>}
     </Screen>
   );
 }
+const listOf = (xs: string[]) => (xs.length <= 2 ? xs.join(' and ') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);

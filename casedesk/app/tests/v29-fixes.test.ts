@@ -92,3 +92,29 @@ test('Review always says why and what to do', () => {
   // unknown ids still get a plain next step
   assert.ok(whatToDo(f('zzz', 'review', 'x', '2027-01-01')).length > 5);
 });
+
+import { typeSetting, typesFor, reminderSummary, copyReminders } from '../src/core';
+import Module from 'node:module';
+import path from 'node:path';
+const M = Module as any;
+const orig = M._resolveFilename;
+M._resolveFilename = function (req: string, ...a: any[]) { return req === 'react-native' ? path.join(__dirname, 'stubs/react-native.cjs') : orig.call(this, req, ...a); };
+const { reminderItems } = require('../src/native/reminders') as typeof import('../src/native/reminders');
+
+test('reminders: per-type lead times, only the types the person has, a type can be switched off', () => {
+  const me = person('me', 'self', { name: 'Arun Kumar' });
+  const pp = doc('me', T.passport('K1111111', 'KUMAR', 'ARUN', '06/02/2020', '05/02/2030'));
+  const i94 = doc('me', T.i94('2028 July 21', '2026 March 10', 'H1B', 'K1111111'));
+  const rec = deriveRecord(me, [pp, i94]);
+  assert.deepEqual(typesFor(rec, false), ['passport', 'i94']);
+  assert.deepEqual(typeSetting(undefined, 'passport').lead, [180, 90]);
+  assert.deepEqual(typeSetting(undefined, 'i94').lead, [90, 30, 7]);
+  // someone who changed the old single list keeps it for every type
+  assert.deepEqual(typeSetting({ on: true, lead: [30] }, 'passport').lead, [30]);
+  const rm = { on: true, lead: [180, 90, 30, 7], types: { passport: { on: false, lead: [180] } } };
+  const items = reminderItems([{ ...me, reminders: rm }], { me: rec }, {}, []);
+  assert.ok(!items.some((x) => /passport/.test(x.title)));
+  assert.equal(items.filter((x) => /I-94 ends/.test(x.title)).length, 3);
+  assert.equal(reminderSummary(rm, ['passport', 'i94']), 'On · I-94');
+  assert.deepEqual(copyReminders(rm, undefined).types?.passport, { on: false, lead: [180] });
+});

@@ -120,7 +120,7 @@ export type Person = {
   name: string; // what the family calls them ("Dad", "Asha") — display only, never used for matching
   relation: Relation;
   isMain?: boolean; // the main person in the family (F2: anyone can be)
-  reminders?: { on: boolean; lead: number[] }; // local notifications before this person's dates
+  reminders?: { on: boolean; lead: number[]; types?: Partial<Record<'passport' | 'visa' | 'i94' | 'approval' | 'ead' | 'ap' | 'gc' | 'cases', { on: boolean; lead: number[] }>> }; // local notifications before this person's dates (v2.9: per type)
   status?: StatusCategory; // picked at setup
   facts: PersonFacts;
   createdAt: ISODate;
