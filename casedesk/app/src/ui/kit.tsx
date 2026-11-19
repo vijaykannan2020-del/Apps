@@ -220,7 +220,9 @@ export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const L = useLayout();
-  const inner: ViewStyle = { paddingHorizontal: L.side, paddingTop: nav ? 20 : padTop ? insets.top + 14 : 0, paddingBottom: (footer ? 24 : 32) + (tabRoot ? insets.bottom + 56 : footer ? 0 : insets.bottom), alignSelf: 'center', width: '100%', maxWidth: wide && L.twoCol ? L.wideMax + 2 * L.side : L.maxWidth + 2 * L.side };
+  // iOS tab roots: contentInsetAdjustmentBehavior=automatic already clears the tab bar (bottom, floating or
+  // side rail), so they get no extra bottom gap; Android and web still pad for the bottom bar.
+  const inner: ViewStyle = { paddingHorizontal: L.side, paddingTop: nav ? 20 : padTop ? insets.top + 14 : 0, paddingBottom: (footer ? 24 : 32) + (tabRoot ? (Platform.OS === 'ios' ? 0 : insets.bottom + 56) : footer ? 0 : insets.bottom), alignSelf: 'center', width: '100%', maxWidth: wide && L.twoCol ? L.wideMax + 2 * L.side : L.maxWidth + 2 * L.side };
   const split = !!panes && L.twoCol;
   const paneInner = (left: boolean): ViewStyle => ({ ...inner, maxWidth: undefined, alignSelf: 'stretch', paddingLeft: left ? L.side : 10, paddingRight: left ? 10 : L.side });
   const body = split ? (
