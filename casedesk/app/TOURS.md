@@ -49,9 +49,10 @@ Rules:
   `<TourButton />` at the top.
 - Tab roots have no nav bar: put `<TourButton />` in `LargeTitle right={…}` and pass `tour` to `Screen`.
 - `<TourTarget id>` is a plain `View` (`collapsable={false}`) around the control; pass `style` if the
-  wrapper must flex (e.g. `style={{ flex: 1 }}` in a footer). A step whose target isn't on screen
-  (not rendered yet, or scrolled away) shows as a centred card without an arrow — write the text so
-  it still makes sense.
+  wrapper must flex (e.g. `style={{ flex: 1 }}` in a footer). A target scrolled out of view inside a
+  `<Screen>` is scrolled into the top third first (its scroll area comes from `<TourScroll>`, which
+  `Screen` uses). A target that isn't rendered (or sits in a sheet) shows as a centred card without an
+  arrow — write the text so it still makes sense.
 - 2–4 tips, each under ~150 characters. Plain words, say what to tap.
 - Ids are screen ids, not routes; once seen, a new id shows again (rename the id if you rewrite a tour
   and want everyone to see it).

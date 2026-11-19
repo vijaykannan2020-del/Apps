@@ -14,7 +14,7 @@ import type { Severity } from '../core/rules/types';
 import { fmt, isISO } from '../core/dates';
 
 import { WEB_TEXT_SCALE } from './theme';
-import { TourButton, TourScope, type Tour } from './tour';
+import { TourButton, TourScope, TourScroll, type Tour } from './tour';
 
 /** Text that also follows the web preview's simulated text size (phones use Dynamic Type natively). */
 function Text(props: TextProps) {
@@ -175,11 +175,11 @@ export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard
   const paneInner = (left: boolean): ViewStyle => ({ ...inner, maxWidth: undefined, alignSelf: 'stretch', paddingLeft: left ? L.side : 10, paddingRight: left ? 10 : L.side });
   const body = split ? (
     <View style={{ flex: 1, flexDirection: 'row', alignSelf: 'center', width: '100%', maxWidth: L.wideMax + 2 * L.side }}>
-      <ScrollView testID="pane-left" style={{ flex: paneRatio }} contentContainerStyle={paneInner(true)} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes!.left}</ScrollView>
-      <ScrollView testID="pane-right" style={{ flex: 1 }} contentContainerStyle={paneInner(false)} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes!.right}</ScrollView>
+      <TourScroll testID="pane-left" style={{ flex: paneRatio }} contentContainerStyle={paneInner(true)} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes!.left}</TourScroll>
+      <TourScroll testID="pane-right" style={{ flex: 1 }} contentContainerStyle={paneInner(false)} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes!.right}</TourScroll>
     </View>
   ) : scroll ? (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={inner} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes ? <>{panes.left}{panes.right}</> : children}</ScrollView>
+    <TourScroll style={{ flex: 1 }} contentContainerStyle={inner} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes ? <>{panes.left}{panes.right}</> : children}</TourScroll>
   ) : <View style={[{ flex: 1 }, inner]}>{children}</View>;
   const content = (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingLeft: insets.left, paddingRight: insets.right }}>

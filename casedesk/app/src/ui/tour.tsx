@@ -9,7 +9,7 @@
 // from Settings → Help → Show all tips again. Drawn in the app's own overlay layer (no RN Modal),
 // like sheets and toasts, so it also sits above an open sheet.
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions, type ScrollViewProps } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { normalizeSteps, placeTip, shouldAutoShow, stepLabel, type Rect, type TourStep } from '../core/tours';
 import { useTheme, MIN_TOUCH, font } from './theme';
@@ -24,7 +24,23 @@ export type Tour = {
   start: () => void;
   /** registry of targets on this screen (filled by <TourTarget>) */
   refs: Map<string, React.RefObject<Measurable | null>>;
+  /** the scroll area each target sits in, so a step can bring it on screen */
+  scrolls?: Map<string, Scroller>;
 };
+type Scroller = { scrollBy: (dy: number) => void };
+const ScrollCtx = createContext<Scroller | null>(null);
+
+/** ScrollView that lets tour steps scroll their target into view (used by <Screen>). */
+export function TourScroll({ children, onScroll, ...props }: ScrollViewProps & { children?: React.ReactNode }) {
+  const ref = useRef<any>(null);
+  const y = useRef(0);
+  const api = useMemo<Scroller>(() => ({ scrollBy: (dy) => { ref.current?.scrollTo({ y: Math.max(0, y.current + dy), animated: false }); } }), []);
+  return (
+    <ScrollCtx.Provider value={api}>
+      <ScrollView ref={ref} scrollEventThrottle={32} onScroll={(e) => { y.current = e.nativeEvent.contentOffset.y; onScroll?.(e); }} {...props}>{children}</ScrollView>
+    </ScrollCtx.Provider>
+  );
+}
 
 type Active = { tour: Tour; i: number } | null;
 type Ctx = {
@@ -127,13 +143,15 @@ export function TourScope({ tour, children }: { tour?: Tour | null; children: Re
 /** Marks what a tour step points at. Renders a plain View around its child. */
 export function TourTarget({ id, children, style, tour }: { id: string; children: React.ReactNode; style?: any; tour?: Tour }) {
   const scope = useContext(ScopeCtx);
+  const scroller = useContext(ScrollCtx);
   const owner = tour ?? scope;
   const ref = useRef<any>(null);
   useEffect(() => {
     if (!owner) return;
     owner.refs.set(id, ref as never);
-    return () => { if (owner.refs.get(id) === (ref as never)) owner.refs.delete(id); };
-  }, [owner, id]);
+    if (scroller) (owner.scrolls ??= new Map()).set(id, scroller);
+    return () => { if (owner.refs.get(id) === (ref as never)) { owner.refs.delete(id); owner.scrolls?.delete(id); } };
+  }, [owner, id, scroller]);
   return <View ref={ref} collapsable={false} style={style}>{children}</View>;
 }
 
@@ -185,11 +203,20 @@ function TourOverlay({ tour, i, onNext, onBack, onSkip, onHelp }: { tour: Tour; 
     const done = (r: Rect | null) => { if (alive) setRect(r); };
     if (!target?.measureInWindow) { done(null); return; }
     const root = rootRef.current as unknown as Measurable | null;
-    target.measureInWindow((x, y, w, h) => {
+    const scroller = step.target ? tour.scrolls?.get(step.target) : undefined;
+    const measure = (again: boolean) => target.measureInWindow!((x, y, w, h) => {
+      if (!alive) return;
       if (!w || !h) { done(null); return; }
+      // Off screen (or under the bars)? Scroll its own scroll area so it sits in the top third, then measure again.
+      if (!again && scroller && (y < 80 || y + Math.min(h, win.height * 0.4) > win.height - 140)) {
+        scroller.scrollBy(y - win.height * 0.22);
+        setTimeout(() => measure(true), 160);
+        return;
+      }
       if (root?.measureInWindow) root.measureInWindow((ox, oy) => done({ x: x - (ox || 0), y: y - (oy || 0), width: w, height: h }));
       else done({ x, y, width: w, height: h });
     });
+    measure(false);
     return () => { alive = false; };
   }, [step, tour, win.width, win.height]);
 
