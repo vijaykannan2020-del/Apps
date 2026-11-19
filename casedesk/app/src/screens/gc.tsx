@@ -62,7 +62,7 @@ export function GcSection({ pid }: { pid: string }) {
             <Row icon="card" iconPastel={STAGE_TONE[t.stage] === 'butter' ? 'butter' : STAGE_TONE[t.stage] === 'sage' ? 'sage' : 'sky'} title={STAGE_LABEL[t.stage]} subtitle={t.next[0]} onPress={() => go(`/gc/${p.id}`)} chevron />
             {t.stage !== 'approved' ? <Row icon="cal" title="Priority date" subtitle={pdLine(t)} onPress={() => go(`/gc/plan/${p.id}`)} chevron
               trailing={t.bulletin ? <Pill severity={t.bulletin.canFile || t.bulletin.canApprove ? 'good' : 'info'} text={t.bulletin.canApprove ? 'Final' : t.bulletin.canFile ? 'Current' : 'Waiting'} /> : undefined} /> : null}
-            {wb.pending485 ? <Row icon="briefcase" title="Working on" subtitle={wb.workOn === 'ead' ? `EAD (C9)${wb.eadUntil ? ` until ${fmt(wb.eadUntil)}` : ''}` : `${wb.hlClass ? wb.hlClass.replace(/^H1B$/, 'H-1B') : 'H / L'} status${wb.i94Until ? ` until ${fmt(wb.i94Until)}` : ''}`} onPress={() => go(`/gc/${p.id}`)} chevron /> : null}
+            {wb.pending485 ? <Row icon="briefcase" title="Working on" subtitle={wb.workOn === 'ead' ? `EAD (C9)${wb.eadUntil ? ` until ${fmt(wb.eadUntil)}` : ''}` : `${wb.hlClass ? wb.hlClass.replace(/^H1B$/, 'H-1B').replace(/^H4$/, 'H-4').replace(/^L1([AB]?)$/, 'L-1$1').replace(/^L2$/, 'L-2') : 'H / L'} status${wb.i94Until ? ` until ${fmt(wb.i94Until)}` : ''}`} onPress={() => go(`/gc/${p.id}`)} chevron /> : null}
             {t.stage === 'i485' || t.stage === 'interview' ? <Row icon="list" iconPastel="butter" title="Interview prep" subtitle={t.interview ? `Interview ${fmt(t.interview)}` : 'Checklist and common questions'} onPress={() => go(`/gc/interview/${p.id}`)} chevron /> : null}
           </>
         ) : (
@@ -78,7 +78,7 @@ export function GcScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const c = useGc(id);
   const sheet = useSheet();
-  if (!c || !c.track) return <Screen nav={{ back: 'Back', onBack: back, title: 'Green card' }}><EmptyState icon="card" title="Nothing to track" body="US citizens don’t need a green card." /></Screen>;
+  if (!c || !c.track) return <Screen nav={{ back: 'Back', onBack: back, title: 'Green card' }}><EmptyState icon="card" title="Nothing to track" body="No green card case for this person." /></Screen>;
   const { p, f, track: t } = c;
   const done = (k: string) => stageIndex(t.stage) > stageIndex(k as never) || (t.stage === 'approved' && k === 'approved');
   const rec = f.records[p.id];

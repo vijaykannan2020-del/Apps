@@ -56,7 +56,7 @@ export function eadRules(c: RuleCtx): Finding[] {
   else if (de <= 180) out.push(finding('C12', 'review', 'ead-soon', `EAD ends in ${de} days, no automatic extension`,
     r.visa === 'STEM OPT' || r.visa === 'F-1 OPT' ? 'File the STEM extension up to 90 days before the card ends.' : 'File the renewal as early as allowed — renewals filed since Oct 30, 2025 don’t auto-extend, so work stops on the card’s end date if it isn’t approved.', exp));
   // R24: an H-4 / L-2 EAD only works while that person's H-4 / L-2 status lasts.
-  if (r.visa && ['H-4', 'H-4 EAD', 'L-2', 'L-2S'].includes(r.visa) && exp && r.i94?.until && exp > r.i94.until && (daysTo(exp) ?? -1) >= 0) {
+  if (r.visa && ['H-4', 'H-4 EAD', 'L-2', 'L-2S'].includes(r.visa) && !/^c0?9$/i.test((r.ead?.category ?? '').replace(/[^a-z0-9]/gi, '')) && exp && r.i94?.until && exp > r.i94.until && (daysTo(exp) ?? -1) >= 0) {
     out.push(finding('R24', 'review', 'ead-past-i94', `EAD runs past the I-94 (${fmt(r.i94.until)})`, `The card says ${fmt(exp)}, but an ${r.visa.startsWith('H') ? 'H-4' : 'L-2'} EAD is valid only while the ${r.visa.startsWith('H') ? 'H-4' : 'L-2'} status is. Plan the extension before ${fmt(r.i94.until)}.`, r.i94.until));
   }
   return out;

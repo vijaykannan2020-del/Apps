@@ -166,10 +166,10 @@ export function nextSteps(t: GcTrack, ownerName: string, self: boolean): string[
     case 'waiting': {
       if (!t.priorityDate || !t.category) return ['Add the I-140 approval (or type the priority date and category) to compare with the Visa Bulletin.'];
       if (b?.canFile) return [`${whose[0].toUpperCase()}${whose.slice(1)} priority date ${fmt(t.priorityDate)} is current for filing in the ${b.month} Visa Bulletin.`, 'Each person files their own I-485 (with I-765 and I-131) and the I-693 medical in its sealed envelope.', 'Gather documents now — see the planner.'];
-      return [`Waiting: ${t.category} ${COUNTRY_LABEL[t.country]} cut-off is ${cellText(b?.chart === 'filing' ? b?.filing : b?.final)} (${b?.month ?? 'this month'}); the priority date is ${fmt(t.priorityDate)}.`, 'Keep your current status (H-1B / L-1 extensions) while you wait.', 'Check the bulletin each month; the planner estimates the wait.'];
+      return [`Waiting: ${t.category} ${COUNTRY_LABEL[t.country]} cut-off is ${cellText(b?.chart === 'filing' ? b?.filing : b?.final)} (${b?.month ?? 'this month'}); the priority date is ${fmt(t.priorityDate)}.`, t.derivative ? 'Keep your current status (H-4 / L-2, following the main applicant) while you wait.' : 'Keep your current status (H-1B / L-1 extensions) while you wait.', 'Check the bulletin each month; the planner estimates the wait.'];
     }
     case 'i485': return [
-      t.pendingDays !== undefined ? `I-485 pending ${t.pendingDays} days.${t.pendingDays >= 180 ? ' After 180 days with an approved I-140, a same or similar job change may be possible (AC21).' : ''}` : 'I-485 pending.',
+      t.pendingDays !== undefined ? `I-485 pending ${t.pendingDays} days.${t.pendingDays >= 180 && !t.derivative ? ' After 180 days with an approved I-140, a same or similar job change may be possible (AC21).' : ''}` : 'I-485 pending.',
       b ? (b.canApprove ? 'The final action date is current: USCIS can approve once the case is ready (biometrics, medical, any interview).' : `It can be approved only when the final action date passes ${fmt(t.priorityDate)} (now ${cellText(b.final)}).`) : 'Approval needs the priority date to be current on the final action chart.',
       'Renew the EAD and advance parole in time; renewals filed since Oct 30, 2025 are not automatically extended.',
     ];

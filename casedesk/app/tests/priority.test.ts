@@ -170,7 +170,7 @@ test('status view: counts for the ring and bars sorted by urgency', () => {
 
 test('wallet card: in status until, days left, and the word that goes with the colour', () => {
   const w = walletFacts({ today: TODAY, hasDocs: true, until: '2027-06-28', label: 'L-1A' });
-  assert.deepEqual([w.caption, w.big, w.corner, w.word, w.wordTone], ['In status for', '221 days', '06/27', 'valid', 'green']);
+  assert.deepEqual([w.caption, w.big, w.corner, w.word, w.wordTone], ['Status left', '221 days', '06/27', 'valid', 'green']);
   assert.equal(walletFacts({ today: TODAY, hasDocs: true, until: '2027-03-01' }).wordTone, 'amber');
   const ended = walletFacts({ today: TODAY, hasDocs: true, until: '2026-11-01' });
   assert.deepEqual([ended.caption, ended.big, ended.wordTone], ['Status ended', '18 days ago', 'red']);

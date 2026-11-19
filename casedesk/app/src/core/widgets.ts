@@ -160,14 +160,15 @@ export function gcStage(rec: PersonRecord, pdCurrent?: boolean): string | undefi
 
 /** Everything one person's widget can show. A kind that doesn't apply is simply left out
  *  (the widget then says "Not added yet — open the app"). Every link opens the person, except a case update. */
-export function personItems(p: Person, o: { rec?: PersonRecord; res?: PersonResult; cases: CaseView[]; bulletin?: VisaBulletin; who: string; whoInitials: string; today: string }): WidgetItem[] {
+export function personItems(p: Person, o: { rec?: PersonRecord; res?: PersonResult; cases: CaseView[]; bulletin?: VisaBulletin; who: string; whoInitials: string; today: string; scrub?: (s: string) => string }): WidgetItem[] {
+  const sc = o.scrub ?? ((s: string) => s);
   const { rec, res, today: t } = o;
   const out: WidgetItem[] = [];
   const url = personUrl(p.id);
   const add = (kind: WidgetKind, label: string, mode: WidgetItem['mode'], x: Partial<Pick<WidgetItem, 'date' | 'text' | 'place' | 'stamp' | 'url'>>) =>
     out.push({
-      kind, personId: p.id, who: o.who, whoInitials: o.whoInitials, label: clean(label).slice(0, 40), mode,
-      ...(isISO(x.date) ? { date: x.date } : {}), ...(x.text ? { text: clean(x.text).slice(0, 60) } : {}),
+      kind, personId: p.id, who: o.who, whoInitials: o.whoInitials, label: clean(sc(label)).slice(0, 40), mode,
+      ...(isISO(x.date) ? { date: x.date } : {}), ...(x.text ? { text: clean(sc(x.text)).slice(0, 60) } : {}),
       ...(x.place ? { place: x.place } : {}), ...(typeof x.stamp === 'boolean' ? { stamp: x.stamp } : {}), url: x.url ?? url,
     });
   const mine = o.cases.filter((c) => c.ownerId === p.id);
@@ -254,13 +255,16 @@ export function buildWidgetSnapshot(i: WidgetInput): WidgetSnapshot {
   if (widgetsLocked(i.settings)) return { ...base, locked: true, people: [], deadlines: [], latestCase: null, bulletin: null };
   const mode = widgetNames(i.settings);
   const nameOf = new Map(i.people.map((p) => [p.id, widgetName(p.name, mode)]));
+  // Rule titles can name another family member in full ("X’s I-94 ends first"): swap full names for the widget name.
+  const full = i.people.filter((p) => p.name.trim()).map((p) => [p.name.trim(), nameOf.get(p.id)!] as const).sort((a, b) => b[0].length - a[0].length);
+  const scrub = (s: string) => full.reduce((acc, [n, w]) => acc.split(n).join(w), s);
   const people: WidgetPerson[] = i.people.map((p) => {
     const rec = i.records[p.id], res = i.results[p.id];
     const v = validUntil(rec, res);
     return { id: p.id, name: nameOf.get(p.id)!, initials: widgetName(p.name, 'initials'), status: clean(statusText(p, rec, res)).slice(0, 40), ...(v.until ? { until: v.until, untilLabel: v.label } : {}), url: personUrl(p.id) };
   });
   const deadlines: WidgetDeadline[] = i.people
-    .flatMap((p) => personDeadlines(p, i.records[p.id], i.results[p.id], i.caseList, t).map((d) => ({ personId: p.id, who: nameOf.get(p.id)!, what: clean(d.what).slice(0, 48), date: d.date, url: personUrl(p.id) })))
+    .flatMap((p) => personDeadlines(p, i.records[p.id], i.results[p.id], i.caseList, t).map((d) => ({ personId: p.id, who: nameOf.get(p.id)!, what: clean(scrub(d.what)).slice(0, 48), date: d.date, url: personUrl(p.id) })))
     .sort((a, b) => a.date.localeCompare(b.date) || a.who.localeCompare(b.who))
     .slice(0, WIDGET_DEADLINES);
   const latest = [...i.caseList].filter((c) => nameOf.has(c.ownerId)).sort((a, b) => (b.updated || '').localeCompare(a.updated || ''))[0];
@@ -269,7 +273,7 @@ export function buildWidgetSnapshot(i: WidgetInput): WidgetSnapshot {
     ? { who: nameOf.get(latest.ownerId)!, form: clean(latest.form ?? 'Case'), status: headline.slice(0, 60), ...(latest.updated ? { date: latest.updated } : {}), url: caseKey(latest) ? caseUrl(caseKey(latest)) : personUrl(latest.ownerId) }
     : null;
   const bulletin = i.bulletin?.month ? { month: i.bulletin.month, ...(nextBulletinDate(i.bulletin.month, t) ? { next: nextBulletinDate(i.bulletin.month, t) } : {}) } : null;
-  const items = i.people.flatMap((p) => { try { return personItems(p, { rec: i.records[p.id], res: i.results[p.id], cases: i.caseList, bulletin: i.bulletin, who: nameOf.get(p.id)!, whoInitials: widgetName(p.name, 'initials'), today: t }); } catch { return []; } });
+  const items = i.people.flatMap((p) => { try { return personItems(p, { rec: i.records[p.id], res: i.results[p.id], cases: i.caseList, bulletin: i.bulletin, who: nameOf.get(p.id)!, whoInitials: widgetName(p.name, 'initials'), today: t, scrub }); } catch { return []; } });
   return { ...base, locked: false, people, deadlines, latestCase, bulletin, items, familyItems: familyItems(items, t) };
 }
 

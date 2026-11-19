@@ -115,7 +115,7 @@ export function splitSealed(text: string, magic: string, notOurs: string): { hea
 /** Sanity limits on the KDF parameters read from a file, so a crafted file can't make the phone
  *  run out of memory or spin for minutes before the code is even checked. */
 export function checkKdf(h: { N: number; r: number; p: number }) {
-  const ok = Number.isInteger(h.N) && h.N >= 2 ** 10 && h.N <= 2 ** 18 && (h.N & (h.N - 1)) === 0 && Number.isInteger(h.r) && h.r >= 1 && h.r <= 16 && Number.isInteger(h.p) && h.p >= 1 && h.p <= 4;
+  const ok = Number.isInteger(h.N) && h.N >= 2 ** 10 && h.N <= 2 ** 18 && (h.N & (h.N - 1)) === 0 && Number.isInteger(h.r) && h.r >= 1 && h.r <= 16 && 128 * h.N * h.r <= 64 * 1024 * 1024 && Number.isInteger(h.p) && h.p >= 1 && h.p <= 4;
   if (!ok) throw new Error('This file isn’t valid');
 }
 

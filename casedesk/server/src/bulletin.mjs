@@ -18,7 +18,9 @@ const CATS = [
 
 let state = null;
 let lastError = null;
-const UA = { headers: { 'User-Agent': 'CaseDesk/1.0 (immigration info app; +https://casedeskapp.duckdns.org)', Accept: 'text/html' } };
+const UA_HEADERS = { headers: { 'User-Agent': 'CaseDesk/1.0 (immigration info app; +https://casedeskapp.duckdns.org)', Accept: 'text/html' } };
+// Every fetch gets its own 20 s timeout so a hanging travel.state.gov never stalls /api/visa-bulletin.
+const ua = () => ({ ...UA_HEADERS, signal: AbortSignal.timeout(20000) });
 export const bulletinStatus = () => ({ loaded: !!state, month: state?.month || null, historyMonths: state?.history?.length ?? 0, error: lastError });
 try { state = JSON.parse(fs.readFileSync(FILE, 'utf8')); } catch {}
 
@@ -76,13 +78,13 @@ export function mergeHistory(prev, add, currentMonth) {
 }
 
 export async function refreshBulletin() {
-  const r0 = await fetch(INDEX, UA);
+  const r0 = await fetch(INDEX, ua());
   if (!r0.ok) throw new Error(`HTTP ${r0.status}`);
   const idx = await r0.text();
   const link = idx.match(/href="([^"]*visa-bulletin-for-[a-z]+-\d{4}\.html)"/i)?.[1];
   if (!link) throw new Error('Visa Bulletin link not found');
   const url = link.startsWith('http') ? link : `https://travel.state.gov${link}`;
-  const html = await (await fetch(url, UA)).text();
+  const html = await (await fetch(url, ua())).text();
   const parsed = parseBulletin(html, url);
   if (!parsed?.month) throw new Error('Could not parse Final Action table');
   const prev = state;
@@ -140,7 +142,7 @@ let lastBackfill = 0;
 let backfilling = null;
 export async function backfillHistory(opts = {}) {
   if (typeof opts === 'number') opts = { months: opts };
-  const { months = HISTORY_MAX, fetcher = (u) => fetch(u, UA), delayMs = 1500, retries = 2, giveUpAfter = 3, sleep = wait } = opts;
+  const { months = HISTORY_MAX, fetcher = (u) => fetch(u, ua()), delayMs = 1500, retries = 2, giveUpAfter = 3, sleep = wait } = opts;
   if (!state?.month) return 0;
   if (backfilling) return backfilling;
   lastBackfill = Date.now();

@@ -21,12 +21,13 @@ export function reminderItems(people: Person[], records: Record<string, PersonRe
     // v2.9: each type has its own switch and lead times (core/reminders).
     const dated = typeDates(r);
     const dates: [string, string | undefined, ReminderType | undefined][] = REMINDER_TYPES.filter((x) => x.key !== 'cases').map((x) => [x.what, dated[x.key], x.key]);
-    for (const f of results[p.id]?.findings ?? []) if (f.date && (f.severity === 'act' || f.severity === 'review')) dates.push([f.title, f.date, typeOfFinding(f.id)]);
+    for (const f of results[p.id]?.findings ?? []) if (f.date && (f.severity === 'act' || f.severity === 'review')) { const ty = typeOfFinding(f.id); dates.push([ty ? REMINDER_TYPES.find((x) => x.key === ty)?.what ?? f.title : f.title, f.date, ty]); }
     for (const k of keyDates.filter((x) => x.ownerId === p.id)) dates.push([k.label, k.date, 'cases']);
     const seen = new Set<string>();
     for (const [what, d, type] of dates) {
-      if (!d || seen.has(what + d)) continue;
-      seen.add(what + d);
+      const key = (type ?? what) + d;
+      if (!d || seen.has(key)) continue;
+      seen.add(key);
       const s = type ? typeSetting(rm, type) : { on: true, lead: rm.lead };
       if (!s.on) continue;
       for (const lead of s.lead) {

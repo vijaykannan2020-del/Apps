@@ -217,5 +217,5 @@ export function walletFacts(o: { today: string; hasDocs: boolean; citizen?: bool
   const n = days(o.today, o.until);
   if (n < 0) return { caption: o.resident ? 'Card expired' : 'Status ended', big: `${daysText(-n)} ago`, corner, word: 'expired', wordTone: 'red', days: n };
   const t = toneForDays(n);
-  return { caption: o.resident ? 'Card valid for' : 'In status for', big: daysText(n), corner, word: t === 'blush' ? 'ends soon' : t === 'butter' ? 'plan ahead' : 'valid', wordTone: t === 'blush' ? 'red' : t === 'butter' ? 'amber' : 'green', days: n };
+  return { caption: o.resident ? 'Card valid for' : 'Status left', big: daysText(n), corner, word: t === 'blush' ? 'ends soon' : t === 'butter' ? 'plan ahead' : 'valid', wordTone: t === 'blush' ? 'red' : t === 'butter' ? 'amber' : 'green', days: n };
 }
