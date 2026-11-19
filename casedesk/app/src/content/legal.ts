@@ -1,6 +1,8 @@
 // App Store launch: independence disclaimer (Welcome, About, every data screen) and the official
 // source behind each government-data screen.
 export const DISCLAIMER = 'Immigration Wallet is not affiliated with USCIS, DHS, DOL, the State Department or any government agency. Information comes from official public sources linked in the app. Not legal advice.';
+/** One line for Welcome (with a link to the full text in About). */
+export const DISCLAIMER_LINE = 'Not affiliated with USCIS or any government agency. Not legal advice.';
 export const DISCLAIMER_SHORT = 'Not affiliated with USCIS or any government agency · not legal advice';
 
 export type Source = { label: string; url: string };
@@ -24,3 +26,12 @@ export const SOURCES: Record<string, Source> = {
 
 /** Wallet wording must never suggest an official ID (shown wherever documents are shown or shared). */
 export const NOT_OFFICIAL_ID = 'Copies for your reference — not an official ID.';
+
+/** Public pages (casedesk/site/*.html). Host them at these URLs before launch — see STORE.md. */
+export const SITE_BASE = 'https://casedeskapp.duckdns.org';
+export const PRIVACY_URL = `${SITE_BASE}/privacy.html`;
+export const SUPPORT_URL = `${SITE_BASE}/support.html`;
+export const CONTACT_EMAIL = 'CONTACT_EMAIL'; // placeholder — set before launch
+
+/** Built-in data and how far it has been checked (Settings → About and STORE.md → Data to confirm). */
+export type DataSource = { id: string; name: string; asOf: string; source: Source; status: 'checked' | 'partly checked' | 'unverified' | 'live only'; note: string };

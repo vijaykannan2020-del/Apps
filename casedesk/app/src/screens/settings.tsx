@@ -69,7 +69,7 @@ export function SettingsTab() {
       <Group>
         <Row icon="hr" title="Show HR tools" subtitle="Expiring documents across the family" trailing={<Switch value={!!f.settings.hrTools} label="Show HR tools" onValueChange={(on) => f.actions.updateSettings({ hrTools: on })} />} />
         <Row icon="info" title="Diagnostics" subtitle="What the app did — send this if something goes wrong" chevron={false} onPress={() => sheet.open('Diagnostics', <DiagSheet />)} />
-        <Row icon="shield" title="About Immigration Wallet" subtitle={`Version ${version} · not legal advice · sources`} onPress={() => go('/about')} />
+        <Row icon="shield" title="About Immigration Wallet" subtitle={`Version ${version} · data sources, privacy, licences`} onPress={() => go('/about')} />
       </Group>
       <Hint center style={{ marginTop: 18 }}>{`Not affiliated with USCIS or any government agency. Rules checked ${fmt(RULES_CHECKED)}.`}</Hint>
     </>

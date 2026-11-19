@@ -1,12 +1,13 @@
 // First run (owner change, Nov 18): two screens to Home — Welcome, then "About you". No login, ever.
 // The 4-screen tour is optional (Profile → How CaseDesk works).
 import React, { useRef, useState } from 'react';
-import { Platform, ScrollView, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import type { StatusCategory } from '../core/model';
 import { STATUS_GROUPS } from '../core/model';
 import { useFamily } from '../data/FamilyProvider';
-import { Button, Card, ChipToggle, Chips, Field, H1, Hint, Icon, RowIcon, Screen, T, Why, font, useTheme, useToast, Footer, useLayout } from '../ui';
+import { Button, Card, ChipToggle, Chips, Field, H1, Hint, Icon, RowIcon, Screen, T, Why, font, useTheme, useToast, Footer, useLayout, MIN_TOUCH } from '../ui';
+import { DISCLAIMER_LINE } from '../content/legal';
 import { chipLabel } from './sheets';
 import { home, replace } from './common';
 
@@ -43,7 +44,9 @@ export function Welcome() {
         <Button title="Get started" onPress={() => router.push('/about-you' as never)} block={false} />
         <Button kind="ghost" icon="restore" title="Restore from a backup" onPress={() => router.push('/restore' as never)} />
         {Platform.OS === 'ios' ? <Button kind="ghost" icon="backup" title="Restore from iCloud" onPress={() => router.push('/restore-icloud' as never)} /> : null}
-        <T tone="text2" style={[font.caption, { textAlign: 'center' }]}>Immigration Wallet gives general information, not legal advice.</T>
+        <Pressable onPress={() => router.push('/about' as never)} accessibilityRole="link" accessibilityLabel={`${DISCLAIMER_LINE} Read more`} style={{ minHeight: MIN_TOUCH, justifyContent: 'center' }}>
+          <T tone="text2" style={[font.caption, { textAlign: 'center' }]}>{DISCLAIMER_LINE} <T tone="accent" style={[font.caption, { fontWeight: '600' }]}>Read more</T></T>
+        </Pressable>
       </Footer>
     </View>
   );

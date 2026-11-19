@@ -14,6 +14,11 @@ import { Confirm } from './sheets';
 import { diagLines, clearDiag } from '../native/diag';
 import { writeCacheText, share } from '../native/files';
 import { ScrollView } from 'react-native';
+import { appInfo } from '../native/appInfo';
+import { versionRows } from '../core/appinfo';
+import { DATA_SOURCES } from '../content/sources';
+import { LICENCES, LICENCE_NOTE } from '../content/licences';
+import { CONTACT_EMAIL, DISCLAIMER, NOT_OFFICIAL_ID, PRIVACY_URL, SUPPORT_URL } from '../content/legal';
 
 export const leadText = (lead: number[], sep = ', ') => (lead.length ? `${lead.join(sep)} day${lead.length === 1 && lead[0] === 1 ? '' : 's'} before` : 'No reminders');
 
@@ -190,28 +195,59 @@ export function WipeSheet() {
 
 export function AboutScreen() {
   const t = useTheme();
-  let version = '2.0';
-  try { version = require('expo-constants').default?.expoConfig?.version ?? version; } catch {}
+  const f = useFamily();
+  const info = appInfo();
+  const [lic, setLic] = useState(false);
+  const open = (u: string) => require('../native/device').openUrl(u);
+  const live: Record<string, string | undefined> = { bulletin: f.bulletin.live ? `Live · ${f.bulletin.data.month}` : undefined };
+  const statusWord = (s: string) => (s === 'checked' ? 'Checked' : s === 'partly checked' ? 'Partly checked' : s === 'live only' ? 'Live only' : 'Not yet checked');
   return (
-    <Screen nav={{ back: 'Settings', onBack: back, title: 'About' }}>
+    <Screen nav={{ back: 'Back', onBack: back, title: 'About' }}>
       <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 4 }}>
-        <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name="shield" size={34} color="#fff" /></View>
+        <View style={{ width: 76, height: 76, borderRadius: 20, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name="shield" size={34} color="#fff" /></View>
         <BigText size={24} style={{ marginTop: 12 }}>Immigration Wallet</BigText>
-        <T tone="text2" style={font.sub}>{`Version ${version} · rules checked ${fmt(RULES_CHECKED)}`}</T>
+        <T tone="text2" style={font.sub}>{`USCIS case updates & status · rules checked ${fmt(RULES_CHECKED)}`}</T>
       </View>
-      <Note tone="amber">Not legal advice. Immigration Wallet gives general information from official sources. It can be wrong or out of date. For decisions — especially “Act now” items — talk to an immigration attorney or, for students, your DSO.</Note>
+      <Note tone="amber">{`${DISCLAIMER} It can be wrong or out of date. For decisions — especially “Act now” items — talk to an immigration attorney or, for students, your DSO.`}</Note>
+      <T tone="text2" style={[font.caption, { marginTop: 8, textAlign: 'center' }]}>{NOT_OFFICIAL_ID}</T>
+
+      <SectionHeader>Version</SectionHeader>
+      <Group>{versionRows(info).map((r) => <Row key={r.label} title={r.label} value={r.value} chevron={false} />)}</Group>
+
       <SectionHeader>Privacy</SectionHeader>
       <Card>
-        {['Documents are read and stored only on this phone.', 'No account, no ads, no tracking, no selling data.', 'Never logs in to USCIS, CBP or SEVP for you.', 'Backups are encrypted with your password before they leave the app.'].map((x) => (
+        {['Documents are read and stored only on this phone.', 'No account, no ads, no analytics, no tracking, no selling data.', 'Our server only sends public data (news, Visa Bulletin, processing times, wages). It never receives your documents, names or receipt numbers.', 'Never logs in to USCIS, CBP or SEVP for you.', 'Backups are encrypted with your password before they leave the app.'].map((x) => (
           <View key={x} style={{ flexDirection: 'row', gap: 10, alignItems: 'baseline', paddingVertical: 5 }}><View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: t.green }} /><T style={[font.sub, { flex: 1 }]}>{x}</T></View>
         ))}
       </Card>
+      <Group style={{ marginTop: 10 }}>
+        <Row icon="lock" title="Privacy policy" chevron={false} trailing={<Icon name="ext" size={15} color={t.text3} />} onPress={() => open(PRIVACY_URL)} />
+        <Row icon="help" title="Support" subtitle={CONTACT_EMAIL} chevron={false} trailing={<Icon name="ext" size={15} color={t.text3} />} onPress={() => open(SUPPORT_URL)} />
+      </Group>
+
+      <SectionHeader>Data sources</SectionHeader>
+      <Group>
+        {DATA_SOURCES.map((d) => (
+          <Row key={d.id} icon="globe" alignTop title={d.name} titleStyle={{ ...font.callout, fontWeight: '500' }}
+            subtitle={`${live[d.id] ?? `As of ${d.asOf}`} · ${statusWord(d.status)}\n${d.note}`}
+            chevron={false} trailing={<Icon name="ext" size={15} color={t.text3} />} onPress={() => open(d.source.url)} label={`${d.name}, ${d.asOf}. Opens ${d.source.label}`} />
+        ))}
+      </Group>
+      <Hint>Each data screen also shows its date, whether it is live or the built-in copy, and a link to the official source.</Hint>
+
       <SectionHeader>Official sources</SectionHeader>
       <Group>
         {[['uscis.gov', 'https://www.uscis.gov'], ['travel.state.gov', 'https://travel.state.gov'], ['cbp.gov', 'https://www.cbp.gov'], ['ice.gov/sevp', 'https://www.ice.gov/sevis'], ['dol.gov', 'https://www.dol.gov']].map(([l, u]) => (
-          <Row key={l} icon="globe" title={l} chevron={false} trailing={<Icon name="ext" size={15} color={t.text3} />} onPress={() => require('../native/device').openUrl(u)} />
+          <Row key={l} icon="globe" title={l} chevron={false} trailing={<Icon name="ext" size={15} color={t.text3} />} onPress={() => open(u)} />
         ))}
       </Group>
+
+      <SectionHeader>Open-source licences</SectionHeader>
+      <Group>
+        {(lic ? LICENCES : LICENCES.slice(0, 5)).map(([n, l]) => <Row key={n} title={n} titleStyle={font.sub} value={l} chevron={false} />)}
+        <Row title={lic ? 'Show fewer' : `Show all ${LICENCES.length}`} titleTone="accent" chevron={false} onPress={() => setLic(!lic)} />
+      </Group>
+      <Hint>{LICENCE_NOTE}</Hint>
     </Screen>
   );
 }
