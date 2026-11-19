@@ -115,6 +115,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
         {missing.map((s) => <Row key={s.key} dot="grey" title={s.title} titleTone="text2" subtitle="Missing" />)}
         <TourTarget id="docs"><Row icon="plus" title="Add or renew a document" titleTone="accent" chevron={false} onPress={() => sheet.open('Add or renew a document', <RenewSheet pid={p.id} />)} /></TourTarget>
       </Group>
+      {docs.length ? <T tone="text2" style={[font.caption, { marginTop: 6, marginLeft: 4 }]}>{NOT_OFFICIAL_ID}</T> : null}
 
       <SectionHeader>Cases</SectionHeader>
       <Group>
@@ -239,7 +240,7 @@ export function DocumentScreen() {
     } finally { setBusy(false); }
   };
   const doShare = async () => {
-    if (file && (await shareFile(fileUri(file), file.mime, docTitle(d)))) return;
+    if (file && (await shareFile(fileUri(file), file.mime, `${docTitle(d)} — ${NOT_OFFICIAL_ID}`))) return;
     const lines = fieldRows(d).map((r) => `${r.spec.label}: ${r.value || '—'}`).join('\n');
     try { await Share.share({ message: `${docTitle(d)}\n${lines}\n\n${NOT_OFFICIAL_ID}` }); } catch {}
   };
