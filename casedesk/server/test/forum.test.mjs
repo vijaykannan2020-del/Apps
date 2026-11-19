@@ -77,8 +77,8 @@ test('answers, votes, accept, sort, search, tags, pagination, push to asker', as
   assert.equal(pushes.length, 1, 'no push for own answer');
 
   await assert.rejects(call('POST', `/api/forum/posts/${p1.id}/vote`, { token: asker.token, body: { up: true } }), /own post/);
-  assert.deepEqual(await call('POST', `/api/forum/posts/${p1.id}/vote`, { token: helper.token, body: { up: true } }), { score: 1, voted: true });
-  assert.deepEqual(await call('POST', `/api/forum/posts/${p1.id}/vote`, { token: helper.token, body: { up: true } }), { score: 1, voted: true }, 'idempotent');
+  assert.deepEqual(await call('POST', `/api/forum/posts/${p1.id}/vote`, { token: helper.token, body: { up: true } }), { score: 1, voted: true, myVote: 1 });
+  assert.deepEqual(await call('POST', `/api/forum/posts/${p1.id}/vote`, { token: helper.token, body: { up: true } }), { score: 1, voted: true, myVote: 1 }, 'idempotent');
   assert.equal((await call('POST', `/api/forum/answers/${a.id}/vote`, { token: asker.token, body: {} })).score, 1);
   await assert.rejects(call('POST', `/api/forum/posts/${p1.id}/accept`, { token: helper.token, body: { answerId: a.id } }), /own posts/);
   await call('POST', `/api/forum/posts/${p1.id}/accept`, { token: asker.token, body: { answerId: a.id } });
@@ -195,22 +195,22 @@ test('display names: editable, unique, no official-sounding or abusive names', a
   await assert.rejects(call('POST', '/api/me', { token: b.token, body: { pushToken: 'nope' } }), /push token/);
 });
 
-test('account deletion removes the user, their posts, answers, votes and revokes Apple token', async () => {
+test('account deletion removes the user, their votes and childless content, and revokes the Apple token', async () => {
   const { call, user, ask, revoked, f } = setup();
   const a = await user('gone'), b = await user('stay');
   const pa = (await ask(a.token)).post;
   const pb = (await ask(b.token, { title: 'Question from the person who stays' })).post;
   await call('POST', `/api/forum/posts/${pb.id}/answers`, { token: a.token, body: { body: 'An answer that should vanish.' } });
   await call('POST', `/api/forum/posts/${pb.id}/vote`, { token: a.token, body: {} });
-  await call('POST', `/api/forum/posts/${pa.id}/answers`, { token: b.token, body: { body: 'Answer on a post that will vanish.' } });
   const r = await call('DELETE', '/api/me', { token: a.token });
   assert.equal(r.revoked, true);
   assert.deepEqual(revoked, ['refresh-code-gone']);
   await assert.rejects(call('GET', '/api/me', { token: a.token }), /Sign in/);
   const d = await call('GET', `/api/forum/posts/${pb.id}`, {});
-  assert.equal(d.answers.length, 0); assert.equal(d.post.score, 0);
+  assert.equal(d.answers.length, 0); assert.equal(d.comments.length, 0); assert.equal(d.post.score, 0);
   assert.equal((await call('GET', '/api/forum/posts', {})).total, 1);
-  assert.equal(Object.keys(f._db().answers).length, 0);
+  await assert.rejects(call('GET', `/api/forum/posts/${pa.id}`, {}), /removed/, 'a post nobody replied to goes completely');
+  assert.equal(Object.keys(f._db().comments).length, 0);
   assert.ok(!JSON.stringify(f._db()).includes('refresh-code'), 'refresh token sealed, then gone');
 });
 
