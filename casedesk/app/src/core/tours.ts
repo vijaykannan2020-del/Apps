@@ -31,12 +31,21 @@ export function shouldAutoShow(id: string, o: { ready: boolean; seen?: readonly 
 export const HOME_TIP: TourStep = { target: 'help', title: 'Tips', text: 'Tap ? on any screen for tips.' };
 
 /**
- * What auto-shows on a first visit (v2.7, calmer help). By default tips are OFF: only Home shows,
- * once, the single "Tap ? on any screen for tips". With Settings → Help → "Show tips on each
- * screen" on (`all`), every screen shows its own tips once, as before. The ? always replays them.
+ * The complicated screens: their tips show once by themselves (owner, v2.7). Everything else is
+ * quiet until the user taps ?.  case = the status check (copy → Safari → paste what USCIS says);
+ * check-status = the paste sheet; flow-step / review / summary = adding documents; backup /
+ * restore / icloud = backups.
+ */
+export const AUTO_TIP_SCREENS: readonly string[] = ['case', 'check-status', 'flow-step', 'review', 'summary', 'backup', 'restore', 'icloud'];
+
+/**
+ * What auto-shows on a first visit (v2.7, calmer help). Home shows, once, the single "Tap ? on any
+ * screen for tips". The complicated screens (AUTO_TIP_SCREENS) show their own tips once. Every
+ * other screen shows nothing by itself. With Settings → Help → "Show tips on every screen" on
+ * (`all`), every screen shows its tips once. The ? always replays them.
  */
 export function autoSteps(id: string, steps: readonly TourStep[], all?: boolean): TourStep[] {
-  if (all) return [...steps];
+  if (all || AUTO_TIP_SCREENS.includes(id)) return [...steps];
   return id === 'home' ? [HOME_TIP] : [];
 }
 

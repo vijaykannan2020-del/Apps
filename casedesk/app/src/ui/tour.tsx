@@ -113,7 +113,7 @@ function useTourCore(id: string, steps: TourStep[] | undefined, opts: { help?: s
       // calm by default: Home shows its one tip once; other screens only when the user asked for tips
       const st = autoSteps(id, tourRef.current.steps, c.all);
       if (!shouldAutoShow(id, { ready: c.ready, seen: c.seen, off: c.off, active: c.active?.tour.id ?? null, steps: st.length, disabled: c.disabled })) return;
-      c.show(c.all ? tourRef.current : { ...tourRef.current, steps: st, help: undefined });
+      c.show(st.length === tourRef.current.steps.length ? tourRef.current : { ...tourRef.current, steps: st, help: undefined });
     }, 700);
     return () => clearTimeout(timer);
   };

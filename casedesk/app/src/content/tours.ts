@@ -54,6 +54,10 @@ export const TOURS: Record<string, TourDef> = {
     { target: 'history', title: 'History', text: 'Every status you saved, newest first.' },
     helpStep(),
   ] },
+  'check-status': { help: 'cases', steps: [
+    { target: 'paste', title: 'Paste the status', text: 'On uscis.gov, select the status and its explanation, tap Copy, then tap here.' },
+    { target: 'pick', title: 'Or pick it', text: 'No text copied? Choose what the page said and it is saved with today’s date.' },
+  ] },
   'add-case': { help: 'cases', steps: [
     { target: 'receipt', title: 'Receipt number', text: 'Three letters and ten digits, from the top left of the I-797C notice.' },
     { target: 'who', title: 'Whose case', text: 'Pick the person the case is for, then save.' },
@@ -122,7 +126,7 @@ export const TOURS: Record<string, TourDef> = {
   ] },
   settings: { help: 'privacy', steps: [
     { target: 'widgets', title: 'Widgets', text: 'Choose initials or first names on Home Screen widgets, and hide details while Face ID lock is on.' },
-    { target: 'notify', title: 'Notifications', text: 'See whether alerts are on, and turn them on in iOS Settings if needed.' },
+    { target: 'notify', title: 'Notifications', text: 'See whether alerts are on. “Open system settings” has permissions and language.' },
     { target: 'backup', title: 'Backups', text: 'Your data is only on this phone — back it up to iCloud or a file.' },
     { target: 'helpsec', title: 'Help', text: 'Help topics, the example family and “Show all tips again”.' },
   ] },

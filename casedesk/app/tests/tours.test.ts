@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { autoSteps, isSeen, markSeen, normalizeSteps, placeTip, shouldAutoShow, stepLabel, HOME_TIP, MAX_STEPS } from '../src/core/tours';
+import { autoSteps, AUTO_TIP_SCREENS, isSeen, markSeen, normalizeSteps, placeTip, shouldAutoShow, stepLabel, HOME_TIP, MAX_STEPS } from '../src/core/tours';
 import { TOURS, TOUR_SCREENS } from '../src/content/tours';
 import { helpTopic } from '../src/content/help';
 
@@ -20,23 +20,30 @@ test('tours: auto-show once — not before data is ready, never twice, not when 
   assert.equal(shouldAutoShow('home', { ...base, seen }), true, 'other screens still show');
 });
 
-test('tours (v2.7, calmer help): tips are OFF by default — only Home shows one tip; the switch brings them back', () => {
+test('tours (v2.7, calmer help): tips show by themselves only on the complicated screens, plus one tip on Home', () => {
   const home = TOURS.home.steps, cases = TOURS.cases.steps;
-  // default: Home auto-shows exactly one tip, other screens nothing
+  // Home: exactly one tip
   assert.deepEqual(autoSteps('home', home), [HOME_TIP]);
   assert.equal(HOME_TIP.text, 'Tap ? on any screen for tips.');
   assert.equal(HOME_TIP.target, 'help');
-  for (const id of TOUR_SCREENS.filter((x) => x !== 'home')) assert.deepEqual(autoSteps(id, TOURS[id].steps), [], `${id} is quiet by default`);
+  // the complicated screens: status check, paste sheet, document flow, review / summary, backup / restore / iCloud
+  assert.deepEqual([...AUTO_TIP_SCREENS].sort(), ['backup', 'case', 'check-status', 'flow-step', 'icloud', 'restore', 'review', 'summary']);
+  for (const id of AUTO_TIP_SCREENS) {
+    assert.ok(TOURS[id], `${id} has words`);
+    assert.deepEqual(autoSteps(id, TOURS[id].steps), TOURS[id].steps, `${id} shows its own tips`);
+    assert.equal(shouldAutoShow(id, { ...base, steps: autoSteps(id, TOURS[id].steps).length }), true);
+    assert.equal(shouldAutoShow(id, { ...base, seen: [id], steps: TOURS[id].steps.length }), false, `${id}: once`);
+  }
+  // every other screen is quiet until ? is tapped
+  for (const id of TOUR_SCREENS.filter((x) => x !== 'home' && !AUTO_TIP_SCREENS.includes(x))) assert.deepEqual(autoSteps(id, TOURS[id].steps), [], `${id} is quiet by default`);
   assert.equal(shouldAutoShow('cases', { ...base, steps: autoSteps('cases', cases).length }), false);
   assert.equal(shouldAutoShow('home', { ...base, steps: autoSteps('home', home).length }), true);
   assert.equal(shouldAutoShow('home', { ...base, seen: ['home'], steps: 1 }), false, 'the one tip shows once');
-  // Settings → Help → "Show tips on each screen"
+  // Settings → Help → "Show tips on every screen"
   assert.deepEqual(autoSteps('cases', cases, true), cases);
   assert.deepEqual(autoSteps('home', home, true), home);
-  assert.equal(shouldAutoShow('cases', { ...base, steps: autoSteps('cases', cases, true).length }), true);
-  // the settings rows exist and the default is off
   const settings = readFileSync(new URL('../src/screens/settings.tsx', import.meta.url), 'utf8');
-  assert.match(settings, /Show tips on each screen/);
+  assert.match(settings, /Show tips on every screen/);
   assert.match(settings, /Show all tips again/);
   assert.match(settings, /value=\{!!f\.settings\.toursAll\}/, 'off unless the user turns it on');
   assert.match(settings, /toursSeen: \[\], toursOff: false, toursAll: true/, 'Show all tips again clears the list and turns tips on');

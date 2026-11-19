@@ -260,6 +260,7 @@ export function CheckStatus({ view, copied }: { view: CaseView; copied: boolean 
   const [showBox, setShowBox] = useState(!hasClipboard());
   const [found, setFound] = useState<Parsed | null>(null);
   const [miss, setMiss] = useState(false);
+  const tour = useSheetTour('check-status');
   const saveParsed = async (p: Parsed) => {
     await f.actions.editCase(view, (c) => applyCaseText(c, p, today()));
     s.close(); toast(`Status saved · ${p.status}`);
@@ -280,15 +281,15 @@ export function CheckStatus({ view, copied }: { view: CaseView; copied: boolean 
     s.close(); toast(`Status saved · ${label}`);
   };
   return (
-    <View>
+    <TourScope tour={tour}><View>
       {!copied && view.receipt ? (
         <Note tone="amber">
           <T style={font.sub}>Couldn’t copy the receipt number. Press and hold it to copy:</T>
           <T selectable style={[font.headline, { fontFamily: 'Menlo', marginTop: 6 }]}>{view.receipt}</T>
         </Note>
       ) : null}
-      <Why>On the USCIS page, select the status and its explanation, tap Copy, and come back here.</Why>
-      <View style={{ marginTop: 12, flexDirection: 'row' }}><Button icon="copy" title="Paste what USCIS says" onPress={paste} /></View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={{ flex: 1 }}><Why>On the USCIS page, select the status and its explanation, tap Copy, and come back here.</Why></View><TourButton /></View>
+      <TourTarget id="paste" style={{ marginTop: 12, flexDirection: 'row' }}><Button icon="copy" title="Paste what USCIS says" onPress={paste} /></TourTarget>
       {showBox ? (
         <Field label="Or paste it here" value={typed} onChangeText={(x) => { setTyped(x); setMiss(false); setFound(null); }} onBlur={() => typed && tryText(typed)} placeholder="Case Was Received…" multiline autoCapitalize="none" />
       ) : null}
@@ -304,11 +305,11 @@ export function CheckStatus({ view, copied }: { view: CaseView; copied: boolean 
       ) : null}
       {miss ? <Hint>{`That doesn’t look like a USCIS status yet. Copy the heading and the sentence under it${view.receipt ? ` for ${view.receipt}` : ''}, or pick below.`}</Hint> : null}
       <T tone="text2" style={[font.caption, { marginTop: 16 }]}>Or pick what it said</T>
-      <View style={{ gap: 8, marginTop: 8 }}>
+      <TourTarget id="pick" style={{ gap: 8, marginTop: 8 }}>
         {['Still pending', 'Request for Evidence', 'Biometrics scheduled', 'Approved'].map((x) => <Option key={x} title={x} onPress={() => set(x)} />)}
-      </View>
+      </TourTarget>
       <SheetButtons><Cancel label="Not now" /></SheetButtons>
-    </View>
+    </View></TourScope>
   );
 }
 
