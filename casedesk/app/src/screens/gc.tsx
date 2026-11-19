@@ -250,7 +250,7 @@ export function EadFamily({ pid }: { pid: string }) {
                 {!d.hasEad ? <View style={{ flexDirection: 'row', marginTop: 10 }}><Button size="sm" kind="tint" icon="plus" title={`Add ${d.person.name}’s EAD card`} onPress={() => save(d.person.id)} /></View> : null}
               </>
             ) : a === 'status' ? (
-              <Note tone="amber">{`${d.person.name} stays on ${cls}. That depends on ${whose} H / L status — it ends once ${p.relation === 'self' ? 'you work' : `${p.name} works`} on the EAD. ${d.person.name}’s own pending I-485 lets them stay; rely on their own EAD and advance parole.`}</Note>
+              <Note tone="amber">{`${d.person.name} stays on ${cls}. That depends on ${whose} H / L status — it ends once ${p.relation === 'self' ? 'you work' : `${p.name} works`} on the EAD. ${d.person.name}’s own pending I-485 still lets them stay in the US; ask your attorney before relying on the ${cls}.`}</Note>
             ) : null}
           </Card>
         );
