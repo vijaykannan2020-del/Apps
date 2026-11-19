@@ -27,6 +27,7 @@ import { TOURS } from '../content/tours';
 const waitsDate = (u?: string | null) => { if (!u) return undefined; const m = u.match(/^(\d{1,2})-([A-Z]{3})-(\d{4})$/i); return m ? `${m[2][0]}${m[2].slice(1).toLowerCase()} ${+m[1]}, ${m[3]}` : u; };
 import { answerState, ANSWER_LABEL, quizSummary, type AnswerState, type QuizResult } from '../core/quiz';
 import { FamilyFilings, familyForms } from './filings';
+import { GcPlanBody } from './gc';
 import { useProcessing } from '../data/processing';
 import { COUNTRIES } from './sheets';
 import { openUrl } from '../native/device';
@@ -36,7 +37,7 @@ export const TOOLS: [string, ToolDef[]][] = [
   ['My plans', [
     { id: 'travel', icon: 'plane', title: 'Can I travel?', sub: 'Check a trip against everyone’s documents' },
     { id: 'pd', icon: 'cal', title: 'Priority date', sub: 'Is your green card date current?' },
-    { id: 'gcp', icon: 'map', title: 'Green card planner', sub: 'Your steps from PERM to green card' },
+    { id: 'gcp', icon: 'map', title: 'Green card planner', sub: 'Expected wait and when to gather documents' },
   ]],
   ['Look up', [
     { id: 'vb', icon: 'list', title: 'Visa Bulletin', sub: 'This month’s dates by category and country' },
@@ -85,7 +86,7 @@ export function ToolsTab() {
 }
 
 /** Tools whose own body has no data footer: official source + disclaimer at the bottom. */
-const FOOTER_SOURCE: Record<string, keyof typeof SOURCES> = { travel: 'travel', gcp: 'bulletinChart', lca: 'lca', guides: 'guides', hr: 'guides' };
+const FOOTER_SOURCE: Record<string, keyof typeof SOURCES> = { travel: 'travel', lca: 'lca', guides: 'guides', hr: 'guides' };
 const TOOL_TOUR: Record<string, string> = { travel: 'tool-travel', pd: 'tool-pd', vb: 'tool-vb', proc: 'tool-proc', fees: 'tool-fees', civics: 'tool-civics', i9: 'tool-i9', wage: 'tool-wage', emp: 'tool-h1b' };
 const TOOL_HELP: Record<string, string> = { travel: 'travel', pd: 'priority-date', proc: 'processing', vb: 'priority-date', civics: 'citizenship', i9: 'i9' };
 const ALL = Object.fromEntries([...TOOLS, HR].flatMap(([, l]) => l).map((x) => [x.id, x]));
@@ -101,7 +102,7 @@ export function ToolScreen() {
     switch (def.id) {
       case 'travel': return <Travel pid={pid} setFoot={setFoot} />;
       case 'pd': return <PriorityDate />;
-      case 'gcp': return <Planner />;
+      case 'gcp': return <GcPlanTool />;
       case 'vb': return <VisaBulletin />;
       case 'proc': return <Processing />;
       case 'wage': return <Wage />;
@@ -281,7 +282,12 @@ function VisaBulletin() {
   );
 }
 
-function Planner() {
+/** v2.9: the planner uses the green-card track (core/gc.ts) for the main person. */
+function GcPlanTool() {
+  const f = useFamily();
+  return <GcPlanBody pid={f.main?.id} />;
+}
+export function Planner() {
   const f = useFamily();
   const cases = f.people.flatMap((p) => f.records[p.id]?.cases ?? []);
   const i140 = cases.find((c) => c.form === 'I-140'), i485 = cases.find((c) => c.form === 'I-485');

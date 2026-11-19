@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import type { Person, Relation, StatusCategory } from '../core/model';
 import { STATUS_GROUPS, STATUS_LABEL, STATUS_CHIP } from '../core/model';
-import { stepsFor, type StepKey } from '../core/steps';
+import { fillsStep, stepsFor, type StepKey } from '../core/steps';
 import { fmt, today, addDays, daysBetween, isISO } from '../core/dates';
 import { differentMetro, metroOf } from '../core/metro';
 import { FORMS, isReceipt, type CaseView } from '../core/cases';
@@ -77,7 +77,7 @@ export function RenewSheet({ pid }: { pid: string }) {
       <Why>Pick one, or go through {p.relation === 'self' ? 'your' : `${p.name}’s`} steps in order.</Why>
       <Group style={{ marginTop: 14 }}>
         {steps.map((st) => {
-          const d = mine.find((x) => st.accepts.includes(x.type) && (!st.form || x.fields.form === st.form));
+          const d = mine.find((x) => fillsStep(st, x));
           const spec = d ? FIELDS[d.type].find((x) => x.key === st.keyField.field) : undefined;
           return <Row key={st.key} title={st.title} subtitle={d ? `On file · ${st.keyField.label} ${spec ? showField(d.fields, spec) || '—' : ''}` : 'Not added'} onPress={() => open(st.key)} />;
         })}

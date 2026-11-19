@@ -200,7 +200,8 @@ function draftDoc(id: string, pid: string, k: StepKey, fam: FamilyState, file?: 
   const p = personOf(pid, fam)!;
   const step = stepMeta(p, k, fam.records[pid]);
   const type: DocType = step.accepts[0] ?? 'other';
-  return { id, ownerId: pid, type, fields: step.form ? { form: step.form } : {}, addedAt: new Date().toISOString(), files: file ? [file] : [] };
+  const fields: Document['fields'] = { ...(step.form ? { form: step.form } : {}), ...(step.noticeKind ? { noticeKind: step.noticeKind } : {}), ...(step.key === 'combo' ? { category: 'C9' } : {}) };
+  return { id, ownerId: pid, type, fields, addedAt: new Date().toISOString(), files: file ? [file] : [] };
 }
 
 /** "Type it in": an empty document of this step's type; the user fills the fields. */
