@@ -45,6 +45,36 @@ function parseTable(html, heading) {
   return Object.keys(out).length ? out : null;
 }
 
+const MONTH_NAMES = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const HISTORY_MAX = 24;
+
+/** travel.state.gov URL of one month's bulletin (folders are by fiscal year: October starts the next year). */
+export function bulletinUrl(monthName, year) {
+  const i = MONTH_NAMES.indexOf(String(monthName).toLowerCase());
+  if (i < 0) throw new Error(`bad month ${monthName}`);
+  const fy = +year + (i >= 9 ? 1 : 0);
+  return `https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin/${fy}/visa-bulletin-for-${MONTH_NAMES[i]}-${year}.html`;
+}
+const monthKey = (m) => { const x = String(m || '').toLowerCase().match(/^([a-z]+)\s+(\d{4})$/); const i = x ? MONTH_NAMES.indexOf(x[1]) : -1; return i < 0 ? '' : `${x[2]}-${String(i + 1).padStart(2, '0')}`; };
+const label = (name, year) => `${name[0].toUpperCase()}${name.slice(1).toLowerCase()} ${year}`;
+
+/** One bulletin page → { month, rows } (null if the employment tables can't be read). */
+export function parseBulletin(html, url) {
+  const final = parseTable(html, /FINAL ACTION DATES FOR EMPLOYMENT-BASED/i);
+  const filing = parseTable(html, /DATES FOR FILING OF EMPLOYMENT-BASED/i);
+  if (!final) return null;
+  const m = String(url).match(/visa-bulletin-for-([a-z]+)-(\d{4})/i);
+  const rows = CATS.filter(([, k]) => final[k]).map(([, cat, lbl]) => ({ cat, label: lbl, final: final[cat], filing: filing?.[cat] ?? Object.fromEntries(COLS.map((c) => [c, null])) }));
+  return { month: m ? label(m[1], m[2]) : null, rows };
+}
+
+/** Earlier months, oldest first, without the current month and without duplicates (v2.9 planner pace). */
+export function mergeHistory(prev, add, currentMonth) {
+  const by = new Map();
+  for (const s of [...(prev || []), ...(add || [])]) if (s?.month && s.rows?.length && s.month !== currentMonth) by.set(monthKey(s.month), { month: s.month, rows: s.rows });
+  return [...by.entries()].filter(([k]) => k).sort(([a], [b]) => a.localeCompare(b)).slice(-HISTORY_MAX).map(([, v]) => v);
+}
+
 export async function refreshBulletin() {
   const r0 = await fetch(INDEX, UA);
   if (!r0.ok) throw new Error(`HTTP ${r0.status}`);
@@ -53,17 +83,18 @@ export async function refreshBulletin() {
   if (!link) throw new Error('Visa Bulletin link not found');
   const url = link.startsWith('http') ? link : `https://travel.state.gov${link}`;
   const html = await (await fetch(url, UA)).text();
-  const final = parseTable(html, /FINAL ACTION DATES FOR EMPLOYMENT-BASED/i);
-  const filing = parseTable(html, /DATES FOR FILING OF EMPLOYMENT-BASED/i);
-  if (!final) throw new Error('Could not parse Final Action table');
-  const month = url.match(/visa-bulletin-for-([a-z]+)-(\d{4})/i);
+  const parsed = parseBulletin(html, url);
+  if (!parsed?.month) throw new Error('Could not parse Final Action table');
   const prev = state;
-  const rows = CATS.filter(([, k]) => final[k]).map(([, cat, label]) => ({ cat, label, final: final[cat], filing: filing?.[cat] ?? Object.fromEntries(COLS.map((c) => [c, null])) }));
+  const sameMonth = prev?.month === parsed.month;
+  const history = mergeHistory(prev?.history, prev && !sameMonth ? [{ month: prev.month, rows: prev.rows }] : [], parsed.month);
   state = {
-    month: `${month[1][0].toUpperCase()}${month[1].slice(1)} ${month[2]}`,
+    month: parsed.month,
     uscisChart: process.env.USCIS_EB_CHART || state?.uscisChart || 'filing', // USCIS announces this monthly at uscis.gov/visabulletininfo
     source: url,
-    rows,
+    rows: parsed.rows,
+    previous: history[history.length - 1],
+    history,
   };
   fs.mkdirSync(path.dirname(FILE), { recursive: true });
   fs.writeFileSync(FILE, JSON.stringify(state, null, 2));
@@ -71,10 +102,40 @@ export async function refreshBulletin() {
   return state;
 }
 
+/** v2.9: fill up to `n` earlier months from travel.state.gov (official pages only), once a day at most. */
+let lastBackfill = 0;
+export async function backfillHistory(n = 13, fetcher = (u) => fetch(u, UA)) {
+  if (!state?.month) return 0;
+  lastBackfill = Date.now();
+  const [name, year] = state.month.split(' ');
+  let i = MONTH_NAMES.indexOf(name.toLowerCase()), y = +year;
+  const have = new Set([state.month, ...(state.history || []).map((h) => h.month)]);
+  const add = [];
+  for (let k = 0; k < n; k++) {
+    i -= 1; if (i < 0) { i = 11; y -= 1; }
+    const m = label(MONTH_NAMES[i], y);
+    if (have.has(m)) continue;
+    try {
+      const r = await fetcher(bulletinUrl(MONTH_NAMES[i], y));
+      if (!r.ok) continue;
+      const p = parseBulletin(await r.text(), bulletinUrl(MONTH_NAMES[i], y));
+      if (p?.month) add.push(p);
+    } catch { /* one month missing is fine */ }
+  }
+  if (add.length) {
+    state.history = mergeHistory(state.history, add, state.month);
+    state.previous = state.history[state.history.length - 1];
+    fs.mkdirSync(path.dirname(FILE), { recursive: true });
+    fs.writeFileSync(FILE, JSON.stringify(state, null, 2));
+  }
+  return add.length;
+}
+
 export async function getBulletin() {
   if (!state || Date.now() - (fs.existsSync(FILE) ? fs.statSync(FILE).mtimeMs : 0) > 24 * 3600e3) {
     try { await refreshBulletin(); lastError = null; } catch (e) { lastError = e.message; console.error('bulletin:', e.message); }
   }
   if (!state) throw Object.assign(new Error('Visa Bulletin not loaded yet'), { status: 503 });
+  if ((state.history?.length ?? 0) < 6 && Date.now() - lastBackfill > 24 * 3600e3) backfillHistory().catch((e) => console.error('bulletin history:', e.message));
   return state;
 }
