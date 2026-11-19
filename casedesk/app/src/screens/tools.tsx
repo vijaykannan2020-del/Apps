@@ -1,7 +1,7 @@
 // Tools tab and every tool. Look-ups use the CaseDesk server when it answers and a dated built-in
 // copy otherwise (each screen says which). "Can I travel?" runs the real rules on the family's documents.
 import React, { useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { addDays, daysTo, fmt, isISO, today } from '../core/dates';
 import { evaluateFamily } from '../core/rules/engine';
@@ -17,9 +17,14 @@ import { WEIGHTS, WEIGHT_NOTE, STEPS as LOT_STEPS, LAST_SEASON, CAP_GAP, FEE_STA
 import { CIVICS, CIVICS_SOURCE } from '../content/civics';
 import { TOP_INITIAL_FY25, H1B_SOURCE } from '../content/h1b';
 import {
-  Avatar, BigText, Button, Card, CheckRow, useLayout, Chip, ChipToggle, Chips, DateField, Field, Group, H1, Hint, Icon, LargeTitle, LinkButton, Note, Option, Row, Screen, SectionHeader, Segmented, SelectField, Stack, T, Timeline, Why, font, useSheet, useTheme, useToast, Pill,
+  tint, radius, Avatar, BigText, Button, Card, CheckRow, useLayout, Chip, ChipToggle, Chips, DateField, Field, Group, H1, Hint, Icon, LargeTitle, LinkButton, Note, Option, Row, Screen, SectionHeader, Segmented, SelectField, Stack, T, Timeline, Why, font, useSheet, useTheme, useToast, Pill,
 } from '../ui';
-import { back, go, statusLabel } from './common';
+import { back, DataFooter, go, statusLabel } from './common';
+import { SOURCES } from '../content/legal';
+
+/** '17-SEP-2026' → 'Sep 17, 2026'. */
+const waitsDate = (u?: string | null) => { if (!u) return undefined; const m = u.match(/^(\d{1,2})-([A-Z]{3})-(\d{4})$/i); return m ? `${m[2][0]}${m[2].slice(1).toLowerCase()} ${+m[1]}, ${m[3]}` : u; };
+import { answerState, ANSWER_LABEL, quizSummary, type AnswerState, type QuizResult } from '../core/quiz';
 import { FamilyFilings, familyForms } from './filings';
 import { useProcessing } from '../data/processing';
 import { HelpButton, HelpCard } from './help';
@@ -81,6 +86,8 @@ export function ToolsTab() {
   );
 }
 
+/** Tools whose own body has no data footer: official source + disclaimer at the bottom. */
+const FOOTER_SOURCE: Record<string, keyof typeof SOURCES> = { travel: 'travel', gcp: 'bulletinChart', lca: 'lca', guides: 'guides', hr: 'guides' };
 const TOOL_HELP: Record<string, string> = { travel: 'travel', pd: 'priority-date', proc: 'processing', vb: 'priority-date', civics: 'citizenship', i9: 'i9' };
 const ALL = Object.fromEntries([...TOOLS, HR].flatMap(([, l]) => l).map((x) => [x.id, x]));
 const Src = ({ text, live }: { text: string; live?: boolean }) => { const t = useTheme(); return <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 10 }}><Icon name="globe" size={14} color={t.text2} /><T tone="text2" style={[font.caption, { flex: 1 }]}>{`${text}${live === false ? ' · built-in copy' : live ? ' · live' : ''}`}</T></View>; };
@@ -114,6 +121,7 @@ export function ToolScreen() {
       <H1>{def.title}</H1>
       {def.sub ? <Why>{/[.?!]$/.test(def.sub) ? def.sub : `${def.sub}.`}</Why> : null}
       {body}
+      {FOOTER_SOURCE[def.id] ? <DataFooter source={SOURCES[FOOTER_SOURCE[def.id]]} /> : null}
     </Screen>
   );
 }
@@ -219,8 +227,17 @@ function PriorityDate() {
         <T tone="text2" style={font.foot}>{`${chart === 'filing' ? 'Dates for filing' : 'Final action date'} · ${b.data.month}`}</T>
         <BigText size={34} style={{ marginTop: 6, textAlign: 'center', alignSelf: 'stretch' }}>{fmtCell(cell)}</BigText>
         <View style={{ marginTop: 12 }}>{pd ? (cur ? <Pill severity="good" text="Current — you may be able to file I-485" /> : <Pill severity="review" text="Not current yet" />) : <T tone="text2" style={font.foot}>Add your priority date</T>}</View>
+        <View style={{ alignSelf: 'stretch', marginTop: 14, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: useTheme().sep, gap: 4 }}>
+          {(['filing', 'final'] as const).map((k) => (
+            <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+              <T tone="text2" style={font.foot}>{k === 'final' ? 'Final action date (approval)' : 'Date for filing (I-485)'}</T>
+              <T style={[font.foot, { fontWeight: k === chart ? '600' : '400' }]}>{fmtCell(row[k][ctry] ?? row.final[ctry])}</T>
+            </View>
+          ))}
+          <T tone="text2" style={[font.caption, { marginTop: 4 }]}>{`News often quotes the final action date; USCIS takes I-485s by the ${chart === 'filing' ? 'date for filing' : 'final action date'} this month.`}</T>
+        </View>
       </Card>
-      <Src text={`travel.state.gov · ${b.data.month} bulletin · USCIS uses ${chart === 'filing' ? 'dates for filing' : 'final action dates'} this month`} live={b.live} />
+      <DataFooter live={b.live} asOf={`${b.data.month} Visa Bulletin`} fetchedAt={b.fetchedAt} source={{ label: SOURCES.bulletin.label, url: b.data.source || SOURCES.bulletin.url }} note={`USCIS accepts I-485s by the ${chart === 'filing' ? 'Dates for Filing' : 'Final Action'} chart this month.`} />
     </>
   );
 }
@@ -256,8 +273,7 @@ function VisaBulletin() {
         ))}
       </Group>
       )}
-      <Src text={`travel.state.gov · ${b.data.month} bulletin`} live={b.live} />
-      <LinkButton title="Open the official bulletin" onPress={() => openUrl(b.data.source)} />
+      <DataFooter live={b.live} asOf={`${b.data.month} Visa Bulletin`} fetchedAt={b.fetchedAt} source={{ label: SOURCES.bulletin.label, url: b.data.source || SOURCES.bulletin.url }} />
     </>
   );
 }
@@ -300,7 +316,7 @@ function Processing() {
       <Card><SelectField label="Form" value={form} onChange={setForm} options={forms.map((x) => ({ value: x, label: x }))} /></Card>
       <SectionHeader>8 in 10 cases decided within</SectionHeader>
       <Group>{rows.map((r) => <Row key={r.category} title={r.category} titleStyle={font.callout} value={fmtMonths(r.months)} trailing={ours.has(`${r.form}|${r.category}`) ? <Pill severity="info" text="Your family" /> : undefined} />)}</Group>
-      <Src text={`egov.uscis.gov/processing-times · ${PT_AS_OF}`} live={d.live} />
+      <DataFooter live={d.live} asOf={d.live ? undefined : PT_AS_OF} fetchedAt={d.fetchedAt} source={SOURCES.processing} note="Times are USCIS’s published 8-in-10 figures and change monthly." />
     </>
   );
 }
@@ -340,7 +356,7 @@ function Wage() {
         <>
           <Group style={{ marginTop: 12 }}>{lv.hourly.map((h, i) => <Row key={i} title={`Level ${['I', 'II', 'III', 'IV'][i]}`} value={`$${yearly(h).toLocaleString()}`} trailing={s && lvl === i + 1 ? <Pill severity="good" text="You" /> : undefined} />)}</Group>
           {s && lvl === 0 ? <Note tone="red">Below Level I. An H-1B or PERM at this wage would not be approved.</Note> : null}
-          <Src text={`flag.dol.gov · OFLC wage data ${lv.wageYear} · ${lv.areaName}`} live />
+          <DataFooter live asOf={`OFLC wage year ${lv.wageYear}`} source={SOURCES.wage} note={lv.areaName} />
         </>
       ) : null}
     </>
@@ -366,13 +382,13 @@ function Fees() {
       </Group>
       <Card style={{ marginTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><T style={font.headline}>Total</T><View style={{ flexShrink: 1, minWidth: 0 }}><BigText size={28}>{`$${total.toLocaleString()}`}</BigText></View></Card>
       {fc.alert ? <Note tone="amber">{fc.alert}</Note> : null}
-      <Hint>{`USCIS fee schedule · ${FEES_AS_OF}. Check uscis.gov/fees before you pay. CaseDesk never takes payments.`}</Hint>
+      <DataFooter live={false} asOf={`${FEES_AS_OF} (USCIS fee rule of Apr 1, 2024; premium processing from Mar 1, 2026)`} source={SOURCES.fees} note="Check uscis.gov/fees before you pay. CaseDesk never takes payments." />
     </>
   );
 }
 
 function WaitTimes() {
-  const [d, setD] = useState<{ data: Waits; live: boolean }>({ data: WAITS_BUILT_IN, live: false });
+  const [d, setD] = useState<{ data: Waits; live: boolean; fetchedAt?: string }>({ data: WAITS_BUILT_IN, live: false });
   useEffect(() => { fetchOr<Waits>('/api/visa-waits', WAITS_BUILT_IN).then(setD).catch(() => {}); }, []);
   const posts = d.data.posts.filter((p) => !d.live || /chennai|hyderabad|kolkata|mumbai|delhi/i.test(p.post) || true).slice(0, 60);
   const [kind, setKind] = useState('Work (H / L)');
@@ -384,8 +400,7 @@ function WaitTimes() {
       <Note tone="amber">Interviews must be in your country of nationality or residence. Most people can no longer use the dropbox.</Note>
       <SectionHeader>Interview rules</SectionHeader>
       <Group>{INTERVIEW_RULES.map(([a, b]) => <Row key={a} title={a} subtitle={b} titleStyle={{ ...font.callout, fontWeight: '500' }} />)}</Group>
-      <Src text={`travel.state.gov · wait times${d.data.updated ? ` · ${d.data.updated}` : ''}`} live={d.live} />
-      <LinkButton title="Open the official wait times" onPress={() => openUrl(WAITS_URL)} />
+      <DataFooter live={d.live} asOf={waitsDate(d.data.updated)} fetchedAt={d.fetchedAt} source={SOURCES.waits} note={d.live ? undefined : 'Built-in copy covers the five posts in India.'} />
     </>
   );
 }
@@ -440,7 +455,7 @@ function Employer() {
           <Group>{TOP_INITIAL_FY25.map((x) => <Row key={x.label} title={x.label} value={x.value.toLocaleString()} />)}</Group>
         </>
       )}
-      <Src text={H1B_SOURCE} live={!!items} />
+      <DataFooter live={!!items} asOf={items ? undefined : H1B_SOURCE.replace(/^USCIS H-1B Employer Data Hub · /, '')} source={SOURCES.h1b} />
     </>
   );
 }
@@ -486,12 +501,13 @@ function Lottery() {
       <Group>{CAP_GAP.map((x) => <Row key={x} title={x} titleStyle={font.sub} />)}</Group>
       <SectionHeader>Fees in the news</SectionHeader>
       <Group>{FEE_STATUS.map(([a, b]) => <Row key={a} title={a} subtitle={b} />)}</Group>
-      <Hint>{`Reviewed ${LOTTERY_AS_OF} · uscis.gov/h-1b`}</Hint>
+      <DataFooter live={false} asOf={LOTTERY_AS_OF} source={SOURCES.lottery} />
     </>
   );
 }
 
 function Civics({ setFoot }: { setFoot: (n: React.ReactNode) => void }) {
+  const [round, setRound] = useState(0);
   const qs = useMemo(() => {
     const pool = [...CIVICS].sort(() => Math.random() - 0.5).slice(0, 10);
     return pool.map((q) => {
@@ -499,26 +515,81 @@ function Civics({ setFoot }: { setFoot: (n: React.ReactNode) => void }) {
       const opts = [q.a[0], ...wrong].sort(() => Math.random() - 0.5);
       return { q: q.q, opts, right: opts.indexOf(q.a[0]) };
     });
-  }, []);
+  }, [round]);
   const [i, setI] = useState(0);
-  const [score, setScore] = useState(0);
   const [a, setA] = useState<number | null>(null);
+  const [results, setResults] = useState<QuizResult[]>([]);
   const done = i >= qs.length;
+  const t = useTheme();
   useEffect(() => {
-    setFoot(done ? <Button title="Practise again" onPress={() => { setI(0); setScore(0); setA(null); }} /> : <Button title="Next question" disabled={a === null} onPress={() => { setI(i + 1); setA(null); }} />);
-  }, [setFoot, done, a, i]);
-  if (done) return <Card style={{ marginTop: 18, alignItems: 'center' }}><BigText size={34}>{`${score} of ${qs.length}`}</BigText><Why>The real test asks up to 20 questions. You need 12 right.</Why></Card>;
+    setFoot(done ? <Button title="Practise again" onPress={() => { setRound(round + 1); setI(0); setA(null); setResults([]); }} /> : <Button title={i === qs.length - 1 ? 'See my score' : 'Next question'} disabled={a === null} onPress={() => { setI(i + 1); setA(null); }} />);
+  }, [setFoot, done, a, i, round, qs.length]);
+  if (done) {
+    const sum = quizSummary(results);
+    return (
+      <>
+        <Card style={{ marginTop: 18, alignItems: 'center' }}>
+          <Icon name={sum.passed ? 'checkc' : 'alert'} size={36} color={sum.passed ? t.inkGreen : t.inkAmber} />
+          <BigText size={34} style={{ marginTop: 6 }}>{`${sum.right} of ${sum.total}`}</BigText>
+          <T style={[font.headline, { marginTop: 4 }]} tone={sum.passed ? 'green' : 'amber'}>{sum.passed ? `Pass — ${sum.pct}% right` : `Keep practising — ${sum.pct}% right`}</T>
+          <Why>{`You need ${sum.passMark} of ${sum.total} here — the same share as the real test (12 of up to 20 questions).`}</Why>
+        </Card>
+        {sum.missed.length ? (
+          <>
+            <SectionHeader>{`To review · ${sum.missed.length}`}</SectionHeader>
+            <Group>{sum.missed.map((m, k) => <Row key={k} alignTop title={m.q} titleStyle={font.callout} subtitle={`Right answer: ${m.right} · You chose: ${m.chosen}`} />)}</Group>
+          </>
+        ) : null}
+        <DataFooter source={SOURCES.civics} note={CIVICS_SOURCE} />
+      </>
+    );
+  }
   const q = qs[i];
+  const right = results.filter((r) => r.ok).length;
+  const choose = (k: number) => {
+    if (a !== null) return;
+    setA(k);
+    setResults([...results, { q: q.q, chosen: q.opts[k], right: q.opts[q.right], ok: k === q.right }]);
+  };
   return (
     <>
-      <T tone="text2" style={[font.caption, { marginTop: 14 }]}>{`Question ${i + 1} of ${qs.length} · ${score} right`}</T>
+      <T tone="text2" style={[font.caption, { marginTop: 14 }]}>{`Question ${i + 1} of ${qs.length} · ${right} right so far`}</T>
       <T style={[font.big, { marginTop: 12 }]}>{q.q}</T>
-      <View style={{ gap: 8, marginTop: 8 }}>
-        {q.opts.map((o, k) => <Option key={k} title={o} selected={a === k || (a !== null && k === q.right)} onPress={() => { if (a !== null) return; setA(k); if (k === q.right) setScore(score + 1); }} />)}
+      <View style={{ gap: 8, marginTop: 8 }} accessibilityRole="radiogroup">
+        {q.opts.map((o, k) => <AnswerOption key={k} text={o} state={answerState(k, a, q.right)} onPress={() => choose(k)} />)}
       </View>
-      {a !== null ? <Hint>{a === q.right ? 'Correct.' : `Not quite — the right answer is “${q.opts[q.right]}”.`}</Hint> : null}
-      <Hint>{CIVICS_SOURCE}</Hint>
+      {a !== null ? (
+        <View accessibilityLiveRegion="polite" style={{ marginTop: 10 }}>
+          <T tone={a === q.right ? 'green' : 'red'} style={[font.headline]}>{a === q.right ? '✓ Correct' : '✕ Not quite'}</T>
+          {a !== q.right ? <T style={[font.sub, { marginTop: 2 }]}>{`The right answer is “${q.opts[q.right]}”.`}</T> : null}
+        </View>
+      ) : null}
+      <DataFooter source={SOURCES.civics} note={CIVICS_SOURCE} />
     </>
+  );
+}
+
+/** One answer. After a choice: green fill + ✓ “Correct”, red fill + ✕ “Not quite”, the right answer
+ *  in green with “Right answer” — colour is never the only signal (icon + word too). */
+function AnswerOption({ text, state, onPress }: { text: string; state: AnswerState; onPress: () => void }) {
+  const t = useTheme();
+  const green = state === 'correct' || state === 'answer';
+  const red = state === 'wrong';
+  const bg = state === 'correct' ? tint(t.green, t.dark ? 0.28 : 0.2) : red ? tint(t.red, t.dark ? 0.28 : 0.16) : t.card;
+  const border = green ? (t.dark ? t.green : t.inkGreen) : red ? (t.dark ? t.red : t.inkRed) : 'transparent';
+  const label = ANSWER_LABEL[state];
+  return (
+    <Pressable onPress={onPress} disabled={state !== 'idle'} accessibilityRole="radio" accessibilityState={{ checked: state === 'correct' || state === 'wrong', disabled: state !== 'idle' }}
+      accessibilityLabel={label ? `${text}, ${label}` : text}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, minHeight: 56, borderRadius: radius.card, backgroundColor: bg, borderWidth: 2, borderColor: border, opacity: state === 'dim' ? 0.6 : pressed ? 0.85 : 1 })}>
+      <View style={{ width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: green ? (t.dark ? t.green : t.inkGreen) : red ? (t.dark ? t.red : t.inkRed) : 'transparent', borderWidth: green || red ? 0 : 2, borderColor: t.text3 }}>
+        {green ? <Icon name="check" size={15} color={t.dark ? '#000' : '#fff'} weight="bold" /> : red ? <Icon name="x" size={14} color={t.dark ? '#000' : '#fff'} weight="bold" /> : null}
+      </View>
+      <View style={{ flex: 1 }}>
+        <T style={[font.body, { fontWeight: state === 'idle' || state === 'dim' ? '500' : '600' }]}>{text}</T>
+        {label ? <T tone={green ? 'green' : 'red'} style={[font.foot, { fontWeight: '600', marginTop: 2 }]}>{label}</T> : null}
+      </View>
+    </Pressable>
   );
 }
 
@@ -535,7 +606,7 @@ function I9() {
       <Hint>Tick what you have. You need one from List A, or one from B and one from C.</Hint>
       {list(A, 'a', 'List A · identity and work')}{list(B, 'b', 'List B · identity')}{list(C, 'c', 'List C · work')}
       <Note tone={ok ? 'green' : 'amber'}>{ok ? 'This works for the I-9.' : 'Not enough yet. Add one from List A, or one each from B and C.'}</Note>
-      <Src text="uscis.gov/i-9-central" />
+      <DataFooter source={SOURCES.i9} />
     </>
   );
 }
