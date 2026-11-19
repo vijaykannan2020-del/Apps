@@ -14,7 +14,13 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "requireFullScreen": false
+      "requireFullScreen": false,
+      "appleTeamId": "95A592GEVD",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.vijaykannan.casedesk"
+        ]
+      }
     },
     "android": {
       "package": "com.vijaykannan.casedesk",
@@ -87,7 +93,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "@bacons/apple-targets"
     ],
     "extra": {
       "apiBase": "https://casedeskapp.duckdns.org",
