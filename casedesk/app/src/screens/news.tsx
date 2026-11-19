@@ -6,11 +6,11 @@ import { useLocalSearchParams } from 'expo-router';
 import { fmt } from '../core/dates';
 import { kindOf, newsById, useNews, type NewsItem } from '../data/news';
 import { openUrl } from '../native/device';
-import { Button, Card, ChipToggle, Chips, Group, Hint, Icon, LinkButton, Pill, Row, Screen, SectionHeader, Segmented, T, Tag, Why, font, useTheme, TourTarget, useTour } from '../ui';
+import { Button, Card, ChipRow, ChipToggle, Group, Hint, Icon, LinkButton, Pill, Row, Screen, SectionHeader, Segmented, T, Tag, Why, font, useTheme, TourTarget, useTour } from '../ui';
 import { asOfText, back, go } from './common';
 import { DISCLAIMER, DISCLAIMER_SHORT } from '../content/legal';
 import { useFamily } from '../data/FamilyProvider';
-import { familyTags, forFamily, orderTags } from '../core/updates';
+import { familyTags, forFamily, orderTags, topicOrder } from '../core/updates';
 
 const KINDS = ['Official', 'News & analysis'];
 const kindKey = (k: string) => (k === 'Official' ? 'official' : 'news');
@@ -43,12 +43,12 @@ export function HomeUpdates() {
   const mine = tags.length ? forFamily(ofKind, tags).slice(0, 4) : [];
   const mineIds = new Set(mine.map((n) => n.id));
   const rest = ofKind.filter((n) => !mineIds.has(n.id));
-  const topics = ['All', ...[...new Set(rest.flatMap((n) => n.tags))].sort()];
+  const topics = ['All', ...topicOrder(rest.flatMap((n) => n.tags))];
   const shown = rest.filter((n) => topic === 'All' || n.tags.includes(topic as never) || (topic === 'OPT' && n.tags.includes('STEM OPT' as never)));
   return (
     <>
       <SectionHeader right={<LinkButton title="See all" onPress={() => go('/news', { kind: kindKey(kind) })} />}>Updates</SectionHeader>
-      <Segmented options={KINDS} value={kind} onChange={(k) => { setKind(k); setTopic('All'); setMore(5); }} />
+      <Segmented compact options={KINDS} value={kind} onChange={(k) => { setKind(k); setTopic('All'); setMore(5); }} />
       {mine.length ? (
         <>
           <T tone="text2" style={[font.foot, { marginTop: 14, marginLeft: 4, fontWeight: '600' }]}>{`For your family · ${tags.slice(0, 3).join(', ')}`}</T>
@@ -56,8 +56,8 @@ export function HomeUpdates() {
         </>
       ) : null}
       <T tone="text2" style={[font.foot, { marginTop: 16, marginLeft: 4, fontWeight: '600' }]}>{mine.length ? 'More updates' : 'All updates'}</T>
-      <Chips style={{ marginTop: 6 }}>{topics.map((g) => <ChipToggle key={g} text={g} on={topic === g} onPress={() => { setTopic(g); setMore(5); }} />)}</Chips>
-      <Group style={{ marginTop: 10 }}>{shown.length ? shown.slice(0, more).map((n) => <NewsRow key={n.id} n={n} />) : <Row title="Nothing here yet" titleTone="text2" />}</Group>
+      <ChipRow style={{ marginTop: 2 }}>{topics.map((g) => <ChipToggle size="sm" key={g} text={g} on={topic === g} onPress={() => { setTopic(g); setMore(5); }} />)}</ChipRow>
+      <Group style={{ marginTop: 6 }}>{shown.length ? shown.slice(0, more).map((n) => <NewsRow key={n.id} n={n} />) : <Row title="Nothing here yet" titleTone="text2" />}</Group>
       {shown.length > more ? <LinkButton title={`Show ${Math.min(5, shown.length - more)} more`} onPress={() => setMore(more + 5)} /> : null}
       <NewsAsOf live={live} updated={updated} items={items} />
     </>
@@ -79,18 +79,20 @@ export function NewsListScreen() {
   const f = useFamily();
   const fam = familyTags(f.people, f.records);
   const FAMILY = 'For my family';
-  const [tag, setTag] = useState(fam.length ? FAMILY : 'All');
+  // null = the default: For my family once the family has loaded (a cold start renders before it has)
+  const [picked, setTag] = useState<string | null>(null);
+  const tag = picked ?? (fam.length ? FAMILY : 'All');
   const ofKind = items.filter((n) => kindOf(n) === kindKey(kind));
-  const tags = useMemo(() => [...(fam.length ? [FAMILY] : []), 'All', ...[...new Set(ofKind.flatMap((n) => n.tags))].sort()], [ofKind, fam.length]);
+  const tags = useMemo(() => [...(fam.length ? [FAMILY] : []), 'All', ...topicOrder(ofKind.flatMap((n) => n.tags))], [ofKind, fam.length]);
   const shown = tag === FAMILY ? forFamily(ofKind, fam) : ofKind.filter((n) => tag === 'All' || n.tags.includes(tag as never) || (tag === 'OPT' && n.tags.includes('STEM OPT' as never)));
   const tour = useTour('news-list');
   return (
     <Screen tour={tour} nav={{ title: 'Updates', back: 'Home', onBack: back }}>
-      <Why>Rule changes from USCIS, DHS, DOL and State — and news coverage. Tap one for what it means.</Why>
-      <TourTarget id="kind"><Segmented options={KINDS} value={kind} onChange={(k) => { setKind(k); setTag(fam.length ? FAMILY : 'All'); }} /></TourTarget>
-      <TourTarget id="chips"><Chips>{tags.map((g) => <ChipToggle key={g} text={g} on={tag === g} onPress={() => setTag(g)} />)}</Chips></TourTarget>
-      {tag === FAMILY ? <Hint>{`Updates tagged ${fam.join(', ')} — the visa types in your family.`}</Hint> : null}
-      <Group style={{ marginTop: 14 }}>{shown.length ? shown.map((n) => <NewsRow key={n.id} n={n} />) : <Row title="Nothing here yet" />}</Group>
+      {/* v2.9: no intro line — a compact segmented control and ONE scrolling chip row, so the list starts high */}
+      <TourTarget id="kind"><Segmented compact options={KINDS} value={kind} onChange={(k) => { setKind(k); setTag(null); }} /></TourTarget>
+      <TourTarget id="chips"><ChipRow style={{ marginTop: 6 }}>{tags.map((g) => <ChipToggle size="sm" key={g} text={g} on={tag === g} onPress={() => setTag(g)} />)}</ChipRow></TourTarget>
+      {tag === FAMILY ? <Hint style={{ marginTop: 2, marginLeft: 4 }}>{`Your family’s visa types: ${fam.join(', ')}`}</Hint> : null}
+      <Group style={{ marginTop: 10 }}>{shown.length ? shown.map((n) => <NewsRow key={n.id} n={n} />) : <Row title="Nothing here yet" />}</Group>
       <NewsAsOf live={live} updated={updated} items={items} />
     </Screen>
   );

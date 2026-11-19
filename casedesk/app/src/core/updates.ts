@@ -47,3 +47,11 @@ export function updateAlerts<T extends Item>(items: T[], tags: UpdateTag[], dism
   return items.filter((n) => n.impact === 'high' && matchesFamily(n, tags) && !dismissed.includes(n.id) && n.date <= todayIso && daysBetween(n.date.slice(0, 10), todayIso) <= days)
     .sort((a, b) => b.date.localeCompare(a.date));
 }
+
+const TOPIC_FIRST = ['Green card', 'Fees'];
+const VISA_ORDER = ['H-1B', 'H-4', 'L-1', 'L-2', 'TN', 'OPT', 'STEM OPT', 'Citizenship'];
+/** v2.9 filter row order: Green card, Fees, then the visa types, then everything else A–Z. */
+export function topicOrder(tags: string[]): string[] {
+  const rank = (t: string) => { const a = TOPIC_FIRST.indexOf(t); if (a >= 0) return a; const b = VISA_ORDER.indexOf(t); return b >= 0 ? 10 + b : 100; };
+  return [...new Set(tags)].sort((x, y) => rank(x) - rank(y) || x.localeCompare(y));
+}
