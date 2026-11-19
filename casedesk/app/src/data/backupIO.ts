@@ -10,6 +10,7 @@ import { migrateFile } from '../core/files';
 import { matchPeople } from '../core/merge';
 import { deleteFile, fileUri, readBase64, readText, share, writeBase64, writeCacheText } from '../native/files';
 import { native } from '../native/safe';
+import { forgetPassword } from '../native/secret';
 
 export type BackupResult = { uri?: string; shared: boolean; files: number; missingFiles: number };
 
@@ -22,7 +23,7 @@ export async function buildPayload(store: Store): Promise<{ payload: BackupPaylo
     const data = Platform.OS === 'web' ? null : await readBase64(fileUri(f));
     if (data) files[key] = { name: f.name, mime: f.mime, data }; else missing++;
   }
-  const { faceId: _f, ...settings } = snap.settings;
+  const { faceId: _f, icloud: _i, icloudAsk: _a, ...settings } = snap.settings; // device settings stay on the device
   return { payload: { app: 'casedesk', schema: SCHEMA, exportedAt: new Date().toISOString(), people: snap.people, docs: snap.docs, cases: snap.cases, settings, files }, missing };
 }
 
@@ -68,7 +69,9 @@ export type MergeReport = { added: { people: string[]; docs: number; cases: numb
 /** Replace everything, or merge (add what isn't on this phone and say exactly what was added / skipped). */
 export async function restore(store: Store, p: BackupPayload, mode: 'replace' | 'merge'): Promise<MergeReport> {
   const docsIn = p.docs as Document[];
-  const peopleIn = p.people as Person[], casesIn = p.cases as Case[], settingsIn = { ...DEFAULT_SETTINGS, ...(p.settings as Settings) };
+  // iCloud backup and Face ID belong to the phone, never to the backup (older backups may carry them).
+  const { icloud: _ic, icloudAsk: _ask, faceId: _fid, ...fromBackup } = (p.settings ?? {}) as Settings;
+  const peopleIn = p.people as Person[], casesIn = p.cases as Case[], settingsIn = { ...DEFAULT_SETTINGS, ...fromBackup };
   const snap = await store.snapshot();
   const report: MergeReport = { added: { people: [], docs: 0, cases: 0 }, skipped: { people: [], docs: 0, cases: 0 }, renamed: [] };
 
@@ -117,13 +120,18 @@ export async function restore(store: Store, p: BackupPayload, mode: 'replace' | 
   if (mode === 'replace') {
     for (const d of snap.docs) for (const f of d.files ?? []) deleteFile(f);
     await store.savePeople(peopleIn); await store.saveDocs(docsAdd); await store.saveCases(casesAdd);
-    await store.saveSettings({ ...(await store.settings()), ...settingsIn, setupDone: true, tutorialSeen: true });
+    // After a restore iCloud backup is off on this phone until the person turns it on here (Home asks).
+    const here = await store.settings();
+    await store.saveSettings({ ...here, ...settingsIn, setupDone: true, tutorialSeen: true, icloud: here.icloud ? { ...here.icloud, on: false, lastAt: undefined, lastError: undefined, failures: 0, lastAttemptAt: undefined } : undefined, icloudAsk: true });
+    await forgetPassword(); // this phone's iCloud password is set again when it's turned on here
     report.added.people = peopleIn.map((x) => x.name);
   } else {
     await store.savePeople([...snap.people, ...peopleAdd]);
     await store.saveDocs([...snap.docs, ...docsAdd]);
     await store.saveCases([...snap.cases, ...casesAdd]);
-    await store.updateSettings({ setupDone: true, tutorialSeen: true });
+    // Merge copies no settings; this phone's own iCloud backup stays as it was (asked if it's off).
+    const here = await store.settings();
+    await store.updateSettings({ setupDone: true, tutorialSeen: true, icloudAsk: !here.icloud?.on });
   }
   return report;
 }

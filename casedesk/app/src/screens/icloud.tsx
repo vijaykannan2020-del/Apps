@@ -114,3 +114,20 @@ export function ICloudRestoreScreen() {
     </Screen>
   );
 }
+
+/** Home card after a restore: iCloud backup is off on this phone until it's turned on here. */
+export function ICloudAfterRestore() {
+  const f = useFamily(); const sheet = useSheet();
+  const sup = useICloudSupport();
+  if (!f.settings.icloudAsk || !sup?.ok || icloudSettings(f.settings).on) return null;
+  const dismiss = () => f.actions.updateSettings({ icloudAsk: false });
+  return (
+    <Note tone="blue" style={{ marginTop: 12 }} actions={<>
+      <Button size="sm" kind="tint" title="Turn on" onPress={() => { dismiss(); sheet.open('Turn on iCloud backup', <ICloudPasswordSheet mode="enable" />); }} />
+      <Button size="sm" kind="ghost" title="Not now" onPress={dismiss} />
+    </>}>
+      <T style={[font.sub, { fontWeight: '600' }]}>Turn on iCloud backup on this phone?</T>
+      <T tone="text2" style={[font.foot, { marginTop: 2 }]}>Your data was restored. Backups from the old phone’s settings aren’t copied — set a password to back up from this phone.</T>
+    </Note>
+  );
+}

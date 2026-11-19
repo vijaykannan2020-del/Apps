@@ -15,6 +15,7 @@ import { endFlow, unsavedCount, useFlow } from '../data/flow';
 import { RULES_CHECKED } from '../core/rules/catalog';
 import { HomeUpdates } from './news';
 import { HelpCard } from './help';
+import { ICloudAfterRestore } from './icloud';
 import { listNames, type AttentionItem } from '../core/rules/engine';
 import { familyTags, orderTags, updateAlerts } from '../core/updates';
 import { useNews, type NewsItem } from '../data/news';
@@ -109,6 +110,7 @@ export function Home() {
         </Card>
       ) : null}
 
+      <ICloudAfterRestore />
       <HelpCard tab="home" />
       <Columns
         left={<>

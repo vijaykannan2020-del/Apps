@@ -257,6 +257,7 @@ export type Settings = {
   hrTools?: boolean; // show "For HR" tools
   helpSeen?: string[]; // first-time help cards dismissed (home, family, cases, tools, settings)
   updatesDismissed?: string[]; // update alerts dismissed or opened (news ids)
+  icloudAsk?: boolean; // after a restore: ask "Turn on iCloud backup on this phone?"
   icloud?: { on: boolean; wifiOnly: boolean; lastAt?: string; lastError?: string; lastAttemptAt?: string; failures?: number }; // iCloud automatic backup (v2.2)
 };
 
