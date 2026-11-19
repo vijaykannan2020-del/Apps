@@ -3,12 +3,11 @@
 import React, { createContext, useContext } from 'react';
 import { AccessibilityInfo, Platform, useColorScheme, useWindowDimensions } from 'react-native';
 import type { Severity } from '../core/rules/types';
-import { DARK, LIGHT, PASTEL, TONE_PASTEL, onPastel, type PastelTone } from './tokens';
-export { DARK, LIGHT, PASTEL, INK, INK2, contrast, m3Roles, onPastel, TONE_PASTEL } from './tokens';
-export type { PastelTone } from './tokens';
+import { DARK, LIGHT, TONE_PASTEL, onPastel, themeFor, type ColourTheme, type PastelTone } from './tokens';
+export { DARK, LIGHT, PASTEL, INK, INK2, COLOUR_THEMES, contrast, m3Roles, onPastel, swatchOf, themeFor, TONE_PASTEL } from './tokens';
+export type { ColourTheme, PastelTone } from './tokens';
 
 const dark = DARK;
-const light = LIGHT;
 export type Theme = typeof DARK;
 export type ThemeChoice = 'system' | 'dark' | 'light';
 
@@ -37,26 +36,27 @@ export const font = {
 };
 export const MIN_TOUCH = 44;
 
-const Ctx = createContext<{ t: Theme; choice: ThemeChoice }>({ t: dark, choice: 'system' });
-export function ThemeProvider({ choice = 'system', children }: { choice?: ThemeChoice; children: React.ReactNode }) {
+const Ctx = createContext<{ t: Theme; base: Theme; choice: ThemeChoice }>({ t: dark, base: dark, choice: 'system' });
+/** choice = System / Light / Dark; colour = the colour theme (Pastel by default). Both apply at once. */
+export function ThemeProvider({ choice = 'system', colour = 'pastel', children }: { choice?: ThemeChoice; colour?: ColourTheme; children: React.ReactNode }) {
   const sys = useColorScheme();
-  const t = choice === 'light' || (choice === 'system' && sys === 'light') ? light : dark;
-  return <Ctx.Provider value={{ t, choice }}>{children}</Ctx.Provider>;
+  const isLight = choice === 'light' || (choice === 'system' && sys === 'light');
+  const value = React.useMemo(() => { const t = themeFor(!isLight, colour); return { t, base: t, choice }; }, [isLight, colour, choice]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 export const useTheme = () => useContext(Ctx).t;
 
 /** Inside a pastel block: the theme's text colours become ink (see tokens.onPastel). */
 export function PastelScope({ tone, children }: { tone: PastelTone; children: React.ReactNode }) {
   const c = useContext(Ctx);
-  const base = c.t.onPastel ? (c.t.dark ? DARK : LIGHT) : c.t;
-  const value = React.useMemo(() => ({ t: onPastel(base, PASTEL[tone]), choice: c.choice }), [base, tone, c.choice]);
+  const value = React.useMemo(() => ({ t: onPastel(c.base, c.base.pastel[tone]), base: c.base, choice: c.choice }), [c.base, tone, c.choice]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 /** Back to the normal theme (a dark card nested in a pastel block). */
 export function PlainScope({ children }: { children: React.ReactNode }) {
   const c = useContext(Ctx);
   if (!c.t.onPastel) return <>{children}</>;
-  return <Ctx.Provider value={{ t: c.t.dark ? DARK : LIGHT, choice: c.choice }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ t: c.base, base: c.base, choice: c.choice }}>{children}</Ctx.Provider>;
 }
 /** A stable pastel for a name / key (avatars, tool tiles): identity colours, never status. */
 const IDENTITY: PastelTone[] = ['sage', 'blush', 'sky', 'butter', 'mint'];
