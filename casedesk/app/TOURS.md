@@ -1,19 +1,17 @@
 # First-visit tips (coach marks)
 
-**v2.7 (calmer help): tips are OFF by default.** A new user sees ONE tip, once, on Home: "Tap ? on
-any screen for tips." Nothing else pops up by itself. Every screen still has its 2–4 tips — the
-**?** in the nav bar (or next to the large title on tabs, or at the top of a sheet) plays them on
-demand: they dim the screen, ring the control they talk about and point at it. **Next / Back /
-Skip**, dots for progress, "Got it" on the last tip (with **Open the help topic**).
+**v2.7 (calmer help).** Tips show by themselves, once, only on the complicated screens
+(`AUTO_TIP_SCREENS` in `src/core/tours.ts`): `case` (status check), `check-status` (the paste sheet),
+`flow-step`, `review`, `summary`, `backup`, `restore`, `icloud`. Home shows ONE tip, once: "Tap ? on
+any screen for tips." Every other screen is quiet. The **?** in the nav bar (or next to the large
+title on tabs, or at the top of a sheet) plays any screen's 2-4 tips on demand.
 
-Settings → Help:
+Settings → Help (Settings is now a pushed page from the Home avatar):
 
-- **Show tips on each screen** (off) — `settings.toursAll`. On: each screen shows its tips once on
-  the first visit (remembered in `settings.toursSeen`), as in v2.3–v2.6.
+- **Show tips on every screen** (off) — `settings.toursAll`. On: every screen shows its tips once.
 - **Show all tips again** — clears `toursSeen` and turns the switch on.
 
-The rule is one pure function, `autoSteps(id, steps, all)` in `src/core/tours.ts`: `all` → the
-screen's steps; otherwise Home → `[HOME_TIP]`, every other screen → nothing.
+The rule is one pure function, `autoSteps(id, steps, all)`.
 
 Files:
 
