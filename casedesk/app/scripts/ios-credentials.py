@@ -92,9 +92,15 @@ bid = found[0]['id'] if found else api('POST', '/v1/bundleIds', {'data': {'type'
 print(f'App ID {BUNDLE} ✓')
 api('POST', '/v1/bundleIdCapabilities', {'data': {'type': 'bundleIdCapabilities', 'attributes': {'capabilityType': 'PUSH_NOTIFICATIONS'}, 'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}}}}, ok409=True)
 print('Push Notifications on ✓')
-api('POST', '/v1/bundleIdCapabilities', {'data': {'type': 'bundleIdCapabilities', 'attributes': {'capabilityType': 'ICLOUD',
-    'settings': [{'key': 'ICLOUD_VERSION', 'options': [{'key': 'XCODE_6'}]}]},
-    'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}}}}, ok409=True)
+# Only turn iCloud on when it's off: re-posting it can reset the container ticked on developer.apple.com.
+try:
+    _caps = api('GET', f'/v1/bundleIds/{bid}/bundleIdCapabilities', tries=2).get('data', [])
+except SystemExit:
+    _caps = []
+if not any(c.get('attributes', {}).get('capabilityType') == 'ICLOUD' for c in _caps):
+    api('POST', '/v1/bundleIdCapabilities', {'data': {'type': 'bundleIdCapabilities', 'attributes': {'capabilityType': 'ICLOUD',
+        'settings': [{'key': 'ICLOUD_VERSION', 'options': [{'key': 'XCODE_6'}]}]},
+        'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}}}}, ok409=True)
 print('iCloud capability on ✓ (container assignment is done on developer.apple.com — ICLOUD.md)')
 
 # 3. App Store provisioning profile — the iCloud container is checked BEFORE a profile is kept, so a
