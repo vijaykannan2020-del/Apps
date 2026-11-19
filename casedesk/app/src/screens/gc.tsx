@@ -5,7 +5,10 @@ import { View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { daysTo, fmt, today } from '../core/dates';
 import type { GcFacts, Person } from '../core/model';
-import { GC_STAGES, GATHER, INTERVIEW_QUESTIONS, COUNTRY_LABEL, STAGE_LABEL, cellText, gcPlan, gcTrackOf, interviewChecklist, spanText, stageIndex, ticked, workBasis, type GcTrack } from '../core/gc';
+import { GC_STAGES, GATHER, INTERVIEW_QUESTIONS, COUNTRY_LABEL, STAGE_LABEL, cellText, checklistHtml, checklistText, crossChargeNote, eadDependents, gcPlan, gcTrackOf, interviewChecklist, spanText, stageIndex, ticked, workBasis, type GcTrack } from '../core/gc';
+import { birthLabel } from '../core/birth';
+import { stepsFor } from '../core/steps';
+import { canPrintPdf, shareChecklist } from '../native/print';
 import { gcStepKeys, stepMeta, fillsStep, type StepKey } from '../core/steps';
 import { docTitle } from '../core/docs';
 import { RULES } from '../core/rules/catalog';
@@ -114,11 +117,14 @@ export function GcScreen() {
           <SectionHeader>Priority date and the Visa Bulletin</SectionHeader>
           <Group>
             <Row title="Category" value={t.category ?? '—'} />
-            <Row title="Country of chargeability" subtitle={t.countryFrom === 'picked' ? 'Picked by you' : t.countryFrom === 'passport' ? 'From the passport (use the country of birth)' : 'Not known — pick it'} value={COUNTRY_LABEL[t.country]} />
+            <Row title="Country of chargeability" subtitle={t.countryFrom === 'picked' ? 'Picked by you' : t.countryFrom === 'birth' ? `Country of birth: ${birthLabel(t.birthCountry) ?? '—'}${t.derivative ? ` (${ownerName(c)})` : ''}` : t.countryFrom === 'passport' ? 'From the passport — add the country of birth in Edit details' : 'Not known — add the country of birth'} value={COUNTRY_LABEL[t.country]} />
             <Row title="Priority date" subtitle={t.pdFrom === 'i140' ? 'From the I-140' : t.pdFrom === 'perm' ? 'PERM filing date (fixed once the I-140 is approved)' : t.pdFrom === 'typed' ? 'Typed by you' : undefined} value={t.priorityDate ? fmt(t.priorityDate) : '—'} />
             {t.bulletin ? <Row title={`Final action date · ${t.bulletin.month}`} subtitle="When the I-485 can be approved" value={cellText(t.bulletin.final)} /> : null}
             {t.bulletin ? <Row title="Date for filing" subtitle={t.bulletin.chart === 'filing' ? 'USCIS takes I-485s by this chart this month' : 'USCIS uses the final action chart this month'} value={cellText(t.bulletin.filing)} /> : null}
             <Row icon="map" iconPastel="mint" title="Planner: expected wait" onPress={() => go(`/gc/plan/${p.id}`)} chevron />
+          </Group>
+          {crossChargeNote(t, { person: p, rec }, c.members) ? <Hint>{crossChargeNote(t, { person: p, rec }, c.members)}</Hint> : null}
+          <Group style={{ marginTop: 12 }}>
             <Row icon="edit" title="Edit green card details" subtitle={t.derivative ? 'Whose case, country' : 'Category, priority date, country'} onPress={() => sheet.open('Green card details', <GcDetails pid={p.id} />)} chevron={false} />
           </Group>
         </>
@@ -171,6 +177,8 @@ function GcDocRow({ k, c, mine }: { k: StepKey; c: Ctx; mine: FamilyState['docs'
 function StatusChoice({ c }: { c: Ctx }) {
   const { f, p } = c;
   const toast = useToast();
+  const sheet = useSheet();
+  const deps = wbDeps(c);
   const wb = workBasis({ person: p, rec: f.records[p.id] });
   const hl = wb.hlClass ? wb.hlClass.replace(/^H1B$/, 'H-1B').replace(/^L1([AB]?)$/, 'L-1$1').replace(/^H4$/, 'H-4').replace(/^L2S?$/, 'L-2') : 'H-1B / L-1';
   const opts = [`${hl} status`, 'EAD (C9)'];
@@ -178,7 +186,12 @@ function StatusChoice({ c }: { c: Ctx }) {
   return (
     <>
       <SectionHeader>Current status while the I-485 is pending</SectionHeader>
-      <Segmented options={opts} value={wb.workOn === 'ead' ? opts[1] : opts[0]} onChange={async (v) => { await setGc(f, p, { workOn: v === opts[1] ? 'ead' : 'status' }); toast(v === opts[1] ? 'Status is now the EAD (C9)' : `Status is ${hl} again`); }} />
+      <Segmented options={opts} value={wb.workOn === 'ead' ? opts[1] : opts[0]} onChange={async (v) => {
+        const ead = v === opts[1];
+        await setGc(f, p, { workOn: ead ? 'ead' : 'status' });
+        toast(ead ? 'Status is now the EAD (C9)' : `Status is ${hl} again`);
+        if (ead && eadDependents({ person: p, rec: f.records[p.id] }, c.members).length) setTimeout(() => sheet.open('The family’s status', <EadFamily pid={p.id} />), 350);
+      }} />
       <Card style={{ marginTop: 12 }}>
         <T style={[font.sub, { fontWeight: '600' }]}>{wb.workOn === 'ead' ? `On the EAD${wb.eadUntil ? ` · until ${fmt(wb.eadUntil)}` : ''}` : `On ${hl}${wb.i94Until ? ` · I-94 until ${fmt(wb.i94Until)}` : ''}`}</T>
         <T tone="text2" style={[font.foot, { marginTop: 6 }]}>{`Keep ${hl}: travel and return on the visa without advance parole, extensions as usual, and a status to fall back on if the I-485 is denied. Dependents keep H-4 / L-2.`}</T>
@@ -190,7 +203,61 @@ function StatusChoice({ c }: { c: Ctx }) {
         <LegalLine />
       </Card>
       {!wb.chosen ? <Hint>{`Worked out from the documents: ${wb.hlValid ? `a valid ${hl} I-94` : 'no valid H / L I-94'}. Pick one to set it.`}</Hint> : null}
+      {wb.workOn === 'ead' && deps.length ? (
+        <Group style={{ marginTop: 12 }}>
+          <Row icon="users" iconPastel="sky" title="The family’s status" subtitle={deps.map((d) => `${d.person.name}: ${d.workOn === 'ead' ? 'EAD (C9)' : d.depClass ?? 'H-4 / L-2'}`).join(' · ')} onPress={() => sheet.open('The family’s status', <EadFamily pid={p.id} />)} chevron={false} trailing={<T tone="text2" style={font.foot}>Change</T>} />
+        </Group>
+      ) : null}
     </>
+  );
+}
+const wbDeps = (c: Ctx) => eadDependents({ person: c.p, rec: c.f.records[c.p.id] }, c.members);
+
+/** gc2 item 2: the principal works on the EAD — did each dependent with a pending I-485 get an EAD too? */
+export function EadFamily({ pid }: { pid: string }) {
+  const f = useFamily(); const s = useSheet(); const toast = useToast();
+  const p = f.people.find((x) => x.id === pid);
+  const members = f.people.filter((x) => f.records[x.id]).map((x) => ({ person: x, rec: f.records[x.id] }));
+  const deps = p && f.records[p.id] ? eadDependents({ person: p, rec: f.records[p.id] }, members) : [];
+  const [ans, setAns] = useState<Record<string, 'ead' | 'status' | undefined>>(() => Object.fromEntries(deps.map((d) => [d.person.id, d.workOn])));
+  if (!p) return null;
+  const whose = p.relation === 'self' ? 'your' : `${p.name}’s`;
+  const save = async (addCardFor?: string) => {
+    for (const d of deps) if (ans[d.person.id]) await setGc(f, d.person, { workOn: ans[d.person.id] });
+    s.close();
+    if (addCardFor) {
+      const d = deps.find((x) => x.person.id === addCardFor)!;
+      const k = stepsFor(d.person, d.rec).some((st) => st.key === 'combo') ? 'combo' : 'ead';
+      setTimeout(() => runFlow({ mode: 'renew', pids: [addCardFor], only: [k] }, f, toast), 300);
+    } else toast('Saved');
+  };
+  return (
+    <View>
+      <Why>Each person with their own pending I-485 can work on their own EAD (C9), or stay on H-4 / L-2.</Why>
+      {deps.map((d) => {
+        const a = ans[d.person.id];
+        const cls = d.depClass ?? 'H-4 / L-2';
+        return (
+          <Card key={d.person.id} style={{ marginTop: 12 }}>
+            <T style={[font.headline]}>{`Did ${d.person.name} also get an EAD?`}</T>
+            <Chips style={{ marginTop: 8 }}>
+              <ChipToggle role="radio" text="Yes" on={a === 'ead'} onPress={() => setAns({ ...ans, [d.person.id]: 'ead' })} />
+              <ChipToggle role="radio" text={`No, still on ${cls}`} on={a === 'status'} onPress={() => setAns({ ...ans, [d.person.id]: 'status' })} />
+            </Chips>
+            {a === 'ead' ? (
+              <>
+                <T tone="text2" style={[font.foot, { marginTop: 8 }]}>{`${d.person.name}’s status becomes the EAD (C9)${d.rec.ead?.expires ? `, valid until ${fmt(d.rec.ead.expires)}` : ''}. Travel needs advance parole.`}</T>
+                {!d.hasEad ? <View style={{ flexDirection: 'row', marginTop: 10 }}><Button size="sm" kind="tint" icon="plus" title={`Add ${d.person.name}’s EAD card`} onPress={() => save(d.person.id)} /></View> : null}
+              </>
+            ) : a === 'status' ? (
+              <Note tone="amber">{`${d.person.name} stays on ${cls}. That depends on ${whose} H / L status — it ends once ${p.relation === 'self' ? 'you work' : `${p.name} works`} on the EAD. ${d.person.name}’s own pending I-485 lets them stay; rely on their own EAD and advance parole.`}</Note>
+            ) : null}
+          </Card>
+        );
+      })}
+      <Hint>You can change this later on each person’s green card page.</Hint>
+      <SheetButtons><Button kind="ghost" title="Later" onPress={() => s.close()} /><Button grow title="Save" onPress={() => save()} /></SheetButtons>
+    </View>
   );
 }
 
@@ -221,8 +288,8 @@ export function GcDetails({ pid, start }: { pid: string; start?: boolean }) {
           <DateField label="Priority date (I-140, or the PERM filing date)" value={pd} onChange={setPd} />
         </>
       ) : null}
-      <SelectField label="Country of birth (chargeability)" value={ctry} onChange={setCtry} options={[{ value: '', label: 'From the passport' }, ...(['india', 'china', 'mexico', 'philippines', 'all'] as const).map((x) => ({ value: x, label: COUNTRY_LABEL[x] }))]} />
-      <Hint>The Visa Bulletin uses the country of birth. A spouse born elsewhere may sometimes use the other country (cross-chargeability) — ask your attorney.</Hint>
+      <SelectField label="Visa Bulletin country (override)" value={ctry} onChange={setCtry} options={[{ value: '', label: 'From the country of birth' }, ...(['india', 'china', 'mexico', 'philippines', 'all'] as const).map((x) => ({ value: x, label: COUNTRY_LABEL[x] }))]} />
+      <Hint>The Visa Bulletin goes by country of birth, not passport — set it in Edit details. Pick a country here only to override it (for example cross-chargeability through a spouse, after asking your attorney).</Hint>
       <SheetButtons><Button kind="ghost" title="Cancel" onPress={() => s.close()} /><Button grow title="Save" onPress={save} /></SheetButtons>
     </View>
   );
@@ -300,6 +367,7 @@ export function GcInterviewScreen() {
   const toggle = async (k: string) => { const n = new Set(ticks); if (n.has(k)) n.delete(k); else n.add(k); await setGc(f, p, { interviewTicks: [...n] }); };
   const iv = family.map((x) => x.t?.interview).filter(Boolean).sort()[0];
   const src = RULES.G5.source;
+  const pdf = canPrintPdf();
   return (
     <Screen wide nav={{ back: 'Back', onBack: back, title: 'Interview prep' }}>
       <Pastel tone={iv ? 'butter' : 'sky'} r={30} pad={20}>
@@ -312,6 +380,14 @@ export function GcInterviewScreen() {
       <SectionHeader right={<T tone="text2" style={font.foot}>{`${list.filter((x) => ticks.has(x.id)).length} of ${list.length}`}</T>}>{`What ${p.relation === 'self' ? 'you bring' : `${p.name} brings`}`}</SectionHeader>
       <Group>{list.map((x) => <CheckRow key={x.id} title={x.why ? `${x.text} — ${x.why}` : x.text} checked={ticks.has(x.id)} onPress={() => toggle(x.id)} />)}</Group>
       <Hint>Bring originals and a copy of each. The notice may list more — follow it.</Hint>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+        <Button size="sm" kind="tint" icon="share" title={pdf ? 'Share as PDF' : 'Share checklist'} onPress={async () => {
+          const people = family.map((x) => ({ name: x.m.person.name, items: interviewChecklist(x.m.person, x.t), ticks: [...ticked(x.m.person)], interview: x.t?.interview }));
+          const r = await shareChecklist(checklistHtml(people), checklistText(people), 'Green card interview checklist');
+          if (r === 'text' && pdf) toast('Shared as text');
+        }} />
+      </View>
+      {!pdf ? <Hint>PDF needs the next app version from TestFlight; this shares the checklist as text.</Hint> : null}
       <SectionHeader>Common questions</SectionHeader>
       <Group>{INTERVIEW_QUESTIONS.map((q) => <Row key={q.q} title={q.q} titleStyle={{ ...font.callout, fontWeight: '500' }} subtitle={q.tip} />)}</Group>
       <Note tone="blue">This is the green card (I-485) interview — the citizenship test is separate (Tools → Citizenship test).</Note>
