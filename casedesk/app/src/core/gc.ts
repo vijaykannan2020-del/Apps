@@ -8,6 +8,8 @@
 import { addDays, daysBetween, daysTo, fmt, today, type ISODate } from './dates';
 import type { Person } from './model';
 import type { CaseInfo, PersonRecord } from './record';
+import { birthCountryOf, birthLabel, chargeabilityOf } from './birth';
+import { PASTEL } from '../ui/tokens';
 import { categoryOf, countryOf, cutoff, isCurrent, monthStart, type BulletinCell, type BulletinCountry, type BulletinRow, type VisaBulletin } from './bulletin';
 
 export type GcStage = 'not-started' | 'perm' | 'i140' | 'waiting' | 'i485' | 'interview' | 'approved';
@@ -49,7 +51,8 @@ export type GcTrack = {
   priorityDate?: ISODate;
   pdFrom?: 'i140' | 'perm' | 'typed';
   country: BulletinCountry;
-  countryFrom: 'picked' | 'passport' | 'default';
+  countryFrom: 'picked' | 'birth' | 'passport' | 'default'; // birth = the principal's country of birth (typed or printed on a document)
+  birthCountry?: string; // the principal's country of birth (ISO-3 / OTH) when known
   perm?: PersonRecord['perm'];
   i140?: CaseInfo;
   i485?: CaseInfo; // this person's own
@@ -118,10 +121,14 @@ export function gcTrackOf(me: Who, all: Who[], bulletin?: VisaBulletin): GcTrack
   if (i140?.priorityDate) { priorityDate = i140.priorityDate; pdFrom = 'i140'; }
   else if (o.perm?.filed) { priorityDate = o.perm.filed; pdFrom = 'perm'; }
   else if (gcf.priorityDate) { priorityDate = gcf.priorityDate; pdFrom = 'typed'; }
+  // Chargeability: an explicit pick wins; else the principal's country of birth (a derivative is charged to the
+  // principal's country); else the passport nationality.
   const picked = p.facts?.gc?.chargeability ?? owner.person.facts?.gc?.chargeability;
+  const born = birthCountryOf(owner.person.facts?.birthCountry, o);
+  const bornKnown = born && born.from !== 'nationality' ? born : undefined;
   const nat = o.nationality ?? r.nationality;
-  const country: BulletinCountry = picked ?? countryOf(nat);
-  const countryFrom = picked ? 'picked' : nat ? 'passport' : 'default';
+  const country: BulletinCountry = picked ?? (bornKnown ? chargeabilityOf(bornKnown.code) : countryOf(nat));
+  const countryFrom: GcTrack['countryFrom'] = picked ? 'picked' : bornKnown ? 'birth' : nat ? 'passport' : 'default';
 
   const approved = !!r.greenCard || i485?.status === 'approved';
   let stage: GcStage = 'not-started';
@@ -134,7 +141,7 @@ export function gcTrackOf(me: Who, all: Who[], bulletin?: VisaBulletin): GcTrack
 
   const t: GcTrack = {
     personId: p.id, ownerId: owner.person.id, derivative: owner.person.id !== p.id, stage, started: stage !== 'not-started',
-    category, priorityDate, pdFrom, country, countryFrom, perm: o.perm, i140, i485, i765, i131,
+    category, priorityDate, pdFrom, country, countryFrom, birthCountry: born?.code, perm: o.perm, i140, i485, i765, i131,
     ead: r.ead, advanceParole: r.advanceParole, biometrics: bio?.appointmentDate, interview: interviewCase?.appointmentDate, medical: r.medical,
     approvedOn: i485?.status === 'approved' ? i485.noticeDate : undefined, residentSince: r.greenCard?.residentSince,
     bulletin: stage === 'approved' ? undefined : gcBulletin(priorityDate, category, country, bulletin),
@@ -184,6 +191,30 @@ export function workBasis(me: Who): WorkBasis {
   const hlValid = HL.includes(cls) && (daysTo(r.i94?.until) ?? -1) >= 0;
   const chosen = me.person.facts?.gc?.workOn;
   return { pending485, hlValid, hlClass: hlValid ? cls : undefined, workOn: chosen ?? (hlValid ? 'status' : 'ead'), chosen: !!chosen, eadUntil: r.ead?.expires, i94Until: r.i94?.until };
+}
+
+/** Spouse cross-chargeability: a short note when the principal and spouse were born in countries with different columns. */
+export function crossChargeNote(t: GcTrack, me: Who, all: Who[]): string | undefined {
+  if (t.stage === 'approved' || t.countryFrom === 'picked') return undefined;
+  const owner = all.find((w) => w.person.id === t.ownerId) ?? me;
+  const ownerBorn = birthCountryOf(owner.person.facts?.birthCountry, owner.rec);
+  const isSpouse = (w: Who) => w.person.relation === 'spouse' || (owner.person.relation === 'spouse' && w.person.relation === 'self');
+  const spouse = all.find((w) => w.person.id !== owner.person.id && isSpouse(w));
+  const spouseBorn = spouse ? birthCountryOf(spouse.person.facts?.birthCountry, spouse.rec) : undefined;
+  if (!ownerBorn || !spouseBorn || chargeabilityOf(ownerBorn.code) === chargeabilityOf(spouseBorn.code)) return undefined;
+  return `${spouse!.person.name} was born in ${birthLabel(spouseBorn.code) ?? 'another country'}. A spouse born elsewhere can sometimes use that country instead (cross-chargeability) — ask your attorney before filing.`;
+}
+
+/** Item 2 (gc2): when the principal works on the EAD, the dependents with their own pending I-485 to ask about. */
+export function eadDependents(principal: Who, all: Who[]): { person: Person; rec: PersonRecord; workOn?: 'status' | 'ead'; hasEad: boolean; depClass?: string }[] {
+  return all
+    .filter((w) => w.person.id !== principal.person.id && (w.person.relation === 'spouse' || w.person.relation === 'child'))
+    .filter((w) => w.rec.cases.some((c) => c.form === 'I-485' && c.status === 'pending'))
+    .filter((w) => gcOwnerOf(w, all).person.id === principal.person.id)
+    .map((w) => {
+      const cls = (w.rec.i94?.cls ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      return { person: w.person, rec: w.rec, workOn: w.person.facts?.gc?.workOn, hasEad: !!w.rec.ead?.expires, depClass: /^H4$/.test(cls) ? 'H-4' : /^L2S?$/.test(cls) ? 'L-2' : undefined };
+    });
 }
 
 // ---------- planner (item 5) ----------
@@ -247,7 +278,7 @@ export function gcPlan(t: GcTrack, b: VisaBulletin, processing: { form: string; 
   }
   const anyPace = plan.pace.filing ?? plan.pace.final;
   plan.etaNote = plan.gatherNow && (plan.current.filing || plan.current.final) ? undefined
-    : !anyPace ? 'Not enough Visa Bulletin history yet to estimate the pace. The estimate appears once the app has bulletins at least 5 months apart.'
+    : !anyPace ? 'Not enough Visa Bulletin history yet to estimate the pace: the planner needs more months of bulletins (at least 5 months apart). They are added automatically each month.'
     : anyPace.daysPerYear <= 0 ? `The cut-off has not moved forward over the last ${anyPace.months} months, so no estimate is possible.`
     : `Estimate only: at the pace of the last ${anyPace.months} months (${anyPace.from} to ${anyPace.to}). Real movement jumps and can go back.`;
   return plan;
@@ -310,3 +341,43 @@ export const INTERVIEW_QUESTIONS: { q: string; tip: string }[] = [
 
 /** Tick ids for one person (saved on the person). */
 export const ticked = (p: Person) => new Set(p.facts?.gc?.interviewTicks ?? []);
+
+// ---------- interview checklist to share (gc2 item 4) ----------
+export type ChecklistShare = { name: string; items: PrepItem[]; ticks: Set<string> | string[]; interview?: ISODate };
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const shareHead = (interview?: ISODate) => `Green card interview checklist${interview ? ` · ${fmt(interview)}` : ''}`;
+const SHARE_FOOT = 'Bring originals and a copy of each. The interview notice may list more — follow it. For personal reference, not legal advice. Made with Immigration Wallet.';
+
+/** Plain text (share sheet fallback when the PDF printer is not in the installed build). */
+export function checklistText(people: ChecklistShare[]): string {
+  const iv = people.map((p) => p.interview).filter(Boolean).sort()[0];
+  const parts = [shareHead(iv), ''];
+  for (const p of people) {
+    const t = new Set(p.ticks);
+    parts.push(`${p.name} (${p.items.filter((x) => t.has(x.id)).length} of ${p.items.length} ready)`);
+    for (const x of p.items) parts.push(`${t.has(x.id) ? '[x]' : '[ ]'} ${x.text}${x.why ? ` — ${x.why}` : ''}`);
+    parts.push('');
+  }
+  parts.push(SHARE_FOOT);
+  return parts.join('\n');
+}
+
+/** Printable HTML for the PDF (pastel, one section per person, tick boxes). */
+export function checklistHtml(people: ChecklistShare[]): string {
+  const iv = people.map((p) => p.interview).filter(Boolean).sort()[0];
+  const sec = people.map((p) => {
+    const t = new Set(p.ticks);
+    const rows = p.items.map((x) => `<li class="${t.has(x.id) ? 'on' : ''}"><span class="box">${t.has(x.id) ? '&#10003;' : ''}</span><span>${esc(x.text)}${x.why ? `<em> — ${esc(x.why)}</em>` : ''}</span></li>`).join('');
+    return `<section><h2>${esc(p.name)} <small>${p.items.filter((x) => t.has(x.id)).length} of ${p.items.length} ready</small></h2><ul>${rows}</ul></section>`;
+  }).join('');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#1d1d1f;margin:32px;font-size:13px}
+.hero{background:${PASTEL.butter};border-radius:22px;padding:20px 22px;margin-bottom:18px}.hero h1{margin:0;font-size:22px}.hero p{margin:6px 0 0;color:rgba(0,0,0,.72)}
+section{background:${PASTEL.sky};border-radius:18px;padding:14px 18px;margin-bottom:14px;page-break-inside:avoid}
+h2{font-size:16px;margin:0 0 8px}h2 small{font-weight:500;color:rgba(0,0,0,.6);font-size:12px;margin-left:6px}
+ul{list-style:none;padding:0;margin:0}li{display:flex;gap:10px;padding:6px 0;border-top:1px solid rgba(0,0,0,.08)}li:first-child{border-top:0}
+.box{flex:none;width:16px;height:16px;border:1.5px solid #8e8e93;border-radius:5px;text-align:center;line-height:16px;font-size:12px}
+li.on .box{background:${PASTEL.sage};border-color:${PASTEL.sageD};color:#000}em{color:rgba(0,0,0,.6);font-style:normal}
+footer{color:#6e6e73;font-size:11px;margin-top:16px}</style></head><body>
+<div class="hero"><h1>${esc(shareHead(iv))}</h1><p>Each person scheduled brings their own documents.</p></div>${sec}<footer>${esc(SHARE_FOOT)}</footer></body></html>`;
+}

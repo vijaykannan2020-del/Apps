@@ -35,6 +35,7 @@ export type PersonRecord = {
   passportNos: string[]; // every number this person's passports carry (current + old)
   birthDate?: string;
   nationality?: string;
+  birthPlace?: string; // v2.9 gc2: place / country of birth as printed (passport first, then the EAD)
   passportExpiry?: string;
   passportNote?: string;
   visa?: VisaType; // undefined = not confirmed
@@ -136,12 +137,14 @@ export function deriveRecord(person: Person, allDocs: Document[]): PersonRecord 
     r.passportExpiry = curPass.fields.validTo;
     r.passportNote = curPass.fields.dateNote;
     r.nationality = curPass.fields.nationality;
+    r.birthPlace = curPass.fields.birthPlace;
   }
   for (const d of docs) {
     if (!r.passportNo && d.fields.passportNo && ['visa', 'i94', 'ead'].includes(d.type)) r.passportNo = d.fields.passportNo;
     if (!r.legalName && d.fields.name && d.type !== 'i129s' && (!own || sameName(d.fields.name, own))) r.legalName = d.fields.name;
     if (!r.birthDate && d.fields.birthDate && d.type !== 'approval') r.birthDate = d.fields.birthDate;
     if (!r.nationality && d.fields.nationality) r.nationality = d.fields.nationality;
+    if (!r.birthPlace && d.fields.birthPlace && (d.type === 'passport' || d.type === 'ead')) r.birthPlace = d.fields.birthPlace;
   }
   if (r.passportNo && !r.passportNos.includes(r.passportNo)) r.passportNos.unshift(r.passportNo);
   if (!r.birthDate && facts.birthDate) r.birthDate = facts.birthDate; // typed in Edit details

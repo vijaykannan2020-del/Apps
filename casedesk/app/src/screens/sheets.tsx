@@ -10,6 +10,7 @@ import { differentMetro, metroOf, parsePlace, placeText } from '../core/metro';
 import { FORMS, isReceipt, type CaseView } from '../core/cases';
 import type { KeyDate } from '../core/model';
 import { showField, FIELDS } from '../core/docs';
+import { BIRTH_COUNTRIES, BIRTH_NOTE, birthCountryGuess, birthLabel } from '../core/birth';
 import { useFamily, type FamilyState } from '../data/FamilyProvider';
 import { newId } from '../data/store';
 import {
@@ -43,6 +44,16 @@ export function AskWhere({ pid }: { pid: string }) {
       </View>
       <SheetButtons><Cancel />{out ? <Button grow title="Save" onPress={() => save('Outside')} /> : null}</SheetButtons>
     </View>
+  );
+}
+/** v2.9 gc2: Country of birth (setup, Add a person, Edit details). '' = not sure yet. */
+export function BirthCountryField({ value, onChange, guess }: { value: string; onChange: (v: string) => void; guess?: string }) {
+  return (
+    <>
+      <SelectField label="Country of birth" value={value} onChange={onChange}
+        options={[{ value: '', label: guess ? `Not sure (passport says ${birthLabel(guess)})` : 'Not sure yet' }, ...BIRTH_COUNTRIES.map((c) => ({ value: c.code, label: c.label }))]} />
+      <Hint>{BIRTH_NOTE}</Hint>
+    </>
   );
 }
 export const COUNTRIES = ['India', 'Canada', 'Mexico', 'China', 'Philippines', 'United Kingdom', 'Brazil', 'Nigeria', 'Other'];
@@ -105,6 +116,8 @@ export function EditDetails({ pid }: { pid: string }) {
   const [emp, setEmp] = useState(p?.facts.employer ?? rec?.employer ?? '');
   const [where, setWhere] = useState<'US' | 'Outside' | undefined>(rec?.locationKnown ? rec.location : p?.facts.location);
   const [country, setCountry] = useState(p?.facts.country ?? rec?.country ?? 'India');
+  const guess = birthCountryGuess(rec)?.code;
+  const [born, setBorn] = useState<string>(p?.facts.birthCountry ?? guess ?? '');
   if (!p) return null;
   const self = p.relation === 'self';
   const dependentKind = !self && (rel === 'spouse' || rel === 'child');
@@ -117,6 +130,8 @@ export function EditDetails({ pid }: { pid: string }) {
     const facts = { ...p.facts };
     facts.dependentOf = dependentKind && follows !== 'auto' && follows !== 'own' ? follows : undefined;
     facts.birthDate = dob && dob !== rec?.birthDate ? dob : rec?.birthDate ? undefined : dob;
+    // pre-filled from the passport: kept unset while it still matches (documents decide), saved once changed
+    facts.birthCountry = born && (born !== guess || p.facts.birthCountry) ? born : undefined;
     const e = emp.trim();
     facts.employer = e && e !== rec?.employer ? e : rec?.employer ? undefined : e || undefined;
     const before = rec?.locationKnown ? rec.location : p.facts.location;
@@ -150,6 +165,7 @@ export function EditDetails({ pid }: { pid: string }) {
         </>
       ) : null}
       <DateField label="Date of birth" value={dob} onChange={setDob} />
+      <BirthCountryField value={born} onChange={setBorn} guess={guess} />
       <SelectField label="Status / visa type" value={st} onChange={setSt} groups={statusGroups()} />
       <Hint>Changing the status changes which documents and checks apply.</Hint>
       {rel !== 'child' || self ? <Field label="Employer" value={emp} onChangeText={setEmp} placeholder="e.g. Acme Tech Inc" autoCapitalize="words" /> : null}

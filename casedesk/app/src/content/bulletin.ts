@@ -3,6 +3,7 @@
 // (travel.state.gov blocks automated reads): cilawgroup.com (Oct 22, 2026) and f1jobs.io. Mexico /
 // Philippines filing dates that equal "All Chargeability" in the bulletin are filled in; cells the
 // summaries didn't give stay null (shown as —) and are listed in STORE.md → Data to confirm.
+// India EB-1/2/3 final action and dates for filing: confirmed by the owner against travel.state.gov, Nov 19, 2026.
 import type { BulletinCountry, VisaBulletin } from '../core/bulletin';
 export type Country = BulletinCountry;
 export const COUNTRIES: { value: Country; label: string }[] = [

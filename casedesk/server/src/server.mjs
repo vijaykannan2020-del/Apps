@@ -10,7 +10,7 @@ import { guides, processingTimes } from './content.mjs';
 import { subscribe, unsubscribe, pushStatus } from './push.mjs';
 import { getWaits, waitsStatus } from './waits.mjs';
 import { submit as communitySubmit, remove as communityRemove, stats as communityStats, communityStatus } from './community.mjs';
-import { bulletinStatus } from './bulletin.mjs';
+import { bulletinStatus, ensureBulletinHistory } from './bulletin.mjs';
 import { expectFor, formStatsStatus } from './expect.mjs';
 import { sendPush } from './push.mjs';
 import { createForum, isForumPath } from './forum.mjs';
@@ -134,5 +134,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`CaseDesk API on :${PORT}`);
   refreshNews().catch((e) => console.error('initial news load failed:', e.message));
+  // Visa Bulletin: first run (or fewer than 24 earlier months kept) → fill the planner's history, politely, in the background.
+  setTimeout(() => ensureBulletinHistory().catch(() => {}), 5_000);
   setInterval(() => refreshNews().catch(() => {}), (Number(process.env.NEWS_REFRESH_MINUTES) || 60) * 60_000);
 });
