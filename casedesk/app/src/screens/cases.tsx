@@ -12,11 +12,6 @@ import { SOURCES } from '../content/legal';
 import { AddCase, AddKeyDate, CheckStatus, Confirm, startCaseCheck } from './sheets';
 import { copy } from '../native/device';
 import { ExpectCard } from './expect';
-import { CachedStatus } from './myuscisSync';
-import { useSyncState } from '../data/myuscis';
-import { isIOE } from '../core/myuscis';
-import { webViewAvailable } from '../native/webview';
-const syncIOE = (r?: string) => isIOE(r) && webViewAvailable();
 
 const inDays = (n: number) => (n < 0 ? `${-n} day${n === -1 ? '' : 's'} ago` : n === 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`);
 
@@ -32,9 +27,8 @@ export function CaseRow({ c, who = true, onPick, on }: { c: CaseView; who?: bool
   const f = useFamily();
   const nd = c.keyDates.find((k) => (daysTo(k.date) ?? -1) >= 0);
   const name = f.people.find((p) => p.id === c.ownerId)?.name;
-  const unseen = !!useSyncState().cases[c.id]?.unseen; // v2.6: a sync found changes not looked at yet
   return (
-    <Row icon={on ? 'checkc' : 'doc'} dot={unseen ? 'blue' : undefined} label={unseen ? `${c.form ?? 'Case'}, new changes` : undefined} onPress={() => (onPick ? onPick(c.id) : go(`/case/${encodeURIComponent(c.id)}`))} chevron={false} trailing={<CaseStatusPill c={c} />}
+    <Row icon={on ? 'checkc' : 'doc'} onPress={() => (onPick ? onPick(c.id) : go(`/case/${encodeURIComponent(c.id)}`))} chevron={false} trailing={<CaseStatusPill c={c} />}
       title={<T style={font.body}><T style={[font.body, { fontWeight: '600' }]}>{c.form ?? 'Case'}</T>{` · ${c.name}`}</T>}
       subtitle={`${who && name ? `${name} · ` : ''}${nd ? `${nd.label} ${fmt(nd.date)}` : c.updated ? `Updated ${fmt(c.updated)}` : 'Added by you'}`} />
   );
@@ -121,14 +115,7 @@ export function CaseBody({ id }: { id: string }) {
       {c.consular ? <Note tone="blue">Approved at a US consulate. There is no USCIS case to check online.</Note> : (
         <>
           <SectionHeader>Check status</SectionHeader>
-          <CachedStatus view={c} compact />
-          <TourTarget id="sync"><Card style={{ marginTop: 12 }}>
-            <T style={font.headline}>{syncIOE(c.receipt) ? 'Sync with myUSCIS' : 'Status & sync'}</T>
-            <T tone="text2" style={[font.foot, { marginTop: 4 }]}>{syncIOE(c.receipt) ? 'Filed online: sign in on USCIS’s page in the app and read your case history, notices and silent updates. Experimental.' : 'Check the public status in the app, paste the myUSCIS case page, and see changes since your last check.'}</T>
-            <View style={{ marginTop: 10 }}><Button block icon={syncIOE(c.receipt) ? 'lock' : 'refresh'} title={syncIOE(c.receipt) ? 'Sync with myUSCIS' : 'Status & sync'} onPress={() => go('/case/sync', syncIOE(c.receipt) ? { id: c.id, start: 'myuscis' } : { id: c.id })} /></View>
-            {syncIOE(c.receipt) ? <View style={{ marginTop: 8 }}><Button block kind="ghost" title="More ways to check" onPress={() => go('/case/sync', { id: c.id })} /></View> : null}
-          </Card></TourTarget>
-          <Card style={{ marginTop: 12 }}>
+          <Card>
             {['Copy the receipt number', 'Safari opens uscis.gov — paste it and tap Check Status', 'Copy what the page says, tap Done, then “Paste what USCIS says”'].map((x, i) => (
               <View key={i} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 5 }}>
                 <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: tint(t.accent, 0.18), alignItems: 'center', justifyContent: 'center' }}><T tone="accent" style={[font.foot, { fontWeight: '600' }]}>{String(i + 1)}</T></View>
@@ -136,7 +123,7 @@ export function CaseBody({ id }: { id: string }) {
               </View>
             ))}
             <T tone="text2" style={[font.foot, { marginTop: 8 }]}>{c.checkedAt ? `Last checked on uscis.gov: ${asOfText({ live: true, fetchedAt: c.checkedAt }).replace(/^Live · updated /, '')}` : 'Not checked on uscis.gov yet'}</T>
-            <Hint>Immigration Wallet never signs in to USCIS for you and never sees your password.</Hint>
+            <Hint>Immigration Wallet never logs in to USCIS or reads the site for you.</Hint>
             <TourTarget id="check"><Button block icon="compass" title="Copy number & open uscis.gov" onPress={() => startCaseCheck(c, sheet.open)} /></TourTarget>
             <TourTarget id="paste"><Button block kind="ghost" icon="copy" title="Paste what USCIS says" onPress={() => sheet.open('What did USCIS say?', <CheckStatus view={c} copied />)} /></TourTarget>
           </Card>
@@ -149,7 +136,7 @@ export function CaseBody({ id }: { id: string }) {
         <Button kind="ghost" icon="share" title="Share" onPress={() => Share.share({ message: `${c.form ?? 'Case'} · ${c.name}\nStatus: ${c.status}${c.updated ? ` (updated ${fmt(c.updated)})` : ''}` }).catch(() => {})} />
         <Button kind="danger" icon="trash" title="Delete" onPress={() => sheet.open('Delete this case?', <Confirm body="It’s removed from this phone only. Nothing changes at USCIS." action="Delete" onConfirm={async () => { back(); await f.actions.deleteCase(c); toast('Case deleted'); }} />)} />
       </View>
-      <DataFooter source={SOURCES.caseStatus} note="Case status comes from uscis.gov or myUSCIS pages you open yourself, and is saved on this phone. Immigration Wallet has no USCIS account and keeps no sign-in." />
+      <DataFooter source={SOURCES.caseStatus} note="Case status comes only from what you copy from uscis.gov — Immigration Wallet doesn’t contact USCIS." />
     </>
   );
 }

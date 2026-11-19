@@ -13,14 +13,13 @@
   <p class="sub">Immigration Wallet · effective November 2026</p>
 
   <div class="card">
-    <p><b>Short version:</b> your family’s documents and details stay on your phone. No ads, no analytics and no tracking. We never see your documents or names, and receipt numbers only if you turn on Live check. Two features are optional and send a little data to our server only when you use them: Community Q&amp;A (if you sign in) and sharing your case timeline anonymously in Cases like mine.</p>
+    <p><b>Short version:</b> your family’s documents and details stay on your phone. No ads, no analytics and no tracking. We never see your documents, names or receipt numbers. Two features are optional and send a little data to our server only when you use them: Community Q&amp;A (if you sign in) and sharing your case timeline anonymously in Cases like mine.</p>
   </div>
 
   <h2>What stays on your phone</h2>
   <div class="card">
     <div class="row"><b>Everything you add</b><span>People, documents (photos and PDFs), dates, cases and receipt numbers, reminders and settings are saved only in the app’s storage on your device.</span></div>
     <div class="row"><b>Reading documents</b><span>Text is read from photos with Apple’s on-device text recognition (Google ML Kit on Android) and from PDFs on the phone. Nothing is uploaded to read it.</span></div>
-    <div class="row"><b>Case status syncs</b><span>When you check a case (myUSCIS in the app, uscis.gov in the app, or text you paste or import), what USCIS shows is read on your phone and saved there as snapshots: status, case history, last-updated date, location and the list of notices. They are used to show changes and silent updates and are deleted with Delete all data. They are not part of backups.</span></div>
     <div class="row"><b>Reminders and alerts</b><span>Reminders before documents expire and alerts for case status changes are worked out and scheduled on your phone as local notifications.</span></div>
     <div class="row"><b>Face ID</b><span>Optional. iOS checks your face or passcode; the app only learns “unlocked” or not.</span></div>
     <div class="row"><b>Home Screen widgets</b><span>If you add a widget, the app saves a short summary on this phone for it — initials or first names, status labels and dates, never document numbers — in storage shared only with its own widget. While Face ID lock is on, widgets show no details (you can change this). Nothing is sent anywhere.</span></div>
@@ -40,8 +39,7 @@
     <p>When you use a look-up tool, only what you type into that tool is sent: the job title, state and county for prevailing wages, or the employer name for H-1B employer data.</p>
     <p><b>What to expect</b> on a case asks the server for typical timing using only the form, the 3-letter office code from the receipt (EAC, WAC…), the received date, premium yes/no and visa class — never the receipt number.</p>
     <p><b>Apple Wallet status card (only if you tap Add to Apple Wallet):</b> Apple Wallet only accepts cards that are signed, and the signing key can’t safely live inside the app. So the fields you see in the preview — the name as you chose it (full, first or initials), status label, valid-until, visa stamp and passport expiry dates and the next deadline — are sent once to our server, which signs the card in memory and sends it straight back. <b>The card fields are sent once to sign the pass and are not stored or logged.</b> No passport, receipt or A-numbers are ever sent or put on the card (the app and the server both refuse them). The card is for your personal reference — not an official document.</p>
-    <p><b>Live check (only if the app offers it and you turn on “Check my cases automatically” or tap Check now):</b> the app sends the receipt number of an open case to our server, which asks the official USCIS Case Status API and sends the answer back. <b>Receipt numbers are used only to ask USCIS — they are not stored in a database or written to logs.</b> The server keeps USCIS’s answer in memory for up to 3 hours so repeated checks don’t ask USCIS again. Live check appears only when our server has production access to that USCIS service.</p>
-    <p><b>Never sent:</b> your documents, dates of birth, passport or A-numbers, case statuses or anything else you saved — receipt numbers only for Live check above, and names and dates only in the Wallet case above.</p>
+    <p><b>Never sent:</b> your documents, dates of birth, passport or A-numbers, receipt numbers, case statuses or anything else you saved — and names and dates only in the Wallet case above.</p>
     <p>Like any website, the server necessarily sees your device’s IP address to send the answer back. We don’t keep request logs, build profiles or share this with anyone.</p>
   </div>
 
@@ -60,8 +58,7 @@
 
   <h2>Other services the app opens</h2>
   <div class="card">
-    <div class="row"><b>USCIS case status (uscis.gov)</b><span>The app can open uscis.gov inside the app with your receipt number filled in; you tap Check Status yourself and the app reads the result shown on the page. Or it copies the receipt number and opens uscis.gov in Safari for you to paste the result back. What you send to USCIS is covered by USCIS’s own privacy policy.</span></div>
-    <div class="row"><b>myUSCIS sync (Experimental)</b><span>For cases filed online, you can open myUSCIS inside the app and sign in on USCIS’s own page. Your password and codes are typed into USCIS’s page only — the app never reads, stores or fills them in, and runs nothing on the sign-in pages. After you are signed in, the app reads your case data once from myUSCIS pages in that same window. The window is private (nothing of the sign-in is kept) and is cleared when it closes. The data goes only to your phone. You can share the raw answer yourself for support; the app never sends it.</span></div>
+    <div class="row"><b>USCIS case status</b><span>To check a case, the app copies your receipt number and opens uscis.gov in Safari. You paste it there yourself; what you send to USCIS is covered by USCIS’s own privacy policy. The app never logs in to USCIS or reads the site for you.</span></div>
     <div class="row"><b>Official websites</b><span>Links to uscis.gov, travel.state.gov, dol.gov and news sources open in your browser under those sites’ policies.</span></div>
     <div class="row"><b>App updates</b><span>The app checks Expo’s update service for new versions; that request includes the app version and platform, nothing you saved.</span></div>
   </div>
