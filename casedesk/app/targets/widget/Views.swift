@@ -70,7 +70,7 @@ struct NextDeadlineSmall: View {
     } else if s.people.isEmpty { EmptyStateView() }
     else {
       VStack(alignment: .leading, spacing: 4) {
-        Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(.green).widgetAccentable()
+        Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(Color("$good")).widgetAccentable()
         Text("No dates coming up").font(.subheadline).fontWeight(.semibold)
         Spacer()
         Disclaimer(text: "Reference only")

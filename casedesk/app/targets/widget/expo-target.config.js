@@ -13,8 +13,13 @@ module.exports = (config) => ({
   icon: '../../assets/icon.png',
   frameworks: ['SwiftUI', 'WidgetKit'],
   colors: {
-    $accent: { light: '#0A84FF', dark: '#0A84FF' },
-    $widgetBackground: { light: '#FFFFFF', dark: '#16181C' },
+    // v2.7 pastel look (same values as src/ui/tokens.ts): sage accent, dark grey card, and the three
+    // meanings as text-safe colours (deep on white, pastel on dark) — good / attention / urgent.
+    $accent: { light: '#2A7359', dark: '#A9CDB9' },
+    $widgetBackground: { light: '#FFFFFF', dark: '#1C1D1F' },
+    $good: { light: '#1E6B50', dark: '#7FE0A8' },
+    $attention: { light: '#7D5200', dark: '#FDD78C' },
+    $urgent: { light: '#A52A36', dark: '#FFA9AC' },
   },
   entitlements: {
     'com.apple.security.application-groups': config.ios?.entitlements?.['com.apple.security.application-groups'] ?? [GROUP],

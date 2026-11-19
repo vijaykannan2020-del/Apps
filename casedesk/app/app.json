@@ -30,7 +30,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
+      "predictiveBackGestureEnabled": true,
       "permissions": [
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
@@ -70,7 +70,7 @@
       [
         "expo-notifications",
         {
-          "color": "#0A84FF"
+          "color": "#5FB497"
         }
       ],
       "expo-background-task",

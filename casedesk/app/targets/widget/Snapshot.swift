@@ -119,9 +119,10 @@ func urgency(_ days: Int?) -> Urgency {
 extension Urgency {
   var color: Color {
     switch self {
-    case .red: return .red
-    case .amber: return .orange
-    case .green: return .green
+    // pastel palette (asset colours from expo-target.config.js): blush urgent, butter attention, sage good
+    case .red: return Color("$urgent")
+    case .amber: return Color("$attention")
+    case .green: return Color("$good")
     case .none: return .secondary
     }
   }
