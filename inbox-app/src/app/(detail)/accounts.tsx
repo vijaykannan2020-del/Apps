@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { openChat } from '@/lib/layout';
+import { openChat, backToList } from '@/lib/layout';
 import { View, Text, Pressable, ScrollView, StyleSheet, Alert, Platform, Switch, TextInput, ActivityIndicator } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
@@ -20,11 +20,11 @@ import { useWindowDimensions } from 'react-native';
 import { useStatusGutter, useLayout, showList } from '@/lib/layout';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 45;
+export const APP_BUILD = 46;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
-  useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const dim = useWindowDimensions(); const { collapsed, target } = useLayout(); const wideNow = !collapsed; const gut = useStatusGutter();
+  useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const dim = useWindowDimensions(); const { collapsed, single, target } = useLayout(); const wideNow = !single; const gut = useStatusGutter();
   const rooms = visibleRooms();
   const [pw, setPw] = useState(false); const [pwOld, setPwOld] = useState(''); const [pwNew, setPwNew] = useState(''); const [pwNew2, setPwNew2] = useState('');
   const [pwErr, setPwErr] = useState(''); const [pwBusy, setPwBusy] = useState(false);
@@ -128,7 +128,7 @@ export default function Accounts() {
       <View style={{ width: '100%', maxWidth: 640 }}>
         <View style={{ paddingRight: gut }}>
           <View style={styles.titleRow}>
-            {collapsed && !gut && <Pressable onPress={showList} hitSlop={12} accessibilityLabel="Back to chats"><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>}
+            {single && !gut && <Pressable onPress={backToList} hitSlop={12} accessibilityLabel="Back to chats"><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>}
             <Text style={[styles.title, { color: t.ink }]}>Accounts</Text>
           </View>
         </View>

@@ -16,3 +16,4 @@
 - v41: Instagram posts open the chat in Instagram (instagram.com/direct/t/<thread>) — private-account posts only open inside the DM; reels still open directly.
 - v42: Instagram posts open Instagram messages (instagram://direct-inbox) — bridge thread id is not IG chat id.
 - v43: Instagram cards open the formatted_body href (the exact link Beeper opens); long-press shows the link.
+- v46: Duo open + upright (portrait, width>=500): one column like a normal iPhone — split shows secondaryOnly, the detail index renders the chat list, chats/Accounts push with normal animation, back pops to the list; bottom glass bar instead of the side strip.

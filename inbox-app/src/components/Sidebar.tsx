@@ -4,12 +4,12 @@ import { View, Dimensions } from 'react-native';
 import { setSidebarRight, useLayout, setListTab, setCollapsed } from '@/lib/layout';
 import { ChatList } from '@/components/ChatList';
 
-export function Sidebar() {
+export function Sidebar({ standalone = false }: { standalone?: boolean }) {
   const { tab } = useLayout();
   const ref = useRef<any>(null);
   // Work out one-column vs side by side from the real layout: iOS only reports changes, not the starting state
   // (opening the app already unfolded sent nothing, so it was wrongly treated as folded).
-  const measure = () => ref.current?.measureInWindow((x: number, _y: number, w: number) => {
+  const measure = () => !standalone && ref.current?.measureInWindow((x: number, _y: number, w: number) => {
     setSidebarRight(x + w);
     if (w > 0) setCollapsed(w >= Dimensions.get('window').width - 2);
   });

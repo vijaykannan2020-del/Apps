@@ -3,6 +3,7 @@
 // (split onto the fold when folded like a book); pop-ups kept off the fold.
 import { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import { SplitView } from 'expo-router/unstable-split-view';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +17,7 @@ import { startConns } from '@/lib/conn';
 import { CallPill } from '@/components/CallPill';
 import { Sidebar } from '@/components/Sidebar';
 import { LoginScreen } from '@/components/LoginScreen';
-import { setSplitRef, setCollapsed, useLayout, setRootTop } from '@/lib/layout';
+import { setSplitRef, setCollapsed, useLayout, setRootTop, setWideSingle } from '@/lib/layout';
 
 export default function RootLayout() {
   const t = useTheme(); useStore();
@@ -41,8 +42,12 @@ export default function RootLayout() {
 }
 
 function Shell() {
-  const { current } = useLayout();
+  const { current, wideSingle } = useLayout();
   const rootIns = useSafeAreaInsets();
+  const dim = useWindowDimensions();
+  // Duo open and upright: one column (taller than wide and too narrow for two comfortable columns)
+  const upright = dim.height > dim.width && dim.width >= 500;
+  useEffect(() => { setWideSingle(upright); }, [upright]);
   useEffect(() => { setRootTop(rootIns.top); }, [rootIns.top]);
   const ref = useRef<any>(null);
   useEffect(() => { setSplitRef(ref.current); return () => setSplitRef(null); }, [ref.current]);
@@ -50,7 +55,7 @@ function Shell() {
     <SplitView
       ref={ref}
       // Let iOS choose widths and the fold split; just ask for list + detail side by side when there's room.
-      preferredDisplayMode="oneBesideSecondary"
+      preferredDisplayMode={wideSingle ? 'secondaryOnly' : 'oneBesideSecondary'}
       preferredSplitBehavior="tile"
       displayModeButtonVisibility="never"
       presentsWithGesture={false}

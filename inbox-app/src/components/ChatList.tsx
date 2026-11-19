@@ -77,7 +77,7 @@ const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact, edge 
 export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   const v = useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const { width, height: winH } = useWindowDimensions();
   const gut = useStatusGutter();
-  const { collapsed, current } = useLayout();
+  const { single: collapsed, current } = useLayout();
   const topIns = getRootTop() >= 0 ? Math.min(ins.top, getRootTop()) : ins.top;
   const selected = collapsed ? null : current;
   const [kind, setKind] = useState<Kind>('all');

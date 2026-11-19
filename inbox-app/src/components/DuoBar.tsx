@@ -10,7 +10,7 @@ import { useTheme } from '@/lib/theme';
 export type DuoActions = { onVideo?: () => void; onCall?: () => void; onInfo?: () => void };
 
 export function DuoBar({ actions }: { actions?: DuoActions }) {
-  const { collapsed, tab } = useLayout();
+  const { single: collapsed, tab } = useLayout();
   const t = useTheme();
   const path = usePathname();
   const all = useImage(require('../../assets/bar/all.png'));

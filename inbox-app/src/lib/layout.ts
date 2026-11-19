@@ -25,6 +25,11 @@ function setTarget(t: string) { if (t !== target) { target = t; ver++; emit(); }
 const subs = new Set<() => void>();
 const emit = () => subs.forEach(f => f());
 let ver = 0;
+// Duo open but held upright (portrait): one column like a normal iPhone (WhatsApp does the same) — the list becomes
+// the first page of the right-hand stack and chats push on top of it.
+let wideSingle = false;
+export function setWideSingle(v: boolean) { if (v !== wideSingle) { wideSingle = v; ver++; emit(); } }
+export const isWideSingle = () => wideSingle;
 export function setCollapsed(c: boolean) { if (c !== collapsed) { collapsed = c; ver++; emit(); } }
 export function setCurrentChat(id: string | null) { if (id !== current) { current = id; ver++; emit(); } }
 export const isCollapsed = () => collapsed;
@@ -32,7 +37,7 @@ export function setListTab(t: ListTab) { if (t !== tab) { tab = t; ver++; emit()
 export const currentChat = () => current;
 export function useLayout() {
   useSyncExternalStore(f => { subs.add(f); return () => { subs.delete(f); }; }, () => ver, () => ver);
-  return { collapsed, current, tab, target };
+  return { collapsed, current, tab, target, wideSingle, single: collapsed || wideSingle };
 }
 
 // Right edge of the list column in window coordinates — the detail column keeps its content clear of it
@@ -50,6 +55,11 @@ export const getRootTop = () => rootTop;
 export function showDetail() { try { split?.show('secondary'); } catch {} }
 /** Back to the list (one-column layouts only). */
 export function showList() { try { split?.show('primary'); } catch {} }
+/** Back button on one-column screens: the split view's list, or (Duo upright) the list page under the chat. */
+export function backToList() {
+  setCurrentChat(null);
+  if (wideSingle) { try { router.dismissTo('/'); } catch { router.back(); } } else showList();
+}
 
 /** Open a chat from anywhere: list taps, notifications, banners, family. */
 // One column: reveal the right-hand page only once the new screen is on top of it, otherwise the previous

@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { ChatView } from '@/components/ChatView';
 import { DuoBar } from '@/components/DuoBar';
-import { setCurrentChat, showList, useLayout, useStatusGutter } from '@/lib/layout';
+import { setCurrentChat, showList, useLayout, useStatusGutter, backToList } from '@/lib/layout';
 import { S, isPrivateRoom } from '@/lib/matrix';
 import { startCall, callsAvailable } from '@/lib/calls';
 import { TargetScreen } from '@/components/TargetScreen';
@@ -14,7 +14,7 @@ export default function ChatScreen() {
 }
 
 export function ChatPage({ id }: { id: string }) {
-  const { collapsed, target } = useLayout();
+  const { collapsed, single, target } = useLayout();
   // Duo front screen: iOS shows its own back button under the clock, so don't add a second one.
   const sysBack = useStatusGutter() > 0;
   useEffect(() => { setCurrentChat(id!); }, [id]);
@@ -28,7 +28,7 @@ export function ChatPage({ id }: { id: string }) {
       {/* Duo open: tabs + call/video/info in Apple's glass side strip; the chat header then shows no call buttons. */}
       <DuoBar actions={{ onVideo: canCall ? () => call(true) : undefined, onCall: canCall ? () => call(false) : undefined, onInfo: () => router.push({ pathname: '/info/[id]', params: { id: id! } }) }} />
       {/* One column: a back button returns to the list; call buttons stay in the chat's own header (never top-right). */}
-      <ChatView key={id} id={id!} nativeActions={!collapsed} onBack={collapsed && !sysBack ? () => { setCurrentChat(null); showList(); } : undefined} />
+      <ChatView key={id} id={id!} nativeActions={!single} onBack={single && !sysBack ? backToList : undefined} />
     </>
   );
 }
