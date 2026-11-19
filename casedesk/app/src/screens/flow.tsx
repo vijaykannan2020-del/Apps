@@ -73,11 +73,19 @@ export function StepScreen() {
   const m = stepMeta(p, k, rec);
   const u = uploadOf(p.id, k);
   const pr = progressOf(p.id, k, f);
+  // v3.0 onboarding (quick): one document — Next saves it and goes back; Back / Skip go back without it.
+  const quickBack = async (save: boolean) => {
+    const cur = uploadOf(p.id, k);
+    if (save && cur?.state === 'done' && !cur.misfile) { const { saved } = await commit(f); if (saved) toast('Saved on this phone'); } else endFlow();
+    if (router.canGoBack()) router.back(); else home();
+  };
   const next = () => {
     const n = nextOf(p.id, k, f);
-    if (n) go('/flow/step', { pid: n.pid, k: n.k }); else go('/flow/review');
+    if (n) go('/flow/step', { pid: n.pid, k: n.k }); else if (flow.quick) quickBack(true); else go('/flow/review');
   };
-  const nav = { title: TITLE[flow.mode], right: <NavButton title="Home" label="Save what’s done and go to Home" onPress={leave} />, progress: pr };
+  const nav = flow.quick
+    ? { title: 'Add a document', back: 'Back', onBack: () => quickBack(true), progress: { label: `${p.name} · ${m.title}`, value: u?.state === 'done' ? 100 : u?.state === 'reading' ? 50 : 10 } }
+    : { title: TITLE[flow.mode], right: <NavButton title="Home" label="Save what’s done and go to Home" onPress={leave} />, progress: pr };
 
   if (k === 'where') {
     const w = flow.where[p.id];
@@ -160,7 +168,10 @@ export function StepScreen() {
   }
   const done = u?.state === 'done' && !u.misfile;
   return (
-    <Screen keyboard nav={nav} tour={tour} footer={<>
+    <Screen keyboard nav={nav} tour={tour} footer={flow.quick ? <>
+      <Button kind="ghost" title="Later" onPress={() => quickBack(false)} />
+      <Button grow title="Save" disabled={!done} onPress={() => quickBack(true)} />
+    </> : <>
       <Button kind="ghost" title="Back" onPress={() => { router.back(); }} />
       <TourTarget id="type"><Button kind="ghost" title="Skip" onPress={() => { skip(p.id, k); next(); }} /></TourTarget>
       <Button grow title="Next" disabled={!done} onPress={next} />

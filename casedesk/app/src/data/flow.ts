@@ -32,6 +32,7 @@ export type Flow = {
   where: Record<string, { v?: 'US' | 'Outside'; c: string }>;
   misDone: boolean;
   returnTo?: string;
+  quick?: boolean; // v3.0 onboarding: one document, then save and go back to the screen that opened it (no Review)
 };
 
 let flow: Flow | null = null;

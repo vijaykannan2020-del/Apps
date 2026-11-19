@@ -628,16 +628,18 @@ export function Switch({ value, onValueChange, label }: { value: boolean; onValu
 }
 
 // ---------- fields ----------
-export function Field({ label, value, onChangeText, placeholder, secure, keyboardType, autoCapitalize = 'sentences', mono, onBlur, autoFocus, maxLength, error, nativeID, multiline }: {
+export function Field({ label, value, onChangeText, placeholder, secure, keyboardType, autoCapitalize = 'sentences', mono, onBlur, autoFocus, maxLength, error, nativeID, multiline, returnKeyType, onSubmitEditing, inputRef, autoComplete }: {
   label: string; value: string; onChangeText: (s: string) => void; placeholder?: string; secure?: boolean; keyboardType?: KeyboardTypeOptions;
   autoCapitalize?: 'none' | 'words' | 'characters' | 'sentences'; mono?: boolean; onBlur?: () => void; autoFocus?: boolean; maxLength?: number; error?: string; nativeID?: string; multiline?: boolean;
+  /** v3.0: keyboard Next / Done and what it does (onboarding moves to the next field or step). */
+  returnKeyType?: 'next' | 'done' | 'go'; onSubmitEditing?: () => void; inputRef?: React.Ref<any>; autoComplete?: 'given-name' | 'family-name' | 'name' | 'postal-code' | 'off';
 }) {
   const t = useTheme();
   const [focus, setFocus] = useState(false);
   return (
     <View style={{ marginTop: 12 }}>
       <T tone="text2" style={[font.caption, { marginBottom: 5, marginLeft: 2 }]}>{label}</T>
-      <TextInput nativeID={nativeID} value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={t.text3} secureTextEntry={secure} keyboardType={keyboardType}
+      <TextInput ref={inputRef} returnKeyType={returnKeyType} onSubmitEditing={onSubmitEditing} submitBehavior={onSubmitEditing && returnKeyType === 'next' ? 'submit' : undefined} autoComplete={autoComplete} nativeID={nativeID} value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={t.text3} secureTextEntry={secure} keyboardType={keyboardType}
         autoCapitalize={autoCapitalize} autoCorrect={false} autoFocus={autoFocus} maxLength={maxLength} accessibilityLabel={label} multiline={multiline} textAlignVertical={multiline ? 'top' : undefined}
         onFocus={() => setFocus(true)} onBlur={() => { setFocus(false); onBlur?.(); }}
         style={[font.body, { minHeight: multiline ? 110 : 50, borderRadius: radius.field, backgroundColor: t.field, color: t.text, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1.5, borderColor: focus ? t.text : t.fieldBorder, fontFamily: mono ? Platform.select({ ios: 'Menlo', default: 'monospace' }) : undefined }]} />
