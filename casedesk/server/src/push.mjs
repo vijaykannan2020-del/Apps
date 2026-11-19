@@ -93,7 +93,7 @@ export async function notifyBulletin(prev, next) {
       const before = a?.final[s.bulletin.country], after = b.final[s.bulletin.country];
       parts.push(before === after ? `${cat} no change (${fmt(after)})` : `${cat} ${fmt(before)} → ${fmt(after)}`);
     }
-    if (parts.length) msgs.push({ to: token, title: `${next.month} Visa Bulletin · ${NAMES[s.bulletin.country]}`, body: parts.join(' · '), data: { url: '/tools/bulletin' }, channelId: 'news' });
+    if (parts.length) msgs.push({ to: token, title: `${next.month} Visa Bulletin · ${NAMES[s.bulletin.country]}`, body: parts.join(' · '), data: { url: '/tools/vb' }, channelId: 'news' });
   }
   if (msgs.length) await send(msgs);
 }
