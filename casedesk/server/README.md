@@ -18,6 +18,7 @@ The app works without the server: it falls back to its built-in copies and demo 
 | `GET /api/employer?q=hcl america` | H-1B approvals by year (USCIS Data Hub) + PERM certifications + LCAs (DOL) |
 | `GET /api/expect?form=I-129&office=EAC&received=2026-08-14&premium=0&cls=L1A` | What to expect for one case: official USCIS form statistics (`data/form-stats.json`), I-129 RFE/approval rates by class, processing-time range, premium clock, and anonymous community timelines (only when 10+ similar cases are decided). No receipt numbers |
 | `GET /api/processing-times` | Serves `data/content/processing.json` if you publish one (otherwise the app uses its built-in copy) |
+| `GET /api/wallet/status` · `POST /api/wallet/pass` · `GET /api/wallet/csr` | Apple Wallet status card (v2.5, `src/wallet.mjs`): signs a `.pkpass` in memory from the card fields and returns it — stores nothing. 503 until the Pass Type ID certificate is in place; the CSR is offered only until then. 10 cards/hour per IP. See `app/WALLET.md` |
 | `GET /api/content/guides` | Serves `data/content/guides.json`, so guides can be updated without an app release |
 
 ## Set up on the Oracle server (Ubuntu). Do one step at a time

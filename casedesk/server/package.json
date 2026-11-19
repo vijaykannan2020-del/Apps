@@ -17,6 +17,7 @@
     "ingest:form-stats": "node scripts/ingest-form-stats.mjs"
   },
   "dependencies": {
+    "node-forge": "1.4.3",
     "xlsx": "^0.18.5"
   }
 }
