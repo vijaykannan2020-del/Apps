@@ -16,7 +16,7 @@ export function Welcome() {
   const points: [string, string, string][] = [
     ['users', 'Your family’s US status in one place', 'How long everyone can stay, and what to do next.'],
     ['doc', 'Add documents when you’re ready', 'Passport, I-94, approvals — read on your phone. Skip any of them.'],
-    ['lock', 'Nothing is uploaded', 'No account, no tracking. Saved only on this phone.'],
+    ['lock', 'Private by design', 'Your documents stay on this phone. No account needed, no tracking.'],
   ];
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>

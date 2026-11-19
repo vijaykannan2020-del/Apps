@@ -108,7 +108,7 @@ export function StepScreen() {
             </Pressable>
           ))}
         </TourTarget>
-        <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'center', alignItems: 'center', marginTop: 14 }}><Icon name="lock" size={13} color={t.text2} /><T tone="text2" style={font.caption}>Read on this phone. Nothing is uploaded.</T></View>
+        <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'center', alignItems: 'center', marginTop: 14 }}><Icon name="lock" size={13} color={t.text2} /><T tone="text2" style={font.caption}>Read on this phone. Your documents are never uploaded.</T></View>
         {k === 'i94' ? <Hint center>No I-94 handy? Skip it — we’ll ask one quick question.</Hint> : null}
       </>
     );

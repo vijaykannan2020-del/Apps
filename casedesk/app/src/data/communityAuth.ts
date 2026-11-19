@@ -17,6 +17,8 @@ export async function appleSupport(): Promise<AppleSupport> {
   if (Platform.OS !== 'ios') return 'unsupported';
   const A = appleModule();
   if (!A?.signInAsync) return 'update';
+  // On an older installed build the JS package is bundled but its native part is missing: say 'update', not 'unsupported'.
+  if ((globalThis as any).expo) { try { const { requireOptionalNativeModule } = require('expo-modules-core'); if (typeof requireOptionalNativeModule === 'function' && !requireOptionalNativeModule('ExpoAppleAuthentication')) return 'update'; } catch {} }
   try { return (await A.isAvailableAsync()) ? 'ok' : 'unsupported'; } catch { return 'update'; }
 }
 

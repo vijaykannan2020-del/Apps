@@ -73,6 +73,7 @@ export function makeActions(store: Store) {
     async updateSettings(patch: Partial<Settings>) { await store.updateSettings(patch); },
     async wipe() {
       for (const d of await store.docs()) for (const f of d.files ?? []) deleteFile(f);
+      try { await require('./expect').forgetAllShares(); } catch {}
       await store.deleteAll();
     },
   };

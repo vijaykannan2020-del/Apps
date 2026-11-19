@@ -71,6 +71,13 @@ export async function setPrefs(receipt: string, patch: Partial<CasePrefs>): Prom
   return next;
 }
 
+/** Delete all data: withdraw every anonymous entry and forget the per-case choices. */
+export async function forgetAllShares(post: Send = send): Promise<void> {
+  const all = await readJSON<Record<string, CasePrefs>>(PREFS, {});
+  for (const p of Object.values(all)) if (p?.id) { try { await post('DELETE', { id: p.id }); } catch {} }
+  await writeJSON(PREFS, {});
+}
+
 type Send = (method: 'POST' | 'DELETE', body: unknown) => Promise<boolean>;
 const send: Send = async (method, body) => {
   const b = apiBase();

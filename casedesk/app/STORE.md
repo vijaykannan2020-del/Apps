@@ -16,7 +16,7 @@ Items marked **CONFIRM** need the owner before submission; the full list is at t
 | Price | Free, no in-app purchases | |
 | Privacy policy URL | https://casedeskapp.duckdns.org/privacy.html (**CONFIRM** hosting, see below) | |
 | Support URL | https://casedeskapp.duckdns.org/support (served by the server, `server/src/support.mjs`) | |
-| Copyright | 2026 Vijayakannan Krishnan (**CONFIRM** legal name / company) | |
+| Copyright | 2026 OWNER_LEGAL_NAME (**CONFIRM** legal name / company) | |
 
 ### Promotional text (170)
 
