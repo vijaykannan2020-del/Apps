@@ -365,7 +365,7 @@ function Wage() {
           {s && lvl === 0 ? <Note tone="red">Below Level I. An H-1B or PERM at this wage would not be approved.</Note> : null}
           <DataFooter live asOf={`OFLC wage year ${lv.wageYear}`} source={SOURCES.wage} note={lv.areaName} />
         </>
-      ) : null}
+      ) : <DataFooter source={SOURCES.wage} note="Wage levels load from Department of Labor data when you’re online. There is no built-in copy." />}
     </>
   );
 }
