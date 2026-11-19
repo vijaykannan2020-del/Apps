@@ -70,29 +70,36 @@ Notes:
 - LCA files are very large. Only add `LCA_URLS` if the server has 4 GB+ RAM.
 - `xlsx` is only used to read DOL's own spreadsheets.
 
-## Community Q&A (v2.4)
+## Community (v2.7, Reddit-style)
 
-Questions, answers, upvotes and moderation in `src/forum.mjs`; sign-in token checks in `src/auth.mjs`; word / personal-data filter in `src/filter.mjs`. Data: `data/forum.json` (flushed every 10 s and on shutdown). Only a hash of the Apple/Google user id and session tokens is stored — never emails. Tests: `npm run test:unit`.
+Posts (question, discussion, timeline share, poll, repost), threaded comments (4 levels), up / down votes, feeds, saved posts, profiles, notifications and moderation in `src/forum.mjs`; sign-in token checks in `src/auth.mjs`; word / personal-data filter in `src/filter.mjs`. Data: `data/forum.json` (flushed every 10 s and on shutdown). Only a hash of the Apple/Google user id and session tokens is stored — never emails. Tests: `npm run test:unit`.
+
+**Migration:** a v2.4 `forum.json` (questions + flat answers) is converted when it is loaded: answers become top-level comments with the same ids, votes, accepted answer and reports. The v2.4 endpoints (`/answers`, `{up: true}` votes, `answers` in the post reply) keep working for phones that have not updated yet.
 
 | Endpoint | What it does |
 |---|---|
 | `POST /api/auth/apple` `{identityToken, nonce, authorizationCode?}` | Verifies the Apple token (Apple keys, iss, aud, exp, nonce) → `{token, user}` |
-| `POST /api/auth/google` `{idToken}` | Same for Google (needs `GOOGLE_CLIENT_ID`) |
+| `POST /api/auth/google` `{idToken}` | Same for Google. Needs `GOOGLE_CLIENT_ID` in `.env` **or in `deploy.conf`** (public file; a client id is not a secret). The token's `aud` must be that id |
 | `POST /api/auth/signout` | Ends this session |
-| `GET /api/me` · `POST /api/me {name?, pushToken?, acceptRules?}` · `DELETE /api/me` | Account, display name, answer notifications, rules acceptance, delete account (and everything it posted) |
-| `GET /api/forum/posts?sort=new\|top\|unanswered&tags=H-1B,I-129&q=&cursor=&limit=&mine=1` | Feed (reading needs no sign-in) |
-| `POST /api/forum/posts` · `GET/DELETE /api/forum/posts/:id` · `POST /api/forum/posts/:id/edit` | Ask, read, delete, edit |
-| `POST /api/forum/posts/:id/answers` · `POST /api/forum/answers/:id/edit` · `DELETE /api/forum/answers/:id` | Answers (the asker gets a push) |
-| `POST /api/forum/posts/:id/vote` · `POST /api/forum/answers/:id/vote` `{up}` · `POST /api/forum/posts/:id/accept {answerId}` | Upvotes, accepted answer |
-| `POST /api/forum/report {kind, id, reason, note}` · `GET/POST/DELETE /api/forum/blocks {userId}` · `POST /api/forum/contact {message}` | Report, block, contact moderators |
-| `GET /api/forum/rules` · `GET /api/forum/tags` · `GET /support` | Rules, tags, support page (App Store Support URL) |
-| `GET /api/admin/forum/reports?status=open\|all` · `GET /api/admin/forum/messages` · `POST /api/admin/forum/hide\|restore\|delete {kind, id}` · `POST /api/admin/forum/ban {userId, banned}` | Moderation, header `Authorization: Bearer $ADMIN_TOKEN` |
+| `GET /api/me` · `POST /api/me {name?, avatar?, flair?, pushToken?, acceptRules?}` · `DELETE /api/me` | Account (with karma, counts, unread), display name, built-in avatar (24 ids, no uploads), visa flair, push, rules, delete account |
+| `GET /api/forum/posts?sort=hot\|new\|top\|unanswered&t=day\|week\|month&tags=&q=&type=&author=&cursor=&limit=&mine=1&saved=1` | Feed (reading needs no sign-in). Hot = votes on a log scale + recency |
+| `POST /api/forum/posts {type, title, body, tags, poll?: {options}, timeline?: {form, office, premium, steps: [{label, date}]}, repostOf?}` · `GET/DELETE /api/forum/posts/:id` · `POST …/edit` | Create, read (`{post, comments}` — flat list with `parentId` and `depth`), delete, edit |
+| `POST /api/forum/posts/:id/comments {body, parentId?}` · `POST /api/forum/comments/:id/edit` · `DELETE /api/forum/comments/:id` | Comments and replies (the person replied to is notified) |
+| `POST /api/forum/posts/:id/vote` · `POST /api/forum/comments/:id/vote` `{dir: 1\|-1\|0}` · `POST /api/forum/posts/:id/accept {commentId}` | Votes; accepted answer (questions, top-level comments) |
+| `POST /api/forum/posts/:id/poll {option}` · `POST /api/forum/posts/:id/save {on}` | Poll vote (one per person, can be moved); save / unsave |
+| `GET /api/forum/users/:id` | Public profile: name, avatar, flair, join date, karma, counts, their posts and comments |
+| `GET /api/forum/notifications` · `POST /api/forum/notifications/read` | Replies to you and upvote milestones (also pushed when a token is set) |
+| `POST /api/forum/report {kind: post\|comment\|user, id, reason, note}` · `GET/POST/DELETE /api/forum/blocks {userId}` · `POST /api/forum/contact {message}` | Report, block, contact moderators |
+| `GET /api/forum/rules` · `GET /api/forum/tags` · `GET /api/forum/meta` · `GET /support` | Rules, tags, lists (avatars, flairs, offices, steps), support page |
+| `GET /api/admin/forum/reports?status=open\|all` · `GET /api/admin/forum/messages` · `POST /api/admin/forum/hide\|restore\|delete {kind: post\|comment, id}` · `POST /api/admin/forum/ban {userId, banned}` | Moderation of posts, comments and reported profiles, header `Authorization: Bearer $ADMIN_TOKEN` |
 
-Rules enforced on the server: sign-in + accepted rules to write; title 10–150, details 20–5000, answers 10–5000 characters; 1–5 known tags; at most 2 links (none in titles); abuse words, spam phrases, receipt numbers, A-numbers, SSNs, emails and phone numbers refused; 5 questions/hour, 15/day, 20 answers/hour; content reported by 3 people is hidden until reviewed; banned accounts stay banned after deletion.
+Rules enforced on the server: sign-in + accepted rules to write; title 10–150, details 20–5000 (optional for timelines, polls and reposts), comments 2–5000 characters; 1–5 known tags; poll options 2–4 (filtered like titles); timeline fields only from fixed lists and real dates (no free text); at most 2 links (none in titles); abuse words, spam phrases, receipt numbers, A-numbers, SSNs, emails and phone numbers refused in every text; 5 posts/hour, 15/day, 30 comments/hour, 100/day; no voting on your own content; content reported by 3 people is hidden until reviewed (a hidden or blocked comment hides its replies too); banned accounts stay banned after deletion.
+
+Deleting: a comment with replies, or a post other people commented on, becomes a `[deleted]` stub (author and text removed) so the thread stays readable; without replies it is removed. **Delete account** removes the person, their votes, poll votes, saves, notifications and sessions and applies the same rule to everything they wrote. Admin delete leaves `[removed by moderators]` where replies exist.
 
 Moderating from a terminal:
 ```
 curl -s -H "Authorization: Bearer $ADMIN_TOKEN" https://casedeskapp.duckdns.org/api/admin/forum/reports | jq
-curl -s -XPOST -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"kind":"post","id":"p_..."}' https://casedeskapp.duckdns.org/api/admin/forum/hide
+curl -s -XPOST -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"kind":"comment","id":"c_..."}' https://casedeskapp.duckdns.org/api/admin/forum/hide
 curl -s -XPOST -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"userId":"u_..."}' https://casedeskapp.duckdns.org/api/admin/forum/ban
 ```

@@ -94,10 +94,12 @@
       ],
       "expo-secure-store",
       "expo-apple-authentication",
+      "./plugins/withGoogleSignIn",
       "@bacons/apple-targets"
     ],
     "extra": {
       "apiBase": "https://casedeskapp.duckdns.org",
+      "googleIosClientId": "",
       "router": {
         "asyncRoutes": {
           "web": false,

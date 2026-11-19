@@ -77,3 +77,9 @@ Rules:
 Auto-show is off when `localStorage['cd2.notours'] = '1'` (web) or `globalThis.__NO_TOURS__ = true`,
 or when settings have `toursOff: true`. Puppeteer scripts that tap through screens should set one of
 these (or seed `toursSeen`), otherwise the first tap on each screen dismisses its tour.
+
+## Community (v2.7): one tip only
+
+Owner rule: Community shows **one** first-visit tip — `communityFeed` has a single step. Every other
+community screen passes `{ auto: false }` to `useTour` / `useSheetTour`, so its tips appear only from
+the **?** button. `tests/community-v27.test.ts` checks both.

@@ -2,6 +2,9 @@
 // keys, and issues our own random session tokens (only their SHA-256 is stored). No dependencies.
 // We never keep the email from the token — only a hash of the provider's stable user id.
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const APPLE_ISS = 'https://appleid.apple.com';
 export const APPLE_JWKS = 'https://appleid.apple.com/auth/keys';
@@ -68,8 +71,28 @@ export function appleVerifier({ jwks = createJwks(APPLE_JWKS), audiences = (proc
   };
 }
 
-/** Google: aud must be one of GOOGLE_CLIENT_ID (comma-separated: iOS + web client ids). Off until it's set. */
-export function googleVerifier({ jwks = createJwks(GOOGLE_JWKS), audiences = (process.env.GOOGLE_CLIENT_ID || '').split(',').map((s) => s.trim()).filter(Boolean), now = Date.now } = {}) {
+// Google client ids are public (they ship inside the app), so they may live in the environment (.env)
+// or in deploy.conf, the public settings file next to this folder that is kept in GitHub.
+export const DEPLOY_CONF = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'deploy.conf');
+/** One KEY=value from a deploy.conf-style file ('' when the file or key is missing; # lines are comments). */
+export function readConf(key, file = DEPLOY_CONF) {
+  let text = '';
+  try { text = fs.readFileSync(file, 'utf8'); } catch { return ''; }
+  let out = '';
+  for (const line of text.split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (m && m[1] === key) out = m[2].replace(/^["']|["']$/g, '');
+  }
+  return out;
+}
+/** Allowed Google audiences: GOOGLE_CLIENT_ID from the environment, else from deploy.conf (comma-separated: iOS + web ids). */
+export function googleAudiences({ env = process.env, file = DEPLOY_CONF } = {}) {
+  const raw = (env.GOOGLE_CLIENT_ID || '').trim() || readConf('GOOGLE_CLIENT_ID', file);
+  return raw.split(',').map((s) => s.trim()).filter((s) => /^[\w.-]+\.apps\.googleusercontent\.com$/.test(s));
+}
+
+/** Google: the token's aud must be one of our client ids (see googleAudiences). Off until one is set. */
+export function googleVerifier({ jwks = createJwks(GOOGLE_JWKS), audiences = googleAudiences(), now = Date.now } = {}) {
   return async (idToken) => {
     if (!audiences.length) throw err(503, 'Google sign-in is not set up yet.', 'google-off');
     const c = await verifyJwt(idToken, { jwks, issuers: GOOGLE_ISS, audiences, now });
