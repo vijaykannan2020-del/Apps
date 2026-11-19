@@ -71,7 +71,8 @@ export const HELP: HelpTopic[] = [
   {
     id: 'privacy', title: 'Privacy', sub: 'Your documents stay on this phone',
     body: [
-      'Documents are read and stored only on this phone. There is no account, no ads and no tracking.',
+      'Documents are read and stored only on this phone. No account is needed, and there are no ads and no tracking.',
+      'Community Q&A is the one optional exception: to post you sign in with Apple, and only a made-up display name and what you type into questions and answers is stored on the CaseDesk server. Delete it any time in Community → Account.',
       'CaseDesk never logs in to USCIS, CBP or SEVP. Updates, the Visa Bulletin and processing times come from the CaseDesk server or a built-in copy — nothing about you is sent.',
       'Turn on Face ID in Settings to lock the app and hide documents in the app switcher.',
     ],
@@ -104,6 +105,18 @@ export const HELP: HelpTopic[] = [
       'Enter the last day of work. CaseDesk shows the last day in status for everyone who depends on that job (up to 60 days of grace, never past the I-94), and the options: a new employer files, change of status, or leaving the US.',
       'Dependents’ status follows the principal’s. Talk to an attorney as early as you can — options narrow as the grace period runs out.',
     ],
+  },
+  {
+    id: 'community', title: 'How the community works', sub: 'Ask and answer with people on the same visa',
+    body: [
+      'Community Q&A (Tools → Community Q&A) is where people share real experience: stamping, RFEs, transfers, green card steps. Anyone can read. Community answers are from other users, not lawyers — not legal advice.',
+      'Feeds: For my visa shows questions tagged with your family’s visa types and case forms; All shows everything; Unanswered is where you can help. Tap a tag to filter, or search.',
+      'To ask, answer or upvote, sign in with Apple. Others only see a made-up display name you can change — never your email or anything from your documents. Accept the community rules once before your first post.',
+      'Keep it private: never post receipt numbers, A-numbers, passport numbers, emails or phone numbers. Say the form and service center instead (for example I-129 at EAC).',
+      'Every question and answer has a ••• menu: Report sends it to the moderators and hides it for you; Block hides everything from that person. Content reported by several people is hidden until reviewed — moderators act within 24 hours and ban accounts that break the rules. Contact moderators from Community → Account.',
+      'Turn on “Notify me of answers” to get one notification when someone answers your question. Delete your community account (and everything you posted) in Community → Account → Delete account.',
+    ],
+    steps: ['Tools → Community Q&A', 'Ask a question → sign in with Apple → accept the rules', 'Question → ••• → Report or Block', 'Community → Account → Delete account'],
   },
 ];
 

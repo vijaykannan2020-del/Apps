@@ -43,6 +43,7 @@ export const TOOLS: [string, ToolDef[]][] = [
     { id: 'emp', icon: 'building', title: 'Employer H-1B data', sub: 'Approvals by employer' },
   ]],
   ['Learn', [
+    { id: 'community', icon: 'chat', title: 'Community Q&A', sub: 'Ask people with the same visa' },
     { id: 'guides', icon: 'book', title: 'Visa guides', sub: 'Plain-English guides with sources' },
     { id: 'lottery', icon: 'dice', title: 'H-1B lottery', sub: 'How selection works and the odds' },
     { id: 'civics', icon: 'flag', title: 'Citizenship test', sub: 'Practise the civics questions' },
