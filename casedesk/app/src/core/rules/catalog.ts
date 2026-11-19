@@ -35,9 +35,17 @@ const S = {
   cspa: { label: 'USCIS — Child Status Protection Act', url: 'https://www.uscis.gov/green-card/green-card-processes-and-procedures/child-status-protection-act-cspa' },
   rfe: { label: 'USCIS Policy Manual — Evidence (RFEs, NOIDs)', url: 'https://www.uscis.gov/policy-manual/volume-1-part-e-chapter-6' },
   caseStatus: { label: 'USCIS — Case status online', url: 'https://egov.uscis.gov/' },
+  // v2.9 green card (checked 2026-11-19)
+  eadRenew: { label: '8 CFR 274a.13 (EAD renewals, no automatic extension from Oct 30, 2025)', url: 'https://www.ecfr.gov/current/title-8/chapter-I/subchapter-B/part-274a/subpart-B/section-274a.13' },
+  abandon: { label: '8 CFR 245.2(a)(4)(ii) (travel with an I-485 pending)', url: 'https://www.ecfr.gov/current/title-8/chapter-I/subchapter-B/part-245/section-245.2' },
+  aosCharts: { label: 'USCIS — Adjustment of status filing charts', url: 'https://www.uscis.gov/green-card/green-card-processes-and-procedures/visa-availability-priority-dates/adjustment-of-status-filing-charts-from-the-visa-bulletin' },
+  interview: { label: 'USCIS Policy Manual — Adjustment interview guidelines', url: 'https://www.uscis.gov/policy-manual/volume-7-part-a-chapter-5' },
+  perm: { label: '20 CFR 656.30 (PERM valid 180 days for the I-140)', url: 'https://www.ecfr.gov/current/title-20/chapter-V/part-656/subpart-C/section-656.30' },
 } satisfies Record<string, Source>;
 
-const R = (id: string, name: string, source: Source): RuleInfo => ({ id, name, source, checked: RULES_CHECKED });
+const R = (id: string, name: string, source: Source, checked = RULES_CHECKED): RuleInfo => ({ id, name, source, checked });
+/** v2.9 green-card rules: sources checked by the immigration lead on this date. */
+export const GC_RULES_CHECKED = '2026-11-19';
 
 export const RULES: Record<string, RuleInfo> = Object.fromEntries([
   R('C1', 'In the US, no I-94', S.i94),
@@ -88,7 +96,7 @@ export const RULES: Record<string, RuleInfo> = Object.fromEntries([
   R('R18', 'Job change with I-485 pending (AC21)', S.ac21),
   R('R19', 'H-1B time outside the US (recapture)', S.h1b),
   R('R20', 'H-1B year 5+: PERM / I-140 timing', S.h1b),
-  R('R21', 'Priority date current', S.bulletin),
+  R('R21', 'Priority date current', S.aosCharts, GC_RULES_CHECKED),
   R('R22', 'Child may age out of a green-card case', S.cspa),
   R('R23', 'No dual intent', S.passport),
   R('R24', 'EAD outlasts the I-94', S.ead),
@@ -96,6 +104,12 @@ export const RULES: Record<string, RuleInfo> = Object.fromEntries([
   R('R26', 'Visa stamping needed for a trip', S.visaNews),
   R('R27', 'RFE / NOID response due', S.rfe),
   R('HOLD', 'USCIS hold for listed nationalities', S.caseStatus),
+  R('G1', 'EAD (C9): renew up to 180 days before it ends', S.eadRenew, GC_RULES_CHECKED),
+  R('G2', 'Advance parole before travel with the I-485 pending', S.abandon, GC_RULES_CHECKED),
+  R('G3', 'Priority date vs the final action date (I-485 pending)', S.bulletin, GC_RULES_CHECKED),
+  R('G4', 'I-485 pending: keep H / L status or work on the EAD', S.abandon, GC_RULES_CHECKED),
+  R('G5', 'Green card interview scheduled', S.interview, GC_RULES_CHECKED),
+  R('G6', 'PERM: file the I-140 within 180 days', S.perm, GC_RULES_CHECKED),
 ].map((r) => [r.id, r]));
 
 /**
