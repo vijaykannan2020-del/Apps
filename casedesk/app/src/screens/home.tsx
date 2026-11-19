@@ -8,13 +8,12 @@ import { isPendingCase } from '../core/cases';
 import { needsAttention } from '../core/rules/engine';
 import { useFamily } from '../data/FamilyProvider';
 import { backupDue } from '../data/backupIO';
-import { useLayout, Avatar, BigText, Columns, Button, Card, EmptyState, Group, Hint, Icon, LargeTitle, LinkButton, Pill, Row, Screen, SectionHeader, T, Tag, font, useSheet, useTheme, useToast, tint } from '../ui';
+import { TourButton, TourTarget, useTour, useLayout, Avatar, BigText, Columns, Button, Card, EmptyState, Group, Hint, Icon, LargeTitle, LinkButton, Pill, Row, Screen, SectionHeader, T, Tag, font, useSheet, useTheme, useToast, tint } from '../ui';
 import { AttentionRow, go, needsLocation, runFlow, statusLabel, untilText } from './common';
 import { Confirm, SourceSheet } from './sheets';
 import { endFlow, unsavedCount, useFlow } from '../data/flow';
 import { RULES_CHECKED } from '../core/rules/catalog';
 import { HomeUpdates } from './news';
-import { HelpCard } from './help';
 import { ICloudAfterRestore } from './icloud';
 import { listNames, type AttentionItem } from '../core/rules/engine';
 import { familyTags, orderTags, updateAlerts } from '../core/updates';
@@ -36,6 +35,7 @@ export function Home() {
   const draft = useFlow();
   const news = useNews();
   const L = useLayout();
+  const tour = useTour('home');
   const unsaved = draft ? unsavedCount() : 0;
   if (!f.people.length || !me) {
     return (
@@ -67,7 +67,10 @@ export function Home() {
           <T tone="text2" style={[font.caption, { textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }]}>{dateLine}</T>
           <T a11y="header" style={font.largeTitle}>{`Hi, ${me.name}`}</T>
         </View>
-        <Pressable onPress={() => go('/profile')} accessibilityRole="button" accessibilityLabel="Profile and settings" style={{ marginBottom: 4 }}><Avatar name={me.name} accent /></Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+          <TourButton />
+          <Pressable onPress={() => go('/profile')} accessibilityRole="button" accessibilityLabel="Profile and settings"><Avatar name={me.name} accent /></Pressable>
+        </View>
       </View>
 
       {onlyMe && !f.settings.familyCardDismissed ? (
@@ -112,24 +115,23 @@ export function Home() {
       ) : null}
 
       <ICloudAfterRestore />
-      <HelpCard tab="home" />
     </>
   );
   const familyPart = (
     <>
           <SectionHeader>Family</SectionHeader>
-          <Group>
+          <TourTarget id="family"><Group>
             {f.people.map((p) => (
               <Row key={p.id} avatar={p.name} onPress={() => go(`/person/${p.id}`)} pill={f.results[p.id]?.worst} chevron={false}
                 label={`${p.name}, ${statusLabel(p, f.records[p.id], f.results[p.id])}, ${untilText(p, f.records[p.id], f.results[p.id])}`}
                 title={<T style={[font.body, { fontWeight: '600' }]}>{p.name} <T tone="text2" style={font.foot}>· {statusLabel(p, f.records[p.id], f.results[p.id])}</T></T>}
                 subtitle={untilText(p, f.records[p.id], f.results[p.id]).replace('Status valid until', 'Valid until')} />
             ))}
-          </Group>
+          </Group></TourTarget>
     </>
   );
   const attentionPart = (
-    <>
+    <TourTarget id="attention">
           <SectionHeader right={total > 3 ? <T tone="text2" style={font.caption}>{`${total} items`}</T> : undefined}>Needs attention</SectionHeader>
           {att.length || locAsk.length || alerts.length ? (
             <>
@@ -145,22 +147,22 @@ export function Home() {
           ) : (
             <Card><View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}><Icon name="checkc" size={20} color={t.green} /><T style={font.headline}>Nothing needs attention</T></View></Card>
           )}
-    </>
+    </TourTarget>
   );
   const casesPart = <><SectionHeader>Cases at a glance</SectionHeader><CasesGlance /></>;
   const foot = <Hint center style={{ marginTop: 18 }}>{`General information, not legal advice. Rules checked ${fmt(RULES_CHECKED)}.`}</Hint>;
   // Wide (≥ 700): two independent scroll areas — you, family and cases stay put on the left while
   // Needs attention and Updates scroll on the right. Phones: one page, same order as before.
   if (L.twoCol) {
-    return <Screen tabRoot wide panes={{ left: <>{topPart}{familyPart}{casesPart}</>, right: <><View style={{ height: 8 }} />{attentionPart}<HomeUpdates />{foot}</> }} />;
+    return <Screen tabRoot wide panes={{ left: <>{topPart}{familyPart}{casesPart}</>, right: <><View style={{ height: 8 }} />{attentionPart}<TourTarget id="updates"><HomeUpdates /></TourTarget>{foot}</> }} tour={tour} />;
   }
   return (
-    <Screen tabRoot>
+    <Screen tabRoot tour={tour}>
       {topPart}
       {familyPart}
       {attentionPart}
       {casesPart}
-      <HomeUpdates />
+      <TourTarget id="updates"><HomeUpdates /></TourTarget>
       {foot}
     </Screen>
   );

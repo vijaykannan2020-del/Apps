@@ -7,7 +7,7 @@ import { RULES_CHECKED } from '../core/rules/catalog';
 import { useFamily } from '../data/FamilyProvider';
 import { backUpNow, markBackedUp, openBackup, pickBackupFile, restore, type MergeReport, type RestorePreview } from '../data/backupIO';
 import { canUseBiometrics, authenticate } from '../native/device';
-import { Avatar, BigText, Button, Card, Field, Group, Hint, Icon, Meter, Note, Option, Row, Screen, SectionHeader, Segmented, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useTheme, useToast } from '../ui';
+import { Avatar, BigText, Button, Card, Field, Group, Hint, Icon, Meter, Note, Option, Row, Screen, SectionHeader, Segmented, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useTheme, useToast, TourButton, TourScope, TourTarget, useSheetTour } from '../ui';
 import { back, go, home, relationLabel, statusLabel, replace } from './common';
 import { useThemeChoice } from './themeChoice';
 import { Confirm } from './sheets';
@@ -56,6 +56,7 @@ export function BackupSheet() {
   const [pw, setPw] = useState(''); const [pw2, setPw2] = useState('');
   const [busy, setBusy] = useState(false); const [pct, setPct] = useState(0);
   const [ask, setAsk] = useState(false);
+  const tour = useSheetTour('backup');
   const go2 = async () => {
     if (pw.length < 8) { toast('Use at least 8 characters'); return; }
     if (pw !== pw2) { toast('The passwords don’t match'); return; }
@@ -76,14 +77,14 @@ export function BackupSheet() {
     </View>
   );
   return (
-    <View>
-      <Why>One password-protected file with everyone’s documents (images and PDFs), people and cases. Save it to Files, iCloud Drive, Google Drive — or AirDrop it to your new phone.</Why>
-      <Field label="Password for the file" value={pw} onChangeText={setPw} secure placeholder="At least 8 characters" autoCapitalize="none" />
+    <TourScope tour={tour}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={{ flex: 1 }}><Why>One password-protected file with everyone’s documents (images and PDFs), people and cases. Save it to Files, iCloud Drive, Google Drive — or AirDrop it to your new phone.</Why></View><TourButton /></View>
+      <TourTarget id="password"><Field label="Password for the file" value={pw} onChangeText={setPw} secure placeholder="At least 8 characters" autoCapitalize="none" /></TourTarget>
       <Field label="Type it again" value={pw2} onChangeText={setPw2} secure autoCapitalize="none" />
       <Hint>You’ll need this password to restore. We can’t recover it.</Hint>
       {busy ? <Progress pct={pct} label="Protecting with your password" /> : null}
-      <SheetButtons><Button kind="ghost" title="Cancel" onPress={s.close} /><Button grow title="Back up" busy={busy} onPress={go2} /></SheetButtons>
-    </View>
+      <SheetButtons><Button kind="ghost" title="Cancel" onPress={s.close} /><TourTarget id="save" style={{ flexGrow: 1 }}><Button grow title="Back up" busy={busy} onPress={go2} /></TourTarget></SheetButtons>
+    </TourScope>
   );
 }
 
@@ -110,6 +111,7 @@ export function RestorePanel({ onDone, onCancel, initial }: { onDone: () => void
   const [mode, setMode] = useState<'replace' | 'merge'>('replace');
   const [report, setReport] = useState<MergeReport | null>(null);
   const fresh = !f.people.length && !f.docs.length;
+  const tour = useSheetTour('restore');
   const choose = async () => { try { const x = await pickBackupFile(); if (x) setFile(x); } catch (e) { toast((e as Error).message); } };
   const apply = async (p: RestorePreview, m: 'replace' | 'merge') => {
     setBusy(true);
@@ -157,13 +159,13 @@ export function RestorePanel({ onDone, onCancel, initial }: { onDone: () => void
     </View>
   );
   return (
-    <View>
-      <Why>{initial ? 'Type the backup password to open it.' : 'Choose a .casedesk file, then type its password. Nothing leaves this phone.'}</Why>
-      {initial ? <T style={[font.headline, { marginTop: 14 }]}>{initial.name}</T> : <View style={{ marginTop: 14 }}><Button kind={file ? 'ghost' : 'tint'} icon="folder" title={file ? file.name : 'Choose backup file'} onPress={choose} /></View>}
-      {file ? <Field label="Password" value={pw} onChangeText={setPw} secure autoCapitalize="none" /> : null}
+    <TourScope tour={tour}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={{ flex: 1 }}><Why>{initial ? 'Type the backup password to open it.' : 'Choose a .casedesk file, then type its password. Nothing leaves this phone.'}</Why></View><TourButton /></View>
+      {initial ? <T style={[font.headline, { marginTop: 14 }]}>{initial.name}</T> : <TourTarget id="pick" style={{ marginTop: 14 }}><Button kind={file ? 'ghost' : 'tint'} icon="folder" title={file ? file.name : 'Choose backup file'} onPress={choose} /></TourTarget>}
+      {file ? <TourTarget id="password"><Field label="Password" value={pw} onChangeText={setPw} secure autoCapitalize="none" /></TourTarget> : null}
       {busy ? <Progress pct={pct} label="Opening with your password" /> : null}
       <SheetButtons><Button kind="ghost" title="Cancel" onPress={onCancel} /><Button grow title="Open" disabled={!file || !pw} busy={busy} onPress={open} /></SheetButtons>
-    </View>
+    </TourScope>
   );
 }
 

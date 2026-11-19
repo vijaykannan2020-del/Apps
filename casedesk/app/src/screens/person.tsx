@@ -18,9 +18,10 @@ import { readDocument } from '../core/read';
 import {
   Avatar, Button, Card, CheckRow, Chip, DateField, EmptyState, Field, Group, H1, Hint, Icon, LegalLine, Meter, NavButton, Note, Pill, Row, Screen, SectionHeader, Switch, T, Why, ChipToggle, Chips,
   font, useSheet, useTheme, useToast, Spinner, Columns, BigText,
+  TourTarget, useTour,
 } from '../ui';
 import { NextFiling } from './filings';
-import { HelpButton } from './help';
+import { NOT_OFFICIAL_ID } from '../content/legal';
 import { AttentionRow, back, ctaFor, go, locationChip, needsLocation, relationLabel, statusLabel, untilText } from './common';
 import { AddCase, AskWhere, Confirm, EditDetails, FixClass, RemovePerson, RenewSheet, Trips, Unemployment, WorkLocation } from './sheets';
 import { newId } from '../data/store';
@@ -31,9 +32,10 @@ export function PersonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { person: p, rec } = usePerson(id);
   const sheet = useSheet();
+  const tour = useTour('person');
   if (!p || !rec) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="user" title="Removed" /></Screen>;
   return (
-    <Screen wide nav={{ back: 'Back', onBack: back, title: p.name, right: <NavButton title="Edit" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} /> }}>
+    <Screen wide tour={tour} nav={{ back: 'Back', onBack: back, title: p.name, right: <NavButton title="Edit" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} /> }}>
       <PersonBody id={p.id} />
     </Screen>
   );
@@ -79,10 +81,10 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
           <T tone="text2" style={font.sub}>{`${relationLabel(p)} · ${statusLabel(p, rec, result)}`}</T><Chip text={locationChip(p, rec)} />
         </View>
       </View>
-      <Card style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+      <TourTarget id="status"><Card style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <T style={[font.body, { fontWeight: '600', flex: 1 }]}>{untilText(p, rec, result)}</T>
         {result ? <Pill severity={result.worst} /> : null}
-      </Card>
+      </Card></TourTarget>
 
       <SectionHeader>Needs attention</SectionHeader>
       {findings.length || needsLocation(rec) ? (
@@ -101,7 +103,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
         </Card>
       )}
 
-      <NextFiling p={p} />
+      <TourTarget id="filing"><NextFiling p={p} /></TourTarget>
     </>
   );
   const right = (
@@ -111,7 +113,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
         {docs.map((d) => <DocRow key={d.id} d={d} superseded={f.superseded.has(d.id)} />)}
         {!docs.length ? <Row title="No documents yet." titleTone="text2" /> : null}
         {missing.map((s) => <Row key={s.key} dot="grey" title={s.title} titleTone="text2" subtitle="Missing" />)}
-        <Row icon="plus" title="Add or renew a document" titleTone="accent" chevron={false} onPress={() => sheet.open('Add or renew a document', <RenewSheet pid={p.id} />)} />
+        <TourTarget id="docs"><Row icon="plus" title="Add or renew a document" titleTone="accent" chevron={false} onPress={() => sheet.open('Add or renew a document', <RenewSheet pid={p.id} />)} /></TourTarget>
       </Group>
 
       <SectionHeader>Cases</SectionHeader>
@@ -219,6 +221,7 @@ export function DocumentScreen() {
   const d = f.docs.find((x) => x.id === id);
   const p = d ? f.people.find((x) => x.id === d.ownerId) : undefined;
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const tour = useTour('document');
   if (!d || !p) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="doc" title="Document deleted" /></Screen>;
   const superseded = f.superseded.has(d.id);
   const note = docNote(d, { superseded, inUS: f.records[p.id]?.location !== 'Outside' });
@@ -238,12 +241,14 @@ export function DocumentScreen() {
   const doShare = async () => {
     if (file && (await shareFile(fileUri(file), file.mime, docTitle(d)))) return;
     const lines = fieldRows(d).map((r) => `${r.spec.label}: ${r.value || '—'}`).join('\n');
-    try { await Share.share({ message: `${docTitle(d)}\n${lines}` }); } catch {}
+    try { await Share.share({ message: `${docTitle(d)}\n${lines}\n\n${NOT_OFFICIAL_ID}` }); } catch {}
   };
   return (
-    <Screen keyboard nav={{ back: p.name, onBack: back, title: docTitle(d) }} footer={<>
-      <Button kind="ghost" icon="refresh" title="Replace" onPress={() => sheet.open('Replace document', <ReplacePicker onPick={(s) => { sheet.close(); replace(s); }} />)} />
-      <Button kind="tint" icon="share" title="Share" onPress={doShare} />
+    <Screen keyboard tour={tour} nav={{ back: p.name, onBack: back, title: docTitle(d) }} footer={<>
+      <TourTarget id="actions" style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+        <Button kind="ghost" icon="refresh" title="Replace" onPress={() => sheet.open('Replace document', <ReplacePicker onPick={(s) => { sheet.close(); replace(s); }} />)} />
+        <Button kind="tint" icon="share" title="Share" onPress={doShare} />
+      </TourTarget>
       <Button kind="danger" icon="trash" title="Delete" onPress={() => sheet.open(`Delete ${docTitle(d)}?`, <Confirm body="It’s removed from this phone. This can’t be undone." action="Delete" onConfirm={async () => { back(); await f.actions.deleteDoc(d.id); toast(`Deleted ${docTitle(d)}`); }} />)} />
     </>}>
       <Pressable onPress={() => file && preview(file)} disabled={!file} accessibilityRole={file ? 'button' : undefined} accessibilityLabel={file ? 'Open the document' : 'No image saved'}
@@ -253,6 +258,7 @@ export function DocumentScreen() {
         )}
         {busy ? <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: t.shade, alignItems: 'center', justifyContent: 'center' }}><Spinner /></View> : null}
       </Pressable>
+      <T tone="text2" style={[font.caption, { marginTop: 8, textAlign: 'center' }]}>{NOT_OFFICIAL_ID}</T>
       {docBadges(d).map((b, i) => (
         <Card key={b.label} style={{ marginTop: i ? 8 : 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: superseded || !note || note.tone === 'blue' ? t.grey : t[note.tone] }} />
@@ -262,7 +268,7 @@ export function DocumentScreen() {
       {note && !(note.tone === 'green' && /^(Valid until|Good for travel until|Approval valid until|Program ends)/.test(note.text)) ? <Note tone={note.tone}>{note.text}</Note> : null}
       {d.fields.dateNote ? <Note tone="amber">{d.fields.dateNote}</Note> : null}
       <SectionHeader>Read from the document</SectionHeader>
-      <Card style={{ paddingTop: 4 }}>
+      <TourTarget id="fields"><Card style={{ paddingTop: 4 }}>
         {FIELDS[d.type].map((spec) => {
           const k = String(spec.key);
           const value = draft[k] ?? showField(d.fields, spec);
@@ -270,7 +276,7 @@ export function DocumentScreen() {
             onBlur={async () => { if (draft[k] === undefined) return; await f.actions.updateDoc(d.id, { fields: parseField(spec, draft[k]), edited: [...new Set([...(d.edited ?? []), spec.key])] }); const n = { ...draft }; delete n[k]; setDraft(n); }} />;
         })}
         {d.type === 'travel-history' ? (d.fields.trips ?? []).map((x, i) => <Row key={i} icon="plane" title={`${fmt(x.depart)} – ${x.return ? fmt(x.return) : 'now'}`} subtitle={x.depart && x.return ? `${daysBetween(x.depart, x.return) - 1} days outside` : ''} />) : null}
-      </Card>
+      </Card></TourTarget>
       <Hint style={{ marginHorizontal: 4 }}>Edits save on this phone. Status updates right away.</Hint>
     </Screen>
   );
@@ -305,6 +311,7 @@ function LayoffPlan({ id }: { id?: string }) {
     const people = f.people.map((p) => (p.id === me.id ? { ...p, facts: { ...p.facts, jobEnded: last } } : p));
     return evaluateFamily({ members: people.map((p) => ({ person: p, rec: f.records[p.id] })).filter((m) => m.rec), docs: f.docs, settings: f.settings, cases: f.cases, bulletin: f.bulletin.data });
   }, [me, last, f]);
+  const tour = useTour('layoff');
   if (!me) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="user" title="Removed" /></Screen>;
   const rec = f.records[me.id];
   const opt = rec?.visa === 'F-1 OPT' || rec?.visa === 'STEM OPT';
@@ -315,12 +322,12 @@ function LayoffPlan({ id }: { id?: string }) {
   const week = ['Get the termination letter and last pay slips', 'Save copies of every I-94, approval and pay slip', opt ? 'Report the job end in the SEVP portal' : 'Talk to an immigration attorney', 'Set a reminder for the earliest last day'];
   const saved = !!me.facts.jobEnded && me.facts.jobEnded === last;
   return (
-    <Screen nav={{ back: 'Back', onBack: back, title: 'Layoff plan', right: <HelpButton topic="layoff" /> }} footer={<Button title={saved ? 'Saved — undo' : me.facts.jobEnded ? `Update ${me.name}’s last day` : `Save to ${me.name}’s page`} onPress={async () => {
+    <Screen tour={tour} nav={{ back: 'Back', onBack: back, title: 'Layoff plan' }} footer={<Button title={saved ? 'Saved — undo' : me.facts.jobEnded ? `Update ${me.name}’s last day` : `Save to ${me.name}’s page`} onPress={async () => {
       if (saved) { await f.actions.setFacts(me.id, { jobEnded: undefined }); toast('Removed'); } else { await f.actions.setFacts(me.id, { jobEnded: last }); toast('Saved · shown as Act now on Home'); }
     }} />}>
       <H1>{me.relation === 'self' ? 'You lost your job' : `${me.name}’s job ended`}</H1>
       <Why>Here’s the last day in status for each person, and what to do this week.</Why>
-      <DateField label="Last day of work (last paycheck date)" value={last} onChange={setLast} />
+      <TourTarget id="date"><DateField label="Last day of work (last paycheck date)" value={last} onChange={setLast} /></TourTarget>
       <SectionHeader>Last day in status</SectionHeader>
       <Group>
         {f.people.map((p) => {
@@ -339,7 +346,7 @@ function LayoffPlan({ id }: { id?: string }) {
         <LegalLine />
       </Note>
       <SectionHeader>Your options</SectionHeader>
-      <Group>{opts.map(([a, b]) => <Row key={a} icon="chevR" title={a} titleStyle={{ ...font.callout, fontWeight: '500' }} subtitle={b} />)}</Group>
+      <TourTarget id="options"><Group>{opts.map(([a, b]) => <Row key={a} icon="chevR" title={a} titleStyle={{ ...font.callout, fontWeight: '500' }} subtitle={b} />)}</Group></TourTarget>
       <SectionHeader>This week</SectionHeader>
       <Group>{week.map((x, i) => <CheckRow key={x} title={x} checked={!!ticks[i]} onPress={() => setTicks({ ...ticks, [i]: !ticks[i] })} />)}</Group>
     </Screen>

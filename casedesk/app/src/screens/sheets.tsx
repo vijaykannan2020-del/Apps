@@ -14,6 +14,7 @@ import { useFamily, type FamilyState } from '../data/FamilyProvider';
 import { newId } from '../data/store';
 import {
   Button, Card, Chips, ChipToggle, DateField, Field, Group, Hint, Note, Option, Row, SelectField, SheetButtons, T, Why, font, useSheet, useToast, LegalLine, Icon, useTheme,
+  TourButton, TourScope, TourTarget, useSheetTour,
 } from '../ui';
 import { back, runFlow } from './common';
 import { clipboardHasText, copy, hasClipboard, openUrl, openUrlAndWait, readClipboard } from '../native/device';
@@ -234,6 +235,7 @@ export function AddCase({ pid }: { pid?: string }) {
   const [form, setForm] = useState('I-129');
   const [owner, setOwner] = useState(pid ?? f.main?.id ?? '');
   const [err, setErr] = useState<string>();
+  const tour = useSheetTour('add-case');
   const add = async () => {
     const r = rn.trim().toUpperCase();
     if (!isReceipt(r)) { setErr('3 letters and 10 numbers, like IOE0912345678.'); return; }
@@ -241,13 +243,13 @@ export function AddCase({ pid }: { pid?: string }) {
     s.close(); toast(`${form} added · check its status in Safari`);
   };
   return (
-    <View>
-      <Why>Type the 13-character receipt number from the I-797C notice.</Why>
-      <Field label="Receipt number" value={rn} onChangeText={(x) => { setRn(x.toUpperCase()); setErr(undefined); }} placeholder="IOE0900000000" autoCapitalize="characters" maxLength={13} mono error={err} />
+    <TourScope tour={tour}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={{ flex: 1 }}><Why>Type the 13-character receipt number from the I-797C notice.</Why></View><TourButton /></View>
+      <TourTarget id="receipt"><Field label="Receipt number" value={rn} onChangeText={(x) => { setRn(x.toUpperCase()); setErr(undefined); }} placeholder="IOE0900000000" autoCapitalize="characters" maxLength={13} mono error={err} /></TourTarget>
       <SelectField label="Form" value={form} onChange={setForm} options={FORMS.filter((x) => x[0] !== 'I-129S').map(([v, n]) => ({ value: v, label: `${v} · ${n}` }))} />
-      <SelectField label="Whose case" value={owner} onChange={setOwner} options={f.people.map((p) => ({ value: p.id, label: p.name }))} />
+      <TourTarget id="who"><SelectField label="Whose case" value={owner} onChange={setOwner} options={f.people.map((p) => ({ value: p.id, label: p.name }))} /></TourTarget>
       <SheetButtons><Cancel /><Button grow title="Add case" onPress={add} /></SheetButtons>
-    </View>
+    </TourScope>
   );
 }
 

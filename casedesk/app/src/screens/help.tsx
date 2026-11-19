@@ -7,7 +7,8 @@ import { useFamily } from '../data/FamilyProvider';
 import { Card, Group, Hint, Icon, LinkButton, Row, Screen, SectionHeader, T, Why, font, useTheme, tint, MIN_TOUCH } from '../ui';
 import { back, go } from './common';
 
-/** Dismissible 2-line explainer shown the first time a tab is opened. */
+/** Dismissible 2-line explainer shown the first time a tab is opened.
+ *  v2.3: the tabs now use first-visit coach marks (ui/tour.tsx) instead; kept for other screens. */
 export function HelpCard({ tab }: { tab: keyof typeof TAB_HELP }) {
   const f = useFamily();
   const t = useTheme();

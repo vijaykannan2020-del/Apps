@@ -21,3 +21,6 @@ export const SOURCES: Record<string, Source> = {
   travel: { label: 'travel.state.gov · cbp.gov', url: 'https://travel.state.gov/content/travel/en/us-visas.html' },
   guides: { label: 'uscis.gov — Working in the US', url: 'https://www.uscis.gov/working-in-the-united-states' },
 };
+
+/** Wallet wording must never suggest an official ID (shown wherever documents are shown or shared). */
+export const NOT_OFFICIAL_ID = 'Copies for your reference — not an official ID.';

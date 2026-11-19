@@ -6,11 +6,10 @@ import { useLocalSearchParams } from 'expo-router';
 import { fmt, daysTo } from '../core/dates';
 import { isPendingCase, type CaseView } from '../core/cases';
 import { useFamily } from '../data/FamilyProvider';
-import { Columns, useLayout, Button, Card, EmptyState, Group, Hint, Icon, IconButton, LargeTitle, LegalLine, Note, Pill, Row, Screen, SectionHeader, T, Timeline, font, useSheet, useTheme, useToast, tint } from '../ui';
+import { TourButton, TourTarget, useTour, useSheetTour, Columns, useLayout, Button, Card, EmptyState, Group, Hint, Icon, IconButton, LargeTitle, LegalLine, Note, Pill, Row, Screen, SectionHeader, T, Timeline, font, useSheet, useTheme, useToast, tint } from '../ui';
 import { asOfText, back, DataFooter, go } from './common';
 import { SOURCES } from '../content/legal';
-import { HelpCard, HelpButton } from './help';
-import { AddCase, AddKeyDate, Confirm, startCaseCheck } from './sheets';
+import { AddCase, AddKeyDate, CheckStatus, Confirm, startCaseCheck } from './sheets';
 import { copy } from '../native/device';
 
 const inDays = (n: number) => (n < 0 ? `${-n} day${n === -1 ? '' : 's'} ago` : n === 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`);
@@ -47,18 +46,18 @@ export function CasesTab() {
     return l.length ? <View key={p.id}><SectionHeader>{p.name}</SectionHeader><Group>{l.map((c) => <CaseRow key={c.id} c={c} who={false} onPick={pick} on={selected === c.id} />)}</Group></View> : null;
   });
   const add = () => sheet.open('Add a case', <AddCase />);
+  const tour = useTour('cases');
   return (
-    <Screen tabRoot wide paneRatio={0.9} panes={{ left: <>
-      <LargeTitle title="Cases" right={<IconButton icon="plus" label="Add a case" onPress={add} />} />
+    <Screen tabRoot wide paneRatio={0.9} tour={tour} panes={{ left: <>
+      <LargeTitle title="Cases" right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><TourButton /><TourTarget id="add"><IconButton icon="plus" label="Add a case" onPress={add} /></TourTarget></View>} />
       <T tone="text2" style={[font.sub, { marginTop: 2 }]}>Every USCIS form, by person. Pending first.</T>
-      <HelpCard tab="cases" />
       {f.caseList.length ? (
-        <>
+        <TourTarget id="list">
           {pend.length ? <T a11y="header" style={[font.title2, { marginTop: 24 }]}>{`Pending · ${pend.length}`}</T> : null}
           {byPerson(pend)}
           {done.length ? <T a11y="header" style={[font.title2, { marginTop: 28 }]}>{`Completed · ${done.length}`}</T> : null}
           {byPerson(done)}
-        </>
+        </TourTarget>
       ) : <EmptyState small icon="clock" title="No cases yet" body="Add a receipt number from an I-797C notice." action={{ title: 'Add a case', onPress: add }} />}
       <SectionHeader>Look up</SectionHeader>
       <Group><Row icon="search" onPress={() => go('/tools/lca')} title="LCA / PERM status" subtitle="Look up your employer’s filing with the Department of Labor" /></Group>
@@ -70,9 +69,10 @@ export function CaseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const f = useFamily();
   const c = f.caseList.find((x) => x.id === decodeURIComponent(id ?? ''));
+  const tour = useTour('case');
   if (!c) return <Screen nav={{ back: 'Cases', onBack: back }}><EmptyState icon="doc" title="Case deleted" /></Screen>;
   return (
-    <Screen nav={{ back: 'Back', onBack: back, title: c.form ?? 'Case', right: <HelpButton topic="cases" /> }}>
+    <Screen nav={{ back: 'Back', onBack: back, title: c.form ?? 'Case' }} tour={tour}>
       <CaseBody id={c.id} />
     </Screen>
   );
@@ -123,12 +123,13 @@ export function CaseBody({ id }: { id: string }) {
             ))}
             <T tone="text2" style={[font.foot, { marginTop: 8 }]}>{c.checkedAt ? `Last checked on uscis.gov: ${asOfText({ live: true, fetchedAt: c.checkedAt }).replace(/^Live · updated /, '')}` : 'Not checked on uscis.gov yet'}</T>
             <Hint>Immigration Wallet never logs in to USCIS or reads the site for you.</Hint>
-            <Button block icon="compass" title="Copy number & open uscis.gov" onPress={() => startCaseCheck(c, sheet.open)} />
+            <TourTarget id="check"><Button block icon="compass" title="Copy number & open uscis.gov" onPress={() => startCaseCheck(c, sheet.open)} /></TourTarget>
+            <TourTarget id="paste"><Button block kind="ghost" icon="copy" title="Paste what USCIS says" onPress={() => sheet.open('What did USCIS say?', <CheckStatus view={c} copied />)} /></TourTarget>
           </Card>
         </>
       )}
       <SectionHeader>History</SectionHeader>
-      <Card>{c.history.length ? <Timeline items={c.history.map((h, i) => ({ title: h.text, sub: fmt(h.date), state: i ? 'done' : 'now' }))} /> : <T tone="text2" style={font.foot}>No history yet.</T>}</Card>
+      <TourTarget id="history"><Card>{c.history.length ? <Timeline items={c.history.map((h, i) => ({ title: h.text, sub: fmt(h.date), state: i ? 'done' : 'now' }))} /> : <T tone="text2" style={font.foot}>No history yet.</T>}</Card></TourTarget>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
         <Button kind="ghost" icon="share" title="Share" onPress={() => Share.share({ message: `${c.form ?? 'Case'} · ${c.name}\nStatus: ${c.status}${c.updated ? ` (updated ${fmt(c.updated)})` : ''}` }).catch(() => {})} />
         <Button kind="danger" icon="trash" title="Delete" onPress={() => sheet.open('Delete this case?', <Confirm body="It’s removed from this phone only. Nothing changes at USCIS." action="Delete" onConfirm={async () => { back(); await f.actions.deleteCase(c); toast('Case deleted'); }} />)} />

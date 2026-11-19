@@ -12,7 +12,7 @@ import {
   commit, discard, useDraftReady, editField, endFlow, flowEpoch, pendingMisfiles, startFlow, keepHere, moveTo, moveToStep, nextOf, personOf, progressOf, retake, setCountry, setWhere, skip, stepsOf, typeIn, upload, uploadOf, useFlow,
 } from '../data/flow';
 import { fileUri, type Source } from '../native/files';
-import { Avatar, Button, Card, Chip, Field, H1, Hint, Icon, NavButton, Note, Option, Pill, Screen, SelectField, Spinner, Stack, T, Tag, Why, font, radius, useSheet, useTheme, useToast, MIN_TOUCH } from '../ui';
+import { Avatar, Button, Card, Chip, Field, H1, Hint, Icon, NavButton, Note, Option, Pill, Screen, SelectField, Spinner, Stack, T, Tag, Why, font, radius, useSheet, useTheme, useToast, MIN_TOUCH, TourTarget, useTour } from '../ui';
 import { go, home, statusLabel, locationChip, relationLabel, untilText, AttentionRow } from './common';
 import { COUNTRIES } from './sheets';
 
@@ -53,6 +53,7 @@ export function StepScreen() {
   const t = useTheme();
   const toast = useToast();
   const leave = useLeave();
+  const tour = useTour('flow-step');
   const p = pid ? personOf(pid, f) : undefined;
   // Opened without a running flow (deep link, or the app was restarted mid-flow): resume for this person.
   // Only once per screen, only after the saved draft was looked at, and never after this flow was
@@ -98,7 +99,7 @@ export function StepScreen() {
   if (!u || u.state === 'skipped') {
     content = (
       <>
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
+        <TourTarget id="upload" style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
           {([['camera', 'Camera', 'Scan with camera'], ['photo', 'Photos', 'Choose from Photos'], ['folder', 'Files', 'Choose a PDF from Files']] as const).map(([icon, label, a11y], i) => (
             <Pressable key={label} onPress={() => pickFrom((['camera', 'photos', 'files'] as Source[])[i])} accessibilityRole="button" accessibilityLabel={a11y}
               style={({ pressed }) => ({ flex: 1, minWidth: 0, backgroundColor: t.card, borderRadius: radius.card, paddingVertical: 20, paddingHorizontal: 4, alignItems: 'center', gap: 10, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
@@ -106,7 +107,7 @@ export function StepScreen() {
               <T style={[font.sub, { fontWeight: '500' }]}>{label}</T>
             </Pressable>
           ))}
-        </View>
+        </TourTarget>
         <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'center', alignItems: 'center', marginTop: 14 }}><Icon name="lock" size={13} color={t.text2} /><T tone="text2" style={font.caption}>Read on this phone. Nothing is uploaded.</T></View>
         {k === 'i94' ? <Hint center>No I-94 handy? Skip it — we’ll ask one quick question.</Hint> : null}
       </>
@@ -159,9 +160,9 @@ export function StepScreen() {
   }
   const done = u?.state === 'done' && !u.misfile;
   return (
-    <Screen keyboard nav={nav} footer={<>
+    <Screen keyboard nav={nav} tour={tour} footer={<>
       <Button kind="ghost" title="Back" onPress={() => { router.back(); }} />
-      <Button kind="ghost" title="Skip" onPress={() => { skip(p.id, k); next(); }} />
+      <TourTarget id="type"><Button kind="ghost" title="Skip" onPress={() => { skip(p.id, k); next(); }} /></TourTarget>
       <Button grow title="Next" disabled={!done} onPress={next} />
     </>}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
@@ -179,6 +180,7 @@ export function ReviewScreen() {
   const flow = useFlow();
   const t = useTheme();
   const toast = useToast();
+  const tour = useTour('review');
   if (!flow) return <Screen nav={{ title: 'Review' }}><Why>Nothing to review.</Why><Button block title="Go to Home" onPress={home} /></Screen>;
   const save = async () => {
     const m = pendingMisfiles()[0];
@@ -197,10 +199,10 @@ export function ReviewScreen() {
     </View>
   );
   return (
-    <Screen nav={{ title: 'Review', back: 'Back', onBack: () => router.back() }} footer={<Button title="Save" onPress={save} />}>
+    <Screen tour={tour} nav={{ title: 'Review', back: 'Back', onBack: () => router.back() }} footer={<TourTarget id="save" style={{ flex: 1 }}><Button title="Save" onPress={save} /></TourTarget>}>
       <H1>Review &amp; save</H1>
       <Why>Check what will be saved. Nothing is kept until you tap Save.</Why>
-      <Stack style={{ marginTop: 22 }}>
+      <TourTarget id="list"><Stack style={{ marginTop: 22 }}>
         {flow.pids.map((pid) => {
           const p = personOf(pid, f);
           if (!p) return null;
@@ -228,18 +230,19 @@ export function ReviewScreen() {
             </Card>
           );
         })}
-      </Stack>
+      </Stack></TourTarget>
     </Screen>
   );
 }
 
 export function SummaryScreen() {
   const f = useFamily();
+  const tour = useTour('summary');
   return (
-    <Screen nav={{ title: 'Summary' }} footer={<Button title="Go to Home" onPress={() => { endFlow(); router.back(); }} />}>
+    <Screen tour={tour} nav={{ title: 'Summary' }} footer={<TourTarget id="home" style={{ flex: 1 }}><Button title="Go to Home" onPress={() => { endFlow(); router.back(); }} /></TourTarget>}>
       <H1>Where everyone stands</H1>
       <Why>Saved on this phone. This is general information, not legal advice.</Why>
-      <Stack style={{ marginTop: 22 }}>{f.people.map((p) => <SummaryCard key={p.id} p={p} />)}</Stack>
+      <TourTarget id="cards"><Stack style={{ marginTop: 22 }}>{f.people.map((p) => <SummaryCard key={p.id} p={p} />)}</Stack></TourTarget>
     </Screen>
   );
 }

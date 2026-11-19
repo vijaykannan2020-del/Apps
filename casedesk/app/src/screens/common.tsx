@@ -12,7 +12,7 @@ import { fmt } from '../core/dates';
 import { startFlow, type Flow } from '../data/flow';
 import type { FamilyState } from '../data/FamilyProvider';
 import { Pressable } from 'react-native';
-import { Button, Icon, LegalLine, MIN_TOUCH, Row, T, font, severityTone, tint, TONE_WORD, useTheme } from '../ui';
+import { TourTarget, Button, Icon, LegalLine, MIN_TOUCH, Row, T, font, severityTone, tint, TONE_WORD, useTheme } from '../ui';
 import { DISCLAIMER, type Source } from '../content/legal';
 import { openUrl } from '../native/device';
 
@@ -97,7 +97,7 @@ export function asOfText(o: { live?: boolean; asOf?: string; fetchedAt?: string 
 export function DataFooter({ live, asOf, fetchedAt, source, note }: { live?: boolean; asOf?: string; fetchedAt?: string; source?: Source; note?: string }) {
   const t = useTheme();
   return (
-    <View style={{ marginTop: 14, gap: 4 }}>
+    <TourTarget id="source" style={{ marginTop: 14, gap: 4 }}>
       {asOf || live !== undefined ? (
         <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <View style={{ backgroundColor: live ? tint(t.green, t.pillAlpha) : t.fill, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}><T tone={live ? 'green' : 'text2'} style={[font.caption, { fontWeight: '600' }]}>{live ? 'Live' : 'Built-in copy'}</T></View>
@@ -111,6 +111,6 @@ export function DataFooter({ live, asOf, fetchedAt, source, note }: { live?: boo
         </Pressable>
       ) : null}
       <T tone="text2" style={font.caption}>{DISCLAIMER}</T>
-    </View>
+    </TourTarget>
   );
 }

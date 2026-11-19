@@ -8,12 +8,11 @@ import { RULES_CHECKED } from '../core/rules/catalog';
 import { useFamily } from '../data/FamilyProvider';
 import { canUseBiometrics, authenticate } from '../native/device';
 import { askNotificationPermission } from '../native/reminders';
-import { Button, ChipToggle, Chips, Group, Hint, LargeTitle, Row, Screen, SectionHeader, Segmented, SheetButtons, Switch, T, Why, font, useLayout, useSheet, useToast, Columns } from '../ui';
+import { Button, ChipToggle, Chips, Group, Hint, LargeTitle, Row, Screen, SectionHeader, Segmented, SheetButtons, Switch, T, Why, font, useLayout, useSheet, useToast, Columns, TourButton, TourTarget, useTour } from '../ui';
 import { go, replace } from './common';
 import { useThemeChoice } from './themeChoice';
 import { Confirm } from './sheets';
 import { BackupSheet, DiagSheet, RestoreSheet, WipeSheet, leadText } from './profile';
-import { HelpCard } from './help';
 import { ICloudRows } from './icloud';
 import { HELP } from '../content/help';
 
@@ -23,6 +22,7 @@ export function SettingsTab() {
   const toast = useToast();
   const theme = useThemeChoice();
   const L = useLayout();
+  const tour = useTour('settings');
   const params = useLocalSearchParams<{ backup?: string }>();
   useEffect(() => { if (params.backup === '1') { router.setParams({ backup: undefined } as never); setTimeout(() => sheet.open('Back up now', <BackupSheet />), 350); } }, [params.backup, sheet]);
   const lastBackup = f.settings.lastBackupAt ? fmt(f.settings.lastBackupAt.slice(0, 10)) : 'Never';
@@ -48,22 +48,23 @@ export function SettingsTab() {
         <Row icon="users" title="Per person" subtitle="Turn reminders on or off for each person" onPress={() => go('/profile')} />
       </Group>
       <SectionHeader>Backup &amp; restore</SectionHeader>
-      <Group>
+      <TourTarget id="backup"><Group>
         <ICloudRows />
         <Row icon="share" title="Back up to a file" subtitle={`Files, Google Drive or AirDrop · last: ${lastBackup}`} onPress={() => sheet.open('Back up now', <BackupSheet />)} chevron={false} />
         <Row icon="restore" title="Restore from backup" subtitle="From a .casedesk file in Files, iCloud Drive or Google Drive" onPress={() => sheet.open('Restore from backup', <RestoreSheet />)} chevron={false} />
         <Row icon="trash" iconTone="red" title="Delete all data" titleTone="red" chevron={false} onPress={() => sheet.open('Delete all data?', <WipeSheet />)} />
-      </Group>
+      </Group></TourTarget>
     </>
   );
   const help = (
     <>
       <SectionHeader>Help</SectionHeader>
-      <Group>
+      <TourTarget id="helpsec"><Group>
         {HELP.slice(0, 8).map((h) => <Row key={h.id} icon="help" title={h.title} subtitle={h.sub} onPress={() => go(`/help/${h.id}`)} />)}
         <Row icon="play" title="How Immigration Wallet works" subtitle="A 4-screen tour" onPress={() => go('/tour')} />
         <Row icon="users" title="Example family" subtitle="Look around with made-up data (replaces what’s here)" chevron={false} onPress={() => sheet.open('Load the example family?', <Confirm body="Everything on this phone is replaced by a made-up H-1B family. Back up first if you need your data." action="Load example" onConfirm={() => { try { router.dismissAll(); } catch {} replace('/demo'); }} />)} />
-      </Group>
+        <Row icon="bulb" title="Show all tips again" subtitle="The first-visit tips on every screen" chevron={false} onPress={async () => { await f.actions.updateSettings({ toursSeen: [], toursOff: false, helpSeen: [] }); toast('Tips will show again on each screen'); tour.start(); }} />
+      </Group></TourTarget>
       <SectionHeader>More</SectionHeader>
       <Group>
         <Row icon="hr" title="Show HR tools" subtitle="Expiring documents across the family" trailing={<Switch value={!!f.settings.hrTools} label="Show HR tools" onValueChange={(on) => f.actions.updateSettings({ hrTools: on })} />} />
@@ -74,10 +75,9 @@ export function SettingsTab() {
     </>
   );
   return (
-    <Screen tabRoot wide panes={{ left: <>
-      <LargeTitle title="Settings" />
+    <Screen tabRoot wide tour={tour} panes={{ left: <>
+      <LargeTitle title="Settings" right={<TourButton />} />
       <T tone="text2" style={[font.sub, { marginTop: 2 }]}>Your data stays on this phone.</T>
-      <HelpCard tab="settings" />
       {look}
     </>, right: <>{L.twoCol ? <View style={{ height: 70 }} /> : null}{help}</> }} />
   );

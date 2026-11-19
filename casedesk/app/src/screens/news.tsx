@@ -6,7 +6,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { fmt } from '../core/dates';
 import { kindOf, newsById, useNews, type NewsItem } from '../data/news';
 import { openUrl } from '../native/device';
-import { Button, Card, ChipToggle, Chips, Group, Hint, Icon, LinkButton, Pill, Row, Screen, SectionHeader, Segmented, T, Tag, Why, font, useTheme } from '../ui';
+import { Button, Card, ChipToggle, Chips, Group, Hint, Icon, LinkButton, Pill, Row, Screen, SectionHeader, Segmented, T, Tag, Why, font, useTheme, TourTarget, useTour } from '../ui';
 import { asOfText, back, go } from './common';
 import { DISCLAIMER, DISCLAIMER_SHORT } from '../content/legal';
 import { useFamily } from '../data/FamilyProvider';
@@ -83,11 +83,12 @@ export function NewsListScreen() {
   const ofKind = items.filter((n) => kindOf(n) === kindKey(kind));
   const tags = useMemo(() => [...(fam.length ? [FAMILY] : []), 'All', ...[...new Set(ofKind.flatMap((n) => n.tags))].sort()], [ofKind, fam.length]);
   const shown = tag === FAMILY ? forFamily(ofKind, fam) : ofKind.filter((n) => tag === 'All' || n.tags.includes(tag as never) || (tag === 'OPT' && n.tags.includes('STEM OPT' as never)));
+  const tour = useTour('news-list');
   return (
-    <Screen nav={{ title: 'Updates', back: 'Home', onBack: back }}>
+    <Screen tour={tour} nav={{ title: 'Updates', back: 'Home', onBack: back }}>
       <Why>Rule changes from USCIS, DHS, DOL and State — and news coverage. Tap one for what it means.</Why>
-      <Segmented options={KINDS} value={kind} onChange={(k) => { setKind(k); setTag(fam.length ? FAMILY : 'All'); }} />
-      <Chips>{tags.map((g) => <ChipToggle key={g} text={g} on={tag === g} onPress={() => setTag(g)} />)}</Chips>
+      <TourTarget id="kind"><Segmented options={KINDS} value={kind} onChange={(k) => { setKind(k); setTag(fam.length ? FAMILY : 'All'); }} /></TourTarget>
+      <TourTarget id="chips"><Chips>{tags.map((g) => <ChipToggle key={g} text={g} on={tag === g} onPress={() => setTag(g)} />)}</Chips></TourTarget>
       {tag === FAMILY ? <Hint>{`Updates tagged ${fam.join(', ')} — the visa types in your family.`}</Hint> : null}
       <Group style={{ marginTop: 14 }}>{shown.length ? shown.map((n) => <NewsRow key={n.id} n={n} />) : <Row title="Nothing here yet" />}</Group>
       <NewsAsOf live={live} updated={updated} items={items} />
@@ -101,24 +102,25 @@ export function NewsItemScreen() {
   const n = newsById(id ? decodeURIComponent(id) : undefined);
   const t = useTheme();
   const f = useFamily();
+  const tour = useTour('news-item');
   React.useEffect(() => { if (n && f.ready && !(f.settings.updatesDismissed ?? []).includes(n.id) && n.impact === 'high') f.actions.updateSettings({ updatesDismissed: [...(f.settings.updatesDismissed ?? []), n.id] }); }, [n?.id, f.ready]);
   if (!n) return <Screen nav={{ title: 'Update', back: 'Back', onBack: back }}><Why>This update is no longer in the feed.</Why></Screen>;
   return (
-    <Screen nav={{ title: kindOf(n) === 'news' ? 'News' : 'Official update', back: 'Back', onBack: back }}>
+    <Screen tour={tour} nav={{ title: kindOf(n) === 'news' ? 'News' : 'Official update', back: 'Back', onBack: back }}>
       <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         <Pill severity={sev(n)} text={n.impact === 'high' ? 'Important' : 'Info'} />
         {orderTags(n.tags, familyTags(f.people, f.records)).map((g) => <Tag key={g} text={g} />)}
       </View>
       <T a11y="header" style={[font.title2, { marginTop: 12 }]}>{n.title}</T>
       <T tone="text2" style={[font.foot, { marginTop: 6 }]}>{`${n.agency} · ${when(n.date)}`}</T>
-      <Card style={{ marginTop: 16 }}>
+      <TourTarget id="body"><Card style={{ marginTop: 16 }}>
         <T style={font.body}>{n.summary}</T>
         {n.points?.length ? <View style={{ marginTop: 12, gap: 8 }}>{n.points.map((p, i) => (
           <View key={i} style={{ flexDirection: 'row', gap: 10 }}><View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: t.accent, marginTop: 8 }} /><T style={[font.sub, { flex: 1 }]}>{p}</T></View>
         ))}</View> : null}
-      </Card>
+      </Card></TourTarget>
       {n.sources?.length ? (<><SectionHeader>Also reported by</SectionHeader><Group>{n.sources.map((s) => <Row key={s.url} icon="globe" title={s.name} onPress={() => openUrl(s.url)} />)}</Group></>) : null}
-      <Button block icon="compass" title="Open the source" onPress={() => openUrl(n.url)} />
+      <TourTarget id="source"><Button block icon="compass" title="Open the source" onPress={() => openUrl(n.url)} /></TourTarget>
       <Hint center style={{ marginTop: 12 }}>{`${n.agency} · ${when(n.date)}. Check the source before you act. ${DISCLAIMER}`}</Hint>
     </Screen>
   );

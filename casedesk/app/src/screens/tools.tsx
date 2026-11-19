@@ -17,17 +17,17 @@ import { WEIGHTS, WEIGHT_NOTE, STEPS as LOT_STEPS, LAST_SEASON, CAP_GAP, FEE_STA
 import { CIVICS, CIVICS_SOURCE } from '../content/civics';
 import { TOP_INITIAL_FY25, H1B_SOURCE } from '../content/h1b';
 import {
-  tint, radius, Avatar, BigText, Button, Card, CheckRow, useLayout, Chip, ChipToggle, Chips, DateField, Field, Group, H1, Hint, Icon, LargeTitle, LinkButton, Note, Option, Row, Screen, SectionHeader, Segmented, SelectField, Stack, T, Timeline, Why, font, useSheet, useTheme, useToast, Pill,
+  TourButton, TourTarget, useTour, tint, radius, Avatar, BigText, Button, Card, CheckRow, useLayout, Chip, ChipToggle, Chips, DateField, Field, Group, H1, Hint, Icon, LargeTitle, LinkButton, Note, Option, Row, Screen, SectionHeader, Segmented, SelectField, Stack, T, Timeline, Why, font, useSheet, useTheme, useToast, Pill,
 } from '../ui';
 import { back, DataFooter, go, statusLabel } from './common';
 import { SOURCES } from '../content/legal';
+import { TOURS } from '../content/tours';
 
 /** '17-SEP-2026' → 'Sep 17, 2026'. */
 const waitsDate = (u?: string | null) => { if (!u) return undefined; const m = u.match(/^(\d{1,2})-([A-Z]{3})-(\d{4})$/i); return m ? `${m[2][0]}${m[2].slice(1).toLowerCase()} ${+m[1]}, ${m[3]}` : u; };
 import { answerState, ANSWER_LABEL, quizSummary, type AnswerState, type QuizResult } from '../core/quiz';
 import { FamilyFilings, familyForms } from './filings';
 import { useProcessing } from '../data/processing';
-import { HelpButton, HelpCard } from './help';
 import { COUNTRIES } from './sheets';
 import { openUrl } from '../native/device';
 
@@ -61,13 +61,13 @@ export function ToolsTab() {
   const L = useLayout();
   const t = useTheme();
   const groups = f.settings.hrTools ? [...TOOLS, HR] : TOOLS;
+  const tour = useTour('tools');
   return (
-    <Screen tabRoot wide>
-      <LargeTitle title="Tools" />
+    <Screen tabRoot wide tour={tour}>
+      <LargeTitle title="Tools" right={<TourButton />} />
       <T tone="text2" style={[font.sub, { marginTop: 2 }]}>Plans, look-ups and guides.</T>
-      <HelpCard tab="tools" />
       {groups.map(([g, list]) => (
-        <View key={g}>
+        <TourTarget key={g} id={g === 'My plans' ? 'plan' : g === 'Look up' ? 'lookup' : `g-${g}`}>
           <SectionHeader>{g}</SectionHeader>
           {L.twoCol ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
@@ -80,7 +80,7 @@ export function ToolsTab() {
               ))}
             </View>
           ) : <Group>{list.map((x) => <Row key={x.id} icon={x.icon} title={x.title} subtitle={x.sub} onPress={() => go(`/tools/${x.id}`)} />)}</Group>}
-        </View>
+        </TourTarget>
       ))}
     </Screen>
   );
@@ -88,6 +88,7 @@ export function ToolsTab() {
 
 /** Tools whose own body has no data footer: official source + disclaimer at the bottom. */
 const FOOTER_SOURCE: Record<string, keyof typeof SOURCES> = { travel: 'travel', gcp: 'bulletinChart', lca: 'lca', guides: 'guides', hr: 'guides' };
+const TOOL_TOUR: Record<string, string> = { travel: 'tool-travel', pd: 'tool-pd', vb: 'tool-vb', proc: 'tool-proc', fees: 'tool-fees', civics: 'tool-civics', i9: 'tool-i9', wage: 'tool-wage', emp: 'tool-h1b' };
 const TOOL_HELP: Record<string, string> = { travel: 'travel', pd: 'priority-date', proc: 'processing', vb: 'priority-date', civics: 'citizenship', i9: 'i9' };
 const ALL = Object.fromEntries([...TOOLS, HR].flatMap(([, l]) => l).map((x) => [x.id, x]));
 const Src = ({ text, live }: { text: string; live?: boolean }) => { const t = useTheme(); return <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 10 }}><Icon name="globe" size={14} color={t.text2} /><T tone="text2" style={[font.caption, { flex: 1 }]}>{`${text}${live === false ? ' · built-in copy' : live ? ' · live' : ''}`}</T></View>; };
@@ -96,6 +97,8 @@ export function ToolScreen() {
   const { tool, pid } = useLocalSearchParams<{ tool: string; pid?: string }>();
   const def = ALL[tool ?? ''] ?? { id: tool, title: 'Tool', sub: '' };
   const [foot, setFoot] = useState<React.ReactNode>(null);
+  const tid = TOOL_TOUR[def.id] ?? `tool-${def.id}`;
+  const tour = useTour(tid, TOURS[tid] ? undefined : TOURS.tool.steps, { help: TOURS[tid]?.help ?? TOOL_HELP[def.id] ?? 'overview' });
   const body = (() => {
     switch (def.id) {
       case 'travel': return <Travel pid={pid} setFoot={setFoot} />;
@@ -117,9 +120,11 @@ export function ToolScreen() {
     }
   })();
   return (
-    <Screen keyboard nav={{ back: 'Tools', onBack: back, title: def.title, right: TOOL_HELP[def.id] ? <HelpButton topic={TOOL_HELP[def.id]} /> : undefined }} footer={foot ?? undefined}>
-      <H1>{def.title}</H1>
-      {def.sub ? <Why>{/[.?!]$/.test(def.sub) ? def.sub : `${def.sub}.`}</Why> : null}
+    <Screen keyboard nav={{ back: 'Tools', onBack: back, title: def.title }} footer={foot ?? undefined} tour={tour}>
+      <TourTarget id="body">
+        <H1>{def.title}</H1>
+        {def.sub ? <Why>{/[.?!]$/.test(def.sub) ? def.sub : `${def.sub}.`}</Why> : null}
+      </TourTarget>
       {body}
       {FOOTER_SOURCE[def.id] ? <DataFooter source={SOURCES[FOOTER_SOURCE[def.id]]} /> : null}
     </Screen>
@@ -135,7 +140,7 @@ function Travel({ pid, setFoot }: { pid?: string; setFoot: (n: React.ReactNode) 
   const [country, setCountry] = useState('India');
   const [go2, setGo] = useState(false);
   const [ck, setCk] = useState<Record<number, boolean>>({});
-  useEffect(() => { setFoot(<Button title="Check trip" onPress={() => setGo(true)} />); }, [setFoot]);
+  useEffect(() => { setFoot(<TourTarget id="result" style={{ flex: 1 }}><Button title="Check trip" onPress={() => setGo(true)} /></TourTarget>); }, [setFoot]);
   const result = useMemo(() => {
     if (!go2 || !from || !to || !isISO(from) || !isISO(to)) return null;
     if (to <= from) return 'bad' as const;
@@ -162,14 +167,14 @@ function Travel({ pid, setFoot }: { pid?: string; setFoot: (n: React.ReactNode) 
   const CK = ['Passport valid 6+ months past the trip', 'DS-160 confirmation for each person', `Appointment in ${country} (country of nationality or residence)`, 'Approval copies (I-797 / I-129S) and employer letter', 'Recent pay slips', 'In-person interview — no dropbox for most people', 'Online-presence review: social media on the DS-160 must be accurate', 'Book early — waits in India can run months'];
   return (
     <>
-      <Card style={{ marginTop: 18 }}>
+      <TourTarget id="form"><Card style={{ marginTop: 18 }}>
         <SelectField label="Who’s travelling" value={who} onChange={(v) => { setWho(v); setGo(false); }} options={[{ value: 'all', label: 'Everyone in the US' }, ...f.people.map((p) => ({ value: p.id, label: p.name }))]} />
         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           <View style={{ flex: 1, minWidth: 140 }}><DateField label="Leave" value={from} onChange={(v) => { setFrom(v); setGo(false); }} /></View>
           <View style={{ flex: 1, minWidth: 140 }}><DateField label="Return" value={to} onChange={(v) => { setTo(v); setGo(false); }} /></View>
         </View>
         <SelectField label="Country" value={country} onChange={(v) => { setCountry(v); setGo(false); }} options={COUNTRIES.map((c) => ({ value: c, label: c }))} />
-      </Card>
+      </Card></TourTarget>
       {result === 'bad' ? <Note tone="amber">The return date must be after the leave date.</Note> : null}
       {Array.isArray(result) ? (
         <>
@@ -218,14 +223,16 @@ function PriorityDate() {
   const cur = pd ? isCurrent(pd, cell) : false;
   return (
     <>
-      <Card style={{ marginTop: 18 }}>
+      <TourTarget id="input"><Card style={{ marginTop: 18 }}>
         <SelectField label="Category" value={cat} onChange={setCat} options={cats.map((c) => ({ value: c, label: c }))} />
         <SelectField label="Country of birth" value={ctry} onChange={(v) => setCtry(v as Country)} options={VB_COUNTRIES.map((c) => ({ value: c.value, label: c.label }))} />
         <DateField label="Priority date (from the I-140)" value={pd} onChange={setPd} />
-      </Card>
+      </Card></TourTarget>
       <Card style={{ marginTop: 12, alignItems: 'center' }}>
+        <TourTarget id="result" style={{ alignSelf: 'stretch', alignItems: 'center' }}>
         <T tone="text2" style={font.foot}>{`${chart === 'filing' ? 'Dates for filing' : 'Final action date'} · ${b.data.month}`}</T>
         <BigText size={34} style={{ marginTop: 6, textAlign: 'center', alignSelf: 'stretch' }}>{fmtCell(cell)}</BigText>
+        </TourTarget>
         <View style={{ marginTop: 12 }}>{pd ? (cur ? <Pill severity="good" text="Current — you may be able to file I-485" /> : <Pill severity="review" text="Not current yet" />) : <T tone="text2" style={font.foot}>Add your priority date</T>}</View>
         <View style={{ alignSelf: 'stretch', marginTop: 14, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: useTheme().sep, gap: 4 }}>
           {(['filing', 'final'] as const).map((k) => (
@@ -250,7 +257,7 @@ function VisaBulletin() {
   const stacked = L.width < 400 || L.fontScale > 1.2; // a 4-column table only fits on wide screens at normal text size
   return (
     <>
-      <Segmented options={['Final action', 'Dates for filing']} value={chart} onChange={setChart} />
+      <TourTarget id="picker"><Segmented options={['Final action', 'Dates for filing']} value={chart} onChange={setChart} /></TourTarget>
       {stacked ? (
         <View style={{ gap: 10, marginTop: 14 }}>
           {b.data.rows.map((r) => (
@@ -313,7 +320,7 @@ function Processing() {
     <>
       <FamilyFilings />
       <SectionHeader>All forms</SectionHeader>
-      <Card><SelectField label="Form" value={form} onChange={setForm} options={forms.map((x) => ({ value: x, label: x }))} /></Card>
+      <TourTarget id="form"><Card><SelectField label="Form" value={form} onChange={setForm} options={forms.map((x) => ({ value: x, label: x }))} /></Card></TourTarget>
       <SectionHeader>8 in 10 cases decided within</SectionHeader>
       <Group>{rows.map((r) => <Row key={r.category} title={r.category} titleStyle={font.callout} value={fmtMonths(r.months)} trailing={ours.has(`${r.form}|${r.category}`) ? <Pill severity="info" text="Your family" /> : undefined} />)}</Group>
       <DataFooter live={d.live} asOf={d.live ? undefined : PT_AS_OF} fetchedAt={d.fetchedAt} source={SOURCES.processing} note="Times are USCIS’s published 8-in-10 figures and change monthly." />
@@ -344,14 +351,14 @@ function Wage() {
   return (
     <>
       {err ? <Note tone="amber" actions={<Button size="sm" kind="tint" title="Open flag.dol.gov" onPress={() => openUrl('https://flag.dol.gov/wage-data/wage-search')} />}>{err}</Note> : null}
-      <Card style={{ marginTop: 18 }}>
+      <TourTarget id="search"><Card style={{ marginTop: 18 }}>
         <Field label="Job title" value={q} onChangeText={setQ} placeholder="e.g. Software developer" onBlur={() => q && search()} />
         {socs.length && !soc ? <Chips>{socs.map((x) => <ChipToggle key={x.code} role="button" text={x.title} onPress={() => { setSoc(x); setSocs([]); }} />)}</Chips> : null}
         {soc ? <Chips><ChipToggle on text={`${soc.title} (${soc.code})`} onPress={() => setSoc(undefined)} /></Chips> : null}
         {states.length ? <SelectField label="State" value={st} onChange={setSt} options={states.map((x) => ({ value: x.code, label: x.name }))} /> : null}
         {counties.length ? <SelectField label="County / work area" value={area} onChange={setArea} options={counties.map((x) => ({ value: x.area, label: `${x.county} · ${x.areaName}` }))} /> : null}
         <Field label="Your yearly salary ($)" value={sal} onChangeText={setSal} keyboardType="number-pad" />
-      </Card>
+      </Card></TourTarget>
       {lv ? (
         <>
           <Group style={{ marginTop: 12 }}>{lv.hourly.map((h, i) => <Row key={i} title={`Level ${['I', 'II', 'III', 'IV'][i]}`} value={`$${yearly(h).toLocaleString()}`} trailing={s && lvl === i + 1 ? <Pill severity="good" text="You" /> : undefined} />)}</Group>
@@ -372,10 +379,10 @@ function Fees() {
   const total = lines.reduce((s, l) => s + l.amount, 0);
   return (
     <>
-      <Card style={{ marginTop: 18 }}>
+      <TourTarget id="case"><Card style={{ marginTop: 18 }}>
         <SelectField label="What are you filing?" value={id} onChange={setId} options={FEE_CASES.map((x) => ({ value: x.id, label: x.label, sub: x.group }))} />
         {fc.employer ? <Segmented options={['Large', 'Small', 'Nonprofit']} value={size[0].toUpperCase() + size.slice(1)} onChange={(v) => setSize(v.toLowerCase() as EmployerSize)} /> : null}
-      </Card>
+      </Card></TourTarget>
       <Group style={{ marginTop: 12 }}>
         {lines.map((l) => <Row key={l.label} title={l.label} subtitle={l.note} value={`$${l.amount.toLocaleString()}`} />)}
         <CheckRow title="Add premium processing" checked={premium} onPress={() => setPremium(!premium)} />
@@ -432,7 +439,7 @@ function Employer() {
   const search = () => { if (!q.trim()) return; setErr(undefined); getJSON<{ items: Emp[] }>(`/api/employer?q=${encodeURIComponent(q)}`).then((r) => setItems(r.items.slice(0, 10))).catch(() => setErr('Employer search needs the internet. Showing the built-in top list.')); };
   return (
     <>
-      <Field label="Employer" value={q} onChangeText={setQ} placeholder="Search employers" onBlur={search} />
+      <TourTarget id="search"><Field label="Employer" value={q} onChangeText={setQ} placeholder="Search employers" onBlur={search} /></TourTarget>
       <View style={{ marginTop: 10 }}><Button size="sm" kind="tint" icon="search" title="Search" onPress={search} /></View>
       {err ? <Note tone="amber">{err}</Note> : null}
       {items ? items.map((e) => {
@@ -522,7 +529,7 @@ function Civics({ setFoot }: { setFoot: (n: React.ReactNode) => void }) {
   const done = i >= qs.length;
   const t = useTheme();
   useEffect(() => {
-    setFoot(done ? <Button title="Practise again" onPress={() => { setRound(round + 1); setI(0); setA(null); setResults([]); }} /> : <Button title={i === qs.length - 1 ? 'See my score' : 'Next question'} disabled={a === null} onPress={() => { setI(i + 1); setA(null); }} />);
+    setFoot(done ? <Button title="Practise again" onPress={() => { setRound(round + 1); setI(0); setA(null); setResults([]); }} /> : <TourTarget id="next" style={{ flex: 1 }}><Button title={i === qs.length - 1 ? 'See my score' : 'Next question'} disabled={a === null} onPress={() => { setI(i + 1); setA(null); }} /></TourTarget>);
   }, [setFoot, done, a, i, round, qs.length]);
   if (done) {
     const sum = quizSummary(results);
@@ -555,9 +562,9 @@ function Civics({ setFoot }: { setFoot: (n: React.ReactNode) => void }) {
     <>
       <T tone="text2" style={[font.caption, { marginTop: 14 }]}>{`Question ${i + 1} of ${qs.length} · ${right} right so far`}</T>
       <T style={[font.big, { marginTop: 12 }]}>{q.q}</T>
-      <View style={{ gap: 8, marginTop: 8 }} accessibilityRole="radiogroup">
+      <TourTarget id="answers"><View style={{ gap: 8, marginTop: 8 }} accessibilityRole="radiogroup">
         {q.opts.map((o, k) => <AnswerOption key={k} text={o} state={answerState(k, a, q.right)} onPress={() => choose(k)} />)}
-      </View>
+      </View></TourTarget>
       {a !== null ? (
         <View accessibilityLiveRegion="polite" style={{ marginTop: 10 }}>
           <T tone={a === q.right ? 'green' : 'red'} style={[font.headline]}>{a === q.right ? '✓ Correct' : '✕ Not quite'}</T>
@@ -604,8 +611,8 @@ function I9() {
   return (
     <>
       <Hint>Tick what you have. You need one from List A, or one from B and one from C.</Hint>
-      {list(A, 'a', 'List A · identity and work')}{list(B, 'b', 'List B · identity')}{list(C, 'c', 'List C · work')}
-      <Note tone={ok ? 'green' : 'amber'}>{ok ? 'This works for the I-9.' : 'Not enough yet. Add one from List A, or one each from B and C.'}</Note>
+      <TourTarget id="lists">{list(A, 'a', 'List A · identity and work')}</TourTarget>{list(B, 'b', 'List B · identity')}{list(C, 'c', 'List C · work')}
+      <TourTarget id="result"><Note tone={ok ? 'green' : 'amber'}>{ok ? 'This works for the I-9.' : 'Not enough yet. Add one from List A, or one each from B and C.'}</Note></TourTarget>
       <DataFooter source={SOURCES.i9} />
     </>
   );
