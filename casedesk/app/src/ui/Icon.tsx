@@ -24,6 +24,7 @@ const MAP: Record<string, [string, Ion]> = {
   gear: ['gearshape', 'settings-outline'], news: ['newspaper', 'newspaper-outline'], bulb: ['lightbulb', 'bulb-outline'],
   up: ['arrow.up', 'arrow-up'], chat: ['bubble.left.and.bubble.right', 'chatbubbles-outline'], more: ['ellipsis', 'ellipsis-horizontal'], block: ['hand.raised', 'hand-left-outline'], // Community
   down: ['arrow.down', 'arrow-down'], comment: ['bubble.left', 'chatbubble-outline'], bookmark: ['bookmark', 'bookmark-outline'], bookmarkOn: ['bookmark.fill', 'bookmark'], reply: ['arrowshape.turn.up.left', 'arrow-undo-outline'], repost: ['arrow.2.squarepath', 'repeat'], send: ['paperplane.fill', 'send'], chevD: ['chevron.down', 'chevron-down'], link: ['link', 'link-outline'], // Community v2.7
+  pinned: ['pin.fill', 'pin'], seal: ['checkmark.seal.fill', 'shield-checkmark'], // v2.9 pinned Welcome post
   backup: ['externaldrive.badge.icloud', 'cloud-upload-outline'], restore: ['arrow.counterclockwise.icloud', 'cloud-download-outline'],
 };
 

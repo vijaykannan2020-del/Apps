@@ -458,8 +458,15 @@ export function Button({ title, onPress, kind = 'primary', icon, busy, disabled,
   );
 }
 /** Round-square icon button (the mock's + in the header): outlined, or filled = primary. */
-export function IconButton({ icon, label, onPress, filled, pastel }: { icon: string; label: string; onPress: () => void; filled?: boolean; pastel?: PastelTone }) {
+export function IconButton({ icon, label, onPress, filled, pastel, plain }: { icon: string; label: string; onPress: () => void; filled?: boolean; pastel?: PastelTone; plain?: boolean }) {
   const t = useTheme();
+  // plain: a bare toolbar glyph (iOS large-title bar / M3 top app bar action), 44 pt square
+  if (plain) return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} hitSlop={2}
+      style={({ pressed }) => ({ width: MIN_TOUCH, height: MIN_TOUCH, borderRadius: MIN_TOUCH / 2, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
+      <Icon name={icon} size={22} color={t.text} />
+    </Pressable>
+  );
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} hitSlop={4}
       style={({ pressed }) => ({ width: 46, height: 46, borderRadius: 17, backgroundColor: pastel ? t.pastel[pastel] : filled ? t.primary : 'transparent', borderWidth: filled || pastel ? 0 : 1.5, borderColor: t.outline, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
@@ -476,12 +483,63 @@ export function LinkButton({ title, onPress, align = 'right' }: { title: string;
 }
 
 // ---------- choice controls ----------
-export function ChipToggle({ text, on, onPress, role = 'radio' }: { text: string; on?: boolean; onPress?: () => void; role?: 'radio' | 'checkbox' | 'button' }) {
+export function ChipToggle({ text, on, onPress, role = 'radio', size }: { text: string; on?: boolean; onPress?: () => void; role?: 'radio' | 'checkbox' | 'button'; size?: 'sm' }) {
   const t = useTheme();
+  if (size === 'sm') return <SmallChip text={text} on={on} onPress={onPress} role={role} />;
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={role} accessibilityState={{ checked: role !== 'button' ? !!on : undefined, selected: !!on }} accessibilityLabel={text}
       style={({ pressed }) => ({ minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: 999, backgroundColor: on ? (t.onPastel ? t.primary : t.chipOn) : t.onPastel ? t.fill : t.dark ? t.card2 : '#E4E5E9', justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}>
       <Text style={{ color: on ? (t.onPastel ? t.onPrimary : t.onChipOn) : t.text, fontSize: 15, fontWeight: '600' }}>{text}</Text>
+    </Pressable>
+  );
+}
+/**
+ * v2.9 filter chip: 32 pt tall (44 pt hit area). iOS: a filled capsule, the selected one in the brand
+ * chip colour. Android: a Material 3 filter chip — 8 dp corners, outlined, a check and the secondary
+ * container when selected.
+ */
+function SmallChip({ text, on, onPress, role }: { text: string; on?: boolean; onPress?: () => void; role: 'radio' | 'checkbox' | 'button' }) {
+  const t = useTheme();
+  const m3 = listOS() === 'android' && !t.onPastel;
+  const r = m3Roles(t);
+  const bg = m3 ? (on ? r.secondaryContainer : 'transparent') : on ? (t.onPastel ? t.primary : t.chipOn) : t.onPastel ? t.fill : t.dark ? t.card2 : '#E4E5E9';
+  const fg = m3 ? (on ? r.onSecondaryContainer : t.text2) : on ? (t.onPastel ? t.onPrimary : t.onChipOn) : t.text;
+  return (
+    <Pressable onPress={onPress} disabled={!onPress} hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }} accessibilityRole={role} accessibilityState={{ checked: role !== 'button' ? !!on : undefined, selected: !!on }} accessibilityLabel={text}
+      style={({ pressed }) => ({ height: 32, flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: m3 && on ? 8 : 12, paddingRight: 12, borderRadius: m3 ? 8 : 16, backgroundColor: bg, borderWidth: m3 && !on ? 1 : 0, borderColor: t.outline, opacity: pressed ? 0.75 : 1 })}>
+      {m3 && on ? <Icon name="check" size={16} color={fg} weight="semibold" /> : null}
+      <Text numberOfLines={1} style={{ color: fg, fontSize: 14, fontWeight: on ? '600' : '500', letterSpacing: m3 ? 0.1 : -0.1 }}>{text}</Text>
+    </Pressable>
+  );
+}
+/**
+ * ONE horizontally scrolling row of filters that never wraps. The scroll area runs to the screen edge
+ * (content keeps the page margin) so chips slide out under the edge instead of stopping short.
+ * `lead`: a control that stays put at the start of the row (e.g. a sort menu button).
+ */
+export function ChipRow({ children, lead, style }: { children: React.ReactNode; lead?: React.ReactNode; style?: ViewStyle }) {
+  const L = useLayout();
+  const t = useTheme();
+  // phones: run to the screen edge; wide screens (centred column): stop at the column edge
+  const bleed = L.wide ? 0 : L.side;
+  return (
+    <View style={[{ flexDirection: 'row', alignItems: 'center', marginTop: 12, marginHorizontal: -bleed }, style]}>
+      {lead ? <View style={{ paddingLeft: bleed, paddingRight: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>{lead}<View style={{ width: StyleSheet.hairlineWidth, height: 20, backgroundColor: t.sep }} /></View> : null}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }}
+        contentContainerStyle={{ gap: 8, paddingLeft: lead ? 0 : bleed, paddingRight: bleed, paddingVertical: 6, alignItems: 'center' }}>{children}</ScrollView>
+    </View>
+  );
+}
+/** A compact menu button (sort): "Hot ⌄". 32 pt tall, 44 pt hit area. */
+export function MenuButton({ title, label, onPress, icon }: { title: string; label: string; onPress: () => void; icon?: string }) {
+  const t = useTheme();
+  const m3 = listOS() === 'android';
+  return (
+    <Pressable onPress={onPress} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="button" accessibilityLabel={label} accessibilityHint="Opens a menu"
+      style={({ pressed }) => ({ height: 32, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, borderRadius: m3 ? 8 : 16, borderWidth: 1, borderColor: t.outline, opacity: pressed ? 0.7 : 1 })}>
+      {icon ? <Icon name={icon} size={15} color={t.text} /> : null}
+      <Text numberOfLines={1} style={{ color: t.text, fontSize: 14, fontWeight: '600' }}>{title}</Text>
+      <Icon name="chevD" size={13} color={t.text2} weight="semibold" />
     </Pressable>
   );
 }
@@ -513,9 +571,10 @@ export function CheckRow({ title, checked, onPress }: { title: string; checked: 
   );
 }
 
-export function Segmented({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
+export function Segmented({ options, value, onChange, compact }: { options: string[]; value: string; onChange: (v: string) => void; compact?: boolean }) {
   const t = useTheme();
   const L = useLayout();
+  if (compact && L.fontScale <= 1.35) return <CompactSegmented options={options} value={value} onChange={onChange} />;
   // Large text or a narrow screen: stack the segments instead of squeezing them (they'd overlap).
   const longest = Math.max(...options.map((o) => o.length));
   const stack = L.fontScale > 1.35 || (options.length > 2 && longest * 9 * L.fontScale * options.length > L.width - 2 * L.side - 40);
@@ -525,6 +584,36 @@ export function Segmented({ options, value, onChange }: { options: string[]; val
         <Pressable key={o} onPress={() => onChange(o)} accessibilityRole="tab" accessibilityState={{ selected: o === value }} accessibilityLabel={o}
           style={{ flex: stack ? undefined : 1, minHeight: MIN_TOUCH, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: o === value ? t.primary : 'transparent', paddingHorizontal: 6, paddingVertical: 4 }}>
           <Text style={{ color: o === value ? t.onPrimary : t.text2, fontSize: 14, fontWeight: '600', textAlign: 'center' }}>{o}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+/** v2.9 compact segmented control: iOS 32 pt (2 pt inset, 7 pt corners); Android a Material 3 segmented
+ *  button (40 dp, outlined, check on the selected one). The hit area is always 44 pt. */
+function CompactSegmented({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
+  const t = useTheme();
+  if (listOS() === 'android') {
+    const r = m3Roles(t);
+    return (
+      <View accessibilityRole="tablist" style={{ flexDirection: 'row', height: 40, borderRadius: 20, borderWidth: 1, borderColor: t.outline, overflow: 'hidden', marginTop: 8 }}>
+        {options.map((o, i) => (
+          <Pressable key={o} onPress={() => onChange(o)} hitSlop={{ top: 2, bottom: 2 }} accessibilityRole="tab" accessibilityState={{ selected: o === value }} accessibilityLabel={o}
+            style={{ flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: o === value ? r.secondaryContainer : 'transparent', borderLeftWidth: i ? 1 : 0, borderColor: t.outline, paddingHorizontal: 8 }}>
+            {o === value ? <Icon name="check" size={16} color={r.onSecondaryContainer} weight="semibold" /> : null}
+            <Text numberOfLines={1} style={{ color: o === value ? r.onSecondaryContainer : t.text, fontSize: 14, fontWeight: '600' }}>{o}</Text>
+          </Pressable>
+        ))}
+      </View>
+    );
+  }
+  return (
+    <View accessibilityRole="tablist" style={{ flexDirection: 'row', height: 32, backgroundColor: t.onPastel ? t.fill : t.dark ? t.card2 : '#E4E5E9', borderRadius: 9, padding: 2, marginTop: 8 }}>
+      {options.map((o) => (
+        <Pressable key={o} onPress={() => onChange(o)} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="tab" accessibilityState={{ selected: o === value }} accessibilityLabel={o}
+          style={{ flex: 1, borderRadius: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: o === value ? (t.dark ? '#5A5B60' : '#FFFFFF') : 'transparent', paddingHorizontal: 6, ...(o === value && !t.dark ? { shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 } : {}) }}>
+          <Text numberOfLines={1} style={{ color: t.text, fontSize: 13.5, fontWeight: o === value ? '600' : '500' }}>{o}</Text>
         </Pressable>
       ))}
     </View>
