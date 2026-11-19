@@ -7,6 +7,7 @@
 // defensive (wrapped `data` or flat objects, arrays, missing fields, renamed fields).
 import type { Case, CaseStatus, DocType, Document } from './model';
 import { decodeEvent, eventLabel, PUBLIC_KINDS, type CodeKind } from './myuscisCodes';
+import { fmt } from './dates';
 
 // ---------- links ----------
 export const MYUSCIS_ACCOUNT_URL = 'https://my.uscis.gov/account';
@@ -502,7 +503,7 @@ export function diffSnapshots(prev: MySnapshot | undefined, next: MySnapshot): D
       const k = partOf(src);
       const a = stamps[src]?.updatedAt, b = next.stamps[src]?.updatedAt;
       if (next.parts.includes(k) && a && b && b > a && changedStamp(a, b)) {
-        ch.push({ kind: 'silent', src, text: `Silent update on ${day(b)} — USCIS touched your case without a public status change`, date: b });
+        ch.push({ kind: 'silent', src, text: `Silent update on ${fmt(day(b))} — USCIS touched your case without a public status change`, date: b });
         break;
       }
     }

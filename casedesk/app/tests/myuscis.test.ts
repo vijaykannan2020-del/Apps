@@ -149,7 +149,7 @@ test('silent update: updatedAt moved, no public event, no status change', () => 
   const s2 = snapOf([ok(parseMyuscis(JSON.stringify(touched)))], s1, '2026-06-11T08:00:00.000Z');
   const d = diffSnapshots(s1, s2);
   assert.ok(d.silent); assert.equal(d.silent!.at, '2026-06-10T15:30:00.000Z');
-  assert.match(d.changes[0].text, /^Silent update on 2026-06-10 — USCIS touched your case without a public status change$/);
+  assert.match(d.changes[0].text, /^Silent update on Jun 10, 2026 — USCIS touched your case without a public status change$/);
   // non-public event (background check) + timestamp → still silent
   const s3 = snapOf([ok(parseMyuscis(JSON.stringify(caseJSON({ updatedAt: '2026-06-20T09:00:00.000Z', events: [...(caseJSON().data.events as any[]), { eventCode: 'FTA1', eventDateTime: '2026-06-20' }] }))))], s2);
   const d3 = diffSnapshots(s2, s3);

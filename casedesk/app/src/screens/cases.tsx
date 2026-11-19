@@ -15,6 +15,8 @@ import { ExpectCard } from './expect';
 import { CachedStatus } from './myuscisSync';
 import { useSyncState } from '../data/myuscis';
 import { isIOE } from '../core/myuscis';
+import { webViewAvailable } from '../native/webview';
+const syncIOE = (r?: string) => isIOE(r) && webViewAvailable();
 
 const inDays = (n: number) => (n < 0 ? `${-n} day${n === -1 ? '' : 's'} ago` : n === 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`);
 
@@ -121,10 +123,10 @@ export function CaseBody({ id }: { id: string }) {
           <SectionHeader>Check status</SectionHeader>
           <CachedStatus view={c} compact />
           <TourTarget id="sync"><Card style={{ marginTop: 12 }}>
-            <T style={font.headline}>{isIOE(c.receipt) ? 'Sync with myUSCIS' : 'Status & sync'}</T>
-            <T tone="text2" style={[font.foot, { marginTop: 4 }]}>{isIOE(c.receipt) ? 'Filed online: sign in on USCIS’s page in the app and read your case history, notices and silent updates. Experimental.' : 'Check the public status in the app, paste the myUSCIS case page, and see changes since your last check.'}</T>
-            <View style={{ marginTop: 10 }}><Button block icon={isIOE(c.receipt) ? 'lock' : 'refresh'} title={isIOE(c.receipt) ? 'Sync with myUSCIS' : 'Status & sync'} onPress={() => go('/case/sync', isIOE(c.receipt) ? { id: c.id, start: 'myuscis' } : { id: c.id })} /></View>
-            {isIOE(c.receipt) ? <View style={{ marginTop: 8 }}><Button block kind="ghost" title="More ways to check" onPress={() => go('/case/sync', { id: c.id })} /></View> : null}
+            <T style={font.headline}>{syncIOE(c.receipt) ? 'Sync with myUSCIS' : 'Status & sync'}</T>
+            <T tone="text2" style={[font.foot, { marginTop: 4 }]}>{syncIOE(c.receipt) ? 'Filed online: sign in on USCIS’s page in the app and read your case history, notices and silent updates. Experimental.' : 'Check the public status in the app, paste the myUSCIS case page, and see changes since your last check.'}</T>
+            <View style={{ marginTop: 10 }}><Button block icon={syncIOE(c.receipt) ? 'lock' : 'refresh'} title={syncIOE(c.receipt) ? 'Sync with myUSCIS' : 'Status & sync'} onPress={() => go('/case/sync', syncIOE(c.receipt) ? { id: c.id, start: 'myuscis' } : { id: c.id })} /></View>
+            {syncIOE(c.receipt) ? <View style={{ marginTop: 8 }}><Button block kind="ghost" title="More ways to check" onPress={() => go('/case/sync', { id: c.id })} /></View> : null}
           </Card></TourTarget>
           <Card style={{ marginTop: 12 }}>
             {['Copy the receipt number', 'Safari opens uscis.gov — paste it and tap Check Status', 'Copy what the page says, tap Done, then “Paste what USCIS says”'].map((x, i) => (

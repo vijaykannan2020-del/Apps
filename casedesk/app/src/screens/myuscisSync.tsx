@@ -29,6 +29,7 @@ import {
 } from '../core/myuscisWeb';
 import { dismissNotice, lastSnap, liveCheck, markSeen, readRaw, saveRaw, saveReport, saveSync, scheduleWeekly, setLiveBackground, setPrefs, useCaseSync, useLiveAvailable, useSyncState, type SaveResult } from '../data/myuscis';
 import { webViewModule } from '../native/webview';
+import { eventLabel } from '../core/myuscisCodes';
 import { copy, readClipboard } from '../native/device';
 import { native } from '../native/safe';
 import { readText, share, writeCacheText } from '../native/files';
@@ -164,7 +165,7 @@ export function CachedStatus({ view, compact }: { view: CaseView; compact?: bool
   return (
     <Card style={compact ? { marginTop: 12 } : undefined}>
       <T tone="text2" style={font.foot}>{`From ${rec?.lastSource === 'egov' ? 'uscis.gov' : rec?.lastSource === 'live' ? 'Live check' : 'myUSCIS'} · synced ${when(rec?.lastAt)}`}</T>
-      <T style={[font.headline, { marginTop: 4 }]}>{snap.status ?? (snap.events.length ? snap.events[snap.events.length - 1].text : 'Synced')}</T>
+      <T style={[font.headline, { marginTop: 4 }]}>{snap.status ?? (snap.events.length ? eventLabel(snap.events[snap.events.length - 1]) : 'Synced')}</T>
       {snap.updatedAt ? <T tone="text2" style={[font.foot, { marginTop: 2 }]}>{`USCIS last updated the case ${fmt(snap.updatedAt.slice(0, 10))}`}</T> : null}
       {ch ? (
         <View style={{ marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: tint(ch.silentAt ? t.amber : t.accent, 0.14) }}>
