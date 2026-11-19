@@ -122,6 +122,7 @@ export function CommunityFeedScreen({ backTitle = 'Back', tabRoot }: { backTitle
   const actions = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
       <IconButton plain icon="search" label="Search posts" onPress={() => (searching ? closeSearch() : setSearching(true))} />
+      {tabRoot ? <IconButton plain icon="edit" label="New post" onPress={compose} /> : null}
       {user ? (
         <View>
           <IconButton plain icon="bell" label={user.unread ? `Notifications, ${user.unread} new` : 'Notifications'} onPress={() => go('/community/notifications')} />
@@ -142,12 +143,13 @@ export function CommunityFeedScreen({ backTitle = 'Back', tabRoot }: { backTitle
       ListHeaderComponent={tabRoot ? <><LargeTitle title="Community" right={<View style={{ flexDirection: 'row', alignItems: 'center' }}><TourButton />{actions}</View>} />{header}</> : header}
       ListEmptyComponent={empty ?? undefined}
       ListFooterComponent={more ? <View style={{ paddingVertical: 16 }}><Spinner /></View> : starters ?? (posts?.length && !next ? <Hint center style={{ marginTop: 16 }}>You’re all caught up.</Hint> : undefined)}
-      onEndReached={loadMore} onEndReachedThreshold={0.6} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}
+      onEndReached={loadMore} onEndReachedThreshold={0.6} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="automatic"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.text2} colors={[t.text]} />}
     />
   );
   const newPost = <Button icon="edit" title="New post" onPress={compose} />;
-  // Tab root: no nav bar and no footer bar — the kit leaves room for the system tab bar under the content, so the button row sits right above it.
-  if (tabRoot) return <Screen tour={tour} scroll={false} tabRoot>{list}<View style={{ flexDirection: 'row', paddingTop: 10 }}>{newPost}</View></Screen>;
+  // Tab root (v2.9): New post is the compose icon in the header (iOS style), so nothing sits under the
+  // floating tab bar; the list itself scrolls clear of the bar.
+  if (tabRoot) return <Screen tour={tour} scroll={false} tabRoot>{list}</Screen>;
   return <Screen tour={tour} scroll={false} nav={{ title: 'Community', back: backTitle, onBack: back, right: actions }} footer={newPost}>{list}</Screen>;
 }
