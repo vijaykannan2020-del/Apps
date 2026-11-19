@@ -64,6 +64,10 @@ export type PersonRecord = {
   trips: { depart?: string; return?: string; planned: boolean; country?: string }[];
   statusStart?: string;
   docTypes: string[];
+  // v2.9 green card
+  perm?: { caseNumber?: string; filed?: string; certified?: string; expires?: string; employer?: string; docId: string };
+  medical?: { signed?: string; docId: string };
+  gcOnEad?: boolean; // I-485 pending and the person chose to work on the EAD (C9) instead of H / L status
 };
 
 // ---------- class → visa type ----------
@@ -291,10 +295,19 @@ export function deriveRecord(person: Person, allDocs: Document[]): PersonRecord 
   for (const t of facts.trips || []) r.trips.push({ depart: t.depart, return: t.return, planned: t.planned, country: t.country });
   if (!canBeBlanket(r.visa)) r.blanket = false;
 
+  // ---- green card documents (v2.9) ----
+  const perm = latestBy(of('perm'), (d) => d.fields.noticeDate ?? d.fields.priorityDate);
+  if (perm) r.perm = { caseNumber: perm.fields.caseNumber, filed: perm.fields.priorityDate, certified: perm.fields.noticeDate, expires: perm.fields.validTo, employer: perm.fields.employer, docId: perm.id };
+  const med = latestBy(of('medical'), (d) => d.fields.signedDate ?? d.addedAt);
+  if (med) r.medical = { signed: med.fields.signedDate, docId: med.id };
+
   // I-485 pending and no nonimmigrant status still running (no valid I-94): a green-card applicant.
+  // v2.9: also when the person chose to work on the EAD (C9) — the I-94 then no longer decides the stay.
   const i485 = r.cases.some((x) => x.form === 'I-485' && x.status === 'pending');
   const i94Valid = !!r.i94?.ds || (daysTo(r.i94?.until) ?? -1) >= 0;
-  if (i485 && !i94Valid && r.visa !== 'US citizen' && r.visa !== 'Green card' && r.visa !== 'Conditional green card') { r.visa = 'Green card pending'; r.visaFrom = 'ead'; }
+  const notResident = r.visa !== 'US citizen' && r.visa !== 'Green card' && r.visa !== 'Conditional green card';
+  if (i485 && notResident && facts.gc?.workOn === 'ead') { r.visa = 'Green card pending'; r.visaFrom = 'ead'; r.gcOnEad = true; }
+  else if (i485 && !i94Valid && notResident) { r.visa = 'Green card pending'; r.visaFrom = 'ead'; }
   return r;
 }
 

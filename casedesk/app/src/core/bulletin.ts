@@ -9,7 +9,17 @@ export type VisaBulletin = {
   source: string;
   rows: BulletinRow[];
   previous?: { month: string; rows: BulletinRow[] };
+  /** v2.9: earlier months (oldest first), kept by the server from travel.state.gov, for the planner's pace estimate. */
+  history?: { month: string; rows: BulletinRow[] }[];
 };
+
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+/** 'November 2026' → '2026-11-01' (undefined when it isn't a month name and year). */
+export function monthStart(m?: string): string | undefined {
+  const x = (m || '').trim().toLowerCase().match(/^([a-z]+)\s+(\d{4})$/);
+  const i = x ? MONTHS.indexOf(x[1]) : -1;
+  return x && i >= 0 ? `${x[2]}-${String(i + 1).padStart(2, '0')}-01` : undefined;
+}
 
 /** ISO-3 nationality (passport MRZ) → chargeability column. */
 export const countryOf = (nat?: string): BulletinCountry =>

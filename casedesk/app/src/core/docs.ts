@@ -14,8 +14,8 @@ export const FIELDS: Record<DocType, FieldSpec[]> = {
   passport: [T('Legal name', 'name'), T('Passport no.', 'passportNo'), D('Date of birth', 'birthDate'), D('Issued', 'issueDate'), D('Expires', 'validTo')],
   visa: [T('Name on visa', 'name'), T('Class', 'classOfAdmission'), T('Passport no.', 'passportNo'), D('Issued', 'issueDate'), D('Expires', 'validTo')],
   i94: [T('Name', 'name'), T('Class', 'classOfAdmission'), D('Admit until', 'validTo'), D('Most recent entry', 'entryDate'), T('Passport no.', 'passportNo')],
-  approval: [T('Receipt no.', 'receipt'), T('Form', 'form'), T('Class', 'classOfAdmission'), T('Employer', 'employer'), D('Notice date', 'noticeDate'), D('Valid from', 'validFrom'), D('Valid to', 'validTo'), D('Priority date', 'priorityDate')],
-  receipt: [T('Receipt no.', 'receipt'), T('Form', 'form'), D('Received', 'receivedDate'), D('Priority date', 'priorityDate'), T('Employer', 'employer')],
+  approval: [T('Receipt no.', 'receipt'), T('Form', 'form'), T('Class', 'classOfAdmission'), T('Employer', 'employer'), D('Notice date', 'noticeDate'), D('Valid from', 'validFrom'), D('Valid to', 'validTo'), D('Priority date', 'priorityDate'), T('Category', 'preferenceCategory')],
+  receipt: [T('Receipt no.', 'receipt'), T('Form', 'form'), D('Received', 'receivedDate'), D('Priority date', 'priorityDate'), T('Employer', 'employer'), T('Category', 'preferenceCategory')],
   notice: [T('Receipt no.', 'receipt'), T('Form', 'form'), D('Notice date', 'noticeDate'), D('Response due', 'dueDate'), D('Appointment', 'appointmentDate')],
   i129s: [T('Name', 'name'), T('Employer', 'employer'), T('Class', 'classOfAdmission'), D('Valid from', 'validFrom'), D('Valid to', 'validTo')],
   ead: [T('Name', 'name'), T('Category', 'category'), T('Card no.', 'receipt'), D('Valid from', 'validFrom'), D('Valid to', 'validTo')],
@@ -27,6 +27,8 @@ export const FIELDS: Record<DocType, FieldSpec[]> = {
   naturalization: [T('Name', 'name'), T('Certificate no.', 'certificateNo'), D('Naturalized on', 'naturalizedOn')],
   'travel-history': [],
   lca: [D('Valid from', 'validFrom'), D('Valid to', 'validTo')],
+  perm: [T('Case no.', 'caseNumber'), T('Employer', 'employer'), D('Filed (priority date)', 'priorityDate'), D('Certified', 'noticeDate'), D('Expires', 'validTo')],
+  medical: [T('Name', 'name'), D('Civil surgeon signed', 'signedDate')],
   other: [T('Name', 'name'), D('Date', 'validTo')],
 };
 
@@ -89,10 +91,14 @@ export function docNote(d: Document | { type: DocType; fields: DocFields }, ctx:
       return n === null ? undefined : { tone: n < 0 ? 'amber' : 'green', text: `Blanket L period ${n < 0 ? 'ended' : 'to'} ${fmt(f.validTo)}. Carry it with the passport.` };
     case 'receipt':
       if (!f.form || ['I-129', 'I-539'].includes(f.form)) return { tone: 'blue', text: `Pending since ${fmt(f.receivedDate)}. Saved as a case.` };
+      if (f.form === 'I-485') return { tone: 'blue', text: `I-485 pending since ${fmt(f.receivedDate)}. Keep this receipt: it shows the green card application is on file (180 days pending matters for a job change).` };
+      if (f.form === 'I-140') return { tone: 'blue', text: `I-140 filed${f.priorityDate ? ` · priority date ${fmt(f.priorityDate)}` : ''}. Saved as a case.` };
       return { tone: 'blue', text: `${f.form}: just a case. It doesn’t extend the stay.` };
     case 'notice':
       if (f.noticeKind === 'rfe' || f.noticeKind === 'noid') return { tone: 'amber', text: `Response due ${fmt(f.dueDate)}. Missing it can lead to denial.` };
       if (f.noticeKind === 'denial') return { tone: 'red', text: 'Denied. Talk to an attorney about options now.' };
+      if (f.noticeKind === 'interview' && f.appointmentDate) return { tone: (daysTo(f.appointmentDate) ?? -1) >= 0 ? 'amber' : 'blue', text: `Interview ${fmt(f.appointmentDate)}. See Interview prep for what to bring.` };
+      if (f.noticeKind === 'biometrics' && f.appointmentDate) return { tone: 'blue', text: `Biometrics ${fmt(f.appointmentDate)}. Bring this notice and your passport or ID.` };
       return f.appointmentDate ? { tone: 'blue', text: `Appointment ${fmt(f.appointmentDate)}.` } : undefined;
     case 'ead': case 'green-card': case 'advance-parole': case 'reentry-permit':
       if (n === null) return undefined;
@@ -104,6 +110,12 @@ export function docNote(d: Document | { type: DocType; fields: DocFields }, ctx:
       return f.programEnd ? { tone: 'green', text: `Program ends ${fmt(f.programEnd)}.${f.travelSignature ? ` Travel signature ${fmt(f.travelSignature)}.` : ''}` } : undefined;
     case 'travel-history':
       return { tone: 'blue', text: `${f.trips?.length ?? 0} trips read. Days outside the US are counted on the person page.` };
+    case 'perm':
+      if (n === null) return f.noticeDate ? { tone: 'blue', text: `Certified ${fmt(f.noticeDate)}. The I-140 must be filed within 180 days of certification.` } : undefined;
+      if (n < 0) return { tone: 'blue', text: `Certification expired ${fmt(f.validTo)} — fine once the I-140 was filed before then.` };
+      return { tone: 'amber', text: `File the I-140 by ${fmt(f.validTo)} (180 days after certification).` };
+    case 'medical':
+      return { tone: 'blue', text: `${f.signedDate ? `Signed ${fmt(f.signedDate)}. ` : ''}Filed with the I-485 in its sealed envelope; it counts only for that I-485.` };
     default:
       return undefined;
   }
@@ -123,6 +135,7 @@ export function supersededIds(rec: PersonRecord, docs: Document[]): Set<string> 
   latest('ead', (d) => d.fields.validTo);
   latest('green-card', (d) => d.fields.validTo);
   latest('i20', (d) => d.fields.programEnd);
+  latest('medical', (d) => d.fields.signedDate ?? d.addedAt);
   for (const d of mine.filter((x) => x.type === 'i94')) if (rec.i94 && rec.i94.docId !== d.id) out.add(d.id);
   for (const a of rec.approvals) if (a.superseded && !a.upcoming) out.add(a.docId);
   return out;
@@ -135,14 +148,14 @@ export function docBadges(d: { type: DocType; fields: DocFields }): { label: str
     const v = d.fields.validTo ? fmt(d.fields.validTo) : '—';
     return [{ label: 'Work permit until', value: v }, { label: 'Travel document until', value: v }];
   }
-  const spec = FIELDS[d.type].find((s) => s.key === 'validTo') ?? FIELDS[d.type][0];
+  const spec = FIELDS[d.type].find((s) => s.key === 'validTo') ?? (d.type === 'medical' ? FIELDS.medical[1] : FIELDS[d.type][0]);
   return spec ? [{ label: spec.label, value: showField(d.fields, spec) || '—' }] : [];
 }
 
 export const docTitle = (d: { type: DocType; fields: DocFields }) => {
   if (d.type === 'ead' && d.fields.comboAP) return 'Combo card (EAD + travel)';
   if ((d.type === 'receipt' || d.type === 'approval' || d.type === 'notice') && d.fields.form) {
-    const kind = d.type === 'receipt' ? 'receipt' : d.type === 'approval' ? 'approval' : d.fields.noticeKind === 'rfe' ? 'RFE' : d.fields.noticeKind === 'denial' ? 'decision' : 'notice';
+    const kind = d.type === 'receipt' ? 'receipt' : d.type === 'approval' ? 'approval' : d.fields.noticeKind === 'rfe' ? 'RFE' : d.fields.noticeKind === 'denial' ? 'decision' : d.fields.noticeKind === 'interview' ? 'interview notice' : d.fields.noticeKind === 'biometrics' ? 'biometrics notice' : 'notice';
     return `${d.fields.form} ${kind}`;
   }
   return DOC_LABEL[d.type];
