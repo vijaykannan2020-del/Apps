@@ -1,4 +1,8 @@
 // Employment-based Visa Bulletin (Department of State). Built-in copy; the server refreshes it monthly.
+// November 2026 values checked Nov 18, 2026 against two published summaries of the bulletin
+// (travel.state.gov blocks automated reads): cilawgroup.com (Oct 22, 2026) and f1jobs.io. Mexico /
+// Philippines filing dates that equal "All Chargeability" in the bulletin are filled in; cells the
+// summaries didn't give stay null (shown as —) and are listed in STORE.md → Data to confirm.
 import type { BulletinCountry, VisaBulletin } from '../core/bulletin';
 export type Country = BulletinCountry;
 export const COUNTRIES: { value: Country; label: string }[] = [
@@ -20,17 +24,17 @@ export const BULLETIN: Bulletin = {
     {
       cat: 'EB-1', label: 'Priority workers',
       final: { all: 'C', china: '2023-08-01', india: '2023-02-01', mexico: 'C', philippines: 'C' },
-      filing: { all: 'C', china: '2024-07-01', india: '2024-07-01', mexico: null, philippines: null },
+      filing: { all: 'C', china: '2024-07-01', india: '2024-07-01', mexico: 'C', philippines: 'C' },
     },
     {
       cat: 'EB-2', label: 'Advanced degree',
       final: { all: '2025-04-01', china: '2021-10-01', india: '2013-11-01', mexico: '2025-04-01', philippines: '2025-04-01' },
-      filing: { all: '2026-03-15', china: '2023-01-01', india: '2015-01-15', mexico: null, philippines: null },
+      filing: { all: '2026-03-15', china: '2023-01-01', india: '2015-01-15', mexico: '2026-03-15', philippines: '2026-03-15' },
     },
     {
       cat: 'EB-3', label: 'Skilled workers & professionals',
       final: { all: '2024-06-15', china: '2022-01-22', india: '2014-01-22', mexico: '2024-06-15', philippines: '2023-08-15' },
-      filing: { all: '2024-08-01', china: '2024-04-01', india: '2015-01-15', mexico: null, philippines: null },
+      filing: { all: '2024-08-01', china: '2024-04-01', india: '2015-01-15', mexico: null, philippines: '2024-01-01' },
     },
     {
       cat: 'EB-3 OW', label: 'Other workers',
