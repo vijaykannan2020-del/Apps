@@ -37,7 +37,7 @@ export const HELP: HelpTopic[] = [
     id: 'cases', title: 'Adding a case and checking USCIS', sub: 'Copy the receipt → Safari → copy the result → paste back',
     body: [
       'A receipt notice (I-797C) adds a case automatically. You can also add one by hand: Cases → +, then type the 13-character receipt number.',
-      'Immigration Wallet never logs in to USCIS or reads the site for you. Instead it makes the official check quick:',
+      'Immigration Wallet never signs in to USCIS for you. The quickest ways are on the case page → Status & sync (see “myUSCIS sync”). Checking in Safari still works like this:',
     ],
     steps: [
       'Open the case and tap “Copy number & open uscis.gov”. The receipt number is copied.',
@@ -45,6 +45,20 @@ export const HELP: HelpTopic[] = [
       'Select the status heading and the sentence under it, and tap Copy.',
       'Tap Done to come back. Tap “Paste what USCIS says” — Immigration Wallet reads the status, date and form and updates the case, its history and key dates.',
     ],
+  },
+  {
+    id: 'myuscis-sync', title: 'myUSCIS sync and case status', sub: 'Silent updates, history and notices — on this phone',
+    body: [
+      'Open a case → Status & sync. Every way of checking saves a snapshot on this phone. The latest one shows as the case status (“From myUSCIS · synced …”), even offline, with the changes since the sync before.',
+      'Sync with myUSCIS (sign in here) — Experimental, for cases filed online (IOE): myUSCIS opens inside the app. You sign in on USCIS’s own page; the app never reads, stores or fills in your password or codes. Once you’re signed in, the app reads your case history, status notice, location and notices once, then forgets the sign-in.',
+      'Check public status in the app: uscis.gov opens with your receipt filled in. You tap Check Status and the result is saved. Safari + paste still works too.',
+      'Paste or import: the text of the myUSCIS case page (status, case history, documents), a uscis.gov result, or a myUSCIS JSON answer (.json or .txt file).',
+      'Silent update: USCIS changed your case record (its last-updated date moved) without a new public status. It often means someone worked on the case, but it doesn’t tell you what.',
+      'myUSCIS sometimes answers with no data (“data: null”). That happens when the case isn’t linked to the account you’re signed into (an employer or attorney filed it), when the session expired, for very new or archived cases — and often when a link is opened directly. Try the public status instead.',
+      'Event codes like IAF or FTA0 are internal and undocumented. The meanings shown are an informal reading from public write-ups and may be wrong; “Likely” marks the uncertain ones. Immigration Wallet is not affiliated with USCIS.',
+      'Notices myUSCIS lists become a checklist: tap one to add the PDF or a photo to the wallet. A weekly reminder (Saturday) nudges you to check open cases — turn it off on the Status & sync page.',
+    ],
+    steps: ['Cases → a case → Status & sync', 'Pick Sync with myUSCIS, Check public status, or Paste', 'Read Changes since last sync and the History'],
   },
   {
     id: 'citizenship', title: 'Citizenship test', sub: 'Practise the civics questions',
@@ -74,7 +88,7 @@ export const HELP: HelpTopic[] = [
     body: [
       'Documents are read and stored only on this phone. No account is needed, and there are no ads and no tracking.',
       'Community Q&A is the one optional exception: to post you sign in with Apple, and only a made-up display name and what you type into questions and answers is stored on the Immigration Wallet server. Delete it any time in Community → Account.',
-      'Immigration Wallet never logs in to USCIS, CBP or SEVP. Updates, the Visa Bulletin and processing times come from the Immigration Wallet server or a built-in copy — nothing about you is sent.',
+      'Immigration Wallet never signs in to USCIS, CBP or SEVP for you. Case status syncs (myUSCIS in the app, uscis.gov in the app, pasted text) are read and saved only on this phone; your myUSCIS password never touches the app and the sign-in isn’t kept. Live check, when it is offered and you turn it on, sends only the receipt number to the Immigration Wallet server to ask USCIS — not stored or logged. Updates, the Visa Bulletin and processing times come from the Immigration Wallet server or a built-in copy — nothing about you is sent.',
       'Turn on Face ID in Settings to lock the app and hide documents in the app switcher.',
     ],
   },
