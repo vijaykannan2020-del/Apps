@@ -49,5 +49,6 @@ export const LICENCES: [string, string][] = [
   ['react-native-webview', 'MIT'],
   ['PdfBox-Android (Android PDF text)', 'Apache-2.0'],
   ['Google ML Kit text recognition (Android, on device)', 'Google ML Kit terms'],
+  ['BIP-39 English word list (share codes)', 'MIT'],
 ];
 export const LICENCE_NOTE = 'MIT and Apache-2.0 licences allow use, copying and changes as long as the copyright and licence notices are kept. Apple Vision and SF Symbols are part of iOS.';
