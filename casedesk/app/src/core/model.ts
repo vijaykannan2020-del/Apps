@@ -259,6 +259,11 @@ export type Settings = {
   helpSeen?: string[]; // first-time help cards dismissed (home, family, cases, tools, settings)
   updatesDismissed?: string[]; // update alerts dismissed or opened (news ids)
   icloudAsk?: boolean; // after a restore: ask "Turn on iCloud backup on this phone?"
+  toursSeen?: string[]; // first-visit tips already shown (screen ids)
+  toursOff?: boolean; // "Skip all tips"
+  notifAskedAt?: string; // when the notification explainer was shown
+  alerts?: { cases?: boolean; bulletin?: boolean; docs?: boolean }; // which alerts (default all on)
+  bulletinSeen?: string; // last Visa Bulletin month the app saw (for the new-bulletin alert)
   icloud?: { on: boolean; wifiOnly: boolean; lastAt?: string; lastError?: string; lastAttemptAt?: string; failures?: number }; // iCloud automatic backup (v2.2)
 };
 

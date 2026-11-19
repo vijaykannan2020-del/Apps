@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary, SheetProvider, ThemeProvider, ToastProvider, useTheme } from '../src/ui';
 import { FamilyProvider, useFamily } from '../src/data/FamilyProvider';
 import { AppLock } from '../src/screens/lock';
+import { Tours } from '../src/screens/tours';
 import { native } from '../src/native/safe';
 import { diag, startDiag } from '../src/native/diag';
 startDiag().catch(() => {});
@@ -66,9 +67,11 @@ export default function Root() {
           <Themed>
             <ToastProvider>
               <AppLock>
-                <SheetProvider>
-                  <Nav />
-                </SheetProvider>
+                <Tours>
+                  <SheetProvider>
+                    <Nav />
+                  </SheetProvider>
+                </Tours>
               </AppLock>
             </ToastProvider>
           </Themed>

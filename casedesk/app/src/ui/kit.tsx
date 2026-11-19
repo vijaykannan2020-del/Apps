@@ -14,6 +14,7 @@ import type { Severity } from '../core/rules/types';
 import { fmt, isISO } from '../core/dates';
 
 import { WEB_TEXT_SCALE } from './theme';
+import { TourButton, TourScope, type Tour } from './tour';
 
 /** Text that also follows the web preview's simulated text size (phones use Dynamic Type natively). */
 function Text(props: TextProps) {
@@ -165,7 +166,7 @@ export function Footer({ children, column }: { children: React.ReactNode; column
  * the left column (list) stays put while the right one (detail) scrolls on its own. On phones the
  * panes are one normal scrolling page: left, then right.
  */
-export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard, padTop = true, wide, panes, paneRatio = 1 }: { nav?: NavProps; footer?: React.ReactNode; children?: React.ReactNode; scroll?: boolean; tabRoot?: boolean; keyboard?: boolean; padTop?: boolean; wide?: boolean; panes?: { left: React.ReactNode; right: React.ReactNode }; paneRatio?: number }) {
+export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard, padTop = true, wide, panes, paneRatio = 1, tour }: { nav?: NavProps; footer?: React.ReactNode; children?: React.ReactNode; scroll?: boolean; tabRoot?: boolean; keyboard?: boolean; padTop?: boolean; wide?: boolean; panes?: { left: React.ReactNode; right: React.ReactNode }; paneRatio?: number; tour?: Tour }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const L = useLayout();
@@ -182,12 +183,13 @@ export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard
   ) : <View style={[{ flex: 1 }, inner]}>{children}</View>;
   const content = (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingLeft: insets.left, paddingRight: insets.right }}>
-      {nav ? <NavBar {...nav} /> : null}
+      {nav ? <NavBar {...nav} right={tour && tour.steps.length ? <View style={{ flexDirection: 'row', alignItems: 'center' }}><TourButton tour={tour} />{nav.right}</View> : nav.right} /> : null}
       {body}
       {footer ? <Footer>{footer}</Footer> : null}
     </View>
   );
-  return keyboard && Platform.OS === 'ios' ? <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: t.bg }}>{content}</KeyboardAvoidingView> : content;
+  const scoped = tour ? <TourScope tour={tour}>{content}</TourScope> : content;
+  return keyboard && Platform.OS === 'ios' ? <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: t.bg }}>{scoped}</KeyboardAvoidingView> : scoped;
 }
 
 // ---------- surfaces ----------
