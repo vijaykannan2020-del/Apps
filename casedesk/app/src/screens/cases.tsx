@@ -7,7 +7,8 @@ import { fmt, daysTo } from '../core/dates';
 import { isPendingCase, type CaseView } from '../core/cases';
 import { useFamily } from '../data/FamilyProvider';
 import { Columns, useLayout, Button, Card, EmptyState, Group, Hint, Icon, IconButton, LargeTitle, LegalLine, Note, Pill, Row, Screen, SectionHeader, T, Timeline, font, useSheet, useTheme, useToast, tint } from '../ui';
-import { back, go } from './common';
+import { asOfText, back, DataFooter, go } from './common';
+import { SOURCES } from '../content/legal';
 import { HelpCard, HelpButton } from './help';
 import { AddCase, AddKeyDate, Confirm, startCaseCheck } from './sheets';
 import { copy } from '../native/device';
@@ -47,11 +48,10 @@ export function CasesTab() {
   });
   const add = () => sheet.open('Add a case', <AddCase />);
   return (
-    <Screen tabRoot wide>
+    <Screen tabRoot wide paneRatio={0.9} panes={{ left: <>
       <LargeTitle title="Cases" right={<IconButton icon="plus" label="Add a case" onPress={add} />} />
       <T tone="text2" style={[font.sub, { marginTop: 2 }]}>Every USCIS form, by person. Pending first.</T>
       <HelpCard tab="cases" />
-      <Columns ratio={0.9} left={<>
       {f.caseList.length ? (
         <>
           {pend.length ? <T a11y="header" style={[font.title2, { marginTop: 24 }]}>{`Pending · ${pend.length}`}</T> : null}
@@ -62,8 +62,7 @@ export function CasesTab() {
       ) : <EmptyState small icon="clock" title="No cases yet" body="Add a receipt number from an I-797C notice." action={{ title: 'Add a case', onPress: add }} />}
       <SectionHeader>Look up</SectionHeader>
       <Group><Row icon="search" onPress={() => go('/tools/lca')} title="LCA / PERM status" subtitle="Look up your employer’s filing with the Department of Labor" /></Group>
-      </>} right={selected ? <View style={{ marginTop: 24 }}><CaseBody id={selected} /></View> : null} />
-    </Screen>
+      </>, right: selected ? <View style={{ marginTop: 4 }}><CaseBody id={selected} /></View> : null }} />
   );
 }
 
@@ -122,6 +121,7 @@ export function CaseBody({ id }: { id: string }) {
                 <T style={[font.callout, { flex: 1 }]}>{x}</T>
               </View>
             ))}
+            <T tone="text2" style={[font.foot, { marginTop: 8 }]}>{c.checkedAt ? `Last checked on uscis.gov: ${asOfText({ live: true, fetchedAt: c.checkedAt }).replace(/^Live · updated /, '')}` : 'Not checked on uscis.gov yet'}</T>
             <Hint>CaseDesk never logs in to USCIS or reads the site for you.</Hint>
             <Button block icon="compass" title="Copy number & open uscis.gov" onPress={() => startCaseCheck(c, sheet.open)} />
           </Card>
@@ -133,6 +133,7 @@ export function CaseBody({ id }: { id: string }) {
         <Button kind="ghost" icon="share" title="Share" onPress={() => Share.share({ message: `${c.form ?? 'Case'} · ${c.name}\nStatus: ${c.status}${c.updated ? ` (updated ${fmt(c.updated)})` : ''}` }).catch(() => {})} />
         <Button kind="danger" icon="trash" title="Delete" onPress={() => sheet.open('Delete this case?', <Confirm body="It’s removed from this phone only. Nothing changes at USCIS." action="Delete" onConfirm={async () => { back(); await f.actions.deleteCase(c); toast('Case deleted'); }} />)} />
       </View>
+      <DataFooter source={SOURCES.caseStatus} note="Case status comes only from what you copy from uscis.gov — CaseDesk doesn’t contact USCIS." />
     </>
   );
 }

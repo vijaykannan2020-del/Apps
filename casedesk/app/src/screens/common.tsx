@@ -11,7 +11,10 @@ import { statusLine } from '../core/rules/status';
 import { fmt } from '../core/dates';
 import { startFlow, type Flow } from '../data/flow';
 import type { FamilyState } from '../data/FamilyProvider';
-import { Button, LegalLine, Row, T, font, severityTone, TONE_WORD } from '../ui';
+import { Pressable } from 'react-native';
+import { Button, Icon, LegalLine, MIN_TOUCH, Row, T, font, severityTone, tint, TONE_WORD, useTheme } from '../ui';
+import { DISCLAIMER, type Source } from '../content/legal';
+import { openUrl } from '../native/device';
 
 /** Typed-route-free navigation helpers. */
 export const go = (path: string, params?: Record<string, string>) => router.push((params ? { pathname: path, params } : path) as never);
@@ -81,4 +84,33 @@ export function runFlow(f: Omit<Flow, 'up' | 'where' | 'misDone'>, fam: FamilySt
   const first = startFlow(f, fam);
   if (!first) { toast?.('Everything is added'); return; }
   go('/flow/step', { pid: first.pid, k: first.k });
+}
+
+/** "as of" line for data screens: live vs built-in copy, the date of the data, when it was fetched. */
+export function asOfText(o: { live?: boolean; asOf?: string; fetchedAt?: string }): string {
+  const fetched = o.fetchedAt ? (() => { try { const d = new Date(o.fetchedAt); return `${fmt(o.fetchedAt.slice(0, 10))} ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`; } catch { return fmt(o.fetchedAt.slice(0, 10)); } })() : undefined;
+  if (o.live) return ['Live', o.asOf ? `data as of ${o.asOf}` : undefined, fetched ? `updated ${fetched}` : undefined].filter(Boolean).join(' · ');
+  return ['Built-in copy', o.asOf ? `data as of ${o.asOf}` : undefined].filter(Boolean).join(' · ');
+}
+
+/** Footer for every government-data screen: as-of line, the official source link, the disclaimer. */
+export function DataFooter({ live, asOf, fetchedAt, source, note }: { live?: boolean; asOf?: string; fetchedAt?: string; source?: Source; note?: string }) {
+  const t = useTheme();
+  return (
+    <View style={{ marginTop: 14, gap: 4 }}>
+      {asOf || live !== undefined ? (
+        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <View style={{ backgroundColor: live ? tint(t.green, t.pillAlpha) : t.fill, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}><T tone={live ? 'green' : 'text2'} style={[font.caption, { fontWeight: '600' }]}>{live ? 'Live' : 'Built-in copy'}</T></View>
+          <T tone="text2" style={[font.caption, { flexShrink: 1 }]}>{asOfText({ live, asOf, fetchedAt }).replace(/^(Live|Built-in copy)( · )?/, '')}</T>
+        </View>
+      ) : null}
+      {note ? <T tone="text2" style={font.caption}>{note}</T> : null}
+      {source ? (
+        <Pressable onPress={() => openUrl(source.url)} accessibilityRole="link" accessibilityLabel={`Official source: ${source.label}`} style={{ flexDirection: 'row', gap: 6, alignItems: 'center', minHeight: MIN_TOUCH }}>
+          <Icon name="globe" size={14} color={t.inkAccent} /><T tone="accent" style={[font.caption, { fontWeight: '500' }]}>{`Official source: ${source.label}`}</T>
+        </Pressable>
+      ) : null}
+      <T tone="text2" style={font.caption}>{DISCLAIMER}</T>
+    </View>
+  );
 }
