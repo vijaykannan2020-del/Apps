@@ -28,7 +28,7 @@ export function CaseRow({ c, who = true, onPick, on }: { c: CaseView; who?: bool
   const nd = c.keyDates.find((k) => (daysTo(k.date) ?? -1) >= 0);
   const name = f.people.find((p) => p.id === c.ownerId)?.name;
   return (
-    <Row icon={on ? 'checkc' : c.status === 'Approved' ? 'check' : 'doc'} iconPastel={c.status === 'Approved' ? 'sage' : c.status === 'RFE' ? 'butter' : c.status === 'Denied' ? 'blush' : 'sky'} onPress={() => (onPick ? onPick(c.id) : go(`/case/${encodeURIComponent(c.id)}`))} chevron={false} trailing={<CaseStatusPill c={c} />}
+    <Row icon={on ? 'checkc' : c.status === 'Approved' ? 'check' : 'doc'} iconPastel={c.status === 'Approved' ? 'good' : c.status === 'RFE' ? 'warn' : c.status === 'Denied' ? 'urgent' : 'sky'} onPress={() => (onPick ? onPick(c.id) : go(`/case/${encodeURIComponent(c.id)}`))} chevron={false} trailing={<CaseStatusPill c={c} />}
       title={<T style={font.body}><T style={[font.body, { fontWeight: '600' }]}>{c.form ?? 'Case'}</T>{` · ${c.name}`}</T>}
       subtitle={`${who && name ? `${name} · ` : ''}${nd ? `${nd.label} ${fmt(nd.date)}` : c.updated ? `Updated ${fmt(c.updated)}` : 'Added by you'}`} />
   );

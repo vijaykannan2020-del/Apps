@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DARK, LIGHT, PASTEL, INK, INK2, contrast, m3Roles, onPastel, tintOf, TONE_PASTEL } from '../src/ui/tokens';
+import { DARK, LIGHT, PASTEL, INK, INK2, COLOUR_THEMES, contrast, m3Roles, onPastel, swatchOf, themeFor, tintOf, TONE_PASTEL } from '../src/ui/tokens';
 
 const AA = 4.5;
 const themes = [['dark', DARK], ['light', LIGHT]] as const;
@@ -67,7 +67,8 @@ test('pastel: chart and status fills show on their background (3:1 non-text), in
 });
 
 test('pastel: colour has one meaning — red urgent = blush, amber attention = butter, green good = sage, info = sky', () => {
-  assert.deepEqual(TONE_PASTEL, { red: 'blush', amber: 'butter', green: 'sage', blue: 'sky', grey: 'sky' });
+  assert.deepEqual(TONE_PASTEL, { red: 'urgent', amber: 'warn', green: 'good', blue: 'sky', grey: 'sky' });
+  assert.deepEqual([DARK.pastel.urgent, DARK.pastel.warn, DARK.pastel.good], [PASTEL.blush, PASTEL.butter, PASTEL.sage]);
   assert.equal(DARK.red, PASTEL.blush); assert.equal(DARK.amber, PASTEL.butter); assert.equal(DARK.green, PASTEL.sageD); assert.equal(DARK.accent, PASTEL.sky);
 });
 
@@ -112,4 +113,60 @@ test('navigation (v2.7): five tabs — Home, Family, Cases, Community, Tools; Se
   assert.match(st, /go\('\/profile'\)/, 'Profile at the top');
   assert.match(st, /appBar: 'android'/, 'Material top app bar on Android');
   assert.doesNotMatch(readFileSync(new URL('../src/screens/profile.tsx', import.meta.url), 'utf8') + home, /\(tabs\)\/settings/);
+});
+
+// ---------- colour themes (Settings → Appearance → Colour) ----------
+const SLOTS = ['sky', 'sage', 'blush', 'butter', 'mint'] as const;
+
+test('colour themes: Pastel (default) plus six families, each in dark and light, same structure', () => {
+  assert.deepEqual(COLOUR_THEMES.map((c) => c.id), ['pastel', 'indigo', 'emerald', 'ocean', 'sunset', 'rose', 'graphite']);
+  assert.equal(themeFor(true), DARK); assert.equal(themeFor(false, 'pastel'), LIGHT);
+  for (const { id } of COLOUR_THEMES) for (const dark of [true, false]) {
+    const t = themeFor(dark, id), base = dark ? DARK : LIGHT;
+    assert.equal(t.colour, id);
+    // structure: page, cards, text, primary button are the base ones
+    for (const k of ['bg', 'card', 'card2', 'text', 'text2', 'text3', 'primary', 'onPrimary', 'ink', 'sep', 'fill'] as const) assert.equal(t[k], base[k], `${id}: ${k}`);
+    // status colours never change with the theme
+    for (const k of ['green', 'amber', 'red', 'inkGreen', 'inkAmber', 'inkRed', 'pos'] as const) assert.equal(t[k], base[k], `${id}: ${k}`);
+    assert.deepEqual([t.pastel.good, t.pastel.warn, t.pastel.urgent, t.pastel.sageD], [PASTEL.sage, PASTEL.butter, PASTEL.blush, PASTEL.sageD], `${id}: status blocks`);
+    assert.ok(swatchOf(id).length >= 2);
+  }
+  // a family changes the brand blocks, and its five tints are different from each other
+  for (const { id } of COLOUR_THEMES.filter((c) => c.id !== 'pastel')) {
+    const t = themeFor(true, id);
+    assert.notEqual(t.pastel.sky, PASTEL.sky, id);
+    assert.equal(new Set(SLOTS.map((k) => t.pastel[k])).size, 5, `${id}: five tints`);
+    assert.equal(themeFor(true, id), t, 'cached: the same object, so nothing re-renders for no reason');
+  }
+});
+
+test('colour themes: AA in every theme — ink on every block, accent text, chips, tab tint; 3:1 for chart fills', () => {
+  for (const { id } of COLOUR_THEMES) for (const dark of [true, false]) {
+    const t = themeFor(dark, id), n = `${id} ${dark ? 'dark' : 'light'}`;
+    for (const k of [...SLOTS, 'good', 'warn', 'urgent'] as const) {
+      const bg = t.pastel[k];
+      assert.ok(contrast(INK, bg) >= 7, `${n}: ink on ${k} ${bg} = ${contrast(INK, bg).toFixed(2)}`);
+      assert.ok(contrast(INK2, bg) >= AA, `${n}: secondary ink on ${k} ${bg} = ${contrast(INK2, bg).toFixed(2)}`);
+      assert.ok(contrast(INK, 'rgba(0,0,0,0.14)', bg) >= AA, `${n}: chip on ${k}`);
+      const p = onPastel(t, bg);
+      for (const fg of [p.text, p.text2, p.inkAccent, p.inkRed]) assert.ok(contrast(fg, bg) >= AA, `${n}: ${fg} inside ${k}`);
+    }
+    for (const bg of [t.bg, t.card, t.card2]) {
+      assert.ok(contrast(t.inkAccent, bg) >= AA, `${n}: accent text on ${bg} = ${contrast(t.inkAccent, bg).toFixed(2)}`);
+      assert.ok(contrast(t.tab, bg) >= AA, `${n}: tab tint on ${bg} = ${contrast(t.tab, bg).toFixed(2)}`);
+    }
+    for (const bg of [t.bg, t.card]) for (const k of ['accent', 'green', 'amber', 'red'] as const) assert.ok(contrast(t[k], bg) >= 3, `${n}: chart fill ${k} on ${bg} = ${contrast(t[k], bg).toFixed(2)}`);
+    assert.ok(contrast(t.onChipOn, t.chipOn) >= 7, `${n}: selected chip`);
+    assert.ok(contrast(t.inkAccent, tintOf(t.accent, t.pillAlpha), t.card) >= AA, `${n}: info pill`);
+    const m = m3Roles(t);
+    assert.ok(contrast(m.onSecondaryContainer, m.secondaryContainer) >= AA, `${n}: Android nav pill = ${contrast(m.onSecondaryContainer, m.secondaryContainer).toFixed(2)}`);
+    assert.ok(contrast(m.onPrimary, m.primary) >= AA, `${n}: on primary`);
+  }
+});
+
+test('colour themes: the picker is in Settings → Appearance, saves to settings and the root applies it', () => {
+  const st = readFileSync(new URL('../src/screens/settings.tsx', import.meta.url), 'utf8');
+  assert.match(st, /<ColourRow \/>/);
+  assert.match(st, /updateSettings\(\{ colour: c\.id \}\)/);
+  assert.match(readFileSync(new URL('../app/_layout.tsx', import.meta.url), 'utf8'), /colour=\{f\.settings\.colour \?\? 'pastel'\}/);
 });

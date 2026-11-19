@@ -423,7 +423,7 @@ export function Button({ title, onPress, kind = 'primary', icon, busy, disabled,
   title: string; onPress: () => void; kind?: 'primary' | 'ghost' | 'tint' | 'danger'; icon?: string; busy?: boolean; disabled?: boolean; size?: 'sm'; grow?: boolean; block?: boolean; label?: string;
 }) {
   const t = useTheme();
-  const bg = kind === 'primary' ? t.primary : kind === 'ghost' ? (t.onPastel ? t.fill : t.dark ? t.card2 : '#E4E5E9') : t.onPastel ? t.fill : kind === 'tint' ? t.pastel.sky : t.pastel.blush;
+  const bg = kind === 'primary' ? t.primary : kind === 'ghost' ? (t.onPastel ? t.fill : t.dark ? t.card2 : '#E4E5E9') : t.onPastel ? t.fill : kind === 'tint' ? t.pastel.sky : t.pastel.urgent;
   const fg = kind === 'primary' ? t.onPrimary : kind === 'ghost' ? t.text : t.ink;
   const sm = size === 'sm';
   return (
@@ -462,8 +462,8 @@ export function ChipToggle({ text, on, onPress, role = 'radio' }: { text: string
   const t = useTheme();
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={role} accessibilityState={{ checked: role !== 'button' ? !!on : undefined, selected: !!on }} accessibilityLabel={text}
-      style={({ pressed }) => ({ minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: 999, backgroundColor: on ? t.primary : t.onPastel ? t.fill : t.dark ? t.card2 : '#E4E5E9', justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}>
-      <Text style={{ color: on ? t.onPrimary : t.text, fontSize: 15, fontWeight: '600' }}>{text}</Text>
+      style={({ pressed }) => ({ minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: 999, backgroundColor: on ? (t.onPastel ? t.primary : t.chipOn) : t.onPastel ? t.fill : t.dark ? t.card2 : '#E4E5E9', justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}>
+      <Text style={{ color: on ? (t.onPastel ? t.onPrimary : t.onChipOn) : t.text, fontSize: 15, fontWeight: '600' }}>{text}</Text>
     </Pressable>
   );
 }

@@ -3,14 +3,14 @@
 // Material 3 preference list under a top app bar with a back arrow. One <SettingsList> draws both.
 // Deep link: casedesk://settings (app/settings.tsx).
 import React, { useEffect } from 'react';
-import { Linking, View } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fmt } from '../core/dates';
 import { RULES_CHECKED } from '../core/rules/catalog';
 import { useFamily } from '../data/FamilyProvider';
 import { canUseBiometrics, authenticate } from '../native/device';
 import { askNotificationPermission } from '../native/reminders';
-import { Avatar, Button, ChipToggle, Chips, Group, LargeTitle, Row, Screen, SectionHeader, Segmented, SettingsList, SheetButtons, Switch, T, Why, font, listOS, useSheet, useToast, TourTarget, useTour } from '../ui';
+import { Avatar, Button, ChipToggle, Chips, Group, LargeTitle, Row, Screen, SectionHeader, Segmented, SettingsList, SheetButtons, Switch, T, Why, font, listOS, useSheet, useTheme, useToast, TourTarget, useTour, COLOUR_THEMES, swatchOf, type ColourTheme } from '../ui';
 import { back, go, LegalFooter, replace, statusLabel } from './common';
 import { useThemeChoice } from './themeChoice';
 import { Confirm } from './sheets';
@@ -61,6 +61,7 @@ export function SettingsScreen() {
           <Row icon={theme.value === 'light' ? 'sun' : 'moon'} iconPastel="butter" title="Appearance">
             <Segmented options={['System', 'Light', 'Dark']} value={theme.value[0].toUpperCase() + theme.value.slice(1)} onChange={(v) => theme.set(v.toLowerCase() as never)} />
           </Row>
+          <ColourRow />
         </Group>
 
         <SectionHeader>Privacy &amp; Face ID</SectionHeader>
@@ -115,6 +116,35 @@ export function SettingsScreen() {
 }
 /** Old name (the Settings tab until v2.6). */
 export const SettingsTab = SettingsScreen;
+
+/** Appearance → Colour: a row of swatches. Tapping one saves it and repaints the app straight away.
+ *  Status colours (good, attention, urgent) are the same in every theme. */
+function ColourRow() {
+  const f = useFamily();
+  const t = useTheme();
+  const cur: ColourTheme = f.settings.colour ?? 'pastel';
+  return (
+    <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <T style={font.callout}>Colour</T>
+        <T tone="text2" style={font.foot}>{COLOUR_THEMES.find((c) => c.id === cur)?.name}</T>
+      </View>
+      <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 6, marginTop: 10, maxWidth: 420 }}>
+        {COLOUR_THEMES.map((c) => {
+          const sw = swatchOf(c.id); const on = c.id === cur;
+          return (
+            <Pressable key={c.id} onPress={() => f.actions.updateSettings({ colour: c.id })} accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={`${c.name} colour`}
+              hitSlop={2} style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: on ? t.text : 'transparent' }}>
+              <View style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexDirection: 'row', flexWrap: 'wrap' }}>
+                {sw.map((x, i) => <View key={i} style={{ width: sw.length === 4 ? 16 : 32, height: 16, backgroundColor: x }} />)}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
 
 function ReminderDefaults() {
   const f = useFamily(); const s = useSheet(); const toast = useToast();

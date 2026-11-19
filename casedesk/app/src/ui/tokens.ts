@@ -10,6 +10,16 @@ export const INK = '#1D2A24';
 /** Secondary text on a pastel block (ink at 78%: still >= 4.5:1 on sage, blush, butter, sky, mint). */
 export const INK2 = 'rgba(29,42,36,0.78)';
 
+/**
+ * Colour themes (Settings → Appearance → Colour). Pastel is the default four-pastel look. The six
+ * others keep the SAME structure and only swap the brand / identity / information blocks for soft
+ * tints of one colour family. Status colours (good, warn, urgent) never change with the theme.
+ */
+export type ColourTheme = 'pastel' | 'indigo' | 'emerald' | 'ocean' | 'sunset' | 'rose' | 'graphite';
+/** The blocks a screen can use: five identity slots (sky is the main brand / information block) and
+ *  three fixed status blocks. */
+export const BLOCKS = { ...PASTEL, good: PASTEL.sage, warn: PASTEL.butter, urgent: PASTEL.blush };
+
 export const DARK = {
   dark: true,
   bg: '#000000', card: '#1C1D1F', card2: '#26272A', fill: 'rgba(255,255,255,0.10)', segOn: '#FFFFFF',
@@ -20,9 +30,11 @@ export const DARK = {
   inkAccent: PASTEL.sky, inkGreen: '#7FE0A8', inkAmber: PASTEL.butter, inkRed: '#FFA9AC', pillAlpha: 0.16,
   bar: 'rgba(0,0,0,0.86)', shade: 'rgba(0,0,0,0.6)', avatar: '#26272A', field: '#1C1D1F', fieldBorder: 'rgba(255,255,255,0.14)',
   // new in v2.7
-  pastel: PASTEL, ink: INK, ink2: INK2,
+  pastel: BLOCKS, ink: INK, ink2: INK2,
   primary: '#FFFFFF', onPrimary: '#000000', // primary button: white on black
   pos: '#7FE0A8', outline: '#3A3B3F', track: 'rgba(0,0,0,0.14)', onPastel: false,
+  // brand slots (change with the colour theme): selected chip, tab tint, Android nav pill
+  colour: 'pastel' as ColourTheme, chipOn: '#FFFFFF', onChipOn: '#000000', tab: PASTEL.sage, navPill: '#33493F', onNavPill: PASTEL.mint,
 };
 export const LIGHT: typeof DARK = {
   dark: false,
@@ -32,12 +44,13 @@ export const LIGHT: typeof DARK = {
   accent: '#4F86C6', green: '#3F9A7B', amber: '#B67C0C', red: '#D0626A', grey: '#85888D',
   inkAccent: '#1F5288', inkGreen: '#1E6B50', inkAmber: '#7D5200', inkRed: '#A52A36', pillAlpha: 0.14,
   bar: 'rgba(241,241,244,0.92)', shade: 'rgba(0,0,0,0.32)', avatar: '#E4E5E9', field: '#FFFFFF', fieldBorder: 'rgba(20,24,22,0.30)',
-  pastel: PASTEL, ink: INK, ink2: INK2,
+  pastel: BLOCKS, ink: INK, ink2: INK2,
   primary: '#111312', onPrimary: '#FFFFFF', // primary button: black on light
   pos: '#1E6B50', outline: 'rgba(20,24,22,0.18)', track: 'rgba(0,0,0,0.14)', onPastel: false,
+  colour: 'pastel', chipOn: '#111312', onChipOn: '#FFFFFF', tab: '#2A7359', navPill: PASTEL.sage, onNavPill: INK,
 };
 
-export type PastelTone = 'sage' | 'blush' | 'butter' | 'sky' | 'mint';
+export type PastelTone = 'sage' | 'blush' | 'butter' | 'sky' | 'mint' | 'good' | 'warn' | 'urgent';
 /** The theme INSIDE a pastel block: every text colour becomes ink, so anything placed there stays readable. */
 export function onPastel(t: typeof DARK, bg: string): typeof DARK {
   return {
@@ -49,15 +62,76 @@ export function onPastel(t: typeof DARK, bg: string): typeof DARK {
 }
 
 /** Meaning -> pastel block: red = urgent, amber = attention, green = good, blue = information. */
-export const TONE_PASTEL = { red: 'blush', amber: 'butter', green: 'sage', blue: 'sky', grey: 'sky' } as const;
+export const TONE_PASTEL = { red: 'urgent', amber: 'warn', green: 'good', blue: 'sky', grey: 'sky' } as const;
 
-/** Material 3 (Android 16, Expressive) colour roles from the same palette. */
+/** Material 3 (Android 16, Expressive) colour roles from the same palette (brand slots follow the colour theme). */
 export const m3Roles = (t: typeof DARK) => ({
   surface: t.bg, surfaceContainer: t.card, surfaceContainerHigh: t.card2, onSurface: t.text, onSurfaceVariant: t.text2,
-  primary: t.dark ? PASTEL.sage : '#2A7359', onPrimary: t.dark ? INK : '#FFFFFF',
-  secondaryContainer: t.dark ? '#33493F' : PASTEL.sage, onSecondaryContainer: t.dark ? PASTEL.mint : INK, // nav bar pill indicator
-  tertiaryContainer: PASTEL.sky, onTertiaryContainer: INK, errorContainer: PASTEL.blush, onErrorContainer: INK, outline: t.outline,
+  primary: t.tab, onPrimary: t.dark ? INK : '#FFFFFF',
+  secondaryContainer: t.navPill, onSecondaryContainer: t.onNavPill, // nav bar pill indicator
+  tertiaryContainer: t.pastel.sky, onTertiaryContainer: INK, errorContainer: PASTEL.blush, onErrorContainer: INK, outline: t.outline,
 });
+
+// ---- colour themes ----
+const hsl = (h: number, s: number, l: number) => {
+  h = ((h % 360) + 360) % 360; s /= 100; l /= 100;
+  const k = (n: number) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n: number) => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))));
+  return '#' + [f(0), f(8), f(4)].map((v) => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+};
+/** h = the family's hue (from the earlier palette study, team/design/palette), s = how colourful,
+ *  h2 = a second hue for two of the five tints (Sunset: coral to violet), swatch = the picker dot. */
+type Family = { name: string; h: number; s: number; h2?: number };
+export const FAMILIES: Record<Exclude<ColourTheme, 'pastel'>, Family> = {
+  indigo: { name: 'Indigo', h: 234, s: 78 },
+  emerald: { name: 'Emerald', h: 152, s: 52 },
+  ocean: { name: 'Ocean', h: 190, s: 62, h2: 214 },
+  sunset: { name: 'Sunset', h: 16, s: 82, h2: 262 },
+  rose: { name: 'Rose', h: 338, s: 76 },
+  graphite: { name: 'Graphite', h: 240, s: 7 },
+};
+export const COLOUR_THEMES: { id: ColourTheme; name: string }[] = [{ id: 'pastel', name: 'Pastel' }, ...(Object.keys(FAMILIES) as (keyof typeof FAMILIES)[]).map((id) => ({ id: id as ColourTheme, name: FAMILIES[id].name }))];
+
+/** Five soft tints of one family, in the pastel style (light tints that carry dark ink text). */
+export function familyBlocks(f: Family) {
+  const h2 = f.h2 ?? f.h;
+  return { sky: hsl(f.h, f.s, 85), sage: hsl(h2, f.s * 0.8, 82), blush: hsl(f.h + 8, f.s, 90), butter: hsl(h2 - 6, f.s * 0.7, 79), mint: hsl(f.h - 6, f.s * 0.85, 93) };
+}
+/** The picker dots: Pastel shows its four pastels; a family shows its main tint and a deeper one. */
+export function swatchOf(c: ColourTheme): string[] {
+  if (c === 'pastel') return [PASTEL.sage, PASTEL.blush, PASTEL.butter, PASTEL.sky];
+  const f = FAMILIES[c]; return [hsl(f.h, f.s, 85), hsl(f.h2 ?? f.h, f.s * 0.8, 70)];
+}
+
+/** The lightest shade of a hue that still has `ratio` contrast on the light page (for fills and text in light mode). */
+function deep(h: number, s: number, ratio: number): string {
+  for (let l = 56; l > 12; l -= 2) { const c = hsl(h, s, l); if (contrast(c, LIGHT.bg) >= ratio) return c; }
+  return hsl(h, s, 12);
+}
+
+const cache = new Map<string, typeof DARK>();
+/** The theme for a mode and a colour. Only brand slots change; status colours are the base ones. */
+export function themeFor(dark: boolean, colour: ColourTheme = 'pastel'): typeof DARK {
+  const base = dark ? DARK : LIGHT;
+  const f = colour === 'pastel' ? undefined : FAMILIES[colour];
+  if (!f) return base;
+  const key = `${dark}:${colour}`;
+  let t = cache.get(key);
+  if (!t) {
+    const b = familyBlocks(f);
+    const s = Math.max(f.s, 6);
+    t = {
+      ...base, colour,
+      pastel: { ...base.pastel, ...b },
+      accent: dark ? b.sky : deep(f.h, Math.min(70, s), 3.3), inkAccent: dark ? b.sky : deep(f.h, Math.min(72, s + 6), 5),
+      chipOn: b.sky, onChipOn: INK,
+      tab: dark ? b.sky : deep(f.h, Math.min(72, s + 6), 5),
+      navPill: dark ? hsl(f.h, Math.min(40, s), 24) : b.sky, onNavPill: dark ? b.mint : INK,
+    };
+    cache.set(key, t);
+  }
+  return t;
+}
 
 // ---- WCAG contrast ----
 const parse = (c: string): [number, number, number, number] => {

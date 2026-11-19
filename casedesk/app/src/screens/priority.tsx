@@ -9,7 +9,7 @@ import { FIELDS, docTitle } from '../core/docs';
 import { barFill, homeHero, homeTiles, shortSpan, stateTone, statusSummary, type Meaning, type PriorityInput, type Target } from '../core/priority';
 import { useFamily, type FamilyState } from '../data/FamilyProvider';
 import { backupDue } from '../data/backupIO';
-import { Bars, Card, Ring, SectionHeader, T, font, useLayout, useTheme, type Theme } from '../ui';
+import { Bars, Card, Ring, SectionHeader, T, font, useLayout, useTheme, type PastelTone, type Theme } from '../ui';
 import { go, runFlow } from './common';
 
 const manual = (f: FamilyState, pid: string) => f.caseList.filter((c) => c.ownerId === pid).map((c) => ({ form: c.form, status: c.status, received: c.filed, receipt: c.receipt }));
@@ -104,3 +104,7 @@ export function StatusView({ pid, title = 'Documents', card }: { pid?: string; t
     </View>
   );
 }
+
+/** Meaning → block. Attention and urgent are fixed status blocks; "good" is the fixed green on a
+ *  tile and the brand block on the hero (all good = the theme's own colour); sky = brand. */
+export const meaningBlock = (m: Meaning, hero?: boolean): PastelTone => (m === 'butter' ? 'warn' : m === 'blush' ? 'urgent' : m === 'sage' ? (hero ? 'sage' : 'good') : 'sky');
