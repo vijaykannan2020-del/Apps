@@ -46,11 +46,11 @@ function CommentRow({ row, onVote, onReply, onMenu, onToggle }: { row: ThreadRow
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <AuthorLine a={c.author} at={c.createdAt} edited={c.editedAt} size={26}
-              badges={<>{c.op ? <Badge text="OP" pastel="sky" /> : null}{c.accepted ? <TagChip text="Accepted" pastel="sage" icon="check" /> : null}</>} />
+              badges={c.op ? <Badge text="OP" pastel="sky" /> : null} />
           </View>
           {replies || row.collapsed ? (
             <Pressable onPress={() => onToggle(c.id)} accessibilityRole="button" accessibilityState={{ expanded: !row.collapsed }} accessibilityLabel={row.collapsed ? `Show ${row.hidden} hidden repl${row.hidden === 1 ? 'y' : 'ies'}` : 'Collapse thread'} hitSlop={8}
-              style={{ minWidth: MIN_TOUCH, minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+              style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH, marginVertical: -9, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
               {row.collapsed ? <T tone="text2" style={[font.caption, { fontWeight: '600' }]}>{`+${row.hidden}`}</T> : null}
               <Icon name={row.collapsed ? 'chevR' : 'chevD'} size={14} color={t.text2} weight="semibold" />
             </Pressable>
@@ -58,6 +58,7 @@ function CommentRow({ row, onVote, onReply, onMenu, onToggle }: { row: ThreadRow
         </View>
         {row.collapsed ? null : (
           <>
+            {c.accepted ? <View style={{ flexDirection: 'row', marginTop: 8 }}><TagChip text="Accepted answer" pastel="sage" icon="check" /></View> : null}
             {c.hidden ? <T tone="amber" style={[font.caption, { marginTop: 6 }]}>Only you can see this — waiting for a moderator.</T> : null}
             <T selectable tone={c.deleted ? 'text2' : 'text'} style={[font.sub, { marginTop: 6, lineHeight: 21 }, c.deleted ? { fontStyle: 'italic' } : {}]}>{c.body}</T>
             {c.deleted ? <View style={{ height: 8 }} /> : (
@@ -157,13 +158,13 @@ export function CommunityPostScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <CAvatar a={replyTo.author} size={20} />
           <T tone="text2" numberOfLines={1} style={[font.caption, { flex: 1 }]}>{`Replying to ${replyTo.author.name}`}</T>
-          <Pressable onPress={() => setReplyTo(null)} accessibilityRole="button" accessibilityLabel="Cancel reply" hitSlop={12} style={{ minWidth: 30, minHeight: 30, alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={16} color={t.text2} /></Pressable>
+          <Pressable onPress={() => setReplyTo(null)} accessibilityRole="button" accessibilityLabel="Cancel reply" style={{ minWidth: 44, minHeight: 44, marginVertical: -8, alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={16} color={t.text2} /></Pressable>
         </View>
       ) : null}
       {sendError ? <T tone="red" style={[font.caption, { marginBottom: 6 }]}>{sendError}</T> : null}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
         <TourTarget id="answer" style={{ flex: 1 }}>
-          <TextInput ref={input} value={draft} onChangeText={(s) => { setDraft(s); if (sendError) setSendError(''); }} multiline maxLength={LIMITS.comment[1]}
+          <TextInput ref={input} rows={1} value={draft} onChangeText={(s) => { setDraft(s); if (sendError) setSendError(''); }} multiline maxLength={LIMITS.comment[1]}
             placeholder={!user ? 'Sign in to comment' : replyTo ? 'Write a reply…' : post.type === 'question' ? 'Add an answer…' : 'Add a comment…'} placeholderTextColor={t.text3}
             accessibilityLabel={replyTo ? `Reply to ${replyTo.author.name}` : 'Add a comment'} onFocus={() => { if (!user) { input.current?.blur(); startReply(null); } }}
             style={[font.callout, { minHeight: 44, maxHeight: 130, borderRadius: 22, backgroundColor: t.field, color: t.text, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11, borderWidth: t.dark ? 0 : 1, borderColor: t.fieldBorder }]} />

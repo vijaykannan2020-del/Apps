@@ -27,11 +27,18 @@ export function CAvatar({ a, size = 30, onPress }: { a: AuthorLike; size?: numbe
 /** Avatar + "Name · flair · 2 h" (+ badges). Tapping the avatar or name opens the public profile. */
 export function AuthorLine({ a, at, edited, size = 30, badges, link = true }: { a: AuthorLike; at: string; edited?: string | null; size?: number; badges?: React.ReactNode; link?: boolean }) {
   const can = link && !!a.id && !a.deleted;
-  const text = <T tone="text2" numberOfLines={1} style={[font.caption, { flexShrink: 1 }]}>{`${byline(a, at)}${edited ? ' · edited' : ''}`}</T>;
+  const who = (
+    <>
+      <CAvatar a={a} size={size} />
+      <T tone="text2" numberOfLines={1} style={[font.caption, { flexShrink: 1 }]}>{`${byline(a, at)}${edited ? ' · edited' : ''}`}</T>
+    </>
+  );
+  // One 44 pt link (avatar + name) without making the row taller than the avatar.
+  const pad = Math.max(0, (MIN_TOUCH - size) / 2);
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: size }}>
-      <CAvatar a={a} size={size} onPress={can ? () => openProfile(a) : undefined} />
-      {can ? <Pressable onPress={() => openProfile(a)} accessibilityRole="link" accessibilityLabel={`${byline(a, at)}. Opens the profile`} hitSlop={6} style={{ flexShrink: 1 }}>{text}</Pressable> : text}
+      {can ? <Pressable onPress={() => openProfile(a)} accessibilityRole="link" accessibilityLabel={`${byline(a, at)}. Opens the profile`} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, marginVertical: -pad }}>{who}</Pressable>
+        : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 }}>{who}</View>}
       {badges}
     </View>
   );
@@ -171,7 +178,7 @@ export function EmbedCard({ e, press = true }: { e: Embed; press?: boolean }) {
       {e.excerpt ? <T tone="text2" numberOfLines={2} style={[font.foot, { marginTop: 4 }]}>{e.excerpt}</T> : null}
       {e.timeline ? <TimelineCard tl={e.timeline} compact /> : null}
       {e.poll ? <T tone="text2" style={[font.caption, { marginTop: 6 }]}>{`Poll · ${e.poll.options.map((o) => o.text).join(' / ')}`}</T> : null}
-      <T tone="text2" style={[font.caption, { marginTop: 8 }]}>{`${fmtCount(e.score ?? 0)} points · ${fmtCount(e.comments ?? 0)} comments`}</T>
+      <T tone="text2" style={[font.caption, { marginTop: 8 }]}>{`${fmtCount(e.score ?? 0)} point${e.score === 1 ? '' : 's'} · ${fmtCount(e.comments ?? 0)} comment${e.comments === 1 ? '' : 's'}`}</T>
     </>
   );
   if (!press) return <View style={box}>{inner}</View>;

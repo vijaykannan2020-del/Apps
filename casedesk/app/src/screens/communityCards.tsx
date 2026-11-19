@@ -131,7 +131,7 @@ export function PostCard({ p, onChange, onRemoved }: { p: PostSummary; onChange:
     <PostShell onPress={open} label={`${p.title}. ${p.score} points, ${p.comments} comments, by ${p.author.name}`}>
       <AuthorLine a={p.author} at={p.createdAt} edited={p.editedAt} />
       <T style={{ fontSize: 16.5, lineHeight: 22, fontWeight: '600', marginTop: 10, color: t.text }}>{p.title}</T>
-      {p.excerpt ? <T tone="text2" numberOfLines={3} style={[font.foot, { marginTop: 6 }]}>{p.excerpt}</T> : null}
+      {p.excerpt ? <T tone="text2" numberOfLines={3} style={[font.foot, { marginTop: 6 }]}>{p.excerpt.replace(/\s*\n+\s*/g, ' ')}</T> : null}
       <PostExtras p={p} onChange={onChange} compact />
       <PostTags p={p} />
       {p.hidden ? <T tone="amber" style={[font.caption, { marginTop: 8 }]}>Hidden while a moderator reviews it</T> : null}

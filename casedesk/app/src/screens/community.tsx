@@ -1,13 +1,13 @@
 // Community feed (v2.7, Reddit-style): post cards with avatar, flair, votes, comments, Share and Save;
-// sort by Hot / New / Top (today, week, all) / Unanswered; For my visa or everything; tag chips; search;
+// sort by Hot / New / Top (today, week, all) / Unanswered; a For my visa filter; tag chips; search;
 // pull to refresh and endless scroll. Reading works signed out; anything else opens the join sheet.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, RefreshControl, ScrollView, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, ScrollView, TextInput, View } from 'react-native';
 import { COMMUNITY_DISCLAIMER, SORTS, TAGS, TOP_RANGES, familyCommunityTags, feedQuery, mergePage, type FeedTab, type SortId, type TopRange } from '../core/community';
 import { PASTEL } from '../core/communityColors';
 import { getFeed, usePostBus, useCommunityUser, type PostSummary } from '../data/communityApi';
 import { useFamily } from '../data/FamilyProvider';
-import { Button, ChipToggle, EmptyState, Field, Hint, IconButton, Note, Screen, Segmented, Spinner, useTheme, TourTarget, useTour } from '../ui';
+import { Button, ChipToggle, EmptyState, Hint, Icon, IconButton, Note, Screen, Spinner, font, useTheme, TourTarget, useTour } from '../ui';
 import { back, go } from './common';
 import { useCommunityGate } from './communityAccount';
 import { PostCard } from './communityCards';
@@ -19,14 +19,13 @@ export function useFamilyCommunityTags(): string[] {
   return useMemo(() => familyCommunityTags(f.people.map((p) => f.records[p.id]?.visa), f.caseList.map((c) => c.form)), [f.people, f.records, f.caseList]);
 }
 
-const SCOPES: FeedTab[] = ['For my visa', 'All'];
 
 export function CommunityFeedScreen({ backTitle = 'Back' }: { backTitle?: string }) {
   const t = useTheme();
   const fam = useFamilyCommunityTags();
   const { user } = useCommunityUser();
   const gate = useCommunityGate();
-  const [scope, setScope] = useState<FeedTab>(fam.length ? 'For my visa' : 'All');
+  const [scope, setScope] = useState<FeedTab>('All');
   const [sort, setSort] = useState<SortId>('hot');
   const [range, setRange] = useState<TopRange>('week');
   const [tag, setTag] = useState<string | null>(null);
@@ -69,8 +68,11 @@ export function CommunityFeedScreen({ backTitle = 'Back' }: { backTitle?: string
 
   const header = (
     <View style={{ paddingBottom: 12 }}>
-      {fam.length ? <Segmented options={SCOPES} value={scope} onChange={(v) => { setScope(v as FeedTab); setTag(null); }} /> : null}
-      <Field label="Search posts" value={q} onChangeText={setQ} placeholder="e.g. stamping Chennai, RFE EAC" autoCapitalize="none" maxLength={100} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, borderRadius: 22, backgroundColor: t.field, paddingHorizontal: 14, borderWidth: t.dark ? 0 : 1, borderColor: t.fieldBorder }}>
+        <Icon name="search" size={17} color={t.text2} />
+        <TextInput value={q} onChangeText={setQ} placeholder="Search posts — stamping Chennai, RFE EAC…" placeholderTextColor={t.text3} accessibilityLabel="Search posts" autoCapitalize="none" autoCorrect={false} maxLength={100} returnKeyType="search" clearButtonMode="while-editing"
+          style={[font.callout, { flex: 1, minHeight: 44, color: t.text, paddingVertical: 0 }]} />
+      </View>
       <TourTarget id="sort">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 6, paddingTop: 12 }}>
           {SORTS.map((s) => <ChipToggle key={s.id} text={s.label} on={sort === s.id} onPress={() => setSort(s.id)} />)}
@@ -82,6 +84,7 @@ export function CommunityFeedScreen({ backTitle = 'Back' }: { backTitle?: string
         </ScrollView>
       ) : null}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 6, paddingTop: 8 }}>
+        {fam.length ? <ChipToggle role="checkbox" text="For my visa" on={scope === 'For my visa'} onPress={() => { setScope(scope === 'For my visa' ? 'All' : 'For my visa'); setTag(null); }} /> : null}
         {chips.map((g) => <ChipToggle key={g} role="checkbox" text={g} on={tag === g} onPress={() => setTag(tag === g ? null : g)} />)}
       </ScrollView>
       <Hint>{COMMUNITY_DISCLAIMER}</Hint>
@@ -103,7 +106,7 @@ export function CommunityFeedScreen({ backTitle = 'Back' }: { backTitle?: string
               {user.unread ? <View pointerEvents="none" style={{ position: 'absolute', top: 6, right: 6, width: 10, height: 10, borderRadius: 5, backgroundColor: PASTEL.blush, borderWidth: 1.5, borderColor: t.bg }} /> : null}
             </View>
           ) : null}
-          {user ? <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><CAvatar a={user} size={34} onPress={() => go('/community/account')} /></View>
+          {user ? <Pressable onPress={() => go('/community/account')} accessibilityRole="button" accessibilityLabel={`Account: ${user.name}`} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><CAvatar a={user} size={34} /></Pressable>
             : <IconButton icon="user" label="Account and sign in" onPress={() => go('/community/account')} />}
         </View>
       ) }}
