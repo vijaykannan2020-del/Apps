@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { checkText } from './filter.mjs';
-import { sha256, newSessionToken } from './auth.mjs';
+import { sha256, newSessionToken, readConf } from './auth.mjs';
 
 export const RULES_VERSION = 1;
 export const RULES = [
@@ -38,6 +38,9 @@ export const OFFICES = ['EAC', 'WAC', 'LIN', 'SRC', 'IOE', 'NBC', 'MSC', 'YSC', 
 export const STEPS = ['Filed', 'Receipt notice', 'Biometrics', 'RFE received', 'RFE response', 'Interview', 'Transferred', 'Approved', 'Denied', 'Card received'];
 export const MILESTONES = [5, 10, 25, 50, 100, 250, 500, 1000];
 export const DELETED = '[deleted]';
+/** Where people reach the moderators: MODERATION_EMAIL from the environment, else deploy.conf (public settings), else the owner's support address. */
+export const SUPPORT_EMAIL = 'immigrationwallet@gmail.com';
+export const moderationEmail = ({ env = process.env, file } = {}) => (env.MODERATION_EMAIL || '').trim() || readConf('MODERATION_EMAIL', file) || SUPPORT_EMAIL;
 const SESSION_DAYS = 180;
 const MAX_SESSIONS = 10;
 const MAX_NOTES = 100;
@@ -755,7 +758,7 @@ export function createForum({ file = null, now = Date.now, notify = async () => 
   function adminMessages(token) { needAdmin(token); return { messages: db.messages.slice(-200).reverse() }; }
 
   const status = () => ({ users: Object.keys(db.users).length, posts: Object.keys(db.posts).length, comments: Object.keys(db.comments).length, openReports: db.reports.filter((r) => r.status === 'open').length, admin: !!adminToken && adminToken.length >= 16 });
-  const rules = () => ({ version: RULES_VERSION, rules: RULES, contact: process.env.MODERATION_EMAIL || null, disclaimer: 'Community answers are from other users, not lawyers — not legal advice.' });
+  const rules = () => ({ version: RULES_VERSION, rules: RULES, contact: moderationEmail(), disclaimer: 'Community answers are from other users, not lawyers — not legal advice.' });
   const tags = () => TAGS;
   const meta = () => ({ tags: TAGS, types: POST_TYPES, avatars: AVATARS, flairs: FLAIRS, offices: OFFICES, steps: STEPS, maxDepth: MAX_DEPTH });
 

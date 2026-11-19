@@ -152,7 +152,7 @@ The app uses HTTPS through iOS (exempt) **and** encrypts backups itself with AES
 
 ### Launch settings
 
-1. **CONTACT_EMAIL** placeholder in `casedesk/site/*.html` and `src/content/legal.ts`.
+1. **Support email** — done: `immigrationwallet@gmail.com` in `casedesk/site/*.html`, `src/content/legal.ts` and the server (`MODERATION_EMAIL` in `deploy.conf`).
 2. **Host the pages**: `casedesk/site/privacy.html`, `support.html`, `style.css` must be reachable at the Privacy / Support URLs above (the API server doesn’t serve static files yet — add a Caddy `file_server` route or use GitHub Pages and update `SITE_BASE` in `src/content/legal.ts`). A `duckdns.org` domain works but a own domain looks more trustworthy to reviewers and users.
 3. **Encryption declaration** — see Export compliance (recommend `true` + mass-market exemption).
 4. **Copyright holder** name.

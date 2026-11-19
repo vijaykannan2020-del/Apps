@@ -6,9 +6,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createForum, migrate, hotScore, wilson, commentTree, RULES_VERSION, MAX_DEPTH, DELETED, HIDE_AFTER_REPORTS, AVATARS } from '../src/forum.mjs';
+import { moderationEmail, SUPPORT_EMAIL, createForum, migrate, hotScore, wilson, commentTree, RULES_VERSION, MAX_DEPTH, DELETED, HIDE_AFTER_REPORTS, AVATARS } from '../src/forum.mjs';
 import { createJwks, googleAudiences, googleVerifier, readConf } from '../src/auth.mjs';
 import { fakeProvider, nowS } from './helpers.mjs';
+import { supportPage } from '../src/support.mjs';
 
 const ADMIN = 'admin-token-for-tests-123456';
 const PUSH = 'ExponentPushToken[abcdefghijklmn]';
@@ -478,4 +479,24 @@ test('the real deploy.conf turns Google sign-in on for the owner client id only'
   // the app and the server must name the same client id
   const app = JSON.parse(fs.readFileSync(new URL('../../app/app.json', import.meta.url), 'utf8')).expo;
   assert.equal(app.extra.googleIosClientId, ID);
+});
+
+test('support email: deploy.conf and the default name the owner address; the environment overrides; no placeholder is served', async () => {
+  const E = 'immigrationwallet@gmail.com';
+  assert.equal(SUPPORT_EMAIL, E);
+  assert.equal(readConf('MODERATION_EMAIL'), E);
+  assert.equal(moderationEmail({ env: {} }), E);
+  assert.equal(moderationEmail({ env: {}, file: '/nonexistent/deploy.conf' }), E, 'default without the file');
+  assert.equal(moderationEmail({ env: { MODERATION_EMAIL: ' mods@example.org ' } }), 'mods@example.org');
+  const saved = process.env.MODERATION_EMAIL; delete process.env.MODERATION_EMAIL;
+  try {
+    const page = supportPage();
+    assert.ok(page.includes(`mailto:${E}`)); assert.ok(!page.includes('CONTACT_EMAIL'));
+    const f = createForum({});
+    assert.equal((await f.route({ method: 'GET', path: '/api/forum/rules', query: Q(), ip: 'i' })).contact, E);
+  } finally { if (saved !== undefined) process.env.MODERATION_EMAIL = saved; }
+  for (const name of ['privacy.html', 'support.html']) {
+    const html = fs.readFileSync(new URL(`../../site/${name}`, import.meta.url), 'utf8');
+    assert.ok(html.includes(`mailto:${E}`), name); assert.ok(!html.includes('CONTACT_EMAIL'), name);
+  }
 });

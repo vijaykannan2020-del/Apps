@@ -31,7 +31,7 @@ export const NOT_OFFICIAL_ID = 'Copies for your reference — not an official ID
 export const SITE_BASE = 'https://casedeskapp.duckdns.org';
 export const PRIVACY_URL = `${SITE_BASE}/privacy.html`;
 export const SUPPORT_URL = `${SITE_BASE}/support`; // served live by the server (server/src/support.mjs); site/support.html is the static copy
-export const CONTACT_EMAIL = 'CONTACT_EMAIL'; // placeholder — set before launch
+export const CONTACT_EMAIL = 'immigrationwallet@gmail.com'; // the owner's support address (same as the server's MODERATION_EMAIL default)
 
 /** Built-in data and how far it has been checked (Settings → About and STORE.md → Data to confirm). */
 export type DataSource = { id: string; name: string; asOf: string; source: Source; status: 'checked' | 'partly checked' | 'unverified' | 'live only'; note: string };

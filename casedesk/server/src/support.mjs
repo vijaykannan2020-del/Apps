@@ -1,10 +1,10 @@
 // Plain support page (use its URL as the App Store "Support URL"): how to reach us, the community
-// rules and how moderation works. The email comes from MODERATION_EMAIL in .env.
-import { RULES } from './forum.mjs';
+// rules and how moderation works. The email is moderationEmail(): MODERATION_EMAIL in .env, else deploy.conf, else the default.
+import { RULES, moderationEmail } from './forum.mjs';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
-export function supportPage(email = process.env.MODERATION_EMAIL || '') {
+export function supportPage(email = moderationEmail()) {
   const contact = email
     ? `<p>Email <a href="mailto:${esc(email)}">${esc(email)}</a> — we answer within 2 business days and act on reports of objectionable content within 24 hours.</p>`
     : '<p>In the app: Community → ••• → Contact moderators. We act on reports of objectionable content within 24 hours.</p>';

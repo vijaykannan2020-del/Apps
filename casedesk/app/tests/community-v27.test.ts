@@ -297,3 +297,14 @@ test('tips: exactly one first-visit tip on the feed; other community screens onl
   for (const u of uses) if (u.id !== 'communityFeed') assert.match(u.args, /auto: false/, `${u.id} must not auto-show`);
   assert.ok(uses.some((u) => u.id === 'communityFeed' && !/auto: false/.test(u.args)));
 });
+
+test('support email is the real address everywhere the app shows it (no placeholder)', () => {
+  const { CONTACT_EMAIL } = require('../src/content/legal') as typeof import('../src/content/legal');
+  assert.equal(CONTACT_EMAIL, 'immigrationwallet@gmail.com');
+  const root = path.join(__dirname, '..');
+  for (const f of ['src/content/legal.ts', 'STORE.md', '../site/privacy.html', '../site/support.html']) {
+    const text = fs.readFileSync(path.join(root, f), 'utf8');
+    assert.ok(!/['">:]CONTACT_EMAIL['"<]|\*\*CONTACT_EMAIL\*\*/.test(text), `${f} still shows the placeholder`);
+    assert.ok(text.includes('immigrationwallet@gmail.com'), f);
+  }
+});
