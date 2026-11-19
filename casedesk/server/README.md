@@ -16,6 +16,7 @@ The app works without the server: it falls back to its built-in copies and demo 
 | `GET /api/visa-bulletin` | Current employment-based Visa Bulletin, parsed from travel.state.gov daily |
 | `GET /api/wage/states` → `/api/wage/counties?state=TX` → `/api/wage/soc?q=` → `/api/wage?soc=&area=` | Same lookup flow as DOL's FLAG wage search: state → county (mapped to its MSA/area) → occupation → Level I–IV |
 | `GET /api/employer?q=hcl america` | H-1B approvals by year (USCIS Data Hub) + PERM certifications + LCAs (DOL) |
+| `GET /api/expect?form=I-129&office=EAC&received=2026-08-14&premium=0&cls=L1A` | What to expect for one case: official USCIS form statistics (`data/form-stats.json`), I-129 RFE/approval rates by class, processing-time range, premium clock, and anonymous community timelines (only when 10+ similar cases are decided). No receipt numbers |
 | `GET /api/processing-times` | Serves `data/content/processing.json` if you publish one (otherwise the app uses its built-in copy) |
 | `GET /api/content/guides` | Serves `data/content/guides.json`, so guides can be updated without an app release |
 
@@ -58,6 +59,7 @@ Check that it's working with `curl https://your-domain/api/health`.
 | Data | How it updates |
 |---|---|
 | News, Visa Bulletin | Automatic: news hourly, Visa Bulletin daily |
+| USCIS form statistics (quarterly all-forms report, I-129 RFE data) | Automatic every Sunday: links found on uscis.gov's data page, or the predictable file names for the last 8 quarters. Override with `FORM_STATS_URLS` |
 | Wages, H-1B, PERM, LCA | Automatic every Sunday. When DOL or USCIS post a new year or quarter, paste the new link into `.env` |
 | USCIS chart for EB I-485s | Set `USCIS_EB_CHART` each month from uscis.gov/visabulletininfo |
 | Guides, processing times | Edit `data/content/guides.json` / `processing.json`. The app picks them up on next launch |
