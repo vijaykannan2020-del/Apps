@@ -3,7 +3,7 @@
 import React, { createContext, useContext } from 'react';
 import { AccessibilityInfo, Platform, useColorScheme, useWindowDimensions } from 'react-native';
 import type { Severity } from '../core/rules/types';
-import { DARK, LIGHT, TONE_PASTEL, onPastel, themeFor, type ColourTheme, type PastelTone } from './tokens';
+import { DARK, LIGHT, TONE_PASTEL, onPastel, onOutline, themeFor, type ColourTheme, type PastelTone } from './tokens';
 export { DARK, LIGHT, PASTEL, INK, INK2, COLOUR_THEMES, contrast, m3Roles, onPastel, swatchOf, themeFor, TONE_PASTEL } from './tokens';
 export type { ColourTheme, PastelTone } from './tokens';
 
@@ -50,6 +50,12 @@ export const useTheme = () => useContext(Ctx).t;
 export function PastelScope({ tone, children }: { tone: PastelTone; children: React.ReactNode }) {
   const c = useContext(Ctx);
   const value = React.useMemo(() => ({ t: onPastel(c.base, c.base.pastel[tone]), base: c.base, choice: c.choice }), [c.base, tone, c.choice]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+/** Inside an outlined attention card (see onOutline). */
+export function OutlineScope({ children }: { children: React.ReactNode }) {
+  const c = useContext(Ctx);
+  const value = React.useMemo(() => ({ t: onOutline(c.base), base: c.base, choice: c.choice }), [c.base, c.choice]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 /** Back to the normal theme (a dark card nested in a pastel block). */

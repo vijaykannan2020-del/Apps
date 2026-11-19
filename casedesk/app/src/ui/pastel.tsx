@@ -8,6 +8,7 @@ import { Animated, Platform, Pressable, View, type ViewStyle } from 'react-nativ
 import Svg, { Circle } from 'react-native-svg';
 import { Icon } from './Icon';
 import { BigText, Pastel, T, Text } from './kit';
+import { onOutline } from './tokens';
 import { font, radius, useLayout, useReduceMotion, useTheme, type PastelTone } from './theme';
 
 /** Fade + small rise when a block first appears (nothing with Reduce Motion). */
@@ -26,13 +27,14 @@ export function Appear({ children, delay = 0, style }: { children: React.ReactNo
 export function HeroCard({ tone, icon, label, chip, big, line, progress, onPress, a11y }: {
   tone: PastelTone; icon: string; label: string; chip?: string; big: string; line: string; progress?: number; onPress?: () => void; a11y: string;
 }) {
-  const t = useTheme();
+  const t0 = useTheme();
+  const t = tone === 'warn' ? onOutline(t0) : t0; // attention cards are outlined (v2.9)
   return (
     <Pastel tone={tone} r={radius.hero} pad={20} onPress={onPress} label={a11y} style={{ paddingHorizontal: 22 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 }}>
-          <Icon name={icon} size={17} color={t.ink} />
-          <Text numberOfLines={1} style={[font.sub, { color: t.ink, fontWeight: '600', flexShrink: 1 }]}>{label}</Text>
+          <Icon name={icon} size={17} color={t.inkLabel} />
+          <Text numberOfLines={1} style={[font.sub, { color: t.inkLabel, fontWeight: '600', flexShrink: 1 }]}>{label}</Text>
         </View>
         {chip ? <View style={{ backgroundColor: t.track, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 }}><Text numberOfLines={1} style={{ color: t.ink, fontSize: 13, fontWeight: '700' }}>{chip}</Text></View> : null}
       </View>
@@ -40,7 +42,7 @@ export function HeroCard({ tone, icon, label, chip, big, line, progress, onPress
       <Text style={[font.foot, { color: t.ink2, marginTop: 2 }]}>{line}</Text>
       {progress !== undefined ? (
         <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }} style={{ height: 8, borderRadius: 4, backgroundColor: t.track, marginTop: 14, overflow: 'hidden' }}>
-          <View style={{ height: 8, borderRadius: 4, backgroundColor: t.ink, width: `${Math.round(Math.max(0.03, Math.min(1, progress)) * 100)}%` }} />
+          <View style={{ height: 8, borderRadius: 4, backgroundColor: t.inkLabel, width: `${Math.round(Math.max(0.03, Math.min(1, progress)) * 100)}%` }} />
         </View>
       ) : null}
     </Pastel>
@@ -49,15 +51,16 @@ export function HeroCard({ tone, icon, label, chip, big, line, progress, onPress
 
 /** A small pastel fact under the hero: label, big value, optional line. */
 export function StatTile({ tone, icon, label, big, sub, onPress }: { tone: PastelTone; icon: string; label: string; big: string; sub?: string; onPress?: () => void }) {
-  const t = useTheme();
+  const t0 = useTheme();
+  const t = tone === 'warn' ? onOutline(t0) : t0; // attention cards are outlined (v2.9)
   return (
     <Pastel tone={tone} r={radius.tile} pad={16} onPress={onPress} label={`${label}: ${big}${sub ? `. ${sub}` : ''}`} style={{ flex: 1, minWidth: 0, minHeight: 108, justifyContent: 'space-between' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Icon name={icon} size={15} color={t.ink} />
-        <Text numberOfLines={1} style={{ color: t.ink, fontSize: 13, fontWeight: '700', flexShrink: 1 }}>{label}</Text>
+        <Icon name={icon} size={15} color={t.inkLabel} />
+        <Text numberOfLines={1} style={{ color: t.inkLabel, fontSize: 13, fontWeight: '700', flexShrink: 1 }}>{label}</Text>
       </View>
       <View>
-        <BigText size={26} style={{ color: t.ink, letterSpacing: -0.5 }}>{big}</BigText>
+        <BigText size={26} style={{ color: t.inkLabel, letterSpacing: -0.5 }}>{big}</BigText>
         {sub ? <Text numberOfLines={1} style={{ color: t.ink2, fontSize: 12.5, fontWeight: '500' }}>{sub}</Text> : null}
       </View>
     </Pastel>

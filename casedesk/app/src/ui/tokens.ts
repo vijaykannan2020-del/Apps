@@ -31,7 +31,7 @@ export const DARK = {
   inkAccent: PASTEL.sky, inkGreen: '#7FE0A8', inkAmber: PASTEL.butter, inkRed: '#FFA9AC', pillAlpha: 0.16,
   bar: 'rgba(0,0,0,0.86)', shade: 'rgba(0,0,0,0.6)', avatar: '#26272A', field: '#1C1D1F', fieldBorder: 'rgba(255,255,255,0.14)',
   // new in v2.7
-  pastel: BLOCKS, ink: INK, ink2: INK2,
+  pastel: BLOCKS, ink: INK, ink2: INK2, inkLabel: INK,
   primary: '#FFFFFF', onPrimary: '#000000', // primary button: white on black
   pos: '#7FE0A8', outline: '#3A3B3F', track: 'rgba(0,0,0,0.14)', onPastel: false,
   // brand slots (change with the colour theme): selected chip, tab tint, Android nav pill
@@ -45,7 +45,7 @@ export const LIGHT: typeof DARK = {
   accent: '#4F86C6', green: '#3F9A7B', amber: '#B67C0C', red: '#D0626A', grey: '#85888D',
   inkAccent: '#1F5288', inkGreen: '#1E6B50', inkAmber: '#7D5200', inkRed: '#A52A36', pillAlpha: 0.14,
   bar: 'rgba(241,241,244,0.92)', shade: 'rgba(0,0,0,0.32)', avatar: '#E4E5E9', field: '#FFFFFF', fieldBorder: 'rgba(20,24,22,0.30)',
-  pastel: BLOCKS, ink: INK, ink2: INK2,
+  pastel: BLOCKS, ink: INK, ink2: INK2, inkLabel: INK,
   primary: '#111312', onPrimary: '#FFFFFF', // primary button: black on light
   pos: '#1E6B50', outline: 'rgba(20,24,22,0.18)', track: 'rgba(0,0,0,0.14)', onPastel: false,
   colour: 'pastel', chipOn: '#111312', onChipOn: '#FFFFFF', tab: '#2A7359', navPill: PASTEL.sage, onNavPill: INK,
@@ -60,6 +60,12 @@ export function onPastel(t: typeof DARK, bg: string): typeof DARK {
     inkAccent: INK, inkGreen: INK, inkAmber: INK, inkRed: INK, pos: INK, outline: 'rgba(0,0,0,0.22)',
     primary: INK, onPrimary: '#FFFFFF', avatar: 'rgba(0,0,0,0.12)', field: 'rgba(255,255,255,0.55)', fieldBorder: 'rgba(0,0,0,0.22)', pillAlpha: 0,
   };
+}
+
+/** v2.9 (owner picked option 3): attention cards are the normal dark (or white) card with an amber
+ *  outline; the label, icon and key number are amber, the rest is normal text. */
+export function onOutline(t: typeof DARK): typeof DARK {
+  return { ...t, ink: t.text, ink2: t.text2, inkLabel: t.inkAmber, track: t.fill };
 }
 
 /** Meaning -> pastel block: red = urgent, amber = attention, green = good, blue = information. */

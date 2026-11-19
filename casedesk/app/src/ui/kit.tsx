@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
-import { font, MIN_TOUCH, radius, space, tint, toneColor, toneInk, TONE_WORD, useLayout, useTheme, useReduceMotion, PastelScope, PlainScope, pastelFor, tonePastel, listOS, m3Roles, type ListOS, type Tone, type PastelTone } from './theme';
+import { font, MIN_TOUCH, radius, space, tint, toneColor, toneInk, TONE_WORD, useLayout, useTheme, useReduceMotion, PastelScope, PlainScope, OutlineScope, pastelFor, tonePastel, listOS, m3Roles, type ListOS, type Tone, type PastelTone } from './theme';
 import type { Severity } from '../core/rules/types';
 import { fmt, isISO } from '../core/dates';
 
@@ -258,9 +258,12 @@ export function Card({ children, onPress, style, label }: { children: React.Reac
  */
 export function Pastel({ tone, children, onPress, style, label, r = radius.card, pad = 18 }: { tone: PastelTone; children: React.ReactNode; onPress?: () => void; style?: ViewStyle | ViewStyle[]; label?: string; r?: number; pad?: number }) {
   const t = useTheme();
-  const base: ViewStyle = { backgroundColor: t.pastel[tone], borderRadius: r, padding: pad };
+  const outlined = tone === 'warn';
+  const base: ViewStyle = outlined
+    ? { backgroundColor: t.card, borderRadius: r, padding: pad, borderWidth: 1.5, borderColor: t.inkAmber }
+    : { backgroundColor: t.pastel[tone], borderRadius: r, padding: pad };
   const extra = Array.isArray(style) ? style : style ? [style] : [];
-  const kids = <PastelScope tone={tone}>{children}</PastelScope>;
+  const kids = outlined ? <OutlineScope>{children}</OutlineScope> : <PastelScope tone={tone}>{children}</PastelScope>;
   if (!onPress) return <View style={[base, ...extra]}>{kids}</View>;
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [base, ...extra, pressed && { transform: [{ scale: 0.98 }], opacity: 0.94 }]}>{kids}</Pressable>;
 }
