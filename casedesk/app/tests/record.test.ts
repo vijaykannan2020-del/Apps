@@ -48,7 +48,7 @@ test('steps follow the status (prototype order)', () => {
   assert.deepEqual(key(person('s', 'self', { status: 'STEM OPT' })), ['passport', 'visa', 'i94', 'i20', 'ead']);
   assert.deepEqual(key(person('s', 'self', { status: 'H-1B' })), ['passport', 'visa', 'i94', 'approval', 'receipt']);
   assert.deepEqual(key(person('w', 'spouse', { status: 'H-4' })), ['passport', 'visa', 'i94', 'approval', 'receipt', 'ead']);
-  assert.deepEqual(key(person('g', 'self', { status: 'green-card-applicant' })), ['passport', 'i94', 'i140', 'i485', 'combo']);
+  assert.deepEqual(key(person('g', 'self', { status: 'green-card-applicant' })), ['passport', 'i94', 'perm', 'i140', 'i485', 'combo', 'ap']); // v2.9 green-card catalog
   assert.deepEqual(key(person('c', 'self', { status: 'conditional-green-card' })), ['gc', 'passport', 'travel', 'receipt']);
   assert.deepEqual(key(person('k', 'child', { status: 'citizen' })), ['passport']);
 });

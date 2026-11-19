@@ -4,7 +4,10 @@
 //   H-4 / L-2 spouse:   … → own I-539 approval (optional) → receipt → EAD (H-4 EAD / optional L-2S)
 //   F-1 student:        Passport → Visa → (Where?) → I-94 → I-20 → OPT EAD → receipt
 //   J-1 / J-2:          … → DS-2019
-//   Green-card applicant: … → Approval (current status) → receipts (I-140 / I-485) → EAD/AP combo → Advance Parole
+//   Green-card applicant: Passport → I-94 → (principal: PERM → I-140) → I-485 → EAD (C9) / combo → Advance parole
+//                         → biometrics → I-693 medical → interview notice → I-485 approval (v2.9)
+//   Anyone with a green-card case started (H-1B, L-1, H-4, L-2…): their stay steps, then the same
+//   green-card steps for their stage (principal: PERM, I-140; everyone: own I-485 documents).
 //   Green-card holder:  Passport → Green card → receipts (I-751 / N-400) → I-94 travel history
 //   US citizen:         Passport → Naturalization certificate (optional). No checks.
 // "Where?" is asked only when the I-94 is skipped (APPV2): people outside the US have no I-94.
@@ -15,15 +18,21 @@ import type { PersonRecord } from './record';
 
 export type StepKey =
   | 'passport' | 'visa' | 'where' | 'i94' | 'approval' | 'receipt' | 'ead' | 'i20' | 'ds2019'
-  | 'gc' | 'travel' | 'i140' | 'i485' | 'combo' | 'n400';
+  | 'gc' | 'travel' | 'i140' | 'i485' | 'combo' | 'n400'
+  | 'perm' | 'ap' | 'bio' | 'medical' | 'interview' | 'i485ok';
 
-export type Step = { key: StepKey; title: string; accepts: DocType[]; form?: string; why: string; optional: boolean; keyField: { label: string; field: keyof DocFields } };
+export type Step = { key: StepKey; title: string; accepts: DocType[]; form?: string; noticeKind?: DocFields['noticeKind']; why: string; optional: boolean; keyField: { label: string; field: keyof DocFields } };
+
+/** Green-card steps, in order (v2.9). */
+export const GC_STEP_KEYS: StepKey[] = ['perm', 'i140', 'i485', 'combo', 'ap', 'bio', 'medical', 'interview', 'i485ok'];
+const GC_FORMS = ['I-485', 'I-765', 'I-131'];
 
 export type Track = 'work' | 'dependent' | 'student' | 'exchange' | 'gc-applicant' | 'resident' | 'citizen' | 'visitor' | 'unknown';
 
 const STEP_OF: Partial<Record<DocType, StepKey>> = {
   passport: 'passport', visa: 'visa', i94: 'i94', approval: 'approval', i129s: 'approval', receipt: 'receipt', notice: 'receipt',
-  ead: 'ead', i20: 'i20', ds2019: 'ds2019', 'green-card': 'gc', 'travel-history': 'travel', 'advance-parole': 'combo', 'reentry-permit': 'travel',
+  ead: 'ead', i20: 'i20', ds2019: 'ds2019', 'green-card': 'gc', 'travel-history': 'travel', 'advance-parole': 'ap', 'reentry-permit': 'travel',
+  perm: 'perm', medical: 'medical',
 };
 /** The step a document belongs to (a wrong type in a step is moved to its own step). Forms refine receipts/approvals. */
 export function stepOf(t?: DocType, f?: DocFields): StepKey | undefined {
@@ -31,6 +40,10 @@ export function stepOf(t?: DocType, f?: DocFields): StepKey | undefined {
   if ((t === 'approval' || t === 'receipt') && f?.form === 'I-140') return 'i140';
   if (t === 'receipt' && f?.form === 'I-485') return 'i485';
   if (t === 'receipt' && f?.form === 'N-400') return 'n400';
+  if (t === 'approval' && f?.form === 'I-485') return 'i485ok';
+  if (t === 'notice' && f?.noticeKind === 'interview' && (!f.form || f.form === 'I-485' || f.form === 'N-400')) return 'interview';
+  if (t === 'notice' && f?.noticeKind === 'biometrics' && GC_FORMS.includes(f.form ?? '')) return 'bio';
+  if (t === 'ead' && (f?.category === 'C9' || f?.comboAP)) return 'combo';
   return STEP_OF[t];
 }
 
@@ -74,8 +87,35 @@ export function stepKeys(person: Person, rec?: PersonRecord): StepKey[] {
   const visa: StepKey[] = exempt ? [] : ['visa'];
   if (s === 'citizen') return ['passport'];
   if (s === 'green-card' || s === 'conditional-green-card') return ['gc', 'passport', 'travel', ...(s === 'conditional-green-card' ? ['receipt' as StepKey] : [])];
-  if (s === 'citizenship-applicant') return ['gc', 'passport', 'travel', 'n400'];
-  if (s === 'green-card-applicant') return ['passport', 'i94', 'i140', 'i485', 'combo'];
+  if (s === 'citizenship-applicant') return ['gc', 'passport', 'travel', 'n400', 'interview'];
+  if (s === 'green-card-applicant') return ['passport', 'i94', ...gcStepKeys(person, rec, true)];
+  return [...stayKeys(person, rec, s, visa, spouse), ...gcStepKeys(person, rec, false)];
+}
+
+/** Has this person's green-card case started, from their own documents and answers (no family needed)? */
+export function gcLocalStage(person: Person, rec?: PersonRecord): 'none' | 'started' | 'i485' | 'approved' {
+  const cases = rec?.cases ?? [];
+  const i485 = cases.filter((c) => c.form === 'I-485');
+  if (i485.some((c) => c.status === 'approved')) return 'approved';
+  if (i485.length) return 'i485';
+  const f = person.facts?.gc;
+  if (rec?.perm || cases.some((c) => c.form === 'I-140') || person.facts?.greenCardStarted || person.status === 'green-card-applicant' || f?.category || f?.priorityDate || f?.followsId) return 'started';
+  return 'none';
+}
+/** A spouse / child without their own PERM or I-140 follows someone else's case. */
+const ownsGcCase = (person: Person, rec?: PersonRecord) => !!rec?.perm || !!rec?.cases.some((c) => c.form === 'I-140') || (person.relation !== 'spouse' && person.relation !== 'child' && !person.facts?.gc?.followsId);
+
+/** Green-card steps for this person's stage. `applicant`: status picked is green-card applicant (steps always shown). */
+export function gcStepKeys(person: Person, rec: PersonRecord | undefined, applicant: boolean): StepKey[] {
+  const st = gcLocalStage(person, rec);
+  if (st === 'none' && !applicant) return [];
+  const own = ownsGcCase(person, rec);
+  const head: StepKey[] = own ? ['perm', 'i140'] : [];
+  if (st === 'none' || st === 'started') return applicant ? [...head, 'i485', 'combo', 'ap'] : head;
+  return [...head, 'i485', 'combo', 'ap', 'bio', 'medical', 'interview', ...(st === 'approved' ? ['i485ok' as StepKey] : [])];
+}
+
+function stayKeys(person: Person, rec: PersonRecord | undefined, s: StatusCategory, visa: StepKey[], spouse: boolean): StepKey[] {
   if (s === 'F-1' || s === 'F-1 OPT' || s === 'STEM OPT' || s === 'F-2') return ['passport', ...visa, 'i94', 'i20', ...(s === 'F-1 OPT' || s === 'STEM OPT' ? ['ead' as StepKey] : [])];
   if (s === 'J-1' || s === 'J-2') return ['passport', ...visa, 'i94', 'ds2019'];
   if (s === 'B-2') return ['passport', ...visa, 'i94'];
@@ -84,7 +124,7 @@ export function stepKeys(person: Person, rec?: PersonRecord): StepKey[] {
   return ['passport', ...visa, 'i94', 'approval', 'receipt'];
 }
 
-const OPTIONAL: StepKey[] = ['receipt', 'travel', 'combo', 'n400', 'i485'];
+const OPTIONAL: StepKey[] = ['receipt', 'travel', 'combo', 'n400', 'i485', 'perm', 'ap', 'bio', 'medical', 'interview', 'i485ok'];
 export function isOptionalStep(person: Person, k: StepKey, rec?: PersonRecord) {
   const s = stepStatus(person, rec);
   return OPTIONAL.includes(k) || (k === 'ead' && ['H-4', 'L-2', 'F-2'].includes(s)) || (k === 'approval' && s === 'H-4') || (k === 'approval' && person.relation !== 'self' && s !== 'H-1B' && s !== 'L-1A' && s !== 'L-1B');
@@ -109,10 +149,16 @@ export function stepMeta(person: Person, k: StepKey, rec?: PersonRecord): Step {
     ds2019: { title: 'DS-2019', accepts: ['ds2019'], keyField: { label: 'Program end', field: 'validTo' }, why: 'The program dates set how long the J stay lasts.' },
     gc: { title: 'Green card', accepts: ['green-card'], keyField: { label: 'Card expires', field: 'validTo' }, why: `Its category and “resident since” date set ${poss} citizenship date.` },
     travel: { title: 'Travel history', accepts: ['travel-history'], keyField: { label: 'Trips', field: 'trips' }, why: 'A screenshot or PDF from the CBP I-94 website. Counts days outside the US.' },
-    i140: { title: 'I-140 notice', accepts: ['approval', 'receipt'], form: 'I-140', keyField: { label: 'Priority date', field: 'priorityDate' }, why: 'Saves the priority date and category for Visa Bulletin checks.' },
-    i485: { title: 'I-485 receipt', accepts: ['receipt'], form: 'I-485', keyField: { label: 'Received', field: 'receivedDate' }, why: 'Pending since this date. It matters if the job changes.' },
-    combo: { title: 'Combo card (EAD + travel)', accepts: ['ead', 'advance-parole'], keyField: { label: 'Valid to', field: 'validTo' }, why: 'Work permit and travel permission in one card. Needed to travel while the I-485 is pending.' },
+    i140: { title: 'I-140 receipt or approval', accepts: ['approval', 'receipt'], form: 'I-140', keyField: { label: 'Priority date', field: 'priorityDate' }, why: 'Saves the priority date and category (EB-1, EB-2, EB-3) for the Visa Bulletin.' },
+    i485: { title: 'I-485 receipt', accepts: ['receipt'], form: 'I-485', keyField: { label: 'Received', field: 'receivedDate' }, why: `${me ? 'Your' : `${person.name || 'Their'}’s`} own green card application. Pending since this date — it matters if the job changes.` },
+    combo: { title: 'EAD (C9) or combo card', accepts: ['ead'], keyField: { label: 'Valid to', field: 'validTo' }, why: 'The work permit from the I-765 (category C9). A combo card also serves as advance parole for travel.' },
     n400: { title: 'N-400 receipt', accepts: ['receipt'], form: 'N-400', keyField: { label: 'Received', field: 'receivedDate' }, why: 'The citizenship case. Add the interview date when it comes.' },
+    perm: { title: 'PERM approval', accepts: ['perm'], keyField: { label: 'Filed', field: 'priorityDate' }, why: 'The Department of Labor certification (ETA-9089). Its filing date becomes the priority date; the I-140 must follow within 180 days.' },
+    ap: { title: 'Advance parole (I-131)', accepts: ['advance-parole'], keyField: { label: 'Valid until', field: 'validTo' }, why: 'The travel document (I-512L). Skip if the combo card says it serves as I-512.' },
+    bio: { title: 'Biometrics notice', accepts: ['notice'], noticeKind: 'biometrics', keyField: { label: 'Appointment', field: 'appointmentDate' }, why: 'Fingerprints and photo for the I-485, EAD and advance parole.' },
+    medical: { title: 'Medical exam (I-693)', accepts: ['medical'], keyField: { label: 'Signed', field: 'signedDate' }, why: 'The civil surgeon’s report, filed with the I-485 in its sealed envelope. Keep a copy.' },
+    interview: { title: 'Interview notice', accepts: ['notice'], noticeKind: 'interview', keyField: { label: 'Interview', field: 'appointmentDate' }, why: 'Date, time and field office. The app reminds you before and has a checklist of what to bring.' },
+    i485ok: { title: 'I-485 approval', accepts: ['approval'], form: 'I-485', keyField: { label: 'Approved', field: 'noticeDate' }, why: 'The welcome notice. The green card follows by mail.' },
     where: { title: me ? 'Are you in the US right now?' : `Is ${person.name || 'this person'} in the US right now?`, accepts: [], keyField: { label: '', field: 'name' }, why: 'People outside the US (for example in India) don’t have an I-94.' },
   };
   return { key: k, ...M[k], optional: isOptionalStep(person, k, rec) };
@@ -126,6 +172,7 @@ export function stepsFor(person: Person, rec?: PersonRecord): Step[] {
 /** Does a document fill this step? */
 export function fillsStep(step: Step, d: { type: DocType; fields: DocFields }) {
   if (!step.accepts.includes(d.type)) return false;
+  if (step.noticeKind && d.fields.noticeKind !== step.noticeKind) return false;
   if (step.form) return d.fields.form === step.form;
   if (step.key === 'receipt' || step.key === 'approval') return !['I-140', 'I-485', 'N-400'].includes(d.fields.form ?? '');
   return true;
@@ -172,6 +219,8 @@ function knownFromRecord(k: StepKey, rec?: PersonRecord): boolean {
     case 'approval': return !!rec.petitionEnd || rec.docTypes.includes('approval') || rec.docTypes.includes('i129s');
     case 'i140': return rec.cases.some((c) => c.form === 'I-140');
     case 'gc': return !!rec.greenCard;
+    case 'ap': return !!rec.advanceParole;
+    case 'perm': return !!rec.perm;
     default: return rec.docTypes.includes(k);
   }
 }
