@@ -204,7 +204,7 @@ export function expectFor(q, { stats = readJson('data/form-stats.json'), rows, t
     const lo = official?.medianMonths ?? null, hi = processing?.maxMonths ?? null;
     if (lo != null || hi != null) {
       const addM = (m) => { const d = new Date(received + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + Math.round(m * 30.44)); return d.toISOString().slice(0, 10); };
-      const from = lo != null && hi != null ? Math.min(lo, hi) : lo ?? hi, to = hi != null && lo != null ? Math.max(lo, hi) : hi ?? lo;
+      const from = lo == null ? 0 : hi != null ? Math.min(lo, hi) : lo, to = hi != null && lo != null ? Math.max(lo, hi) : hi ?? lo;
       window = { fromMonths: from, toMonths: to, from: addM(from), to: addM(to), basis: `${lo != null ? 'USCIS median for this form' : ''}${lo != null && hi != null ? ' to ' : ''}${hi != null ? 'USCIS 8-in-10 time' : ''}` };
     }
   }
