@@ -7,7 +7,8 @@ import { fmt } from '../core/dates';
 import { kindOf, newsById, useNews, type NewsItem } from '../data/news';
 import { openUrl } from '../native/device';
 import { Button, Card, ChipToggle, Chips, Group, Hint, Icon, LinkButton, Pill, Row, Screen, SectionHeader, Segmented, T, Tag, Why, font, useTheme } from '../ui';
-import { back, go } from './common';
+import { asOfText, back, go } from './common';
+import { DISCLAIMER, DISCLAIMER_SHORT } from '../content/legal';
 import { useFamily } from '../data/FamilyProvider';
 import { familyTags, forFamily, orderTags } from '../core/updates';
 
@@ -29,28 +30,51 @@ export function NewsRow({ n }: { n: NewsItem }) {
   );
 }
 
-/** Home section: latest four, Official / News & analysis. */
+/** Home section: the family's updates first, then "More updates" (everything else) with topic
+ *  chips inline — nothing needs leaving Home to see the other updates. */
 export function HomeUpdates() {
-  const { items, live } = useNews();
+  const { items, live, updated } = useNews();
   const f = useFamily();
   const tags = familyTags(f.people, f.records);
   const [kind, setKind] = useState(KINDS[0]);
+  const [topic, setTopic] = useState('All');
+  const [more, setMore] = useState(5);
   const ofKind = items.filter((n) => kindOf(n) === kindKey(kind));
-  const mine = forFamily(ofKind, tags);
-  const shown = (mine.length ? mine : ofKind).slice(0, 4);
+  const mine = tags.length ? forFamily(ofKind, tags).slice(0, 4) : [];
+  const mineIds = new Set(mine.map((n) => n.id));
+  const rest = ofKind.filter((n) => !mineIds.has(n.id));
+  const topics = ['All', ...[...new Set(rest.flatMap((n) => n.tags))].sort()];
+  const shown = rest.filter((n) => topic === 'All' || n.tags.includes(topic as never) || (topic === 'OPT' && n.tags.includes('STEM OPT' as never)));
   return (
     <>
-      <SectionHeader right={<LinkButton title="See all" onPress={() => go('/news', { kind: kindKey(kind) })} />}>{tags.length && mine.length ? `Updates for ${tags.slice(0, 3).join(', ')}` : 'Updates'}</SectionHeader>
-      <Segmented options={KINDS} value={kind} onChange={setKind} />
-      <Group style={{ marginTop: 10 }}>{shown.map((n) => <NewsRow key={n.id} n={n} />)}</Group>
-      <Hint style={{ marginTop: 8 }}>{live ? 'Live from USCIS, DHS, DOL and State, plus news coverage.' : 'Saved copy — the live feed loads when you’re online.'}</Hint>
+      <SectionHeader right={<LinkButton title="See all" onPress={() => go('/news', { kind: kindKey(kind) })} />}>Updates</SectionHeader>
+      <Segmented options={KINDS} value={kind} onChange={(k) => { setKind(k); setTopic('All'); setMore(5); }} />
+      {mine.length ? (
+        <>
+          <T tone="text2" style={[font.foot, { marginTop: 14, marginLeft: 4, fontWeight: '600' }]}>{`For your family · ${tags.slice(0, 3).join(', ')}`}</T>
+          <Group style={{ marginTop: 6 }}>{mine.map((n) => <NewsRow key={n.id} n={n} />)}</Group>
+        </>
+      ) : null}
+      <T tone="text2" style={[font.foot, { marginTop: 16, marginLeft: 4, fontWeight: '600' }]}>{mine.length ? 'More updates' : 'All updates'}</T>
+      <Chips style={{ marginTop: 6 }}>{topics.map((g) => <ChipToggle key={g} text={g} on={topic === g} onPress={() => { setTopic(g); setMore(5); }} />)}</Chips>
+      <Group style={{ marginTop: 10 }}>{shown.length ? shown.slice(0, more).map((n) => <NewsRow key={n.id} n={n} />) : <Row title="Nothing here yet" titleTone="text2" />}</Group>
+      {shown.length > more ? <LinkButton title={`Show ${Math.min(5, shown.length - more)} more`} onPress={() => setMore(more + 5)} /> : null}
+      <NewsAsOf live={live} updated={updated} items={items} />
     </>
+  );
+}
+
+/** "Live · updated …" or "Built-in copy · newest item …", with the disclaimer. */
+export function NewsAsOf({ live, updated, items }: { live: boolean; updated?: string; items: NewsItem[] }) {
+  const newest = items.map((n) => n.date).sort().pop();
+  return (
+    <Hint style={{ marginTop: 8 }}>{`${asOfText({ live, fetchedAt: live ? updated : undefined, asOf: live ? undefined : newest ? `${when(newest)} (newest item)` : undefined })}. Sources: USCIS, DHS, DOL, State Department and news outlets. ${DISCLAIMER_SHORT}.`}</Hint>
   );
 }
 
 export function NewsListScreen() {
   const params = useLocalSearchParams<{ kind?: string }>();
-  const { items, live } = useNews();
+  const { items, live, updated } = useNews();
   const [kind, setKind] = useState(params.kind === 'news' ? KINDS[1] : KINDS[0]);
   const f = useFamily();
   const fam = familyTags(f.people, f.records);
@@ -66,7 +90,7 @@ export function NewsListScreen() {
       <Chips>{tags.map((g) => <ChipToggle key={g} text={g} on={tag === g} onPress={() => setTag(g)} />)}</Chips>
       {tag === FAMILY ? <Hint>{`Updates tagged ${fam.join(', ')} — the visa types in your family.`}</Hint> : null}
       <Group style={{ marginTop: 14 }}>{shown.length ? shown.map((n) => <NewsRow key={n.id} n={n} />) : <Row title="Nothing here yet" />}</Group>
-      <Hint center style={{ marginTop: 14 }}>{live ? 'Live feed.' : 'Saved copy — the live feed loads when you’re online.'} General information, not legal advice.</Hint>
+      <NewsAsOf live={live} updated={updated} items={items} />
     </Screen>
   );
 }
@@ -95,7 +119,7 @@ export function NewsItemScreen() {
       </Card>
       {n.sources?.length ? (<><SectionHeader>Also reported by</SectionHeader><Group>{n.sources.map((s) => <Row key={s.url} icon="globe" title={s.name} onPress={() => openUrl(s.url)} />)}</Group></>) : null}
       <Button block icon="compass" title="Open the source" onPress={() => openUrl(n.url)} />
-      <Hint center style={{ marginTop: 12 }}>General information, not legal advice. Check the source before you act.</Hint>
+      <Hint center style={{ marginTop: 12 }}>{`${n.agency} · ${when(n.date)}. Check the source before you act. ${DISCLAIMER}`}</Hint>
     </Screen>
   );
 }

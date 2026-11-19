@@ -8,7 +8,7 @@ import { isPendingCase } from '../core/cases';
 import { needsAttention } from '../core/rules/engine';
 import { useFamily } from '../data/FamilyProvider';
 import { backupDue } from '../data/backupIO';
-import { Avatar, BigText, Columns, Button, Card, EmptyState, Group, Hint, Icon, LargeTitle, LinkButton, Pill, Row, Screen, SectionHeader, T, Tag, font, useSheet, useTheme, useToast, tint } from '../ui';
+import { useLayout, Avatar, BigText, Columns, Button, Card, EmptyState, Group, Hint, Icon, LargeTitle, LinkButton, Pill, Row, Screen, SectionHeader, T, Tag, font, useSheet, useTheme, useToast, tint } from '../ui';
 import { AttentionRow, go, needsLocation, runFlow, statusLabel, untilText } from './common';
 import { Confirm, SourceSheet } from './sheets';
 import { endFlow, unsavedCount, useFlow } from '../data/flow';
@@ -35,6 +35,7 @@ export function Home() {
   const me = f.main;
   const draft = useFlow();
   const news = useNews();
+  const L = useLayout();
   const unsaved = draft ? unsavedCount() : 0;
   if (!f.people.length || !me) {
     return (
@@ -59,8 +60,8 @@ export function Home() {
   };
   const locAsk = f.people.filter((p) => needsLocation(f.records[p.id]));
 
-  return (
-    <Screen tabRoot wide>
+  const topPart = (
+    <>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flex: 1 }}>
           <T tone="text2" style={[font.caption, { textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }]}>{dateLine}</T>
@@ -112,8 +113,10 @@ export function Home() {
 
       <ICloudAfterRestore />
       <HelpCard tab="home" />
-      <Columns
-        left={<>
+    </>
+  );
+  const familyPart = (
+    <>
           <SectionHeader>Family</SectionHeader>
           <Group>
             {f.people.map((p) => (
@@ -123,8 +126,10 @@ export function Home() {
                 subtitle={untilText(p, f.records[p.id], f.results[p.id]).replace('Status valid until', 'Valid until')} />
             ))}
           </Group>
-        </>}
-        right={<>
+    </>
+  );
+  const attentionPart = (
+    <>
           <SectionHeader right={total > 3 ? <T tone="text2" style={font.caption}>{`${total} items`}</T> : undefined}>Needs attention</SectionHeader>
           {att.length || locAsk.length || alerts.length ? (
             <>
@@ -140,17 +145,23 @@ export function Home() {
           ) : (
             <Card><View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}><Icon name="checkc" size={20} color={t.green} /><T style={font.headline}>Nothing needs attention</T></View></Card>
           )}
-        </>}
-      />
-
-      <Columns
-        left={<>
-          <SectionHeader>Cases at a glance</SectionHeader>
-          <CasesGlance />
-        </>}
-        right={<HomeUpdates />}
-      />
-      <Hint center style={{ marginTop: 18 }}>{`General information, not legal advice. Rules checked ${fmt(RULES_CHECKED)}.`}</Hint>
+    </>
+  );
+  const casesPart = <><SectionHeader>Cases at a glance</SectionHeader><CasesGlance /></>;
+  const foot = <Hint center style={{ marginTop: 18 }}>{`General information, not legal advice. Rules checked ${fmt(RULES_CHECKED)}.`}</Hint>;
+  // Wide (≥ 700): two independent scroll areas — you, family and cases stay put on the left while
+  // Needs attention and Updates scroll on the right. Phones: one page, same order as before.
+  if (L.twoCol) {
+    return <Screen tabRoot wide panes={{ left: <>{topPart}{familyPart}{casesPart}</>, right: <><View style={{ height: 8 }} />{attentionPart}<HomeUpdates />{foot}</> }} />;
+  }
+  return (
+    <Screen tabRoot>
+      {topPart}
+      {familyPart}
+      {attentionPart}
+      {casesPart}
+      <HomeUpdates />
+      {foot}
     </Screen>
   );
 }
