@@ -42,3 +42,15 @@ test('older builds without the iCloud module: no crash, a clear message', async 
   assert.deepEqual(await ic.listBackups(), []);
   await assert.rejects(ic.writeBackup('x', 'y'), /isn’t available/);
 });
+
+test('back-off after failed automatic backups: 30 minutes, then 2 hours, then daily; a success clears it', async () => {
+  const { retryAfterMs } = await import('../src/core/icloud');
+  assert.deepEqual([0, 1, 2, 3, 7].map(retryAfterMs), [0, 30 * 60e3, 2 * 3600e3, 24 * 3600e3, 24 * 3600e3]);
+  const now = new Date('2026-11-18T12:00:00Z');
+  const base = { ...ICLOUD_DEFAULT, on: true, wifiOnly: false }; // never backed up → would be due
+  assert.equal(backupDueNow({ ...base, failures: 1, lastAttemptAt: '2026-11-18T11:45:00Z' }, now), null, '15 min after 1st failure');
+  assert.equal(backupDueNow({ ...base, failures: 1, lastAttemptAt: '2026-11-18T11:20:00Z' }, now), 'daily', '40 min after 1st failure');
+  assert.equal(backupDueNow({ ...base, failures: 2, lastAttemptAt: '2026-11-18T10:30:00Z' }, now), null, '90 min after 2nd failure');
+  assert.equal(backupDueNow({ ...base, failures: 3, lastAttemptAt: '2026-11-18T00:00:00Z' }, now), null, '12 h after 3rd failure');
+  assert.equal(backupDueNow({ ...base, failures: 0, lastAttemptAt: '2026-11-18T11:59:00Z' }, now), 'daily', 'reset');
+});

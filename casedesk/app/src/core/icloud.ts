@@ -12,7 +12,14 @@ export type ICloudSettings = {
   lastAt?: string; // ISO time of the last successful iCloud backup
   lastError?: string;
   changedAt?: string; // last data change not yet in an iCloud backup
+  lastAttemptAt?: string; // last automatic try that failed
+  failures?: number; // automatic tries that failed in a row (reset on success or Back up now)
 };
+
+/** Back-off after failed automatic backups: 30 minutes, then 2 hours, then daily. */
+export function retryAfterMs(failures = 0): number {
+  return failures <= 0 ? 0 : failures === 1 ? 30 * 60e3 : failures === 2 ? 2 * 3600e3 : 24 * 3600e3;
+}
 export const ICLOUD_DEFAULT: ICloudSettings = { on: false, wifiOnly: true };
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -40,6 +47,7 @@ export const toPrune = (names: string[], keep = KEEP) => sortBackups(names).slic
 export function backupDueNow(s: ICloudSettings, now: Date, net: { wifi?: boolean } = {}): 'daily' | 'changed' | null {
   if (!s.on) return null;
   if (s.wifiOnly && net.wifi === false) return null;
+  if (s.failures && s.lastAttemptAt && now.getTime() - Date.parse(s.lastAttemptAt) < retryAfterMs(s.failures)) return null; // backing off
   const last = s.lastAt ? Date.parse(s.lastAt) : 0;
   const t = now.getTime();
   if (!last || t - last >= DAY) return 'daily';
@@ -49,3 +57,4 @@ export function backupDueNow(s: ICloudSettings, now: Date, net: { wifi?: boolean
   }
   return null;
 }
+

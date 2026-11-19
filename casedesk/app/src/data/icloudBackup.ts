@@ -19,8 +19,8 @@ let running = false;
 let dirtyAt: string | undefined; // data changed since the last iCloud backup (this session)
 let lastPrint = '';
 
-/** Back up to iCloud now. Uses the keychain password unless one is given. */
-export async function backUpToICloud(store: Store, password?: string, onProgress?: Progress): Promise<{ ok: boolean; error?: string; name?: string }> {
+/** Back up to iCloud now. `auto` = the scheduler; a manual Back up now resets the back-off. */
+export async function backUpToICloud(store: Store, password?: string, onProgress?: Progress, auto = false): Promise<{ ok: boolean; error?: string; name?: string }> {
   if (running) return { ok: false, error: 'A backup is already running' };
   running = true;
   try {
@@ -34,13 +34,16 @@ export async function backUpToICloud(store: Store, password?: string, onProgress
     await writeBackup(name, text);
     for (const old of toPrune(await listBackups())) await removeBackup(old);
     const s = await store.settings();
-    await store.updateSettings({ icloud: { ...icloudSettings(s), lastAt: new Date().toISOString(), lastError: undefined } });
+    await store.updateSettings({ icloud: { ...icloudSettings(s), lastAt: new Date().toISOString(), lastError: undefined, failures: 0, lastAttemptAt: undefined } });
     dirtyAt = undefined;
     diag(`iCloud backup ok (${name})`);
     return { ok: true, name };
   } catch (e: any) {
     const error = e?.message ?? String(e);
-    try { const s = await store.settings(); await store.updateSettings({ icloud: { ...icloudSettings(s), lastError: error } }); } catch {}
+    try {
+      const s = icloudSettings(await store.settings());
+      await store.updateSettings({ icloud: { ...s, lastError: error, lastAttemptAt: new Date().toISOString(), failures: auto ? (s.failures ?? 0) + 1 : 1 } });
+    } catch {}
     diag(`iCloud backup failed: ${error}`);
     return { ok: false, error };
   } finally { running = false; }
@@ -70,7 +73,7 @@ export function useICloudAuto(store: Store) {
       const s = icloudSettings(await store.settings());
       if (!s.on) return;
       const due = backupDueNow({ ...s, changedAt: dirtyAt }, new Date(), { wifi: s.wifiOnly ? await onWifi() : undefined });
-      if (due) await backUpToICloud(store);
+      if (due) await backUpToICloud(store, undefined, undefined, true);
     };
     fingerprint(store).then((f) => { lastPrint = f; }).catch(() => {});
     const unsub = store.subscribe(() => { fingerprint(store).then((f) => { if (lastPrint && f !== lastPrint) dirtyAt = new Date().toISOString(); lastPrint = f; }).catch(() => {}); });
