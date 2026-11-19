@@ -66,3 +66,30 @@ Check that it's working with `curl https://your-domain/api/health`.
 Notes:
 - LCA files are very large. Only add `LCA_URLS` if the server has 4 GB+ RAM.
 - `xlsx` is only used to read DOL's own spreadsheets.
+
+## Community Q&A (v2.4)
+
+Questions, answers, upvotes and moderation in `src/forum.mjs`; sign-in token checks in `src/auth.mjs`; word / personal-data filter in `src/filter.mjs`. Data: `data/forum.json` (flushed every 10 s and on shutdown). Only a hash of the Apple/Google user id and session tokens is stored — never emails. Tests: `npm run test:unit`.
+
+| Endpoint | What it does |
+|---|---|
+| `POST /api/auth/apple` `{identityToken, nonce, authorizationCode?}` | Verifies the Apple token (Apple keys, iss, aud, exp, nonce) → `{token, user}` |
+| `POST /api/auth/google` `{idToken}` | Same for Google (needs `GOOGLE_CLIENT_ID`) |
+| `POST /api/auth/signout` | Ends this session |
+| `GET /api/me` · `POST /api/me {name?, pushToken?, acceptRules?}` · `DELETE /api/me` | Account, display name, answer notifications, rules acceptance, delete account (and everything it posted) |
+| `GET /api/forum/posts?sort=new\|top\|unanswered&tags=H-1B,I-129&q=&cursor=&limit=&mine=1` | Feed (reading needs no sign-in) |
+| `POST /api/forum/posts` · `GET/DELETE /api/forum/posts/:id` · `POST /api/forum/posts/:id/edit` | Ask, read, delete, edit |
+| `POST /api/forum/posts/:id/answers` · `POST /api/forum/answers/:id/edit` · `DELETE /api/forum/answers/:id` | Answers (the asker gets a push) |
+| `POST /api/forum/posts/:id/vote` · `POST /api/forum/answers/:id/vote` `{up}` · `POST /api/forum/posts/:id/accept {answerId}` | Upvotes, accepted answer |
+| `POST /api/forum/report {kind, id, reason, note}` · `GET/POST/DELETE /api/forum/blocks {userId}` · `POST /api/forum/contact {message}` | Report, block, contact moderators |
+| `GET /api/forum/rules` · `GET /api/forum/tags` · `GET /support` | Rules, tags, support page (App Store Support URL) |
+| `GET /api/admin/forum/reports?status=open\|all` · `GET /api/admin/forum/messages` · `POST /api/admin/forum/hide\|restore\|delete {kind, id}` · `POST /api/admin/forum/ban {userId, banned}` | Moderation, header `Authorization: Bearer $ADMIN_TOKEN` |
+
+Rules enforced on the server: sign-in + accepted rules to write; title 10–150, details 20–5000, answers 10–5000 characters; 1–5 known tags; at most 2 links (none in titles); abuse words, spam phrases, receipt numbers, A-numbers, SSNs, emails and phone numbers refused; 5 questions/hour, 15/day, 20 answers/hour; content reported by 3 people is hidden until reviewed; banned accounts stay banned after deletion.
+
+Moderating from a terminal:
+```
+curl -s -H "Authorization: Bearer $ADMIN_TOKEN" https://casedeskapp.duckdns.org/api/admin/forum/reports | jq
+curl -s -XPOST -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"kind":"post","id":"p_..."}' https://casedeskapp.duckdns.org/api/admin/forum/hide
+curl -s -XPOST -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"userId":"u_..."}' https://casedeskapp.duckdns.org/api/admin/forum/ban
+```
