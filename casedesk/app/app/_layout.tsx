@@ -8,9 +8,12 @@ import { FamilyProvider, useFamily } from '../src/data/FamilyProvider';
 import { AppLock } from '../src/screens/lock';
 import { Tours } from '../src/screens/tours';
 import { NotifyPrompt } from '../src/screens/notify';
+import { SyncAuto } from '../src/screens/myuscisSync';
+import { defineLiveTask } from '../src/data/myuscis';
 import { native } from '../src/native/safe';
 import { diag, startDiag } from '../src/native/diag';
 startDiag().catch(() => {});
+defineLiveTask(); // v2.6: background Live check task (registered only when the person turns it on)
 
 function Themed({ children }: { children: React.ReactNode }) {
   const f = useFamily();
@@ -72,6 +75,7 @@ export default function Root() {
                   <SheetProvider>
                     <Nav />
                     <NotifyPrompt />
+                    <SyncAuto />
                   </SheetProvider>
                 </Tours>
               </AppLock>

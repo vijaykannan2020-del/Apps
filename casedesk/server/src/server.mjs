@@ -1,7 +1,7 @@
 // CaseDesk API — plain Node (no dependencies). Run: npm start
 import http from 'node:http';
 import fs from 'node:fs';
-import { caseStatus } from './uscis.mjs';
+import { caseStatus, uscisMode, redactPath } from './uscis.mjs';
 import { getNews, refreshNews } from './news.mjs';
 import { searchSoc, searchArea, wage, wageStatus, states, counties } from './wages.mjs';
 import { top, employer, h1bStatus } from './h1b.mjs';
@@ -41,7 +41,7 @@ const limited = (ip) => {
 };
 
 const routes = {
-  '/api/health': () => ({ ok: true, uscis: !!process.env.USCIS_CLIENT_ID, wages: wageStatus(), employers: h1bStatus(), push: pushStatus(), waits: waitsStatus(), bulletin: bulletinStatus(), community: communityStatus(), formStats: formStatsStatus(), forum: forum.status(), wallet: wallet.status().enabled, data: (() => { try { const d = JSON.parse(fs.readFileSync('data/update-status.json', 'utf8')); return { at: d.at, h1bFiles: d.h1b?.length || 0, permFiles: d.perm?.length || 0, errors: d.errors || [] }; } catch { return null; } })(), time: new Date().toISOString() }),
+  '/api/health': () => ({ ok: true, uscis: !!process.env.USCIS_CLIENT_ID, uscisMode: uscisMode(), wages: wageStatus(), employers: h1bStatus(), push: pushStatus(), waits: waitsStatus(), bulletin: bulletinStatus(), community: communityStatus(), formStats: formStatsStatus(), forum: forum.status(), wallet: wallet.status().enabled, data: (() => { try { const d = JSON.parse(fs.readFileSync('data/update-status.json', 'utf8')); return { at: d.at, h1bFiles: d.h1b?.length || 0, permFiles: d.perm?.length || 0, errors: d.errors || [] }; } catch { return null; } })(), time: new Date().toISOString() }),
   '/api/news': () => getNews(),
   '/api/wage': (q) => wage(q.get('soc') || '', q.get('area') || ''),
   '/api/wage/soc': (q) => searchSoc(q.get('q') || ''),
@@ -126,7 +126,7 @@ const server = http.createServer(async (req, res) => {
     const cache = url.pathname.startsWith('/api/health') || url.pathname.startsWith('/api/community') ? 'no-store' : 'public, max-age=300';
     return send(200, await fn(url.searchParams), cache);
   } catch (e) {
-    console.error(url.pathname, e.message);
+    console.error(redactPath(url.pathname), e.message); // receipt numbers are never logged
     return send(e.status || 500, { error: e.status ? e.message : 'Something went wrong.', ...(e.code ? { code: e.code } : {}) });
   }
 });

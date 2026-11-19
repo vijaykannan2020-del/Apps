@@ -48,11 +48,22 @@ export const TOURS: Record<string, TourDef> = {
     { target: 'list', title: 'Pending first', text: 'Pending cases are at the top. Tap one to check its status on uscis.gov.' },
     helpStep(),
   ] },
-  case: { help: 'cases', steps: [
-    { target: 'check', title: 'Check status', text: 'This copies the receipt number and opens uscis.gov in Safari. Paste it, tap Check Status, then copy the result.' },
+  case: { help: 'myuscis-sync', steps: [
+    { target: 'sync', title: 'Status & sync', text: 'Sync with myUSCIS or check the public status in the app. Each check is saved here with what changed.' },
+    { target: 'check', title: 'Or use Safari', text: 'This copies the receipt number and opens uscis.gov in Safari. Paste it, tap Check Status, then copy the result.' },
     { target: 'paste', title: 'Paste it back', text: 'Come back and tap here — the status, date and history update from what you copied.' },
-    { target: 'history', title: 'History', text: 'Every status you saved, newest first.' },
+    { target: 'history', title: 'History', text: 'Every status you saved, newest first. Tap ? any time for these tips.' },
+  ] },
+  // ---- v2.6: Status & sync (myUSCIS) ----
+  'case-sync': { help: 'myuscis-sync', steps: [
+    { target: 'sync-main', title: 'Pick a way', text: 'Filed online? Sign in to myUSCIS here (Experimental). Any case: check the public status in the app.' },
+    { target: 'sync-paste', title: 'Paste or import', text: 'Paste the myUSCIS case page text or a uscis.gov result, or import a .json file. Read on this phone only.' },
+    { target: 'sync-history', title: 'History', text: 'uscis.gov statuses and myUSCIS events in one list, with silent updates marked.' },
     helpStep(),
+  ] },
+  'myuscis-links': { help: 'myuscis-sync', steps: [
+    { target: 'signin', title: 'Sign in in Safari first', text: 'These links only work in the Safari app where you are signed in, not in a window inside another app.' },
+    { target: 'help', title: 'Help', text: 'Tap ? to see these tips again and read about data: null answers.' },
   ] },
   'add-case': { help: 'cases', steps: [
     { target: 'receipt', title: 'Receipt number', text: 'Three letters and ten digits, from the top left of the I-797C notice.' },
