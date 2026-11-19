@@ -12,8 +12,10 @@ Files app), keeping the newest 3. The password is kept in this iPhone's keychain
 - `expo-secure-store` keeps the backup password; `expo-network` powers "Only on Wi-Fi".
 - `scripts/ios-credentials.py` (VERSION `v2-icloud`) turns on the **iCloud** capability for the App
   ID through the App Store Connect API (`bundleIdCapabilities`, `ICLOUD`, setting
-  `ICLOUD_VERSION = XCODE_6`) and makes a new App Store profile. It stops with a clear error if the
-  profile doesn't contain the container yet.
+  `ICLOUD_VERSION = XCODE_6`). Before keeping a profile it checks the container
+  (`scripts/ios_profile.py`): it reuses an active profile that has it, otherwise makes one and deletes
+  it again if Apple made it without the container — so a run before the Apple step stops with a clear
+  error and leaves no stray profiles. Tests: `python3 -m unittest scripts/test_ios_profile.py`.
 - Older TestFlight builds (no iCloud module) show "Needs the latest app version from TestFlight".
 
 ## The one thing Apple's API can't do — do this once on developer.apple.com (owner)

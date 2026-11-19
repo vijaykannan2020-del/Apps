@@ -97,15 +97,19 @@ api('POST', '/v1/bundleIdCapabilities', {'data': {'type': 'bundleIdCapabilities'
     'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}}}}, ok409=True)
 print('iCloud capability on ✓ (container assignment is done on developer.apple.com — ICLOUD.md)')
 
-# 3. App Store provisioning profile
-prof = api('POST', '/v1/profiles', {'data': {'type': 'profiles', 'attributes': {'name': f'CaseDesk App Store {int(time.time())}', 'profileType': 'IOS_APP_STORE'},
-    'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}, 'certificates': {'data': [{'type': 'certificates', 'id': cert_id}]}}}})['data']
-content = base64.b64decode(prof['attributes']['profileContent'])
-if CONTAINER.encode() not in content:
-    print(f'::error::The new profile has no iCloud container {CONTAINER}. On developer.apple.com: Identifiers → iCloud Containers → create {CONTAINER}; then App IDs → com.vijaykannan.casedesk → iCloud → Edit → tick it → Save. Then run this build again. (See casedesk/app/ICLOUD.md)', file=sys.stderr)
+# 3. App Store provisioning profile — the iCloud container is checked BEFORE a profile is kept, so a
+#    run that stops here never leaves a stray profile behind (scripts/ios_profile.py, tested).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ios_profile import pick_or_make_profile, ContainerMissing
+try:
+    content, how = pick_or_make_profile(api, bid, cert_id, CONTAINER, int(time.time()))
+except ContainerMissing:
+    print(f'::error::The App ID has no iCloud container {CONTAINER} yet. On developer.apple.com: Identifiers → '
+          f'iCloud Containers → create {CONTAINER}; then App IDs → {BUNDLE} → iCloud → Edit → tick it → Save. '
+          'Then run this build again. (See casedesk/app/ICLOUD.md)', file=sys.stderr)
     sys.exit(1)
+print(how)
 open(f'{OUT}/profile.mobileprovision', 'wb').write(content)
-print('Created provisioning profile (with iCloud container) ✓')
 
 # 4. Save encrypted
 open(f'{OUT}/version', 'w').write(VERSION)
