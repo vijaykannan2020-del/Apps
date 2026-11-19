@@ -1,7 +1,7 @@
 // Share with family: build the encrypted .iwshare file on this phone and hand it to the share sheet;
 // on the other phone read it (opened from Files / Messages / AirDrop, or picked in the app), check the
 // code, merge. Nothing is sent to our server. Native modules are optional (see native/safe.ts).
-import { Platform } from 'react-native';
+import { Platform, Share } from 'react-native';
 import { newId, type Store } from './store';
 import { expiryFrom, isShareFile, newShareCode, openShare, planShareMerge, readShareHeader, resolveWrites, sealShare, selectForShare, shareFileName, SHARE_EXT, SHARE_MIME, SHARE_UTI, type ShareReport, type SharePayload, type ShareSelection } from '../core/share';
 import type { Progress } from '../core/backup';
@@ -32,12 +32,21 @@ export async function buildShare(store: Store, sel: ShareSelection, onProgress?:
 }
 
 /** iOS share sheet (AirDrop, Messages, WhatsApp, Mail, Files…). False when sharing isn't available. */
-export async function sendShare(uri: string): Promise<boolean> {
+export async function sendShare(uri: string, message?: string): Promise<boolean> {
+  // iOS: one share with the file AND the invite text (React Native core, no extra native module).
+  if (Platform.OS === 'ios' && message) {
+    try { await Share.share({ url: uri, message }); return true; } catch {}
+  }
   const S = native.sharing();
   try {
     if (S?.isAvailableAsync && (await S.isAvailableAsync())) { await S.shareAsync(uri, { mimeType: SHARE_MIME, UTI: SHARE_UTI, dialogTitle: 'Send the share file' }); return true; }
   } catch {}
   return false;
+}
+
+/** Just the invite (Settings → Invite family): text with the install link, no documents. */
+export async function sendInvite(message: string): Promise<boolean> {
+  try { await Share.share({ message }); return true; } catch { return false; }
 }
 
 /** Remove share files this phone made earlier (they are encrypted, but no need to keep them). */

@@ -70,3 +70,6 @@ For updates later, the sender sends a new file and the recipient imports it the 
 - `src/data/shareIO.ts`: build, share sheet, pick or open a file, import
 - `src/screens/share.tsx`: entry rows and both screens. `app/share.tsx`, `app/share-import.tsx`, `app/+native-intent.tsx`: routes
 - `tests/share.test.ts`: round trip, wrong code, tampered file, expiry, payload checks, merge rules, links
+
+## Invite (v2.9)
+Every share carries an invite text with the install link, and Settings → Invite family sends the link alone. The link opens casedesk/site/get.html (GitHub Pages): three steps and the App Store button. The install link lives in two places that a test keeps equal: app/src/content/links.ts and site/links.js. The text never contains the code.

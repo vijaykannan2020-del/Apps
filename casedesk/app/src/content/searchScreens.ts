@@ -65,6 +65,7 @@ export const APP_SCREENS: ScreenEntry[] = [
   { id: 's-backup', section: 'Settings', title: 'Back up to a file', sub: 'Files, Google Drive or AirDrop', path: '/settings', params: { backup: '1' }, keywords: ['backup', 'export', 'save a copy', 'password backup'] },
   { id: 's-restore', section: 'Settings', title: 'Restore from backup', sub: 'From a backup file', path: '/settings', params: { open: 'restore' }, keywords: ['restore', 'import backup', 'new phone'] },
   { id: 's-icloud', section: 'Settings', title: 'iCloud backup', sub: 'Automatic backup and restore from iCloud', path: '/restore-icloud', keywords: ['icloud', 'automatic backup', 'cloud'] },
+  { id: 's-invite', section: 'Settings', title: 'Invite family', sub: 'Send the app link, no documents', path: '/settings', keywords: ['invite', 'install', 'app link', 'download', 'spouse'] },
   { id: 's-import', section: 'Settings', title: 'Import shared documents', sub: 'Open a package your family sent', path: '/share-import', keywords: ['import', 'shared package', 'receive', 'code'] },
   { id: 's-share', section: 'Settings', title: 'Share with family', sub: 'Send documents to your spouse’s phone, encrypted', path: '/share', keywords: ['share', 'share with spouse', 'airdrop', 'send documents'] },
   { id: 's-widgets', section: 'Settings', title: 'Widgets and Wallet card', sub: 'Home Screen widgets and the Apple Wallet status card', path: '/settings', keywords: ['widget', 'wallet', 'apple wallet', 'pass'] },

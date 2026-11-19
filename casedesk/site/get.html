@@ -25,9 +25,7 @@
 
   <div class="btns" id="btns">
     <a class="btn off" id="appstore" aria-disabled="true">App Store<small>Coming soon</small></a>
-    <a class="btn alt" id="testflight" hidden>Join the beta on TestFlight<small>Install TestFlight from the App Store first</small></a>
   </div>
-  <p class="note" id="tester">The beta is invite-only for now: ask the person who shared this to add you as a tester.</p>
 
   <h2>Private by design</h2>
   <div class="card"><p>Your documents stay on your phone. Shared files are locked with the code, and this page never sees the file or the code. No account, ads or tracking. Read the <a href="privacy.html">privacy policy</a>.</p></div>
@@ -38,11 +36,9 @@
 <script>
 (function () {
   var L = window.IW_LINKS || {};
-  var ok = function (u) { return typeof u === 'string' && /^https:\/\/(apps\.apple\.com|testflight\.apple\.com)\//.test(u); };
-  var as = document.getElementById('appstore'), tf = document.getElementById('testflight'), tester = document.getElementById('tester');
+  var ok = function (u) { return typeof u === 'string' && /^https:\/\/apps\.apple\.com\//.test(u); };
+  var as = document.getElementById('appstore');
   if (ok(L.appStore)) { as.href = L.appStore; as.className = 'btn'; as.removeAttribute('aria-disabled'); as.innerHTML = 'Download on the App Store'; }
-  if (ok(L.testFlight)) { tf.href = L.testFlight; tf.hidden = false; tester.hidden = true; if (ok(L.appStore)) tf.querySelector('small').textContent = 'Beta version'; }
-  else if (ok(L.appStore)) tester.hidden = true;
 })();
 </script>
 </body>

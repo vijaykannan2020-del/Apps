@@ -8,7 +8,6 @@ services:
     env_file: .env
     volumes:
       - ./data:/app/data
-      - ./site:/app/site:ro # public pages (casedesk/site), copied by auto-update.sh
     networks:
       inbox:
         aliases: [casedesk-api]

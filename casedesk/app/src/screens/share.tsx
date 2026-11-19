@@ -10,7 +10,9 @@ import { DOC_LABEL, type Document } from '../core/model';
 import { fmt } from '../core/dates';
 import { CODE_WORDS, DEFAULT_EXPIRY_DAYS, ShareExpired, WRONG_CODE, guessMe, previewShare, readCode, readShareHeader, type ShareReport, type SharePayload } from '../core/share';
 import { useFamily } from '../data/FamilyProvider';
-import { buildShare, clearOldShares, forgetIncoming, importShare, openShare, pickShareFile, readShareUrl, sendShare, type BuiltShare, type PickedShare } from '../data/shareIO';
+import { shareInviteText, appInviteText } from '../core/invite';
+import { INVITE_URL } from '../content/links';
+import { buildShare, sendInvite, clearOldShares, forgetIncoming, importShare, openShare, pickShareFile, readShareUrl, sendShare, type BuiltShare, type PickedShare } from '../data/shareIO';
 import { Avatar, Button, CheckRow, Field, Group, Hint, Meter, Note, Option, PastelScope, Row, Screen, SectionHeader, Segmented, SheetButtons, Spinner, Switch, T, Why, font, useTheme, useToast } from '../ui';
 import { back, go, home, relationLabel } from './common';
 
@@ -26,6 +28,13 @@ export function ShareRow({ pid, section }: { pid?: string; section?: boolean }) 
 /** Settings (inside a Group). */
 export function ImportSharedRow() {
   return <Row icon="download" title="Import shared documents" subtitle="From a family member’s share file" onPress={() => go('/share-import')} />;
+}
+
+/** Settings → Invite family: the app link only, no documents. */
+export function InviteRow() {
+  const f = useFamily();
+  const me = f.people.find((x) => x.relation === 'self');
+  return <Row icon="send" title="Invite family" subtitle="Send the app link, no documents" onPress={() => { sendInvite(appInviteText(me?.name, INVITE_URL)); }} />;
 }
 
 const dateOf = (iso: string) => fmt(iso.slice(0, 10));
@@ -57,7 +66,8 @@ export function ShareScreen() {
   const chosenDocs = f.docs.filter((d) => people.has(d.ownerId) && !off.has(d.id));
   const flip = <K,>(s: Set<K>, k: K) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; };
   const send = async (b: BuiltShare) => {
-    if (!b.uri || !(await sendShare(b.uri))) toast('The share sheet isn’t available here');
+    const me = f.people.find((x) => x.relation === 'self');
+    if (!b.uri || !(await sendShare(b.uri, shareInviteText(me?.name, INVITE_URL)))) toast('The share sheet isn’t available here');
   };
   const create = async () => {
     if (!people.size) { toast('Choose at least one person'); return; }

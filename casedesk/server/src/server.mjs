@@ -16,7 +16,6 @@ import { sendPush } from './push.mjs';
 import { createForum, isForumPath } from './forum.mjs';
 import { appleVerifier, googleVerifier, appleExchangeCode, appleRevoke } from './auth.mjs';
 import { supportPage } from './support.mjs';
-import { sitePage } from './site.mjs';
 import { createWallet, ensureKeyAndCsr, ensureWwdr } from './wallet.mjs';
 
 // Community Q&A + sign in (src/forum.mjs). Data in data/forum.json, flushed every 10 s and on shutdown.
@@ -76,10 +75,6 @@ const server = http.createServer(async (req, res) => {
 
   const url = new URL(req.url, 'http://x');
   try {
-    if (req.method === 'GET' || req.method === 'HEAD') {
-      const page = sitePage(url.pathname);
-      if (page) { res.writeHead(page.status, page.headers); return res.end(req.method === 'HEAD' ? undefined : page.body); }
-    }
     if (url.pathname === '/support' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
       return res.end(supportPage());
