@@ -1,5 +1,6 @@
 // Home tab (v2.7 pastel): greeting, the hero = the family's single most urgent item, two tiles = the
 // next two most useful facts (core/priority.ts), family rows, what else needs attention, cases, updates.
+import { reasonLine } from '../core/review';
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
@@ -105,7 +106,8 @@ export function Home() {
           <Row key={p.id} avatar={p.name} onPress={() => go(`/person/${p.id}`)} pill={f.results[p.id]?.worst} chevron={false}
             label={`${p.name}, ${statusLabel(p, f.records[p.id], f.results[p.id])}, ${untilText(p, f.records[p.id], f.results[p.id])}`}
             title={p.name}
-            subtitle={`${statusLabel(p, f.records[p.id], f.results[p.id])} · ${untilText(p, f.records[p.id], f.results[p.id]).replace('Status valid until', 'until')}`} />
+            subtitle={(() => { const res = f.results[p.id]; const top = `${statusLabel(p, f.records[p.id], res)} · ${untilText(p, f.records[p.id], res).replace('Status valid until', 'until')}`; const why = res ? reasonLine(res.findings, res.facts.statusUntil) : undefined;
+              return why ? <><T tone="text2" style={font.foot}>{top}</T><T tone={res!.worst === 'act' ? 'red' : 'amber'} numberOfLines={1} style={[font.foot, { fontWeight: '600', marginTop: 1 }]}>{why}</T></> : top; })()} />
         ))}
         {onlyMe && !f.settings.familyCardDismissed ? (
           <Row icon="plus" iconPastel="mint" title="Add your family" subtitle="Optional · spouse, children or parents" onPress={() => go('/family-setup')} chevron={false}

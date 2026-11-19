@@ -76,3 +76,19 @@ test('Outside the US set in Edit details wins over an older I-94; birth date and
   const old = person('me', 'self', { facts: { location: 'Outside' } });
   assert.equal(deriveRecord(old, [i94]).location, 'US');
 });
+
+import { reviewReasons, reasonLine, whatToDo, type Finding } from '../src/core';
+
+test('Review always says why and what to do', () => {
+  const f = (id: string, severity: Finding['severity'], title: string, date?: string): Finding => ({ id, rule: 'C5', severity, title, detail: 'd', notLegalAdvice: true, talkToAttorney: false, date });
+  const list = [f('pp-soon', 'review', 'Passport expires in 78 days', '2027-02-05'), f('i94-short', 'review', 'I-94 ends before the I-129S period'), f('i94-30', 'act', 'I-94 ends in 20 days', '2026-12-08')];
+  const r = reviewReasons(list, '2027-06-28');
+  assert.equal(r[0].finding.id, 'i94-30'); // Act now first
+  assert.equal(reasonLine(list, '2027-06-28'), 'I-94 ends in 20 days');
+  assert.match(whatToDo(list[1], '2027-06-28'), /before Jun 2027/);
+  assert.match(whatToDo(list[0]), /Feb 2027/);
+  // a finding without a rule (info notes) never makes the chip
+  assert.equal(reasonLine([{ ...list[0], rule: undefined }]), undefined);
+  // unknown ids still get a plain next step
+  assert.ok(whatToDo(f('zzz', 'review', 'x', '2027-01-01')).length > 5);
+});

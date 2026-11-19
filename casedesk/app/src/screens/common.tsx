@@ -9,6 +9,7 @@ import type { PersonResult } from '../core/rules/engine';
 import type { Finding } from '../core/rules/types';
 import { statusLine } from '../core/rules/status';
 import { fmt } from '../core/dates';
+import { reasonLine, reviewReasons } from '../core/review';
 import { startFlow, type Flow } from '../data/flow';
 import type { FamilyState } from '../data/FamilyProvider';
 import { Pressable } from 'react-native';
@@ -138,6 +139,48 @@ export function LegalFooter({ asOf }: { asOf?: string }) {
       style={{ flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', minHeight: MIN_TOUCH, marginTop: 14 }}>
       <Icon name="info" size={13} color={t.text2} />
       <T tone="text2" numberOfLines={1} style={[font.caption, { flexShrink: 1 }]}>{line}</T>
+    </Pressable>
+  );
+}
+
+/** v2.9: the Review / Act now chip always says why. Tapping it opens this short sheet: each reason and what to do. */
+export function ReviewSheet({ findings, until, name }: { findings: Finding[]; until?: string; name?: string }) {
+  const t = useTheme();
+  const list = reviewReasons(findings, until);
+  if (!list.length) return <T tone="text2" style={[font.sub, { marginTop: 10 }]}>Nothing to review right now.</T>;
+  return (
+    <View style={{ gap: 14, marginTop: 12 }}>
+      {name ? <T tone="text2" style={font.sub}>{name}</T> : null}
+      {list.map((r) => {
+        const tone = severityTone(r.finding.severity);
+        return (
+          <View key={r.finding.id} style={{ gap: 4 }}>
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: tone === 'red' ? t.red : t.amber }} />
+              <T style={[font.body, { fontWeight: '600', flex: 1 }]}>{r.finding.title}</T>
+            </View>
+            <T tone="text2" style={font.sub}>{r.finding.detail}</T>
+            <T style={[font.sub, { fontWeight: '600' }]}>{`What to do: ${r.todo}`}</T>
+          </View>
+        );
+      })}
+      <LegalLine />
+    </View>
+  );
+}
+
+/** The severity chip, tappable: opens the ReviewSheet. */
+export function ReviewChip({ findings, until, worst, name }: { findings: Finding[]; until?: string; worst: PersonResult['worst']; name: string }) {
+  const sheet = useSheet();
+  const t = useTheme();
+  if (worst === 'good' || worst === 'info') return null;
+  const tone = worst === 'act' ? 'red' : 'amber';
+  const word = TONE_WORD[tone];
+  return (
+    <Pressable onPress={() => sheet.open(`Why ${word.toLowerCase()}`, <ReviewSheet findings={findings} until={until} />)} accessibilityRole="button" accessibilityLabel={`${word}: ${reasonLine(findings, until) ?? ''}. ${name}. Tap for what to do`} hitSlop={8}
+      style={({ pressed }) => ({ minHeight: 30, paddingHorizontal: 12, borderRadius: 999, justifyContent: 'center', backgroundColor: tone === 'red' ? t.pastel.urgent : t.pastel.butter, opacity: pressed ? 0.8 : 1, flexDirection: 'row', alignItems: 'center', gap: 4 })}>
+      <T style={[font.foot, { fontWeight: '700', color: t.ink }]}>{word}</T>
+      <Icon name="chevR" size={12} color={t.ink} />
     </Pressable>
   );
 }

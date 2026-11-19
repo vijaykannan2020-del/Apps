@@ -8,7 +8,8 @@ import { today } from '../core/dates';
 import { useFamily } from '../data/FamilyProvider';
 import { newId } from '../data/store';
 import { Avatar, Button, Card, Chip, ChipToggle, Chips, EmptyState, H1, Icon, IconButton, LargeTitle, NavButton, Pill, Screen, Stack, T, Tag, Why, font, radius, useTheme, useToast, MIN_TOUCH } from '../ui';
-import { go, home, locationChip, relationLabel, runFlow, statusLabel, untilText } from './common';
+import { ReviewChip, go, home, locationChip, relationLabel, runFlow, statusLabel, untilText } from './common';
+import { reasonLine } from '../core/review';
 import { statusGroups } from './sheets';
 import { SelectField } from '../ui';
 import { PersonBody } from './person';
@@ -38,13 +39,14 @@ export function FamilyTab() {
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <T style={[font.body, { fontWeight: '600', flexShrink: 1 }]} numberOfLines={1}>{p.name}</T>
-                      {res ? <Pill severity={res.worst} plain /> : null}
+                      {res ? <ReviewChip findings={res.findings} until={res.facts.statusUntil} worst={res.worst} name={p.name} /> : null}
                     </View>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 3 }}>
                       <T tone="text2" style={font.sub}>{`${relationLabel(p)} · ${statusLabel(p, r, res)}`}</T>
                       <Chip text={locationChip(p, r)} />
                     </View>
                     <T tone="text2" style={[font.sub, { marginTop: 6 }]}>{untilText(p, r, res)}</T>
+                    {res && reasonLine(res.findings, res.facts.statusUntil) ? <T tone={res.worst === 'act' ? 'red' : 'amber'} numberOfLines={1} style={[font.foot, { marginTop: 2, fontWeight: '600' }]}>{reasonLine(res.findings, res.facts.statusUntil)}</T> : null}
                   </View>
                 </View>
               </Card>

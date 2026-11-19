@@ -17,3 +17,4 @@ export { describeChange } from './describe';
 export * from './bulletin';
 export { VAULT_DIR, baseName, storedRef, refKey, migrateFile, migrateDocs, orphanNames, referencedFiles } from './files';
 export { matchPeople, type PersonMatch } from './merge';
+export { reviewReasons, reasonLine, whatToDo, monthYear, type Reason } from './review';

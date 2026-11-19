@@ -23,8 +23,9 @@ import {
 } from '../ui';
 import { NextFiling } from './filings';
 import { NOT_OFFICIAL_ID } from '../content/legal';
-import { AttentionRow, back, ctaFor, go, LegalFooter, locationChip, needsLocation, relationLabel, statusLabel, untilText } from './common';
+import { AttentionRow, ReviewChip, back, ctaFor, go, LegalFooter, locationChip, needsLocation, relationLabel, statusLabel, untilText } from './common';
 import { walletFacts } from '../core/priority';
+import { reasonLine } from '../core/review';
 import { StatusView } from './priority';
 import { AddCase, AskWhere, Confirm, EditDetails, FixClass, RemovePerson, RenewSheet, Trips, Unemployment, WorkLocation } from './sheets';
 import { newId } from '../data/store';
@@ -80,6 +81,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
   const hasDocs = rec.docTypes.length > 0;
   const w = walletFacts({ today: today(), hasDocs, citizen: isCitizen(rec.visa), outside: rec.location === 'Outside', resident: isResident(rec.visa), until: result?.facts.statusUntil ?? rec.i94?.until ?? rec.greenCard?.expires, label: result?.facts.visaLabel });
   const line = untilText(p, rec, result);
+  const reason = result ? reasonLine(result.findings, result.facts.statusUntil) : undefined;
   const openAdd = () => sheet.open('Add or renew a document', <RenewSheet pid={p.id} />);
   const left = (
     <>
@@ -87,8 +89,9 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <WalletCard name={legal ? `${p.name} · ${legal}` : p.name} line={`${statusLabel(p, rec, result)} · ${relationLabel(p)}`} corner={w.corner}
-              caption={w.caption} big={w.big} foot={line} footWord={w.word} footTone={w.wordTone}
-              a11y={`${p.name}. ${statusLabel(p, rec, result)}. ${w.caption} ${w.big}. ${line}`} />
+              caption={w.caption} big={w.big} foot={line} footWord={reason && w.word === 'valid' ? undefined : w.word} footTone={w.wordTone}
+              reason={reason} reasonTone={result?.worst === 'act' ? 'red' : 'amber'}
+              a11y={`${p.name}. ${statusLabel(p, rec, result)}. ${w.caption} ${w.big}. ${line}${reason ? `. ${reason}` : ''}`} />
           </View>
           <View style={{ gap: 10, width: 64 }}>
             <SquareAction icon="plus" label="Add or renew a document" onPress={openAdd} />
@@ -99,7 +102,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
       </TourTarget>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, marginHorizontal: 4 }}>
         <Chip text={locationChip(p, rec)} />
-        {result && result.worst !== 'good' ? <Pill severity={result.worst} /> : null}
+        {result ? <ReviewChip findings={result.findings} until={result.facts.statusUntil} worst={result.worst} name={p.name} /> : null}
       </View>
       <WalletCardRow pid={p.id} />
 
