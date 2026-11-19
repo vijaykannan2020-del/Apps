@@ -1,0 +1,19 @@
+# Shows the latest TestFlight builds and their Apple processing state (run from the Actions tab or on change).
+name: CaseDesk TestFlight status
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/casedesk-testflight-status.yml, casedesk/app/scripts/testflight-status.py]
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pyjwt cryptography -q
+      - run: python casedesk/app/scripts/testflight-status.py
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_APP_ID: ${{ vars.CASEDESK_ASC_APP_ID || '6836097003' }}
