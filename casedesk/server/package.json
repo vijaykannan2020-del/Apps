@@ -12,7 +12,8 @@
     "ingest:wages": "node scripts/ingest-wages.mjs",
     "ingest:employers": "node scripts/ingest-employers.mjs",
     "update-data": "node --env-file-if-exists=.env scripts/update-data.mjs",
-    "test": "node --env-file-if-exists=.env scripts/smoke.mjs"
+    "test": "node --env-file-if-exists=.env scripts/smoke.mjs",
+    "test:unit": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "xlsx": "^0.18.5"

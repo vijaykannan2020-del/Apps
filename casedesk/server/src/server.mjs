@@ -11,6 +11,14 @@ import { subscribe, unsubscribe, pushStatus } from './push.mjs';
 import { getWaits, waitsStatus } from './waits.mjs';
 import { submit as communitySubmit, remove as communityRemove, stats as communityStats, communityStatus } from './community.mjs';
 import { bulletinStatus } from './bulletin.mjs';
+import { sendPush } from './push.mjs';
+import { createForum, isForumPath } from './forum.mjs';
+import { appleVerifier, googleVerifier, appleExchangeCode, appleRevoke } from './auth.mjs';
+import { supportPage } from './support.mjs';
+
+// Community Q&A + sign in (src/forum.mjs). Data in data/forum.json, flushed every 10 s and on shutdown.
+const forum = createForum({ file: 'data/forum.json', notify: sendPush, verifyApple: appleVerifier(), verifyGoogle: googleVerifier(), exchangeAppleCode: appleExchangeCode, revokeApple: appleRevoke });
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { try { forum.close(); } catch {} process.exit(0); });
 
 const PORT = Number(process.env.PORT) || 8787;
 const ORIGIN = process.env.ALLOWED_ORIGIN || '*';
@@ -25,7 +33,7 @@ const limited = (ip) => {
 };
 
 const routes = {
-  '/api/health': () => ({ ok: true, uscis: !!process.env.USCIS_CLIENT_ID, wages: wageStatus(), employers: h1bStatus(), push: pushStatus(), waits: waitsStatus(), bulletin: bulletinStatus(), community: communityStatus(), data: (() => { try { const d = JSON.parse(fs.readFileSync('data/update-status.json', 'utf8')); return { at: d.at, h1bFiles: d.h1b?.length || 0, permFiles: d.perm?.length || 0, errors: d.errors || [] }; } catch { return null; } })(), time: new Date().toISOString() }),
+  '/api/health': () => ({ ok: true, uscis: !!process.env.USCIS_CLIENT_ID, wages: wageStatus(), employers: h1bStatus(), push: pushStatus(), waits: waitsStatus(), bulletin: bulletinStatus(), community: communityStatus(), forum: forum.status(), data: (() => { try { const d = JSON.parse(fs.readFileSync('data/update-status.json', 'utf8')); return { at: d.at, h1bFiles: d.h1b?.length || 0, permFiles: d.perm?.length || 0, errors: d.errors || [] }; } catch { return null; } })(), time: new Date().toISOString() }),
   '/api/news': () => getNews(),
   '/api/wage': (q) => wage(q.get('soc') || '', q.get('area') || ''),
   '/api/wage/soc': (q) => searchSoc(q.get('q') || ''),
@@ -47,7 +55,7 @@ const server = http.createServer(async (req, res) => {
       'Content-Type': 'application/json; charset=utf-8',
       'Access-Control-Allow-Origin': ORIGIN,
       'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Cache-Control': cache,
     });
     res.end(JSON.stringify(body));
@@ -58,6 +66,23 @@ const server = http.createServer(async (req, res) => {
 
   const url = new URL(req.url, 'http://x');
   try {
+    if (url.pathname === '/support' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+      return res.end(supportPage());
+    }
+    // Community Q&A, sign in, account and moderation (src/forum.mjs). Bodies up to 16 KB.
+    if (isForumPath(url.pathname)) {
+      let body = {};
+      if (req.method === 'POST' || req.method === 'DELETE') {
+        let raw = '';
+        for await (const chunk of req) { raw += chunk; if (raw.length > 16384) return send(413, { error: 'Too large' }); }
+        try { body = JSON.parse(raw || '{}'); } catch { return send(400, { error: 'Bad JSON' }); }
+        if (!body || typeof body !== 'object' || Array.isArray(body)) body = {};
+      }
+      const token = (req.headers.authorization || '').match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || '';
+      const out = await forum.route({ method: req.method, path: url.pathname, query: url.searchParams, body, token, ip });
+      if (out) return send(200, out);
+    }
     // Write endpoints: alerts sign-up (token + topics) and anonymous community timelines. Tiny JSON bodies.
     if ((url.pathname === '/api/alerts' || url.pathname === '/api/community') && (req.method === 'POST' || req.method === 'DELETE')) {
       let raw = '';
@@ -75,7 +100,7 @@ const server = http.createServer(async (req, res) => {
     return send(200, await fn(url.searchParams), cache);
   } catch (e) {
     console.error(url.pathname, e.message);
-    return send(e.status || 500, { error: e.status ? e.message : 'Something went wrong.' });
+    return send(e.status || 500, { error: e.status ? e.message : 'Something went wrong.', ...(e.code ? { code: e.code } : {}) });
   }
 });
 

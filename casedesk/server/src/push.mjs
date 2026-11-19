@@ -38,6 +38,9 @@ export function unsubscribe(body) {
 
 export const pushStatus = () => ({ subscribers: Object.keys(subs).length });
 
+// Community: one-off pushes (e.g. 'New answer to your question') to tokens the forum stores per account.
+export const sendPush = (messages) => send(messages.filter((m) => TOKEN_RE.test(m.to || '')));
+
 async function send(messages) {
   for (let i = 0; i < messages.length; i += 100) {
     const batch = messages.slice(i, i + 100);
