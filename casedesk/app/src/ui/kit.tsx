@@ -160,13 +160,25 @@ export function Footer({ children, column }: { children: React.ReactNode; column
 }
 
 // ---------- screen ----------
-export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard, padTop = true, wide }: { nav?: NavProps; footer?: React.ReactNode; children: React.ReactNode; scroll?: boolean; tabRoot?: boolean; keyboard?: boolean; padTop?: boolean; wide?: boolean }) {
+/**
+ * Screen. `panes` (wide screens ≥ 700 pt): two independent full-height scroll areas side by side, so
+ * the left column (list) stays put while the right one (detail) scrolls on its own. On phones the
+ * panes are one normal scrolling page: left, then right.
+ */
+export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard, padTop = true, wide, panes, paneRatio = 1 }: { nav?: NavProps; footer?: React.ReactNode; children?: React.ReactNode; scroll?: boolean; tabRoot?: boolean; keyboard?: boolean; padTop?: boolean; wide?: boolean; panes?: { left: React.ReactNode; right: React.ReactNode }; paneRatio?: number }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const L = useLayout();
   const inner: ViewStyle = { paddingHorizontal: L.side, paddingTop: nav ? 20 : padTop ? insets.top + 14 : 0, paddingBottom: (footer ? 24 : 32) + (tabRoot ? insets.bottom + 56 : footer ? 0 : insets.bottom), alignSelf: 'center', width: '100%', maxWidth: wide && L.twoCol ? L.wideMax + 2 * L.side : L.maxWidth + 2 * L.side };
-  const body = scroll ? (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={inner} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{children}</ScrollView>
+  const split = !!panes && L.twoCol;
+  const paneInner = (left: boolean): ViewStyle => ({ ...inner, maxWidth: undefined, alignSelf: 'stretch', paddingLeft: left ? L.side : 10, paddingRight: left ? 10 : L.side });
+  const body = split ? (
+    <View style={{ flex: 1, flexDirection: 'row', alignSelf: 'center', width: '100%', maxWidth: L.wideMax + 2 * L.side }}>
+      <ScrollView testID="pane-left" style={{ flex: paneRatio }} contentContainerStyle={paneInner(true)} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes!.left}</ScrollView>
+      <ScrollView testID="pane-right" style={{ flex: 1 }} contentContainerStyle={paneInner(false)} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes!.right}</ScrollView>
+    </View>
+  ) : scroll ? (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={inner} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes ? <>{panes.left}{panes.right}</> : children}</ScrollView>
   ) : <View style={[{ flex: 1 }, inner]}>{children}</View>;
   const content = (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingLeft: insets.left, paddingRight: insets.right }}>

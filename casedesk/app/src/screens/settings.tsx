@@ -74,12 +74,12 @@ export function SettingsTab() {
     </>
   );
   return (
-    <Screen tabRoot wide>
+    <Screen tabRoot wide panes={{ left: <>
       <LargeTitle title="Settings" />
       <T tone="text2" style={[font.sub, { marginTop: 2 }]}>Your data stays on this phone.</T>
       <HelpCard tab="settings" />
-      {L.twoCol ? <Columns left={look} right={help} /> : <>{look}{help}</>}
-    </Screen>
+      {look}
+    </>, right: <>{L.twoCol ? <View style={{ height: 70 }} /> : null}{help}</> }} />
   );
 }
 

@@ -22,11 +22,10 @@ export function FamilyTab() {
   const [sel, setSel] = useState<string | undefined>(undefined);
   const selected = L.twoCol ? (f.people.find((p) => p.id === sel) ?? f.people[0])?.id : undefined;
   return (
-    <Screen tabRoot wide>
+    <Screen tabRoot wide paneRatio={0.8} panes={{ left: <>
       <LargeTitle title="Family" />
       <T tone="text2" style={[font.sub, { marginTop: 2 }]}>{`${f.people.length} ${f.people.length === 1 ? 'person' : 'people'} · saved only on this phone`}</T>
       <HelpCard tab="family" />
-      <Columns ratio={0.8} left={<>
       {f.people.length ? (
         <Stack style={{ marginTop: 20 }}>
           {f.people.map((p) => {
@@ -53,8 +52,7 @@ export function FamilyTab() {
         </Stack>
       ) : <EmptyState small icon="users" title="No family members yet" />}
       <AddButton title="Add family member" onPress={() => go('/add-member')} />
-      </>} right={selected ? <View style={{ marginTop: 20 }}><PersonBody id={selected} single /><LinkButton title="Open full page" onPress={() => go(`/person/${selected}`)} /></View> : null} />
-    </Screen>
+      </>, right: selected ? <View style={{ marginTop: 4 }}><PersonBody id={selected} single /><LinkButton title="Open full page" onPress={() => go(`/person/${selected}`)} /></View> : null }} />
   );
 }
 
