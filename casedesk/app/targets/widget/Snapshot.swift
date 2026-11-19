@@ -10,6 +10,7 @@ let snapshotKey = "snapshot.v1"
 struct WidgetPerson: Codable, Hashable {
   let id: String
   let name: String
+  let initials: String?
   let status: String
   let until: String?
   let untilLabel: String?
@@ -32,6 +33,25 @@ struct WidgetCase: Codable, Hashable {
   let url: String
 }
 
+/// v2.8 Edit Widget: one thing to show for one person (src/core/widgets.ts WidgetItem).
+/// mode: "until" = a date coming up, "info" = words. place ("US" / "Outside") and stamp (valid visa
+/// stamp in the passport, yes or no) are only on the "status" item; stamp only outside the US.
+struct WidgetItem: Codable, Hashable {
+  let kind: String
+  let personId: String
+  let who: String
+  let whoInitials: String
+  let label: String
+  let mode: String
+  let date: String?
+  let text: String?
+  let place: String?
+  let stamp: Bool?
+  let url: String
+}
+
+let familyId = "family"
+
 struct WidgetBulletin: Codable, Hashable {
   let month: String
   let next: String?
@@ -46,22 +66,49 @@ struct WidgetSnapshot: Codable {
   let latestCase: WidgetCase?
   let bulletin: WidgetBulletin?
   let disclaimer: String
+  let items: [WidgetItem]?
+  let familyItems: [WidgetItem]?
 
   static let empty = WidgetSnapshot(v: 1, updatedAt: "", locked: false, people: [], deadlines: [], latestCase: nil, bulletin: nil,
-                                    disclaimer: "For personal reference — not an official document")
+                                    disclaimer: "For personal reference — not an official document", items: nil, familyItems: nil)
 
   /// Example data for the widget gallery (made-up people, never real data).
   static let preview = WidgetSnapshot(
     v: 1, updatedAt: "", locked: false,
     people: [
-      WidgetPerson(id: "p1", name: "A", status: "H-1B", until: isoDate(daysFromNow: 210), untilLabel: "I-94", url: "casedesk://person/p1"),
-      WidgetPerson(id: "p2", name: "B", status: "H-4", until: isoDate(daysFromNow: 210), untilLabel: "I-94", url: "casedesk://person/p2"),
-      WidgetPerson(id: "p3", name: "C", status: "H-4", until: isoDate(daysFromNow: 45), untilLabel: "I-94", url: "casedesk://person/p3"),
+      WidgetPerson(id: "p1", name: "A", initials: "A", status: "H-1B", until: isoDate(daysFromNow: 210), untilLabel: "I-94", url: "casedesk://person/p1"),
+      WidgetPerson(id: "p2", name: "B", initials: "B", status: "H-4", until: isoDate(daysFromNow: 210), untilLabel: "I-94", url: "casedesk://person/p2"),
+      WidgetPerson(id: "p3", name: "C", initials: "C", status: "H-4", until: isoDate(daysFromNow: 45), untilLabel: "I-94", url: "casedesk://person/p3"),
     ],
     deadlines: [WidgetDeadline(personId: "p3", who: "C", what: "Passport expires", date: isoDate(daysFromNow: 45), url: "casedesk://person/p3")],
     latestCase: WidgetCase(who: "A", form: "I-129", status: "Pending", date: isoDate(daysFromNow: -12), url: "casedesk://"),
     bulletin: WidgetBulletin(month: "November 2026", next: isoDate(daysFromNow: 20)),
-    disclaimer: "For personal reference — not an official document")
+    disclaimer: "For personal reference — not an official document",
+    items: [
+      WidgetItem(kind: "status", personId: "p1", who: "A", whoInitials: "A", label: "Valid until (I-94)", mode: "until", date: isoDate(daysFromNow: 210), text: "H-1B", place: "US", stamp: nil, url: "casedesk://person/p1"),
+      WidgetItem(kind: "status", personId: "p2", who: "B", whoInitials: "B", label: "Valid until (I-94)", mode: "until", date: isoDate(daysFromNow: 210), text: "H-4", place: "US", stamp: nil, url: "casedesk://person/p2"),
+      WidgetItem(kind: "status", personId: "p3", who: "C", whoInitials: "C", label: "I-797 valid until", mode: "until", date: isoDate(daysFromNow: 45), text: "H-4", place: "Outside", stamp: true, url: "casedesk://person/p3"),
+      WidgetItem(kind: "deadline", personId: "p3", who: "C", whoInitials: "C", label: "Passport expires", mode: "until", date: isoDate(daysFromNow: 45), text: nil, place: nil, stamp: nil, url: "casedesk://person/p3"),
+    ],
+    familyItems: [
+      WidgetItem(kind: "status", personId: "p3", who: "C", whoInitials: "C", label: "I-797 valid until", mode: "until", date: isoDate(daysFromNow: 45), text: "H-4", place: "Outside", stamp: true, url: "casedesk://person/p3"),
+      WidgetItem(kind: "deadline", personId: "p3", who: "C", whoInitials: "C", label: "Passport expires", mode: "until", date: isoDate(daysFromNow: 45), text: nil, place: nil, stamp: nil, url: "casedesk://person/p3"),
+    ])
+
+  /// What a widget set to (kind, person) shows. nil = not added yet for that person.
+  /// personId nil or "family" = Whole family. Snapshots written before v2.8 have no items: the
+  /// next deadline still works from the old list.
+  func item(kind: String, personId: String?) -> WidgetItem? {
+    let wholeFamily = personId == nil || personId == familyId
+    if let all = items {
+      if wholeFamily { return (familyItems ?? []).first { $0.kind == kind } }
+      return all.first { $0.kind == kind && $0.personId == personId }
+    }
+    guard kind == "deadline" else { return nil }
+    let d = wholeFamily ? deadlines.first : deadlines.first { $0.personId == personId }
+    guard let x = d else { return nil }
+    return WidgetItem(kind: "deadline", personId: x.personId, who: x.who, whoInitials: x.who, label: x.what, mode: "until", date: x.date, text: nil, place: nil, stamp: nil, url: x.url)
+  }
 
   static func load() -> WidgetSnapshot {
     guard let defaults = UserDefaults(suiteName: appGroup) else { return .empty }
@@ -119,11 +166,20 @@ func urgency(_ days: Int?) -> Urgency {
 extension Urgency {
   var color: Color {
     switch self {
-    // pastel palette (asset colours from expo-target.config.js): blush urgent, butter attention, sage good
+    // text-safe colours on the page (asset colours from expo-target.config.js): blush urgent, butter attention, sage good
     case .red: return Color("$urgent")
     case .amber: return Color("$attention")
     case .green: return Color("$good")
     case .none: return .secondary
+    }
+  }
+  /// The pastel block for this meaning (ink text goes on it): blush urgent, butter attention, sage good, sky information.
+  var fill: Color {
+    switch self {
+    case .red: return Color("$blush")
+    case .amber: return Color("$butter")
+    case .green: return Color("$sage")
+    case .none: return Color("$sky")
     }
   }
   var word: String {

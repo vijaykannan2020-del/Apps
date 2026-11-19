@@ -1,9 +1,80 @@
-// SwiftUI views for every widget size. System text styles (Dynamic Type), system colours (light/dark),
-// widgetAccentable() for tinted / accented home screens, and a disclaimer on every size that has room.
+// SwiftUI views for every widget size (v2.8: each widget shows what the user chose in Edit Widget).
+// Pastel look like the app: a pastel block per meaning (sage good, butter attention, blush urgent,
+// sky information) with ink text, on true black in dark mode. System text styles (Dynamic Type),
+// widgetAccentable() for tinted / accented Home Screens, a disclaimer on every size that has room.
 import SwiftUI
 import WidgetKit
 
 private let openURL = URL(string: "casedesk://")!
+let notAdded = "Not added yet — open the app"
+
+// MARK: - what one configured widget shows
+
+/// The chosen item, worked out for one timeline entry (days are counted from the entry's date).
+struct Shown {
+  let title: String    // "In the US · H-1B" / "Passport valid until"
+  let big: String      // "210 days left" / "I-485 pending"
+  let sub: String      // the exact date, or the date with what sets it
+  let extra: String    // "Visa stamp: Yes" (current status outside the US), else ""
+  let who: String      // name or initials, as chosen in the app ("" when there is nothing to show)
+  let tone: Urgency    // .none = information (sky)
+  let url: URL
+  let missing: Bool
+  let days: Int?
+}
+
+func kindTitle(_ kind: String) -> String {
+  switch kind {
+  case "deadline": return "Next deadline"
+  case "passport": return "Passport"
+  case "visa": return "Visa stamp"
+  case "i94": return "I-94"
+  case "ead": return "EAD"
+  case "ap": return "Advance parole"
+  case "gc": return "Green card stage"
+  case "case": return "Latest case update"
+  case "pd": return "Priority date"
+  default: return "Current status"
+  }
+}
+
+func daysLeftText(_ n: Int) -> String {
+  if n < 0 { return "Ended" }
+  if n == 0 { return "Ends today" }
+  return n == 1 ? "1 day left" : "\(n) days left"
+}
+
+func shown(_ item: WidgetItem?, kind: String, entry: WalletEntry) -> Shown {
+  guard let it = item else {
+    return Shown(title: kindTitle(kind), big: notAdded, sub: "", extra: "", who: "", tone: .none, url: openURL, missing: true, days: nil)
+  }
+  let url = URL(string: it.url) ?? openURL
+  let days = daysUntil(it.date, from: entry.date)
+  var extra = ""
+  if let ok = it.stamp { extra = ok ? "Visa stamp: Yes" : "Visa stamp: No" }
+  if it.kind == "status" {
+    let place = it.place == "Outside" ? "Outside the US" : "In the US"
+    let title = it.text.map { it.mode == "until" ? "\(place) · \($0)" : place } ?? place
+    if it.mode == "until", let n = days {
+      return Shown(title: title, big: daysLeftText(n), sub: "\(it.label) \(shortDate(it.date))", extra: extra, who: it.who, tone: urgency(n), url: url, missing: false, days: n)
+    }
+    return Shown(title: title, big: it.text ?? it.label, sub: it.label, extra: extra, who: it.who, tone: .none, url: url, missing: false, days: nil)
+  }
+  if it.mode == "until", let n = days {
+    return Shown(title: it.label, big: daysLeftText(n), sub: shortDate(it.date), extra: it.kind == "visa" ? "" : extra, who: it.who, tone: urgency(n), url: url, missing: false, days: n)
+  }
+  let text = it.text ?? shortDate(it.date)
+  let sub = it.text != nil && it.date != nil ? shortDate(it.date) : ""
+  return Shown(title: it.label, big: text, sub: sub, extra: "", who: it.who, tone: .none, url: url, missing: false, days: nil)
+}
+
+func shown(_ entry: WalletEntry) -> Shown {
+  shown(entry.snapshot.item(kind: entry.show, personId: entry.personId), kind: entry.show, entry: entry)
+}
+
+func isWholeFamily(_ entry: WalletEntry) -> Bool {
+  entry.personId == nil || entry.personId == familyId
+}
 
 // MARK: - shared bits
 
@@ -34,8 +105,14 @@ struct EmptyStateView: View {
 
 struct Disclaimer: View {
   let text: String
+  var onPastel = false
+  @Environment(\.widgetRenderingMode) var mode
   var body: some View {
-    Text(text).font(.system(.caption2)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.6)
+    if onPastel && mode == .fullColor {
+      Text(text).font(.system(.caption2)).foregroundStyle(Color("$ink").opacity(0.78)).lineLimit(1).minimumScaleFactor(0.6)
+    } else {
+      Text(text).font(.system(.caption2)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.6)
+    }
   }
 }
 
@@ -44,115 +121,150 @@ struct UrgencyDot: View {
   var body: some View { Circle().fill(u.color).frame(width: 8, height: 8).widgetAccentable().accessibilityHidden(true) }
 }
 
-// MARK: - (a) Small: next deadline
+/// The chosen item as text: small label, the big value, a second line, who. `onPastel` = ink text
+/// (the caller draws the pastel behind it). In tinted / accented mode system colours are used instead.
+struct ItemText: View {
+  let s: Shown
+  var onPastel = true
+  var bigStyle: Font = .system(.title, design: .rounded)
+  @Environment(\.widgetRenderingMode) var mode
+  var body: some View {
+    let ink = onPastel && mode == .fullColor
+    let main: Color = ink ? Color("$ink") : .primary
+    let soft: Color = ink ? Color("$ink").opacity(0.78) : .secondary
+    VStack(alignment: .leading, spacing: 2) {
+      Text(s.title).font(.caption2).fontWeight(.semibold).foregroundStyle(soft).lineLimit(2).minimumScaleFactor(0.8)
+      if s.missing {
+        Text(s.big).font(.footnote).fontWeight(.semibold).foregroundStyle(main).lineLimit(3).minimumScaleFactor(0.8)
+      } else {
+        Text(s.big).font(bigStyle).fontWeight(.bold).foregroundStyle(main).lineLimit(2).minimumScaleFactor(0.5).widgetAccentable()
+        if !s.sub.isEmpty { Text(s.sub).font(.caption).foregroundStyle(soft).lineLimit(1).minimumScaleFactor(0.7) }
+        if !s.extra.isEmpty { Text(s.extra).font(.caption).fontWeight(.semibold).foregroundStyle(main).lineLimit(1).minimumScaleFactor(0.8) }
+        if !s.who.isEmpty { Text(s.who).font(.caption2).fontWeight(.semibold).foregroundStyle(soft).lineLimit(1) }
+      }
+    }
+    .accessibilityElement(children: .combine)
+  }
+}
 
-struct NextDeadlineSmall: View {
+/// A pastel block (rounded) holding the chosen item.
+struct ItemBlock: View {
+  let s: Shown
+  @Environment(\.widgetRenderingMode) var mode
+  var body: some View {
+    ItemText(s: s, onPastel: true, bigStyle: .system(.title2, design: .rounded))
+      .padding(10)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+      .background {
+        if mode == .fullColor {
+          RoundedRectangle(cornerRadius: 14, style: .continuous).fill(s.tone.fill)
+        } else {
+          RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.primary.opacity(0.12))
+        }
+      }
+  }
+}
+
+// MARK: - Small: the chosen item fills the widget (the pastel is the widget background, see index.swift)
+
+struct ChosenSmall: View {
   let entry: WalletEntry
   var body: some View {
-    let s = entry.snapshot
-    if s.locked { LockedView() }
-    else if let d = s.deadlines.first {
-      let days = daysUntil(d.date, from: entry.date)
-      let u = urgency(days)
-      VStack(alignment: .leading, spacing: 2) {
-        HStack(spacing: 6) { UrgencyDot(u: u); Text("Next deadline").font(.caption2).foregroundStyle(.secondary) }
-        Spacer(minLength: 2)
-        Text(days.map(daysText) ?? "—").font(.system(.title, design: .rounded)).fontWeight(.bold)
-          .foregroundStyle(u.color).minimumScaleFactor(0.6).lineLimit(1).widgetAccentable()
-        Text(d.what).font(.footnote).fontWeight(.semibold).lineLimit(2).minimumScaleFactor(0.8)
-        Text("\(d.who) · \(shortDate(d.date))").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-        Spacer(minLength: 2)
-        Disclaimer(text: "Reference only")
-      }
-      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-      .widgetURL(URL(string: d.url) ?? openURL)
-      .accessibilityElement(children: .combine)
-    } else if s.people.isEmpty { EmptyStateView() }
+    let snap = entry.snapshot
+    if snap.locked { LockedView() }
+    else if snap.people.isEmpty { EmptyStateView() }
     else {
-      VStack(alignment: .leading, spacing: 4) {
-        Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(Color("$good")).widgetAccentable()
-        Text("No dates coming up").font(.subheadline).fontWeight(.semibold)
-        Spacer()
-        Disclaimer(text: "Reference only")
+      let s = shown(entry)
+      VStack(alignment: .leading, spacing: 2) {
+        ItemText(s: s, onPastel: true)
+        Spacer(minLength: 2)
+        Disclaimer(text: "Reference only", onPastel: true)
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-      .widgetURL(openURL)
+      .widgetURL(s.url)
     }
   }
 }
 
-// MARK: - (d) Lock Screen accessories: days to the nearest deadline
+// MARK: - Lock Screen accessories
 
-struct DeadlineAccessory: View {
+struct ChosenAccessory: View {
   @Environment(\.widgetFamily) var family
   let entry: WalletEntry
   var body: some View {
-    let s = entry.snapshot
-    let d = s.locked ? nil : s.deadlines.first
-    let days = daysUntil(d?.date, from: entry.date)
+    let snap = entry.snapshot
+    let s = shown(entry)
     switch family {
     case .accessoryCircular:
       ZStack {
         AccessoryWidgetBackground()
-        if s.locked { Image(systemName: "lock.fill") }
-        else if let n = days {
+        if snap.locked { Image(systemName: "lock.fill") }
+        else if s.missing { Image(systemName: "plus") }
+        else if let n = s.days {
           VStack(spacing: 0) {
             Text(n < 0 ? "!" : "\(n)").font(.system(.title3, design: .rounded)).fontWeight(.bold).minimumScaleFactor(0.5)
             Text(n == 1 ? "day" : "days").font(.system(size: 9)).textCase(.uppercase)
           }
-        } else { Image(systemName: "checkmark") }
+        } else {
+          Text(s.big).font(.system(.caption2, design: .rounded)).fontWeight(.semibold).multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.5).padding(3)
+        }
       }
-      .widgetURL(URL(string: d?.url ?? "") ?? openURL)
-      .accessibilityLabel(s.locked ? "Open Immigration Wallet" : days.map { "\(daysText($0)) to \(d?.what ?? "next deadline")" } ?? "No dates coming up")
+      .widgetURL(snap.locked ? openURL : s.url)
+      .accessibilityLabel(snap.locked ? "Open Immigration Wallet" : "\(s.title): \(s.big)")
     case .accessoryInline:
-      if s.locked { Text("Immigration Wallet") }
-      else if let d = d, let n = days { Text("\(d.who): \(d.what) · \(daysText(n))") }
-      else { Text("No dates coming up") }
+      if snap.locked { Text("Immigration Wallet") }
+      else if s.missing { Text("\(s.title): not added yet") }
+      else { Text(s.who.isEmpty ? "\(s.title) · \(s.big)" : "\(s.who): \(s.title) · \(s.big)") }
     default: // accessoryRectangular
       VStack(alignment: .leading, spacing: 1) {
-        if s.locked {
+        if snap.locked {
           Label("Immigration Wallet", systemImage: "lock.fill").font(.headline)
           Text("Open to see dates").font(.caption)
-        } else if let d = d, let n = days {
-          Text(daysText(n)).font(.headline).widgetAccentable()
-          Text(d.what).font(.caption).lineLimit(1)
-          Text("\(d.who) · \(shortDate(d.date))").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+        } else if s.missing {
+          Text(s.title).font(.headline).lineLimit(1)
+          Text(notAdded).font(.caption).lineLimit(2)
         } else {
-          Text("No dates coming up").font(.headline)
-          Text("Immigration Wallet").font(.caption)
+          Text(s.big).font(.headline).lineLimit(1).widgetAccentable()
+          Text(s.title).font(.caption).lineLimit(1)
+          Text([s.who, s.sub, s.extra].filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
-      .widgetURL(URL(string: d?.url ?? "") ?? openURL)
+      .widgetURL(snap.locked ? openURL : s.url)
     }
   }
 }
 
-// MARK: - (b) Medium / (c) Large: family status
+// MARK: - Medium / Large
 
+/// One person in the family list: avatar, name and status, and their value for the chosen item.
 struct PersonRow: View {
   let p: WidgetPerson
-  let now: Date
+  let entry: WalletEntry
   var body: some View {
-    let days = daysUntil(p.until, from: now)
-    Link(destination: URL(string: p.url) ?? openURL) {
+    let name = p.name
+    let s = shown(entry.snapshot.item(kind: entry.show, personId: p.id), kind: entry.show, entry: entry)
+    Link(destination: s.missing ? (URL(string: p.url) ?? openURL) : s.url) {
       HStack(spacing: 8) {
         ZStack {
-          Circle().fill(Color.accentColor.opacity(0.18))
-          Text(p.name.prefix(2)).font(.caption).fontWeight(.semibold).lineLimit(1).minimumScaleFactor(0.6)
+          Circle().fill(Color("$sky"))
+          Text((p.initials ?? p.name).prefix(2)).font(.caption).fontWeight(.semibold).foregroundStyle(Color("$ink")).lineLimit(1).minimumScaleFactor(0.6)
         }
         .frame(width: 26, height: 26).widgetAccentable()
         VStack(alignment: .leading, spacing: 0) {
-          Text(p.name).font(.footnote).fontWeight(.semibold).lineLimit(1)
+          Text(name).font(.footnote).fontWeight(.semibold).lineLimit(1)
           Text(p.status).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
         }
         Spacer(minLength: 4)
         VStack(alignment: .trailing, spacing: 0) {
-          if p.until != nil {
-            HStack(spacing: 4) { UrgencyDot(u: urgency(days)); Text(shortDate(p.until)).font(.caption).fontWeight(.medium).lineLimit(1) }
-            Text("\(p.untilLabel ?? "Valid") until").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+          if s.missing {
+            Text("Not added yet").font(.caption).foregroundStyle(.secondary).lineLimit(1)
           } else {
-            Text("—").font(.caption).foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+              if s.days != nil { UrgencyDot(u: s.tone) }
+              Text(s.big).font(.caption).fontWeight(.medium).lineLimit(1).minimumScaleFactor(0.7)
+            }
+            Text([s.sub.isEmpty ? s.title : s.sub, s.extra].filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
           }
         }
       }
@@ -161,48 +273,132 @@ struct PersonRow: View {
   }
 }
 
-struct FamilyView: View {
-  @Environment(\.widgetFamily) var family
+/// A secondary line under / beside the chosen item: another item of the same person.
+struct SecondaryLine: View {
+  let s: Shown
+  var body: some View {
+    Link(destination: s.url) {
+      VStack(alignment: .leading, spacing: 0) {
+        Text(s.title).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+        HStack(spacing: 4) {
+          if s.days != nil { UrgencyDot(u: s.tone) }
+          Text(s.big).font(.footnote).fontWeight(.semibold).lineLimit(1).minimumScaleFactor(0.7)
+        }
+      }
+    }
+  }
+}
+
+/// Two more items for the same person (or the family), skipping the chosen one and anything not added.
+func secondary(_ entry: WalletEntry, limit: Int = 2) -> [Shown] {
+  let order = ["status", "deadline", "passport", "i94", "visa", "ead", "ap", "gc", "case", "pd"]
+  var out: [Shown] = []
+  var seen: Set<String> = []
+  let main = entry.snapshot.item(kind: entry.show, personId: entry.personId)
+  if let m = main { seen.insert("\(m.label)|\(m.date ?? "")") }
+  for k in order where k != entry.show {
+    guard let it = entry.snapshot.item(kind: k, personId: entry.personId) else { continue }
+    let key = "\(it.label)|\(it.date ?? "")"
+    if seen.contains(key) { continue } // "next deadline" is often the same date as another item
+    seen.insert(key)
+    out.append(shown(it, kind: k, entry: entry))
+    if out.count >= limit { break }
+  }
+  return out
+}
+
+struct FamilyHeader: View {
+  let title: String
+  var body: some View {
+    HStack {
+      Text(title).font(.caption).fontWeight(.semibold).foregroundStyle(.secondary).lineLimit(1)
+      Spacer()
+      Image(systemName: "person.2.fill").font(.caption).foregroundStyle(.secondary).widgetAccentable()
+    }
+  }
+}
+
+struct ChosenMedium: View {
   let entry: WalletEntry
   var body: some View {
-    let s = entry.snapshot
-    let large = family == .systemLarge || family == .systemExtraLarge
-    if s.locked { LockedView() }
-    else if s.people.isEmpty { EmptyStateView() }
-    else {
-      VStack(alignment: .leading, spacing: large ? 8 : 5) {
-        HStack {
-          Text("Family status").font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
-          Spacer()
-          Image(systemName: "person.2.fill").font(.caption).foregroundStyle(.secondary).widgetAccentable()
+    let snap = entry.snapshot
+    if snap.locked { LockedView() }
+    else if snap.people.isEmpty { EmptyStateView() }
+    else if isWholeFamily(entry) {
+      // Whole family: the family list, each row showing that person's value for the chosen item.
+      VStack(alignment: .leading, spacing: 5) {
+        FamilyHeader(title: "Family · \(kindTitle(entry.show))")
+        ForEach(Array(snap.people.prefix(3)), id: \.self) { p in PersonRow(p: p, entry: entry) }
+        Spacer(minLength: 0)
+        Disclaimer(text: snap.disclaimer)
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    } else {
+      // One person: the chosen item big, two more of their dates beside it.
+      let s = shown(entry)
+      let more = secondary(entry)
+      VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .top, spacing: 10) {
+          Link(destination: s.url) { ItemBlock(s: s) }
+          VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array(more.enumerated()), id: \.offset) { _, x in SecondaryLine(s: x) }
+            if more.isEmpty { Text("Add documents in the app to see more dates here.").font(.caption2).foregroundStyle(.secondary) }
+            Spacer(minLength: 0)
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
         }
-        ForEach(Array(s.people.prefix(4)), id: \.self) { p in PersonRow(p: p, now: entry.date) }
-        if large {
-          Divider()
-          if let c = s.latestCase {
-            Link(destination: URL(string: c.url) ?? openURL) {
-              VStack(alignment: .leading, spacing: 1) {
-                Text("Latest case update").font(.caption2).foregroundStyle(.secondary)
-                Text("\(c.who) · \(c.form): \(c.status)").font(.footnote).fontWeight(.semibold).lineLimit(1)
-                if let d = c.date { Text(shortDate(d)).font(.caption2).foregroundStyle(.secondary) }
-              }
-            }
+        Disclaimer(text: snap.disclaimer)
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+  }
+}
+
+struct ChosenLarge: View {
+  let entry: WalletEntry
+  var body: some View {
+    let snap = entry.snapshot
+    if snap.locked { LockedView() }
+    else if snap.people.isEmpty { EmptyStateView() }
+    else if isWholeFamily(entry) {
+      let s = shown(entry)
+      VStack(alignment: .leading, spacing: 7) {
+        FamilyHeader(title: "Family · \(kindTitle(entry.show))")
+        ForEach(Array(snap.people.prefix(4)), id: \.self) { p in PersonRow(p: p, entry: entry) }
+        Link(destination: s.url) { ItemBlock(s: s).frame(maxHeight: 96) }
+        HStack(alignment: .top, spacing: 12) {
+          ForEach(Array(secondary(entry).enumerated()), id: \.offset) { _, x in
+            SecondaryLine(s: x).frame(maxWidth: .infinity, alignment: .leading)
           }
-          if let b = s.bulletin {
-            VStack(alignment: .leading, spacing: 1) {
-              Text("Visa Bulletin").font(.caption2).foregroundStyle(.secondary)
-              Text(b.next.map { "\(b.month) · next expected around \(shortDate($0))" } ?? b.month).font(.footnote).lineLimit(2).minimumScaleFactor(0.8)
-            }
-          }
-          if let d = s.deadlines.first, let n = daysUntil(d.date, from: entry.date) {
-            HStack(spacing: 6) {
-              UrgencyDot(u: urgency(n))
-              Text("Next: \(d.who) · \(d.what) · \(daysText(n))").font(.caption).lineLimit(1).minimumScaleFactor(0.8)
-            }
-          }
-          Spacer(minLength: 0)
         }
-        Disclaimer(text: s.disclaimer)
+        if let b = snap.bulletin {
+          Text(b.next.map { "Visa Bulletin: \(b.month) · next expected around \(shortDate($0))" } ?? "Visa Bulletin: \(b.month)")
+            .font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        Spacer(minLength: 0)
+        Disclaimer(text: snap.disclaimer)
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    } else {
+      // One person: the chosen item in a big pastel block, then up to six more of their dates.
+      let s = shown(entry)
+      let more = secondary(entry, limit: 6)
+      VStack(alignment: .leading, spacing: 8) {
+        FamilyHeader(title: s.who.isEmpty ? kindTitle(entry.show) : "\(s.who) · \(kindTitle(entry.show))")
+        Link(destination: s.url) { ItemBlock(s: s).frame(maxHeight: 130) }
+        ForEach(Array(stride(from: 0, to: more.count, by: 2)), id: \.self) { i in
+          HStack(alignment: .top, spacing: 12) {
+            SecondaryLine(s: more[i]).frame(maxWidth: .infinity, alignment: .leading)
+            if i + 1 < more.count {
+              SecondaryLine(s: more[i + 1]).frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+              Spacer().frame(maxWidth: .infinity)
+            }
+          }
+        }
+        if more.isEmpty { Text("Add documents in the app to see more dates here.").font(.caption2).foregroundStyle(.secondary) }
+        Spacer(minLength: 0)
+        Disclaimer(text: snap.disclaimer)
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }

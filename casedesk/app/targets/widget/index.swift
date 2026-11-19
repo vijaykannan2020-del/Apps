@@ -1,14 +1,42 @@
-// Immigration Wallet widgets: Next deadline (small + Lock Screen) and Family status (medium, large).
+// Immigration Wallet widgets (v2.8): both are configurable — long-press → Edit Widget to choose the
+// person (or Whole family) and what to show (Current status by default).
+//   NextDeadline: small + Lock Screen.  FamilyStatus: medium, large (iPad extra large).
+// The kind strings are unchanged from v2.5, so widgets already on a Home Screen keep working and
+// start with the defaults (Whole family · Current status).
 import SwiftUI
 import WidgetKit
+import AppIntents
 
-struct NextDeadlineEntryView: View {
+struct SmallEntryView: View {
   @Environment(\.widgetFamily) var family
   let entry: WalletEntry
   var body: some View {
     switch family {
-    case .accessoryCircular, .accessoryRectangular, .accessoryInline: DeadlineAccessory(entry: entry)
-    default: NextDeadlineSmall(entry: entry)
+    case .accessoryCircular, .accessoryRectangular, .accessoryInline: ChosenAccessory(entry: entry)
+    default: ChosenSmall(entry: entry)
+    }
+  }
+}
+
+struct FamilyEntryView: View {
+  @Environment(\.widgetFamily) var family
+  let entry: WalletEntry
+  var body: some View {
+    switch family {
+    case .systemMedium: ChosenMedium(entry: entry)
+    default: ChosenLarge(entry: entry)
+    }
+  }
+}
+
+/// Small widget background: the pastel of the chosen item's meaning; plain when there is nothing to colour.
+struct SmallBackground: View {
+  let entry: WalletEntry
+  var body: some View {
+    if entry.snapshot.locked || entry.snapshot.people.isEmpty {
+      Color("$widgetBackground")
+    } else {
+      shown(entry).tone.fill
     }
   }
 }
@@ -16,11 +44,11 @@ struct NextDeadlineEntryView: View {
 struct NextDeadlineWidget: Widget {
   let kind = "NextDeadline"
   var body: some WidgetConfiguration {
-    StaticConfiguration(kind: kind, provider: WalletProvider()) { entry in
-      NextDeadlineEntryView(entry: entry).containerBackground(for: .widget) { Color("$widgetBackground") }
+    AppIntentConfiguration(kind: kind, intent: ConfigIntent.self, provider: ConfigProvider()) { entry in
+      SmallEntryView(entry: entry).containerBackground(for: .widget) { SmallBackground(entry: entry) }
     }
-    .configurationDisplayName("Next deadline")
-    .description("Who, what and how many days are left. For personal reference — not an official document.")
+    .configurationDisplayName("One date")
+    .description("Current status by default. Edit Widget to choose a person and what to show. For personal reference — not an official document.")
     .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular, .accessoryInline])
   }
 }
@@ -28,11 +56,11 @@ struct NextDeadlineWidget: Widget {
 struct FamilyWidget: Widget {
   let kind = "FamilyStatus"
   var body: some WidgetConfiguration {
-    StaticConfiguration(kind: kind, provider: WalletProvider()) { entry in
-      FamilyView(entry: entry).containerBackground(for: .widget) { Color("$widgetBackground") }
+    AppIntentConfiguration(kind: kind, intent: ConfigIntent.self, provider: ConfigProvider()) { entry in
+      FamilyEntryView(entry: entry).containerBackground(for: .widget) { Color("$widgetBackground") }
     }
     .configurationDisplayName("Family status")
-    .description("Everyone’s status and valid-until date; the large size adds the latest case and the Visa Bulletin.")
+    .description("Everyone’s dates, or one person in detail. Edit Widget to choose a person and what to show.")
     .supportedFamilies([.systemMedium, .systemLarge, .systemExtraLarge])
   }
 }
