@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """CaseDesk iPhone signing on GitHub (no Mac), same method as Inbox.
 Reuses Inbox's App Store distribution certificate (Apple allows only a few), registers the CaseDesk App ID
-with Push Notifications and iCloud (v2.2: iCloud Documents for automatic backups), makes an App Store
+with Push Notifications, iCloud (v2.2: iCloud Documents for automatic backups) and Sign in with Apple
+(v2.4 Community, only when app.json has ios.usesAppleSignIn), makes an App Store
 provisioning profile, and saves it encrypted in credentials/ios.enc.
 
 iCloud: Apple's API can turn the ICLOUD capability on, but it can NOT create the iCloud container or
@@ -11,8 +12,11 @@ import base64, hashlib, json, os, subprocess, sys, tarfile, time, urllib.request
 import jwt  # pyjwt
 
 BUNDLE = 'com.vijaykannan.casedesk'
-VERSION = 'v2-icloud'  # bump when capabilities change → new profile (v2: iCloud Documents)
+VERSION = 'v3-applesignin'  # bump when capabilities change → new profile (v2: iCloud Documents, v3: Sign in with Apple)
 CONTAINER = 'iCloud.com.vijaykannan.casedesk'
+# v2.4 Community: Sign in with Apple, only when app.json asks for it (ios.usesAppleSignIn).
+APPLE_SIGNIN = bool(json.load(open('app.json'))['expo'].get('ios', {}).get('usesAppleSignIn'))
+SIGNIN_ENT = b'com.apple.developer.applesignin'
 KEY_ID, ISSUER, KEY_PATH = os.environ['EXPO_ASC_KEY_ID'], os.environ['EXPO_ASC_ISSUER_ID'], os.environ['EXPO_ASC_API_KEY_PATH']
 PRIV = open(KEY_PATH).read()
 KEYSTR = ''.join(PRIV.split())
@@ -64,8 +68,9 @@ for extra in (['-legacy'], []):
     r = subprocess.run(['openssl', 'pkcs12', '-in', f'{OUT}/dist.p12', '-nokeys', '-clcerts', '-passin', f'pass:{pw}', *extra], capture_output=True)
     if r.returncode == 0 and b'BEGIN CERTIFICATE' in r.stdout:
         der = subprocess.run(['openssl', 'x509', '-outform', 'DER'], input=r.stdout, capture_output=True, check=True).stdout; break
-# A hand-made profile is only used if it already carries the iCloud container (the v1 one doesn't).
-if os.path.exists(MANUAL) and CONTAINER.encode() in open(MANUAL, 'rb').read():
+# A hand-made profile is only used if it already carries the iCloud container (the v1 one doesn't)
+# and, when the app uses Sign in with Apple, that entitlement too.
+if os.path.exists(MANUAL) and CONTAINER.encode() in open(MANUAL, 'rb').read() and (not APPLE_SIGNIN or SIGNIN_ENT in open(MANUAL, 'rb').read()):
     run('cp', MANUAL, f'{OUT}/profile.mobileprovision')
     write_credentials_json(pw); print('Using hand-made provisioning profile + Inbox certificate ✓'); sys.exit(0)
 serial = subprocess.run(['openssl', 'x509', '-inform', 'DER', '-noout', '-serial'], input=der, capture_output=True, check=True).stdout.decode().strip().split('=')[1].upper().lstrip('0')
@@ -102,13 +107,22 @@ if not any(c.get('attributes', {}).get('capabilityType') == 'ICLOUD' for c in _c
         'settings': [{'key': 'ICLOUD_VERSION', 'options': [{'key': 'XCODE_6'}]}]},
         'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}}}}, ok409=True)
 print('iCloud capability on ✓ (container assignment is done on developer.apple.com — ICLOUD.md)')
+# Sign in with Apple: same pattern — only turned on when it's off (posting it again is never needed).
+if APPLE_SIGNIN:
+    if not any(c.get('attributes', {}).get('capabilityType') == 'APPLE_ID_AUTH' for c in _caps):
+        api('POST', '/v1/bundleIdCapabilities', {'data': {'type': 'bundleIdCapabilities', 'attributes': {'capabilityType': 'APPLE_ID_AUTH',
+            'settings': [{'key': 'APPLE_ID_AUTH_APP_CONSENT', 'options': [{'key': 'PRIMARY_APP_CONSENT'}]}]},
+            'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}}}}, ok409=True)
+        print('Sign in with Apple capability turned on ✓')
+    else:
+        print('Sign in with Apple capability already on ✓')
 
 # 3. App Store provisioning profile — the iCloud container is checked BEFORE a profile is kept, so a
 #    run that stops here never leaves a stray profile behind (scripts/ios_profile.py, tested).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ios_profile import pick_or_make_profile, ContainerMissing
 try:
-    content, how = pick_or_make_profile(api, bid, cert_id, CONTAINER, int(time.time()))
+    content, how = pick_or_make_profile(api, bid, cert_id, CONTAINER, int(time.time()), require=[SIGNIN_ENT] if APPLE_SIGNIN else [])
 except ContainerMissing:
     print(f'::error::The App ID has no iCloud container {CONTAINER} yet. On developer.apple.com: Identifiers → '
           f'iCloud Containers → create {CONTAINER}; then App IDs → {BUNDLE} → iCloud → Edit → tick it → Save. '
