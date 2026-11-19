@@ -160,7 +160,7 @@ export const discard = (pid: string, k: StepKey) => { for (const f of uploadOf(p
 function identities(fam: FamilyState) {
   const drafts = Object.entries(flow?.up ?? {}).flatMap(([pid, per]) => Object.values(per).filter((u) => u?.state === 'done' && u.doc).map((u) => ({ ...u!.doc!, ownerId: pid })));
   const all = [...fam.docs, ...drafts];
-  return fam.people.map((p) => identityOf(p.id, all.filter((d) => d.ownerId === p.id), { passportNos: fam.records[p.id]?.passportNos, legalName: fam.records[p.id]?.legalName }));
+  return fam.people.map((p) => identityOf(p.id, all.filter((d) => d.ownerId === p.id), { passportNos: fam.records[p.id]?.passportNos, legalName: fam.records[p.id]?.legalName, displayName: p.name }));
 }
 
 function analyse(pid: string, k: StepKey, doc: Document, fam: FamilyState): Upload {

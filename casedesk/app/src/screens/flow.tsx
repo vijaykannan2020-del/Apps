@@ -140,7 +140,7 @@ export function StepScreen() {
         {u.movedFrom ? <Note tone="green" style={{ marginTop: 0, marginBottom: 6 }}>{`Moved here from ${personOf(u.movedFrom, f)?.name ?? 'another'}’s step.`}</Note> : null}
         {other ? (
           <Note tone="amber" style={{ marginTop: 0, marginBottom: 6 }} actions={<><Button size="sm" kind="tint" title={`Move to ${other.name}`} onPress={() => { moveTo(p.id, k, other.id); toast(`Moved to ${other.name}`); }} /><Button size="sm" kind="ghost" title={`Keep for ${p.name}`} onPress={() => keepHere(p.id, k)} /></>}>
-            {`This looks like ${other.name}’s — same passport ${d.fields.passportNo ? 'number' : 'name'}.`}
+            {`This looks like ${other.name}’s — the ${d.fields.passportNo && f.records[other.id]?.passportNos.includes(d.fields.passportNo) ? 'passport number' : 'name'} matches ${other.name}, not ${p.name}. Whose is it?`}
           </Note>
         ) : null}
         {u.wrongStep && !other ? (

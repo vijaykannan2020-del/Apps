@@ -3,7 +3,7 @@ export * from './model';
 export * from './dates';
 export { readDocument, classify, type Reading } from './read';
 export { deriveRecord, deriveWithout, inStepOrder, visaFromClass, classKey, classLabel, sameEmployer, type PersonRecord, type ApprovalInfo, type CaseInfo, type PendingInfo } from './record';
-export { identityOf, belongsElsewhere, sameName, matchedBy, type Identity } from './identity';
+export { identityOf, belongsElsewhere, sameName, matchedBy, ownName, type Identity } from './identity';
 export { stepsFor, stepKeys, stepMeta, stepOf, stepStatus, trackOf, missingDocs, missingSteps, isRequiredStep, fillsStep, isOptionalStep, VISA_EXEMPT, type Step, type StepKey, type Track } from './steps';
 export { FIELDS, fieldRows, showField, parseField, docNote, supersededIds, docTitle, docBadges, type FieldSpec, type Note } from './docs';
 export { caseViews, formName, isPendingCase, FORMS, type CaseView, type CaseState } from './cases';

@@ -5,6 +5,7 @@ import { datesIn } from './read/text';
 import type { DocFields, DocType, Document } from './model';
 import { DOC_LABEL } from './model';
 import type { PersonRecord } from './record';
+import { sameName } from './identity';
 
 export type FieldSpec = { label: string; key: keyof DocFields; kind: 'text' | 'date' };
 const T = (label: string, key: keyof DocFields): FieldSpec => ({ label, key, kind: 'text' });
@@ -113,10 +114,14 @@ export function docNote(d: Document | { type: DocType; fields: DocFields }, ctx:
 export function supersededIds(rec: PersonRecord, docs: Document[]): Set<string> {
   const mine = docs.filter((d) => d.ownerId === rec.personId);
   const out = new Set<string>();
+  // v2.9: a document only supersedes another one for the same person — when the names on both match
+  // (a spouse's passport saved here by mistake leaves this person's own passport current).
+  const same = (a?: string, b?: string) => !a || !b || sameName(a, b);
   const latest = (t: DocType, key: (d: Document) => string | undefined) => {
     const list = mine.filter((d) => d.type === t);
-    const best = [...list].sort((a, b) => (key(b) || '').localeCompare(key(a) || ''))[0];
-    for (const d of list) if (d !== best) out.add(d.id);
+    const own = t === 'passport' && rec.legalName ? list.filter((d) => same(d.fields.name, rec.legalName)) : list;
+    const best = [...(own.length ? own : list)].sort((a, b) => (key(b) || '').localeCompare(key(a) || ''))[0];
+    for (const d of list) if (d !== best && same(d.fields.name, best?.fields.name)) out.add(d.id);
   };
   latest('passport', (d) => d.fields.validTo);
   latest('visa', (d) => d.fields.validTo);

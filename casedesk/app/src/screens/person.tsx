@@ -15,6 +15,7 @@ import { useFamily, usePerson } from '../data/FamilyProvider';
 import { readText } from '../native/ocr';
 import { fileUri, keepFile, pick, preview, share as shareFile, type Source } from '../native/files';
 import { readDocument } from '../core/read';
+import { belongsElsewhere, identityOf, sameName } from '../core/identity';
 import {
   Avatar, Button, Card, CheckRow, Chip, DateField, EmptyState, Field, Group, H1, Hint, Icon, LegalLine, Meter, NavButton, Note, Pill, Row, Screen, SectionHeader, Switch, T, Why, ChipToggle, Chips,
   font, useSheet, useTheme, useToast, Spinner, Columns, BigText,
@@ -52,7 +53,9 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
   const t = useTheme();
   if (!p || !rec) return <EmptyState icon="user" title="Removed" />;
   const you = p.relation === 'self';
-  const legal = rec.legalName;
+  // Legal name under the name only when it differs from the display name and is this person's own
+  // (never another family member's name from a misfiled document).
+  const legal = rec.legalName && normName(rec.legalName) !== normName(p.name) && !f.people.some((o) => o.id !== p.id && sameName(rec.legalName, o.name)) ? rec.legalName : undefined;
   const steps = stepsFor(p, rec);
   const order = stepKeys(p, rec);
   const docs = f.docs.filter((d) => d.ownerId === p.id).sort((a, b) => {
@@ -83,7 +86,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
       <TourTarget id="status">
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <WalletCard name={legal && legal !== p.name ? `${p.name} · ${legal}` : p.name} line={`${statusLabel(p, rec, result)} · ${relationLabel(p)}`} corner={w.corner}
+            <WalletCard name={legal ? `${p.name} · ${legal}` : p.name} line={`${statusLabel(p, rec, result)} · ${relationLabel(p)}`} corner={w.corner}
               caption={w.caption} big={w.big} foot={line} footWord={w.word} footTone={w.wordTone}
               a11y={`${p.name}. ${statusLabel(p, rec, result)}. ${w.caption} ${w.big}. ${line}`} />
           </View>
@@ -169,6 +172,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
     </>
   );
 }
+const normName = (n?: string) => (n || '').toLowerCase().replace(/[^a-z]/g, '');
 const stepTitleWhere = (p: Person) => (p.relation === 'self' ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`);
 
 const DOC_ICON: Record<string, [string, 'sky' | 'blush' | 'sage' | 'butter' | 'mint']> = {
@@ -258,6 +262,7 @@ export function DocumentScreen() {
   if (!d || !p) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="doc" title="Document deleted" /></Screen>;
   const superseded = f.superseded.has(d.id);
   const note = docNote(d, { superseded, inUS: f.records[p.id]?.location !== 'Outside' });
+  const elsewhere = whoseElse(d, f);
   const file = d.files?.[0];
   const replace = async (src: Source) => {
     const picked = await pick(src).catch((e: Error) => { toast(e.message); return null; });
@@ -277,7 +282,7 @@ export function DocumentScreen() {
     try { await Share.share({ message: `${docTitle(d)}\n${lines}\n\n${NOT_OFFICIAL_ID}` }); } catch {}
   };
   return (
-    <Screen keyboard tour={tour} nav={{ back: p.name, onBack: back, title: docTitle(d) }} footer={<>
+    <Screen keyboard tour={tour} nav={{ back: p.name, onBack: back, title: docTitle(d), right: <NavButton title="Edit" onPress={() => sheet.open('Edit document', <DocEditMenu docId={d.id} />)} /> }} footer={<>
       <TourTarget id="actions" style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
         <Button kind="ghost" icon="refresh" title="Replace" onPress={() => sheet.open('Replace document', <ReplacePicker onPick={(s) => { sheet.close(); replace(s); }} />)} />
         <Button kind="tint" icon="share" title="Share" onPress={doShare} />
@@ -298,6 +303,11 @@ export function DocumentScreen() {
           <T style={[font.body, { fontWeight: '500', flex: 1 }]}>{`${b.label} ${b.value}`}</T>
         </Card>
       ))}
+      {elsewhere ? (
+        <Note tone="amber" actions={<Button size="sm" kind="tint" title={`Move to ${elsewhere.name}`} onPress={async () => { await f.actions.updateDoc(d.id, { ownerId: elsewhere.id }); toast(`Moved to ${elsewhere.name}`); }} />}>
+          {`The name on this ${docTitle(d).toLowerCase()} matches ${elsewhere.name}, not ${p.name}. Move it if it is ${elsewhere.name}’s.`}
+        </Note>
+      ) : null}
       {note && !(note.tone === 'green' && /^(Valid until|Good for travel until|Approval valid until|Program ends)/.test(note.text)) ? <Note tone={note.tone}>{note.text}</Note> : null}
       {d.fields.dateNote ? <Note tone="amber">{d.fields.dateNote}</Note> : null}
       <SectionHeader>Read from the document</SectionHeader>
@@ -314,6 +324,50 @@ export function DocumentScreen() {
     </Screen>
   );
 }
+/** Another family member this saved document looks like it belongs to (name or passport number). */
+function whoseElse(d: Document, f: ReturnType<typeof useFamily>): Person | undefined {
+  const others = f.docs.filter((x) => x.id !== d.id);
+  const ids = f.people.map((p) => identityOf(p.id, others.filter((x) => x.ownerId === p.id), { displayName: p.name }));
+  const who = belongsElsewhere(d.fields, d.ownerId, ids);
+  return who ? f.people.find((p) => p.id === who.id) : undefined;
+}
+
+/** Edit menu on a document: move it to another person (the one it replaced comes back as current). */
+function DocEditMenu({ docId }: { docId: string }) {
+  const f = useFamily();
+  const sheet = useSheet();
+  const toast = useToast();
+  const d = f.docs.find((x) => x.id === docId);
+  const [moving, setMoving] = useState(false);
+  if (!d) return null;
+  const owner = f.people.find((p) => p.id === d.ownerId);
+  const others = f.people.filter((p) => p.id !== d.ownerId);
+  const move = async (to: Person) => {
+    sheet.close();
+    await f.actions.updateDoc(d.id, { ownerId: to.id });
+    toast(`Moved to ${to.name}`);
+  };
+  if (!moving) {
+    return (
+      <View style={{ marginTop: 10 }}>
+        <Group>
+          <Row icon="people" title="Move to another person" subtitle={others.length ? `Saved under ${owner?.name ?? 'this person'} by mistake?` : 'Add a family member first'} onPress={others.length ? () => setMoving(true) : undefined} />
+        </Group>
+        <Hint>Fields can be corrected right on the document page.</Hint>
+      </View>
+    );
+  }
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Why>{`Whose ${docTitle(d).toLowerCase()} is this?`}</Why>
+      <Group style={{ marginTop: 12 }}>
+        {others.map((p) => <Row key={p.id} avatar={p.name} title={p.name} subtitle={relationLabel(p)} onPress={() => move(p)} />)}
+      </Group>
+      <Hint>{`If it replaced one of ${owner?.name ?? 'this person'}’s documents, that one becomes current again.`}</Hint>
+    </View>
+  );
+}
+
 function ReplacePicker({ onPick }: { onPick: (s: Source) => void }) {
   return (
     <View style={{ gap: 10, marginTop: 14 }}>

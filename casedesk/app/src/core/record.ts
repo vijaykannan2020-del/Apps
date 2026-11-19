@@ -12,6 +12,7 @@ import type { Document, DocFields, PetitionKind, Person, Relation, StatusCategor
 import { canBeBlanket, isStudent } from './model';
 import { daysTo } from './dates';
 import { metroOf } from './metro';
+import { ownName, sameName } from './identity';
 
 export type ApprovalInfo = {
   docId: string; form?: string; kind?: PetitionKind; receipt?: string; noticeDate?: string;
@@ -116,7 +117,10 @@ export function deriveRecord(person: Person, allDocs: Document[]): PersonRecord 
   };
 
   // ---- identity ----
-  const passports = of('passport');
+  // v2.9: only this person's own passports count (a spouse's passport saved here by mistake never
+  // becomes the current one, and never gives this person its legal name or number).
+  const own = ownName(person.name, of('passport').map((d) => d.fields.name).concat(docs.filter((d) => ['i94', 'visa', 'ead', 'green-card'].includes(d.type)).map((d) => d.fields.name)));
+  const passports = of('passport').filter((d) => !own || !d.fields.name || sameName(d.fields.name, own));
   const curPass = latestBy(passports.filter((d) => d.fields.validTo), (d) => d.fields.validTo) ?? passports[0];
   for (const d of passports) {
     if (d.fields.passportNo && !r.passportNos.includes(d.fields.passportNo)) r.passportNos.push(d.fields.passportNo);
@@ -131,7 +135,7 @@ export function deriveRecord(person: Person, allDocs: Document[]): PersonRecord 
   }
   for (const d of docs) {
     if (!r.passportNo && d.fields.passportNo && ['visa', 'i94', 'ead'].includes(d.type)) r.passportNo = d.fields.passportNo;
-    if (!r.legalName && d.fields.name && d.type !== 'i129s') r.legalName = d.fields.name;
+    if (!r.legalName && d.fields.name && d.type !== 'i129s' && (!own || sameName(d.fields.name, own))) r.legalName = d.fields.name;
     if (!r.birthDate && d.fields.birthDate && d.type !== 'approval') r.birthDate = d.fields.birthDate;
     if (!r.nationality && d.fields.nationality) r.nationality = d.fields.nationality;
   }
