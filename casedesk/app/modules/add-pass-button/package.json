@@ -1,0 +1,7 @@
+{
+  "name": "add-pass-button",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Apple's own PKAddPassButton (Add to Apple Wallet) as an Expo view — local module for Immigration Wallet v2.5",
+  "main": "index.ts"
+}

@@ -12,6 +12,7 @@ import { go, home, locationChip, relationLabel, runFlow, statusLabel, untilText 
 import { statusGroups } from './sheets';
 import { SelectField } from '../ui';
 import { PersonBody } from './person';
+import { FamilyWalletRow } from './wallet';
 import { Columns, LinkButton, useLayout, TourButton, TourTarget, useTour } from '../ui';
 
 export function FamilyTab() {
@@ -51,6 +52,7 @@ export function FamilyTab() {
         </Stack></TourTarget>
       ) : <EmptyState small icon="users" title="No family members yet" />}
       <TourTarget id="add"><AddButton title="Add family member" onPress={() => go('/add-member')} /></TourTarget>
+      <FamilyWalletRow />
       </>, right: selected ? <View style={{ marginTop: 4 }}><PersonBody id={selected} single /><LinkButton title="Open full page" onPress={() => go(`/person/${selected}`)} /></View> : null }} />
   );
 }
