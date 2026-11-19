@@ -268,6 +268,25 @@ test('Google config plugin: adds the reversed-client-id scheme only when a clien
   assert.equal(reversedClientId(cfg.extra.googleIosClientId) === null, cfg.extra.googleIosClientId === '', 'empty, or a real client id');
 });
 
+test('Google client id from app.json: next build gets the reversed scheme, the current build keeps the button hidden', async () => {
+  const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'app.json'), 'utf8')).expo;
+  const REAL = '885132086293-472ihidqbu0ki9kst5aav0nqumie3l2g.apps.googleusercontent.com', REAL_SCHEME = 'com.googleusercontent.apps.885132086293-472ihidqbu0ki9kst5aav0nqumie3l2g';
+  assert.equal(cfg.extra.googleIosClientId, REAL);
+  assert.equal(reversedClientId(cfg.extra.googleIosClientId), REAL_SCHEME);
+  assert.equal(require('../plugins/withGoogleSignIn.js').reversed(REAL), REAL_SCHEME);
+  assert.notEqual(cfg.extra.googleUseBundleScheme, true, 'no shortcut through the bundle-id scheme');
+  assert.deepEqual([cfg.scheme].flat(), ['casedesk'], 'the scheme comes from the plugin, not typed by hand');
+  const auth = require('../src/data/communityAuth') as typeof import('../src/data/communityAuth');
+  virtual['expo-auth-session/providers/google'] = { useIdTokenAuthRequest: () => [null, null, () => {}] };
+  const extra = S.constants.default.expoConfig.extra;
+  extra.googleIosClientId = REAL;
+  (globalThis as any).__canOpen = new Set(['casedesk', 'com.vijaykannan.casedesk']); // what the installed TestFlight build registers today
+  assert.equal(await auth.googleSupport(), null, 'installed build without the scheme → no Google button');
+  (globalThis as any).__canOpen = new Set(['casedesk', 'com.vijaykannan.casedesk', REAL_SCHEME]); // the next build
+  assert.deepEqual(await auth.googleSupport(), { iosClientId: REAL, webClientId: undefined, redirectUri: `${REAL_SCHEME}:/oauthredirect` });
+  delete extra.googleIosClientId; delete (globalThis as any).__canOpen; delete virtual['expo-auth-session/providers/google'];
+});
+
 test('tips: exactly one first-visit tip on the feed; other community screens only show tips from their ?', () => {
   assert.equal(TOURS.communityFeed.steps.length, 1);
   assert.ok(TOURS.communityFeed.steps[0].text.length <= 150);

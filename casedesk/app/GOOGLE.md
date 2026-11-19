@@ -8,6 +8,8 @@ issuer and that the token's `aud` is our client id) and the URL-scheme plugin
 
 You do three things: make the client id, paste it in **two places**, and ship the next iOS build.
 
+**Status (Nov 2026): steps 1 and 2 are done** — the client id `885132086293-472ihidqbu0ki9kst5aav0nqumie3l2g.apps.googleusercontent.com` is in `app.json` and `deploy.conf`. Only step 3 (the next TestFlight build) is left; until then the button stays hidden.
+
 ## 1. Make the client id (works in Safari on the iPhone, about 10 minutes)
 
 1. Open **console.cloud.google.com** in Safari and sign in. If the page is cramped, tap **aA →

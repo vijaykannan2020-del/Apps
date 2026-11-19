@@ -465,8 +465,17 @@ test('google: client id comes from the environment, or from deploy.conf; aud is 
   fs.rmSync(dir, { recursive: true });
 });
 
-test('the real deploy.conf keeps Google sign-in off until a client id is pasted', () => {
+test('the real deploy.conf turns Google sign-in on for the owner client id only', async () => {
   assert.equal(readConf('CASEDESK_DOMAIN'), 'casedeskapp.duckdns.org');
-  const ids = googleAudiences({ env: {} });
-  assert.ok(ids.every((x) => x.endsWith('.apps.googleusercontent.com')));
+  const ID = '885132086293-472ihidqbu0ki9kst5aav0nqumie3l2g.apps.googleusercontent.com';
+  assert.deepEqual(googleAudiences({ env: {} }), [ID]);
+  const p = fakeProvider('g2');
+  const verify = googleVerifier({ jwks: createJwks('x', { fetchFn: p.fetchFn }), audiences: googleAudiences({ env: {} }) });
+  const base = { iss: 'https://accounts.google.com', sub: '555', exp: nowS() + 600, iat: nowS() };
+  assert.deepEqual(await verify(p.sign({ ...base, aud: ID })), { provider: 'google', sub: '555' });
+  await assert.rejects(verify(p.sign({ ...base, aud: '885132086293-other.apps.googleusercontent.com' })), /another app/);
+  await assert.rejects(verify(p.sign({ ...base, aud: ID, exp: nowS() - 3600 })), /expired/);
+  // the app and the server must name the same client id
+  const app = JSON.parse(fs.readFileSync(new URL('../../app/app.json', import.meta.url), 'utf8')).expo;
+  assert.equal(app.extra.googleIosClientId, ID);
 });

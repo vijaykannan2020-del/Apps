@@ -99,7 +99,7 @@
     ],
     "extra": {
       "apiBase": "https://casedeskapp.duckdns.org",
-      "googleIosClientId": "",
+      "googleIosClientId": "885132086293-472ihidqbu0ki9kst5aav0nqumie3l2g.apps.googleusercontent.com",
       "router": {
         "asyncRoutes": {
           "web": false,
