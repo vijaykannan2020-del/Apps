@@ -1,0 +1,61 @@
+# Immigration Wallet v2.5: Apple Wallet Pass Type ID certificate, without a Mac and without the owner ever
+# touching a private key. The server makes its own key + CSR (casedesk/server/src/wallet.mjs); this asks
+# Apple for the certificate with the App Store Connect API and commits the PUBLIC certificate (+ Apple's WWDR
+# intermediate) to casedesk/server/wallet/. The server auto-updates from main and turns Wallet cards on.
+# If Apple refuses the API call, the run attaches the CSR and prints the 3 iPhone steps (casedesk/app/WALLET.md).
+# Start: Actions → CaseDesk Wallet certificate → Run workflow. Secrets shared with the iPhone build.
+name: CaseDesk Wallet certificate
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Replace an existing casedesk/server/wallet/pass.cer (1 = yes)
+        required: false
+        default: '0'
+permissions:
+  contents: write
+concurrency: { group: casedesk-wallet-cert, cancel-in-progress: false }
+jobs:
+  cert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults: { run: { working-directory: casedesk/app } }
+    env:
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      EXPO_ASC_API_KEY_PATH: ${{ github.workspace }}/casedesk/app/asc.p8
+      EXPO_ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      EXPO_ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      FORCE: ${{ github.event.inputs.force }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write App Store Connect key
+        run: |
+          python3 - <<'PY'
+          import os, re
+          raw = os.environ['ASC_KEY_P8'].strip()
+          body = re.sub(r'\s+', '', re.sub(r'-----(BEGIN|END) PRIVATE KEY-----', '', raw))
+          open('asc.p8', 'w').write('-----BEGIN PRIVATE KEY-----\n' + '\n'.join(body[i:i+64] for i in range(0, len(body), 64)) + '\n-----END PRIVATE KEY-----\n')
+          PY
+      - name: Unit tests
+        run: pip install --quiet pyjwt cryptography && python3 -m unittest scripts/test_wallet_cert.py
+      - name: Get the certificate
+        id: cert
+        run: |
+          set +e
+          python3 scripts/wallet_cert.py | tee /tmp/wallet.log
+          code=${PIPESTATUS[0]}
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          [ "$code" = 0 ] || [ "$code" = 2 ]
+      - name: Attach the CSR (manual route)
+        if: steps.cert.outputs.code == '2'
+        uses: actions/upload-artifact@v4
+        with: { name: wallet-csr, path: casedesk/app/wallet-pass.certSigningRequest }
+      - name: Commit the public certificate
+        run: |
+          rm -f asc.p8 wallet-pass.certSigningRequest
+          cd ../server/wallet
+          for f in pass.cer AppleWWDRCAG4.cer; do if [ -f "$f" ]; then git add -f "$f"; fi; done
+          if git diff --cached --quiet; then echo "Nothing new to commit"; exit 0; fi
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git commit -m "CaseDesk: Wallet pass certificate (public) and Apple WWDR intermediate" && git pull --rebase -q && git push
+          echo "::notice::Committed. The server updates within a few minutes: https://casedeskapp.duckdns.org/api/wallet/status should say enabled: true."
