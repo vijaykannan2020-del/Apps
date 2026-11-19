@@ -48,7 +48,7 @@ export function ICloudRows() {
 }
 
 /** Password for iCloud backups: once (kept in the keychain) to turn on automatic backup, or for one backup. */
-function ICloudPasswordSheet({ mode }: { mode: 'enable' | 'once' }) {
+export function ICloudPasswordSheet({ mode }: { mode: 'enable' | 'once' }) {
   const f = useFamily(); const s = useSheet(); const toast = useToast();
   const [pw, setPw] = useState(''); const [pw2, setPw2] = useState('');
   const [busy, setBusy] = useState(false); const [pct, setPct] = useState(0);

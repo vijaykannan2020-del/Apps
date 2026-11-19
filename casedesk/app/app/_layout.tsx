@@ -25,6 +25,7 @@ function Nav() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: Platform.OS === 'android' ? 'slide_from_right' : 'default', fullScreenGestureEnabled: true }}>
         <Stack.Screen name="index" options={{ animation: 'none' }} />
         <Stack.Screen name="welcome" options={{ animation: 'fade', gestureEnabled: false }} />
+        <Stack.Screen name="setup" options={{ gestureEnabled: false }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="flow/summary" options={{ gestureEnabled: false }} />
       </Stack>
