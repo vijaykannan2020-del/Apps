@@ -14,7 +14,7 @@ startDiag().catch(() => {});
 
 function Themed({ children }: { children: React.ReactNode }) {
   const f = useFamily();
-  return <ThemeProvider choice={f.settings.theme ?? 'system'}>{children}</ThemeProvider>;
+  return <ThemeProvider choice={f.settings.theme ?? 'system'} colour={f.settings.colour ?? 'pastel'}>{children}</ThemeProvider>;
 }
 
 function Nav() {

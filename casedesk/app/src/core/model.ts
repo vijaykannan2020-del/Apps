@@ -251,6 +251,7 @@ export type Settings = {
   address?: { changedOn: ISODate; ar11Done: string[] }; // AR-11: ids of people who filed it
   rulesVersion?: string;
   theme?: 'system' | 'dark' | 'light';
+  colour?: 'pastel' | 'indigo' | 'emerald' | 'ocean' | 'sunset' | 'rose' | 'graphite'; // v2.7 colour theme (default pastel)
   lastBackupAt?: string; // ISO timestamp of the last "Back up now"
   firstDocAt?: string; // when the first document was saved (backup reminder starts 30 days later)
   backupReminderSnoozed?: string; // ISO date until which the Home reminder is hidden

@@ -580,7 +580,7 @@ function AnswerOption({ text, state, onPress }: { text: string; state: AnswerSta
   const red = state === 'wrong';
   // chosen right = sage block, chosen wrong = blush block (ink text on both); the right answer when
   // you missed it = a sage outline on the card.
-  const block = state === 'correct' ? t.pastel.sage : red ? t.pastel.blush : undefined;
+  const block = state === 'correct' ? t.pastel.good : red ? t.pastel.urgent : undefined;
   const fg = block ? t.ink : t.text;
   const label = ANSWER_LABEL[state];
   return (

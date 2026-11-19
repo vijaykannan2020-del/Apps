@@ -11,7 +11,7 @@ import { TourButton, TourTarget, useTour, useLayout, Appear, Avatar, Button, Emp
 import { AttentionRow, go, LegalFooter, needsLocation, statusLabel, untilText } from './common';
 import { heroLine } from '../core/priority';
 import { ORDER } from '../core/rules/types';
-import { StatusView, usePriority, useOpenTarget } from './priority';
+import { StatusView, meaningBlock, usePriority, useOpenTarget } from './priority';
 import { CaseRow } from './cases';
 import { Confirm, SourceSheet } from './sheets';
 import { endFlow, unsavedCount, useFlow } from '../data/flow';
@@ -76,16 +76,16 @@ export function Home() {
 
       <TourTarget id="hero" style={{ marginTop: 16 }}>
         <Appear>
-          <HeroCard tone={hero.tone} icon={TONE_ICON[hero.kind]} label={hero.label} chip={hero.chip} big={hero.big} line={heroLine(hero)} progress={hero.progress}
+          <HeroCard tone={meaningBlock(hero.tone, true)} icon={TONE_ICON[hero.kind]} label={hero.label} chip={hero.chip} big={hero.big} line={heroLine(hero)} progress={hero.progress}
             onPress={() => open(hero.target)} a11y={`${hero.label}. ${hero.big}. ${heroLine(hero)}`} />
         </Appear>
         <Appear delay={60} style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-          {tiles.map((x) => <StatTile key={x.key} tone={x.tone} icon={x.icon} label={x.label} big={x.big} sub={x.sub} onPress={() => open(x.target)} />)}
+          {tiles.map((x) => <StatTile key={x.key} tone={meaningBlock(x.tone)} icon={x.icon} label={x.label} big={x.big} sub={x.sub} onPress={() => open(x.target)} />)}
         </Appear>
       </TourTarget>
 
       {draft && unsaved > 0 ? (
-        <Pastel tone="butter" style={{ marginTop: 10 }}>
+        <Pastel tone="warn" style={{ marginTop: 10 }}>
           <T style={font.headline}>{`${unsaved} document${unsaved === 1 ? '' : 's'} read, not saved yet`}</T>
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
             <Button title="Continue" grow onPress={() => go('/flow/review')} />
