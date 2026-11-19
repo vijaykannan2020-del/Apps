@@ -78,7 +78,7 @@ export function CommunityPostScreen() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
-  const tour = useTour('communityPost');
+  const tour = useTour('communityPost', undefined, { auto: !!post });
 
   const load = useCallback(async () => {
     setError('');

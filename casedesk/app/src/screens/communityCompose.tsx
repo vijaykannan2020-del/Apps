@@ -23,7 +23,7 @@ export function CommunityComposeScreen() {
   const [error, setError] = useState('');
   const [tried, setTried] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const tour = useTour('communityCompose');
+  const tour = useTour('communityCompose', undefined, { auto: !loading });
 
   useEffect(() => {
     if (!id) { setTags(fam.slice(0, 1)); return; }
