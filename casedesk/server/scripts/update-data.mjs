@@ -4,9 +4,12 @@
 //   OFLC_WAGES_URL  (zip)        from https://flag.dol.gov/wage-data/wage-data-downloads
 //   H1B_HUB_URLS    (csv, comma) from the USCIS H-1B Employer Data Hub "files" page
 //   PERM_URLS / LCA_URLS (xlsx)  from https://www.dol.gov/agencies/eta/foreign-labor/performance
+//   FORM_STATS_URLS (xlsx, comma) from https://www.uscis.gov/tools/reports-and-studies/immigration-and-citizenship-data
+//     (quarterly_all_forms_fyYYYY_qN*.xlsx and i129_quarterly_request_for_evidence_fyYYYY_qN*.xlsx)
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { recentQuarters } from '../src/formstats.mjs';
 
 const UA = { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' };
 const list = (v) => (v || '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -17,6 +20,7 @@ const PAGES = {
   wages: 'https://flag.dol.gov/wage-data/wage-data-downloads',
   h1b: 'https://www.uscis.gov/tools/reports-and-studies/h-1b-employer-data-hub/h-1b-employer-data-hub-files',
   dol: 'https://www.dol.gov/agencies/eta/foreign-labor/performance',
+  forms: 'https://www.uscis.gov/tools/reports-and-studies/immigration-and-citizenship-data',
 };
 
 async function links(page, re) {
@@ -48,6 +52,33 @@ async function findDol(prefix, years) {
     if (!byFy[fy] || q > byFy[fy].q) byFy[fy] = { u, q };
   }
   return Object.keys(byFy).sort().reverse().slice(0, years).map((fy) => byFy[fy].u);
+}
+
+// USCIS form statistics: the data page lists files 10 per page and filters by topic, so look on a few filtered
+// views; if the page can't be read, try the predictable file names for the last 8 quarters.
+const FILE_BASE = 'https://www.uscis.gov/sites/default/files/document/data/';
+const fyq = (u) => { const m = u.match(/fy(\d{4})_q(\d)/i); return m ? +m[1] * 10 + +m[2] : 0; };
+async function exists(u) {
+  try { const r = await fetch(u, { method: 'HEAD', headers: UA }); return r.ok && !/text\/html/i.test(r.headers.get('content-type') || ''); } catch { return false; }
+}
+async function findFormStats() {
+  const views = ['?topic_id%5B%5D=33700&items_per_page=100', '?query=all+forms&items_per_page=100', '?query=request+for+evidence&items_per_page=100', ''];
+  let found = [];
+  for (const v of views) {
+    try { found.push(...(await links(PAGES.forms + v, /(quarterly_all_forms_fy\d{4}_q\d|i129_quarterly_request_for_evidence_fy\d{4}[^/]*_q\d)[^/]*\.xlsx$/i))); } catch (e) { log(`forms page${v ? ' ' + v : ''}: ${e.message}`); }
+  }
+  found = [...new Set(found)];
+  const pick = (re, k) => { const seen = new Set(); return found.filter((u) => re.test(u)).sort((a, b) => fyq(b) - fyq(a) || a.length - b.length).filter((u) => !seen.has(fyq(u)) && seen.add(fyq(u))).slice(0, k); };
+  let all = pick(/quarterly_all_forms/i, 4), rfe = pick(/request_for_evidence/i, 1);
+  if (!all.length || !rfe.length) {
+    const suffixes = ['_v1', '', '_0', '_v2'];
+    for (const { fy, q } of recentQuarters()) {
+      if (all.length < 4 && !all.some((u) => fyq(u) === fy * 10 + q)) for (const s of suffixes) { const u = `${FILE_BASE}quarterly_all_forms_fy${fy}_q${q}${s}.xlsx`; if (await exists(u)) { all.push(u); break; } }
+      if (!rfe.length) for (const s of suffixes) { const u = `${FILE_BASE}i129_quarterly_request_for_evidence_fy${fy}_q${q}${s}.xlsx`; if (await exists(u)) { rfe.push(u); break; } }
+      if (all.length >= 4 && rfe.length) break;
+    }
+  }
+  return [...all, ...rfe];
 }
 
 async function download(url, dir) {
@@ -88,6 +119,18 @@ for (const u of lca) await tryIt('LCA', () => download(u, 'data/raw/lca'));
 if (h1b.length || perm.length || lca.length) await tryIt('employers', () => run('scripts/ingest-employers.mjs'));
 else log('employers: no download links found');
 
+// 3) USCIS form statistics (approval rates, median processing time, I-129 RFE rates) → data/form-stats.json
+const formStats = list(process.env.FORM_STATS_URLS).length ? list(process.env.FORM_STATS_URLS) : (await tryIt('find form stats', findFormStats)) || [];
+if (formStats.length) {
+  await tryIt('form stats', async () => {
+    fs.rmSync('data/raw/formstats', { recursive: true, force: true });
+    const urls = {};
+    for (const u of formStats) { const f = await tryIt('form stats file', () => download(u, 'data/raw/formstats')); if (f) urls[path.basename(f)] = u; }
+    fs.writeFileSync('data/raw/formstats/urls.json', JSON.stringify(urls));
+    run('scripts/ingest-form-stats.mjs');
+  });
+} else log('form stats: no download links found — set FORM_STATS_URLS in .env');
+
 // Status file for /api/health
-fs.writeFileSync('data/update-status.json', JSON.stringify({ at: new Date().toISOString(), wagesUrl, h1b, perm, lca, errors }, null, 2));
+fs.writeFileSync('data/update-status.json', JSON.stringify({ at: new Date().toISOString(), wagesUrl, h1b, perm, lca, formStats, errors }, null, 2));
 log('done');
