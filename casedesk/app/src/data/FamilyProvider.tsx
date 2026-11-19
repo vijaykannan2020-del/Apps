@@ -21,6 +21,7 @@ import { referencedFiles } from '../core/files';
 import { notifyNow, reminderItems, scheduleReminders } from '../native/reminders';
 import { alertOn, bulletinAlert, caseChanges, statusMap } from '../core/notify';
 import { useICloudAuto } from './icloudBackup';
+import { useWidgetSync } from './widgetSync';
 
 export type FamilyState = Snapshot & {
   ready: boolean;
@@ -110,6 +111,9 @@ export function FamilyProvider({ children, store = appStore() }: { children: Rea
     if (r.seen && r.seen !== snap.settings.bulletinSeen) store.updateSettings({ bulletinSeen: r.seen }).catch(() => {});
     if (r.alert && alertOn(snap.settings, 'bulletin')) notifyNow(r.alert).catch(() => {});
   }, [ready, bulletin.live, bulletin.data.month]);
+
+  // Home-screen widgets (v2.5): summary snapshot to the App Group; no-op on older builds.
+  useWidgetSync(ready, { people: derived.people, records: derived.records, results: derived.results, caseList: derived.caseList, settings: snap.settings, bulletin: bulletin.data });
 
   const value = useMemo<FamilyState>(() => ({ ...snap, ...derived, ready, store, actions, bulletin }), [snap, derived, ready, store, actions, bulletin]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -16,6 +16,7 @@ import { BackupSheet, DiagSheet, RestoreSheet, WipeSheet, leadText } from './pro
 import { ICloudRows } from './icloud';
 import { HELP } from '../content/help';
 import { NotifyRows } from './notify';
+import { WidgetRows } from './wallet';
 
 export function SettingsTab() {
   const f = useFamily();
@@ -43,6 +44,8 @@ export function SettingsTab() {
           await f.actions.updateSettings({ faceId: on, hideInSwitcher: on }); toast(on ? 'Face ID on' : 'Face ID off');
         }} />} />
       </Group>
+      <SectionHeader>Widgets</SectionHeader>
+      <WidgetRows />
       <SectionHeader>Notifications</SectionHeader>
       <NotifyRows />
       <SectionHeader>Reminder timing</SectionHeader>

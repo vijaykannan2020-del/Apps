@@ -16,6 +16,7 @@ export const TOURS: Record<string, TourDef> = {
   family: { help: 'family-docs', steps: [
     { target: 'list', title: 'One page per person', text: 'Tap someone to see their status, documents, cases and reminders.' },
     { target: 'add', title: 'Add family', text: 'Tap here to add your spouse, children or parents.' },
+    { target: 'wallet', title: 'Wallet status cards', text: 'Add a reference card for anyone to Apple Wallet. It’s a reminder, not an official document.' },
     helpStep(),
   ] },
   person: { help: 'family-docs', steps: [
@@ -120,6 +121,7 @@ export const TOURS: Record<string, TourDef> = {
     { target: 'source', title: 'Read the source', text: 'Always check the official source before you act.' },
   ] },
   settings: { help: 'privacy', steps: [
+    { target: 'widgets', title: 'Widgets', text: 'Choose initials or first names on Home Screen widgets, and hide details while Face ID lock is on.' },
     { target: 'notify', title: 'Notifications', text: 'See whether alerts are on, and turn them on in iOS Settings if needed.' },
     { target: 'backup', title: 'Backups', text: 'Your data is only on this phone — back it up to iCloud or a file.' },
     { target: 'helpsec', title: 'Help', text: 'Help topics, the example family and “Show all tips again”.' },
@@ -131,6 +133,11 @@ export const TOURS: Record<string, TourDef> = {
   restore: { help: 'backups', steps: [
     { target: 'pick', title: 'Choose the file', text: 'Pick a .casedesk backup from Files or a cloud drive.' },
     { target: 'password', title: 'Type its password', text: 'Then choose to replace or merge with what’s on this phone.' },
+  ] },
+  'wallet-preview': { help: 'wallet-card', steps: [
+    { target: 'name-style', title: 'Name on the card', text: 'Pick full name, first name or initials. No document numbers ever go on the card.' },
+    { target: 'card', title: 'Check the preview', text: 'This is what the Wallet card shows. It’s for your reference — not an official document.' },
+    { target: 'add', title: 'Add to Apple Wallet', text: 'Tap to add it. After a change, add it again to update the card.' },
   ] },
   icloud: { help: 'backups', steps: [
     { target: 'toggle', title: 'Automatic iCloud backup', text: 'Backs up to your own iCloud every day and after changes, and keeps the last 3.' },

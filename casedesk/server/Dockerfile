@@ -5,6 +5,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY src ./src
 COPY scripts ./scripts
+COPY wallet ./wallet
 ENV NODE_ENV=production PORT=8787
 EXPOSE 8787
 ENTRYPOINT ["/sbin/tini", "--"]

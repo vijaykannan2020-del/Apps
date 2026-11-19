@@ -2,3 +2,7 @@ node_modules
 .env
 data/
 .deployed-sha
+# Wallet signing: never commit a private key (wallet/ only holds public certificates and images)
+*.key
+*.p12
+*.pem

@@ -27,6 +27,7 @@ import { AddCase, AskWhere, Confirm, EditDetails, FixClass, RemovePerson, RenewS
 import { newId } from '../data/store';
 import { askNotificationPermission } from '../native/reminders';
 import { leadText } from './profile';
+import { WalletCardRow } from './wallet';
 
 export function PersonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -85,6 +86,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
         <T style={[font.body, { fontWeight: '600', flex: 1 }]}>{untilText(p, rec, result)}</T>
         {result ? <Pill severity={result.worst} /> : null}
       </Card></TourTarget>
+      <WalletCardRow pid={p.id} />
 
       <SectionHeader>Needs attention</SectionHeader>
       {findings.length || needsLocation(rec) ? (
