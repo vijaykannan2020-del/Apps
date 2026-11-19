@@ -12,6 +12,7 @@ import { hasICloudModule, iCloudSupport, listBackups, readBackup, removeBackup, 
 import { hasKeychain, loadPassword } from '../native/secret';
 import { onWifi } from '../native/net';
 import { diag } from '../native/diag';
+import { friendlyICloudError } from '../core/icloud';
 
 export const icloudSettings = (s: { icloud?: Partial<ICloudSettings> }): ICloudSettings => ({ ...ICLOUD_DEFAULT, ...(s.icloud ?? {}) });
 
@@ -25,7 +26,7 @@ export async function backUpToICloud(store: Store, password?: string, onProgress
   running = true;
   try {
     const sup = await iCloudSupport();
-    if (!sup.ok) throw new Error(sup.reason === 'old-build' ? 'Needs the latest app version from TestFlight' : 'iCloud isn’t available — sign in to iCloud and turn on iCloud Drive');
+    if (!sup.ok) throw new Error(sup.reason === 'old-build' ? 'Needs the latest app version from TestFlight' : 'not signed in');
     const pw = password ?? (await loadPassword());
     if (!pw) throw new Error('Type your backup password to back up to iCloud');
     const { payload } = await buildPayload(store);
@@ -39,7 +40,7 @@ export async function backUpToICloud(store: Store, password?: string, onProgress
     diag(`iCloud backup ok (${name})`);
     return { ok: true, name };
   } catch (e: any) {
-    const error = e?.message ?? String(e);
+    const error = friendlyICloudError(e);
     try {
       const s = icloudSettings(await store.settings());
       await store.updateSettings({ icloud: { ...s, lastError: error, lastAttemptAt: new Date().toISOString(), failures: auto ? (s.failures ?? 0) + 1 : 1 } });

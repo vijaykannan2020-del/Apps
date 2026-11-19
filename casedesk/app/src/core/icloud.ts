@@ -58,3 +58,21 @@ export function backupDueNow(s: ICloudSettings, now: Date, net: { wifi?: boolean
   return null;
 }
 
+/**
+ * Plain-English iCloud errors. Native errors arrive as { code, message, domain?, userInfo? } with
+ * NSError details in the message (react-native-cloud-storage passes localizedDescription through).
+ *  • NSCocoaErrorDomain 640 (NSFileWriteOutOfSpaceError), ERR_QUOTA_EXCEEDED, "quota"/"out of space" → full
+ *  • no iCloud account / ubiquity identity → not signed in
+ *  • NSUbiquitousFileUnavailableError (4353) / container unavailable / iCloud Drive off → turn on iCloud Drive
+ */
+export function friendlyICloudError(e: unknown): string {
+  const x = (e ?? {}) as { code?: unknown; message?: unknown; domain?: unknown; nativeStackIOS?: unknown; userInfo?: unknown };
+  const text = [x.code, x.message, x.domain, typeof e === 'string' ? e : '', JSON.stringify(x.userInfo ?? '')].map((v) => String(v ?? '')).join(' ');
+  const t = text.toLowerCase();
+  if (/\b640\b/.test(text) && /nscocoaerrordomain|cocoa/i.test(text)) return 'iCloud storage is full — free up space in iOS Settings → your name → iCloud';
+  if (/err_quota_exceeded|quota|out of space|enough (icloud )?(storage|space)|storage (is )?full|nsfilewriteoutofspaceerror|\b4354\b/.test(t)) return 'iCloud storage is full — free up space in iOS Settings → your name → iCloud';
+  if (/not signed in|no icloud account|sign in to icloud|ubiquityidentitytoken|identity token|err_authentication_failed|signed-out/.test(t)) return 'Sign in to iCloud in iOS Settings';
+  if (/\b4353\b|nsubiquitousfileunavailableerror|icloud drive (is )?(off|disabled)|container (is )?(unavailable|not available)|ubiquity container/.test(t)) return 'Turn on iCloud Drive for CaseDesk in iOS Settings → your name → iCloud';
+  const m = String(x.message ?? (typeof e === 'string' ? e : '') ?? '').trim();
+  return m || 'Couldn’t back up to iCloud';
+}

@@ -54,3 +54,17 @@ test('back-off after failed automatic backups: 30 minutes, then 2 hours, then da
   assert.equal(backupDueNow({ ...base, failures: 3, lastAttemptAt: '2026-11-18T00:00:00Z' }, now), null, '12 h after 3rd failure');
   assert.equal(backupDueNow({ ...base, failures: 0, lastAttemptAt: '2026-11-18T11:59:00Z' }, now), 'daily', 'reset');
 });
+
+test('friendly iCloud errors', async () => {
+  const { friendlyICloudError: f } = await import('../src/core/icloud');
+  assert.match(f({ code: 'ERR_WRITE_ERROR', message: 'Failed to write file: The operation couldn’t be completed. (NSCocoaErrorDomain error 640.)' }), /^iCloud storage is full/);
+  assert.match(f({ code: 'ERR_QUOTA_EXCEEDED', message: 'quota' }), /^iCloud storage is full/);
+  assert.match(f(new Error('You don’t have enough storage in iCloud')), /^iCloud storage is full/);
+  assert.equal(f(new Error('not signed in')), 'Sign in to iCloud in iOS Settings');
+  assert.equal(f({ code: 'ERR_AUTHENTICATION_FAILED', message: 'x' }), 'Sign in to iCloud in iOS Settings');
+  assert.match(f({ message: 'The operation couldn’t be completed. (NSUbiquitousFileErrorDomain error 4353.)' }), /^Turn on iCloud Drive for CaseDesk/);
+  assert.equal(f(new Error('Needs the latest app version from TestFlight')), 'Needs the latest app version from TestFlight');
+  assert.equal(f(undefined), 'Couldn’t back up to iCloud');
+  // error 640 in another domain isn't "full"
+  assert.doesNotMatch(f({ message: "NSPOSIXErrorDomain error 640" }), /full/);
+});
