@@ -3,6 +3,7 @@
 // Only non-sensitive summary data: initials or first names, status labels, dates, days left.
 // Never passport, receipt, A-numbers or USCIS account numbers — clean() strips anything that looks like one.
 import type { Person, Settings } from './model';
+import { birthCountryOf, chargeabilityOf } from './birth';
 import { STATUS_LABEL } from './model';
 import type { PersonRecord } from './record';
 import type { PersonResult } from './rules/engine';
@@ -216,7 +217,9 @@ export function personItems(p: Person, o: { rec?: PersonRecord; res?: PersonResu
   const cat = categoryOf(pd?.category);
   if (rec && pd && cat && isISO(pd.priorityDate)) {
     const b = o.bulletin;
-    const c = b ? cutoff(b.rows, cat, countryOf(rec.nationality), b.uscisChart) : undefined;
+    const born = birthCountryOf(p.facts?.birthCountry, rec);
+    const ctry = p.facts?.gc?.chargeability ?? (born && born.from !== 'nationality' ? chargeabilityOf(born.code) : countryOf(rec.nationality));
+    const c = b ? cutoff(b.rows, cat, ctry, b.uscisChart) : undefined;
     pdCurrent = b ? isCurrent(pd.priorityDate, c) : undefined;
     const text = !b ? `${cat} · ${fmt(pd.priorityDate)}` : pdCurrent ? `Current in the ${b.month} bulletin` : c && c !== 'U' && c !== 'C' ? `Cut-off ${fmt(c)} (${b.month})` : `Not current (${b.month})`;
     add('pd', `${cat} priority date`, 'info', { date: pd.priorityDate, text });

@@ -2,6 +2,7 @@
 // The category decides the rules: C3C OPT, C3B STEM OPT, C9 adjustment, C26 H-4, A17/A18 L-2S/E…
 import type { DocFields } from '../model';
 import { columnToken, dateAfter } from './text';
+import { placeAfter } from '../birth';
 
 export const isEAD = (U: string) => /EMPLOYMENT AUTHORI[SZ]ATION|CARD EXPIRES|I-766/.test(U) && !/I-797/.test(U);
 
@@ -20,5 +21,7 @@ export function readEAD(T: string): DocFields {
   f.category = normCategory(U.match(/CATEGORY\s*[:\-]?\s*([AC]\s?\(?\d{1,2}\)?\s?\(?[A-Z]?\)?)(?![A-Z0-9#])/)?.[1])
     ?? normCategory(columnToken(U, /CATEGORY/, /^[AC]\(?\d{1,2}\)?(?:\(?[A-Z]\)?)?$/));
   if (/I-512|ADVANCE PAROLE|SERVES AS I-512/.test(U)) f.comboAP = true;
+  const born = placeAfter(T, /country of birth/i);
+  if (born) f.birthPlace = born;
   return f;
 }

@@ -21,3 +21,4 @@ export { reviewReasons, reasonLine, whatToDo, monthYear, type Reason } from './r
 export { REMINDER_TYPES, TYPE_DEFAULT, LEAD_CHOICES, reminderSummary, typeSetting, typesFor, typeDates, typeOfFinding, copyReminders, type ReminderType } from './reminders';
 export { search, expandQuery, STATIC_ITEMS, SYNONYMS, type SearchItem, type SearchGroup, type SearchSection } from './search';
 export * from './gc';
+export * from './birth';

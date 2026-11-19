@@ -2,6 +2,7 @@
 import type { DocFields } from '../model';
 import { addYears, addDays, fmt, toDate } from '../dates';
 import { columnDate, dateAfter, datesIn, latestDate, readMRZ } from './text';
+import { placeAfter } from '../birth';
 
 export const isPassport = (U: string, T: string) => /PASSPORT|P<[A-Z]{3}/.test(U) || readMRZ(T)?.kind === 'P';
 
@@ -45,5 +46,7 @@ export function readPassport(T: string, dayFirst: boolean): DocFields {
   if (old) f.oldPassportNo = old[1];
   f.birthDate = birth ?? datesIn(T, dayFirst).sort()[0];
   f.nationality = mrz?.nationality;
+  const born = placeAfter(T, /place of birth/i);
+  if (born) f.birthPlace = born;
   return f;
 }

@@ -111,6 +111,7 @@ export type PersonFacts = {
   marriedToCitizen?: boolean; // 3-year citizenship path
   daysInUS?: number; // days physically in the US since resident-since (when no travel history is loaded)
   birthDate?: ISODate; // v2.9 Edit details: typed when no document shows it
+  birthCountry?: string; // v2.9 gc2: country of birth (ISO-3, or OTH) — the Visa Bulletin charges by it, not the passport
   employer?: string; // v2.9 Edit details: typed when no approval / receipt shows it
   locationOn?: ISODate; // v2.9 Edit details: when "In the US / Outside" was set (wins over older I-94s)
   gc?: GcFacts; // v2.9 green-card track (answers only the person can give; documents decide the rest)
@@ -125,7 +126,7 @@ export type GcFacts = {
   /** Typed when no I-140 is saved yet. */
   category?: 'EB-1' | 'EB-2' | 'EB-3' | 'EB-3 OW' | 'EB-5';
   priorityDate?: ISODate;
-  /** Visa Bulletin column (country of chargeability = country of birth, not passport). Unset = from the passport. */
+  /** Visa Bulletin column override (country of chargeability). Unset = from the country of birth (facts.birthCountry), else the passport. */
   chargeability?: 'all' | 'china' | 'india' | 'mexico' | 'philippines';
   /** Interview preparation: checklist items ticked (ids from core/gc.ts). */
   interviewTicks?: string[];
@@ -180,6 +181,7 @@ export type DocFields = {
   oldPassportNo?: string; // newer Indian passports print the previous number
   birthDate?: ISODate;
   nationality?: string; // ISO-3 from the MRZ (IND)
+  birthPlace?: string; // v2.9 gc2: place / country of birth as printed (passport, EAD, green card)
   issueDate?: ISODate;
   validFrom?: ISODate;
   validTo?: ISODate; // the date that matters: passport/visa/EAD/card expiry, I-94 admit-until, approval end
