@@ -1,0 +1,18 @@
+:root{color-scheme:light dark;--bg:#F2F2F7;--card:#fff;--text:#000;--text2:#3C3C4399;--sep:#3C3C434A;--accent:#0058C2}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--card:#1C1C1E;--text:#fff;--text2:#EBEBF599;--sep:#54545899;--accent:#5EAEFF}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.47 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:680px;margin:0 auto;padding:48px 20px 64px}
+.icon{width:64px;height:64px;border-radius:16px;background:#0A84FF;display:flex;align-items:center;justify-content:center;color:#fff;font-size:30px;font-weight:700}
+h1{font-size:34px;line-height:41px;letter-spacing:.4px;margin:16px 0 4px}
+.sub{color:var(--text2);margin:0 0 24px}
+h2{font-size:13px;font-weight:400;text-transform:uppercase;letter-spacing:.3px;color:var(--text2);margin:28px 16px 8px}
+.card{background:var(--card);border-radius:12px;padding:4px 16px}
+.card p,.card li{margin:12px 0}
+.card ul{padding-left:20px;margin:0}
+.row{padding:12px 0;border-bottom:.5px solid var(--sep)}
+.row:last-child{border-bottom:0}
+.row b{display:block;font-weight:600}
+.row span{color:var(--text2);font-size:15px}
+a{color:var(--accent);text-decoration:none}
+.note{color:var(--text2);font-size:13px;margin:12px 16px}
