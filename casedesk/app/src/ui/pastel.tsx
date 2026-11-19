@@ -96,7 +96,7 @@ export function Ring({ parts, caption, center, size = 220 }: { parts: RingPart[]
   const t = useTheme();
   const L = useLayout();
   const d = Math.min(size, L.width - 2 * L.side - 40);
-  const sw = Math.round(d * 0.145);
+  const sw = Math.round(d * 0.13);
   const r = (d - sw) / 2;
   const C = 2 * Math.PI * r;
   const total = parts.reduce((n, p) => n + p.value, 0);
@@ -117,8 +117,8 @@ export function Ring({ parts, caption, center, size = 220 }: { parts: RingPart[]
           }) : null}
         </Svg>
         <View pointerEvents="none" style={{ position: 'absolute', left: sw, right: sw, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-          <T tone="text2" style={[font.foot, { textAlign: 'center' }]}>{caption}</T>
-          <BigText size={38} style={{ letterSpacing: -1, textAlign: 'center' }}>{center}</BigText>
+          <T tone="text2" style={[d < 200 ? font.caption : font.foot, { textAlign: 'center' }]}>{caption}</T>
+          <BigText size={d < 200 ? 30 : 36} style={{ letterSpacing: -1, textAlign: 'center' }}>{center}</BigText>
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 12, marginTop: 14 }}>

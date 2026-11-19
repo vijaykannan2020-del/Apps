@@ -366,7 +366,7 @@ export function Button({ title, onPress, kind = 'primary', icon, busy, disabled,
   title: string; onPress: () => void; kind?: 'primary' | 'ghost' | 'tint' | 'danger'; icon?: string; busy?: boolean; disabled?: boolean; size?: 'sm'; grow?: boolean; block?: boolean; label?: string;
 }) {
   const t = useTheme();
-  const bg = kind === 'primary' ? t.primary : kind === 'ghost' ? (t.onPastel ? t.fill : t.card2) : t.onPastel ? t.fill : kind === 'tint' ? t.pastel.sky : t.pastel.blush;
+  const bg = kind === 'primary' ? t.primary : kind === 'ghost' ? (t.onPastel ? t.fill : t.dark ? t.card2 : '#E4E5E9') : t.onPastel ? t.fill : kind === 'tint' ? t.pastel.sky : t.pastel.blush;
   const fg = kind === 'primary' ? t.onPrimary : kind === 'ghost' ? t.text : t.ink;
   const sm = size === 'sm';
   return (
@@ -405,7 +405,7 @@ export function ChipToggle({ text, on, onPress, role = 'radio' }: { text: string
   const t = useTheme();
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={role} accessibilityState={{ checked: role !== 'button' ? !!on : undefined, selected: !!on }} accessibilityLabel={text}
-      style={({ pressed }) => ({ minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: 999, backgroundColor: on ? t.primary : t.onPastel ? t.fill : t.card2, justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}>
+      style={({ pressed }) => ({ minHeight: MIN_TOUCH, paddingHorizontal: 14, borderRadius: 999, backgroundColor: on ? t.primary : t.onPastel ? t.fill : t.dark ? t.card2 : '#E4E5E9', justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}>
       <Text style={{ color: on ? t.onPrimary : t.text, fontSize: 15, fontWeight: '600' }}>{text}</Text>
     </Pressable>
   );
@@ -445,7 +445,7 @@ export function Segmented({ options, value, onChange }: { options: string[]; val
   const longest = Math.max(...options.map((o) => o.length));
   const stack = L.fontScale > 1.35 || (options.length > 2 && longest * 9 * L.fontScale * options.length > L.width - 2 * L.side - 40);
   return (
-    <View accessibilityRole="tablist" style={{ flexDirection: stack ? 'column' : 'row', backgroundColor: t.onPastel ? t.fill : t.card2, borderRadius: 18, padding: 3, marginTop: 10, gap: stack ? 2 : 0 }}>
+    <View accessibilityRole="tablist" style={{ flexDirection: stack ? 'column' : 'row', backgroundColor: t.onPastel ? t.fill : t.dark ? t.card2 : '#E4E5E9', borderRadius: 18, padding: 3, marginTop: 10, gap: stack ? 2 : 0 }}>
       {options.map((o) => (
         <Pressable key={o} onPress={() => onChange(o)} accessibilityRole="tab" accessibilityState={{ selected: o === value }} accessibilityLabel={o}
           style={{ flex: stack ? undefined : 1, minHeight: MIN_TOUCH, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: o === value ? t.primary : 'transparent', paddingHorizontal: 6, paddingVertical: 4 }}>

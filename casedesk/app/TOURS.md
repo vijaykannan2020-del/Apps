@@ -1,11 +1,19 @@
 # First-visit tips (coach marks)
 
-Every screen shows a short tour the first time it opens: 2–4 tips that dim the screen, ring the
-control they talk about and point at it with an arrow. **Next / Back / Skip**, dots for progress,
-"Got it" on the last tip (with **Open the help topic** when the screen has one). Each screen's tour
-is shown **once** and remembered in `settings.toursSeen`. The **?** in the nav bar (or next to the
-large title on tabs, or at the top of a sheet) replays it. **Settings → Help → Show all tips again**
-clears the list.
+**v2.7 (calmer help): tips are OFF by default.** A new user sees ONE tip, once, on Home: "Tap ? on
+any screen for tips." Nothing else pops up by itself. Every screen still has its 2–4 tips — the
+**?** in the nav bar (or next to the large title on tabs, or at the top of a sheet) plays them on
+demand: they dim the screen, ring the control they talk about and point at it. **Next / Back /
+Skip**, dots for progress, "Got it" on the last tip (with **Open the help topic**).
+
+Settings → Help:
+
+- **Show tips on each screen** (off) — `settings.toursAll`. On: each screen shows its tips once on
+  the first visit (remembered in `settings.toursSeen`), as in v2.3–v2.6.
+- **Show all tips again** — clears `toursSeen` and turns the switch on.
+
+The rule is one pure function, `autoSteps(id, steps, all)` in `src/core/tours.ts`: `all` → the
+screen's steps; otherwise Home → `[HOME_TIP]`, every other screen → nothing.
 
 Files:
 
@@ -44,7 +52,7 @@ Or pass the steps inline: `useTour('community', [{ target: 'post', text: '…' }
 Rules:
 
 - **Hooks before early returns** (`useTour` must run on every render).
-- `useTour` auto-shows ~0.7 s after the screen gets focus. Content inside a **sheet** is outside the
+- `useTour` auto-shows ~0.7 s after the screen gets focus (only when "Show tips on each screen" is on; Home's one tip otherwise). Content inside a **sheet** is outside the
   navigator, so use `useSheetTour` there, wrap the content in `<TourScope tour={tour}>` and put a
   `<TourButton />` at the top.
 - Tab roots have no nav bar: put `<TourButton />` in `LargeTitle right={…}` and pass `tour` to `Screen`.

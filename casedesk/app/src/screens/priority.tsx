@@ -30,8 +30,8 @@ export function useDocTimes(pid?: string) {
     const docs = f.docs.filter((d) => !f.superseded.has(d.id) && (!pid || d.ownerId === pid));
     const missing = f.people.filter((p) => !pid || p.id === pid).reduce((n, p) => n + (f.missing[p.id]?.length ?? 0), 0);
     const short = (d: (typeof docs)[number]) => docTitle(d).replace(/ ?\(.*\)$/, '').replace(/^Form /, '').replace(/ (record|approval|card|stamp)$/i, '');
-    return statusSummary(docs.map((d) => ({ id: d.id, ownerId: d.ownerId, label: short(d), until: docUntil(d as never) })), missing, today());
-  }, [f.docs, f.superseded, f.missing, f.people, pid]);
+    return statusSummary(docs.map((d) => ({ id: d.id, ownerId: d.ownerId, label: short(d), until: docUntil(d as never), soft: d.type === 'visa' && f.records[d.ownerId]?.location !== 'Outside' })), missing, today());
+  }, [f.docs, f.superseded, f.missing, f.people, f.records, pid]);
 }
 
 export function usePriority() {

@@ -188,12 +188,13 @@ export const docState = (n: number): DocState => (n < 0 ? 'expired' : n <= EXPIR
 
 export type StatusSummary = { valid: number; expiring: number; expired: number; missing: number; undated: number; bars: DocTime[] };
 /** Counts for the ring and the bars sorted by urgency (least time left first). Superseded copies are left out by the caller. */
-export function statusSummary(docs: { id: string; ownerId: string; label: string; until?: string }[], missing: number, today: string): StatusSummary {
+/** `soft`: ended but not urgent (a visa stamp that expired while its owner is in the US) — attention, not urgent. */
+export function statusSummary(docs: { id: string; ownerId: string; label: string; until?: string; soft?: boolean }[], missing: number, today: string): StatusSummary {
   const s: StatusSummary = { valid: 0, expiring: 0, expired: 0, missing, undated: 0, bars: [] };
   for (const d of docs) {
     if (!d.until || !/^\d{4}-\d{2}-\d{2}$/.test(d.until)) { s.undated++; s.valid++; continue; } // no end date (D/S I-94, receipts): nothing to expire
     const n = days(today, d.until);
-    const st = docState(n);
+    const st = n < 0 && d.soft ? 'expiring' : docState(n);
     s[st]++;
     s.bars.push({ id: d.id, ownerId: d.ownerId, label: d.label, until: d.until, days: n, state: st });
   }

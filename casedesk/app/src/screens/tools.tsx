@@ -258,14 +258,14 @@ function VisaBulletin() {
       {stacked ? (
         <View style={{ gap: 10, marginTop: 14 }}>
           {b.data.rows.map((r) => (
-            <Group key={r.cat}>
+            <Group joined key={r.cat} style={{ marginTop: 8 }}>
               <Row title={r.cat} subtitle={r.label} titleStyle={{ ...font.body, fontWeight: '600' }} />
               {cols.map((c) => { const v = r[key][c]; return <Row key={c} title={c === 'all' ? 'All other countries' : c[0].toUpperCase() + c.slice(1)} value={v === 'C' ? 'Current' : v ? fmt(v) : '—'} />; })}
             </Group>
           ))}
         </View>
       ) : (
-      <Group style={{ marginTop: 14 }}>
+      <Group joined style={{ marginTop: 14 }}>
         <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12 }}>
           {['Category', 'India', 'China', 'All other'].map((h, i) => <T key={h} tone="text2" style={[font.caption, { flex: i ? 1 : 1.2, fontWeight: '600', textTransform: 'uppercase' }]}>{h}</T>)}
         </View>

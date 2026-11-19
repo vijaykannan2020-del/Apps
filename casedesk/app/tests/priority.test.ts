@@ -154,6 +154,8 @@ test('status view: counts for the ring and bars sorted by urgency', () => {
   assert.deepEqual([s.valid, s.expiring, s.expired, s.missing], [3, 1, 1, 1]);
   assert.deepEqual(s.bars.map((b) => b.id), ['ead', 'i94', 'visa', 'pp'], 'least time left first');
   assert.equal(s.bars[0].state, 'expired');
+  const soft = statusSummary([{ id: 'v', ownerId: 'a', label: 'Visa', until: '2026-10-10', soft: true }], 0, TODAY);
+  assert.deepEqual([soft.expired, soft.expiring, soft.bars[0].state], [0, 1, 'expiring'], 'a visa stamp that ended while in the US is attention, not urgent');
   assert.equal(docState(180), 'expiring');
   assert.equal(docState(181), 'valid');
   assert.equal(toneForDays(30), 'blush');

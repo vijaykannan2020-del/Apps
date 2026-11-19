@@ -16,7 +16,7 @@ export default function TabsWeb() {
       tabBarInactiveTintColor: t.text2,
       tabBarLabel: LABEL[route.name],
       tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
-      tabBarStyle: { backgroundColor: t.bar, borderTopColor: t.sep, borderTopWidth: 0.5, position: 'absolute' },
+      tabBarStyle: { backgroundColor: t.bar, borderTopColor: t.sep, borderTopWidth: 0.5, position: 'absolute', height: 64, paddingBottom: 8, paddingTop: 6 },
       tabBarIcon: ({ color }) => <Icon name={ICON[route.name] ?? 'grid'} size={24} color={String(color)} />,
       sceneStyle: { backgroundColor: t.bg },
     })}>

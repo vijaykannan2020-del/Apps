@@ -11,7 +11,7 @@ import { TourButton, TourTarget, useTour, useLayout, Appear, Avatar, Button, Emp
 import { AttentionRow, go, LegalFooter, needsLocation, statusLabel, untilText } from './common';
 import { heroLine } from '../core/priority';
 import { ORDER } from '../core/rules/types';
-import { usePriority, useOpenTarget } from './priority';
+import { StatusView, usePriority, useOpenTarget } from './priority';
 import { CaseRow } from './cases';
 import { Confirm, SourceSheet } from './sheets';
 import { endFlow, unsavedCount, useFlow } from '../data/flow';
@@ -140,7 +140,7 @@ export function Home() {
   // Wide (≥ 700): two independent scroll areas — you, the hero and the family stay put on the left
   // while attention, cases and updates scroll on the right. Phones: one page.
   if (L.twoCol) {
-    return <Screen tabRoot wide panes={{ left: <>{topPart}{familyPart}</>, right: <>{attentionPart}{casesPart}<TourTarget id="updates"><HomeUpdates /></TourTarget>{communityPart}{foot}</> }} tour={tour} />;
+    return <Screen tabRoot wide panes={{ left: <>{topPart}{familyPart}<StatusView title="Family documents" card /></>, right: <>{attentionPart}{casesPart}<TourTarget id="updates"><HomeUpdates /></TourTarget>{communityPart}{foot}</> }} tour={tour} />;
   }
   return (
     <Screen tabRoot tour={tour}>
