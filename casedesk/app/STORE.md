@@ -80,13 +80,13 @@ uscis,case status,green card,h1b,visa bulletin,i-94,ead,priority date,h4,opt,rec
 | Simulated gambling / contests | None (the “H-1B lottery” tool explains the government selection process; no gambling) |
 | Medical or treatment information | None |
 | Unrestricted web access | **No** — links open specific official pages (uscis.gov, travel.state.gov, dol.gov, news articles) in the system browser sheet; there is no general browser or search |
-| User-generated content / messaging / chat | **Yes** — Community Q&A (moderated: report, block, rules, 24 h review; see Guideline 1.2) |
+| User-generated content / messaging / chat | **Yes** — Community (moderated: report, block, rules, 24 h review; see Guideline 1.2) |
 | Age assurance, parental controls | No |
 | Result | **4+** |
 
 ## App Privacy (nutrition label)
 
-With Community Q&A and Cases like mine merged (integ), the answer is **no longer “Data Not Collected”**. Declare:
+With Community and Cases like mine merged (integ), the answer is **no longer “Data Not Collected”**. Declare:
 
 | Data type | Collected when | Linked to the user? | Used for tracking? | Purpose |
 |---|---|---|---|---|
@@ -118,7 +118,7 @@ The app uses HTTPS through iOS (exempt) **and** encrypts backups itself with AES
 
 ## Review notes (paste into App Review Information)
 
-> No login is needed for any feature except posting in Community Q&A (Sign in with Apple; reading is open). All family data is entered by the user and stays on the device.
+> No login is needed for any feature except posting in Community (Sign in with Apple; reading is open). All family data is entered by the user and stays on the device.
 >
 > Quickest way to see the app with data: on the Welcome screen tap Get started, type any name, pick “H-1B”, then go to Settings → Help → Example family → Load example. This loads a made-up H-1B family (Arun, Meera, Leela) with documents, cases, reminders and items that need attention. Everything is fictional.
 >

@@ -4,7 +4,6 @@
 import React, { useState } from 'react';
 import { Share, View } from 'react-native';
 import { applyVote, nextVote, privacyProblem, shareText, type Dir } from '../core/community';
-import { PASTEL } from '../core/communityColors';
 import { deletePost, repost, savePost, vote, votePoll, type Post, type PostSummary } from '../data/communityApi';
 import { Button, Field, SheetButtons, T, Why, font, useSheet, useTheme, useToast } from '../ui';
 import { back, go } from './common';
@@ -88,13 +87,14 @@ export function usePostActions<P extends AnyPost>(p: P, onChange: (p: P) => void
 /** vote · comments · Share · Save · ••• */
 export function PostActions<P extends AnyPost>({ p, onChange, onRemoved, onComment }: { p: P; onChange: (p: P) => void; onRemoved?: (id: string) => void; onComment?: () => void }) {
   const a = usePostActions(p, onChange, onRemoved);
+  const t = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, marginHorizontal: -8 }}>
       <VoteCluster score={p.score} myVote={p.myVote} onVote={a.doVote} disabled={p.mine || p.deleted} />
       <ActionButton icon="comment" text={`${p.comments}`} label={`${p.comments} comments`} onPress={onComment ?? (() => go(`/community/post/${p.id}`))} />
       <View style={{ flex: 1 }} />
       {p.deleted ? null : <ActionButton icon="share" label="Share or repost" onPress={a.doShare} />}
-      {p.deleted ? null : <ActionButton icon={p.saved ? 'bookmarkOn' : 'bookmark'} label={p.saved ? 'Remove from saved' : 'Save post'} active={p.saved} color={p.saved ? PASTEL.butter : undefined} onPress={a.doSave} />}
+      {p.deleted ? null : <ActionButton icon={p.saved ? 'bookmarkOn' : 'bookmark'} label={p.saved ? 'Remove from saved' : 'Save post'} active={p.saved} color={p.saved ? t.inkAmber : undefined} onPress={a.doSave} />}
       {p.deleted ? null : <ActionButton icon="more" label="More: report, block, edit or delete" onPress={a.doMenu} />}
     </View>
   );

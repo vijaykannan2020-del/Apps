@@ -100,7 +100,7 @@ test('navigation (v2.7): five tabs — Home, Family, Cases, Community, Tools; Se
   // deep link casedesk://settings → app/settings.tsx
   assert.match(readFileSync(new URL('../app/settings.tsx', import.meta.url), 'utf8'), /SettingsScreen as default/);
   // the Community tab hosts the existing feed; Tools no longer lists it
-  assert.match(readFileSync(new URL('../app/(tabs)/forum.tsx', import.meta.url), 'utf8'), /<TabHost><CommunityFeedScreen/);
+  assert.match(readFileSync(new URL('../app/(tabs)/forum.tsx', import.meta.url), 'utf8'), /<CommunityFeedScreen tabRoot \/>/);
   assert.doesNotMatch(readFileSync(new URL('../src/screens/tools.tsx', import.meta.url), 'utf8'), /id: 'community'/);
   const home = readFileSync(new URL('../src/screens/home.tsx', import.meta.url), 'utf8');
   assert.match(home, /go\('\/settings'\)/, 'the avatar opens Settings');

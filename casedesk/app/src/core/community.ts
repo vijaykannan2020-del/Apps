@@ -1,8 +1,10 @@
-// Community Q&A — pure logic shared by the screens (and unit-tested): the tag list (same as the
+// Community — pure logic shared by the screens (and unit-tested): the tag list (same as the
 // server's src/forum.mjs TAGS), which tags fit this family, client-side checks that mirror the server
 // so people get instant feedback, and small formatting helpers. Nothing here talks to the network.
 import type { VisaType } from './model';
-import { PASTEL_NAMES, type PastelName } from './communityColors';
+/** The four pastels used for avatars and tags (names only — the colours are theme tokens, t.pastel.*). */
+export type PastelName = 'sage' | 'blush' | 'butter' | 'sky';
+export const PASTEL_NAMES: PastelName[] = ['sage', 'blush', 'butter', 'sky'];
 
 export const COMMUNITY_DISCLAIMER = 'Community answers are from other users, not lawyers — not legal advice.';
 export const RULES_VERSION = 1;

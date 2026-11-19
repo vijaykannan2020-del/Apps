@@ -73,7 +73,7 @@ export const HELP: HelpTopic[] = [
     id: 'privacy', title: 'Privacy', sub: 'Your documents stay on this phone',
     body: [
       'Documents are read and stored only on this phone. No account is needed, and there are no ads and no tracking.',
-      'Community Q&A is the one optional exception: to post you sign in with Apple, and only a made-up display name and what you type into questions and answers is stored on the Immigration Wallet server. Delete it any time in Community → Account.',
+      'Community is the one optional exception: to post you sign in with Apple, and only a made-up display name and what you type into questions and answers is stored on the Immigration Wallet server. Delete it any time in Community → Account.',
       'Immigration Wallet never logs in to USCIS, CBP or SEVP. Updates, the Visa Bulletin and processing times come from the Immigration Wallet server or a built-in copy — nothing about you is sent.',
       'Turn on Face ID in Settings to lock the app and hide documents in the app switcher.',
     ],
@@ -131,7 +131,7 @@ export const HELP: HelpTopic[] = [
   {
     id: 'community', title: 'How the community works', sub: 'Posts, threads and votes with people on the same visa',
     body: [
-      'Community (Tools → Community Q&A) is where people share real experience: stamping, RFEs, transfers, green card steps. Anyone can read. Community answers are from other users, not lawyers — not legal advice.',
+      'Community (the Community tab) is where people share real experience: stamping, RFEs, transfers, green card steps. Anyone can read. Community answers are from other users, not lawyers — not legal advice.',
       'The feed: Hot shows what is active now, New the latest, Top the most upvoted (today, this week or all time) and Unanswered is where you can help. For my visa keeps it to your family’s visa types and case forms. Tap a tag to filter, or search. Pull down to refresh.',
       'Four kinds of post: a Question (you can mark one answer as accepted), a Discussion, a Timeline share (form, office and dates shown as a small card — never the receipt number) and a Poll with 2–4 choices, one vote each.',
       'Comments are threaded: reply to a comment to answer that person, tap the arrow on a comment to collapse its thread, and sort by Best or New. Up and down votes move the most useful posts and comments up. Karma on a profile is the upvotes that person received.',
@@ -141,7 +141,7 @@ export const HELP: HelpTopic[] = [
       'Every post, comment and profile has a ••• menu: Report sends it to the moderators and hides it for you; Block hides everything from that person. Content reported by several people is hidden until reviewed — moderators act within 24 hours and ban accounts that break the rules. Contact moderators from Community → Account.',
       'Notifications tell you about replies to you and upvote milestones; turn push on or off in Community → Account. Delete account removes your account: posts and comments nobody replied to are deleted, and where others replied your name and words become [deleted] so their thread still reads.',
     ],
-    steps: ['Tools → Community Q&A', 'New post → sign in with Apple → accept the rules', 'Post or comment → ••• → Report or Block', 'Community → Account → Delete account'],
+    steps: ['Community tab', 'New post → sign in with Apple → accept the rules', 'Post or comment → ••• → Report or Block', 'Community → Account → Delete account'],
   },
 ];
 

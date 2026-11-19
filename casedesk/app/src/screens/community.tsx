@@ -4,10 +4,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, ScrollView, TextInput, View } from 'react-native';
 import { COMMUNITY_DISCLAIMER, SORTS, TAGS, TOP_RANGES, familyCommunityTags, feedQuery, mergePage, type FeedTab, type SortId, type TopRange } from '../core/community';
-import { PASTEL } from '../core/communityColors';
 import { getFeed, usePostBus, useCommunityUser, type PostSummary } from '../data/communityApi';
 import { useFamily } from '../data/FamilyProvider';
-import { Button, ChipToggle, EmptyState, Hint, Icon, IconButton, Note, Screen, Spinner, font, useTheme, TourTarget, useTour } from '../ui';
+import { Button, ChipToggle, EmptyState, Hint, Icon, IconButton, LargeTitle, Note, Screen, Spinner, font, useTheme, TourButton, TourTarget, useTour } from '../ui';
 import { back, go } from './common';
 import { useCommunityGate } from './communityAccount';
 import { PostCard } from './communityCards';
@@ -20,7 +19,8 @@ export function useFamilyCommunityTags(): string[] {
 }
 
 
-export function CommunityFeedScreen({ backTitle = 'Back' }: { backTitle?: string }) {
+/** `tabRoot`: shown as the Community tab — large title, no back button, New post sits above the system tab bar. */
+export function CommunityFeedScreen({ backTitle = 'Back', tabRoot }: { backTitle?: string; tabRoot?: boolean }) {
   const t = useTheme();
   const fam = useFamilyCommunityTags();
   const { user } = useCommunityUser();
@@ -96,30 +96,32 @@ export function CommunityFeedScreen({ backTitle = 'Back' }: { backTitle?: string
       body="Be the first — ask a question, start a discussion, share your timeline or run a poll." action={{ title: 'New post', onPress: compose }} />
   ) : null;
 
-  return (
-    <Screen tour={tour} scroll={false}
-      nav={{ title: 'Community', back: backTitle, onBack: back, right: (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          {user ? (
-            <View>
-              <IconButton icon="bell" label={user.unread ? `Notifications, ${user.unread} new` : 'Notifications'} onPress={() => go('/community/notifications')} />
-              {user.unread ? <View pointerEvents="none" style={{ position: 'absolute', top: 6, right: 6, width: 10, height: 10, borderRadius: 5, backgroundColor: PASTEL.blush, borderWidth: 1.5, borderColor: t.bg }} /> : null}
-            </View>
-          ) : null}
-          {user ? <Pressable onPress={() => go('/community/account')} accessibilityRole="button" accessibilityLabel={`Account: ${user.name}`} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><CAvatar a={user} size={34} /></Pressable>
-            : <IconButton icon="user" label="Account and sign in" onPress={() => go('/community/account')} />}
+  const actions = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      {user ? (
+        <View>
+          <IconButton icon="bell" label={user.unread ? `Notifications, ${user.unread} new` : 'Notifications'} onPress={() => go('/community/notifications')} />
+          {user.unread ? <View pointerEvents="none" style={{ position: 'absolute', top: 5, right: 5, width: 11, height: 11, borderRadius: 6, backgroundColor: t.red, borderWidth: 2, borderColor: t.bg }} /> : null}
         </View>
-      ) }}
-      footer={<Button icon="edit" title="New post" onPress={compose} />}>
-      <FlatList
-        data={posts ?? []} keyExtractor={(p) => p.id} style={{ flex: 1, marginHorizontal: -4 }} contentContainerStyle={{ paddingHorizontal: 4, paddingBottom: 24 }}
-        renderItem={({ item }) => <PostCard p={item} onChange={change} onRemoved={removed} />}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        ListHeaderComponent={header} ListEmptyComponent={empty ?? undefined}
-        ListFooterComponent={more ? <View style={{ paddingVertical: 16 }}><Spinner /></View> : posts?.length && !next ? <Hint center style={{ marginTop: 16 }}>You’re all caught up. Never post receipt numbers or other personal details.</Hint> : undefined}
-        onEndReached={loadMore} onEndReachedThreshold={0.6} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.text2} colors={[t.accent]} />}
-      />
-    </Screen>
+      ) : null}
+      {user ? <Pressable onPress={() => go('/community/account')} accessibilityRole="button" accessibilityLabel={`Account: ${user.name}`} style={{ width: 46, height: 46, alignItems: 'center', justifyContent: 'center' }}><CAvatar a={user} size={40} /></Pressable>
+        : <IconButton icon="user" label="Account and sign in" onPress={() => go('/community/account')} />}
+    </View>
   );
+  const list = (
+    <FlatList
+      data={posts ?? []} keyExtractor={(p) => p.id} style={{ flex: 1, marginHorizontal: -4 }} contentContainerStyle={{ paddingHorizontal: 4, paddingBottom: 24 }}
+      renderItem={({ item }) => <PostCard p={item} onChange={change} onRemoved={removed} />}
+      ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+      ListHeaderComponent={tabRoot ? <><LargeTitle title="Community" right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}><TourButton />{actions}</View>} /><View style={{ height: 14 }} />{header}</> : header}
+      ListEmptyComponent={empty ?? undefined}
+      ListFooterComponent={more ? <View style={{ paddingVertical: 16 }}><Spinner /></View> : posts?.length && !next ? <Hint center style={{ marginTop: 16 }}>You’re all caught up. Never post receipt numbers or other personal details.</Hint> : undefined}
+      onEndReached={loadMore} onEndReachedThreshold={0.6} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.text2} colors={[t.text]} />}
+    />
+  );
+  const newPost = <Button icon="edit" title="New post" onPress={compose} />;
+  // Tab root: no nav bar and no footer bar — the kit leaves room for the system tab bar under the content, so the button row sits right above it.
+  if (tabRoot) return <Screen tour={tour} scroll={false} tabRoot>{list}<View style={{ flexDirection: 'row', paddingTop: 10 }}>{newPost}</View></Screen>;
+  return <Screen tour={tour} scroll={false} nav={{ title: 'Community', back: backTitle, onBack: back, right: actions }} footer={newPost}>{list}</Screen>;
 }

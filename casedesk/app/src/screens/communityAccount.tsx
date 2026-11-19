@@ -4,8 +4,7 @@
 // people, sign out, Delete account — Apple 5.1.1(v)).
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { AVATARS, COMMUNITY_DISCLAIMER, COMMUNITY_RULES, FLAIRS, REPORT_REASONS, RULES_VERSION, fmtCount, joined, nameProblem } from '../core/community';
-import { INK, PASTEL } from '../core/communityColors';
+import { AVATARS, COMMUNITY_DISCLAIMER, COMMUNITY_RULES, FLAIRS, REPORT_REASONS, RULES_VERSION, fmtCount, joined, nameProblem, type PastelName } from '../core/community';
 import {
   blockUser, contactModerators, deleteAccount, getBlocks, getRules, refreshMe, report, signOut, unblockUser, updateMe, useCommunityUser,
   type Author, type CommunityUser,
@@ -50,9 +49,9 @@ function GoogleButton({ cfg, setError }: { cfg: GoogleCfg; setError: (s: string)
   }, [res]);
   return (
     <Pressable onPress={() => { setError(''); prompt(); }} disabled={!req || busy} accessibilityRole="button" accessibilityLabel="Sign in with Google" accessibilityState={{ disabled: !req || busy }}
-      style={({ pressed }) => ({ height: 50, width: '100%', marginTop: 10, borderRadius: 14, backgroundColor: t.dark ? '#FFFFFF' : t.card, borderWidth: t.dark ? 0 : 1, borderColor: t.fieldBorder, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: !req || busy ? 0.5 : pressed ? 0.8 : 1 })}>
+      style={({ pressed }) => ({ height: 50, width: '100%', marginTop: 10, borderRadius: 14, backgroundColor: t.dark ? t.primary : t.card, borderWidth: t.dark ? 0 : 1, borderColor: t.fieldBorder, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: !req || busy ? 0.5 : pressed ? 0.8 : 1 })}>
       <Text allowFontScaling={false} style={{ color: '#4285F4', fontSize: 20, fontWeight: '700' }}>G</Text>
-      <Text style={{ color: '#000000', fontSize: 19, fontWeight: '600' }}>Sign in with Google</Text>
+      <Text style={{ color: t.dark ? t.onPrimary : t.text, fontSize: 19, fontWeight: '600' }}>Sign in with Google</Text>
     </Pressable>
   );
 }
@@ -308,13 +307,12 @@ function FlairSheet({ user, onClose }: { user: CommunityUser; onClose: () => voi
 /** Karma · posts · comments */
 export function StatRow({ karma, posts, comments }: { karma: number; posts: number; comments: number }) {
   const t = useTheme();
-  const cell = (n: number, label: string, pastel: keyof typeof PASTEL) => (
-    <View accessible accessibilityLabel={`${n} ${label}`} style={{ flex: 1, backgroundColor: PASTEL[pastel], borderRadius: 22, paddingVertical: 12, paddingHorizontal: 14 }}>
-      <Text style={{ color: INK, fontSize: 22, fontWeight: '700', letterSpacing: -0.4 }}>{fmtCount(n)}</Text>
-      <Text style={{ color: INK, fontSize: 12.5, fontWeight: '600', opacity: 0.85 }}>{label}</Text>
+  const cell = (n: number, label: string, pastel: PastelName) => (
+    <View accessible accessibilityLabel={`${n} ${label}`} style={{ flex: 1, backgroundColor: t.pastel[pastel], borderRadius: 22, paddingVertical: 12, paddingHorizontal: 14 }}>
+      <Text style={{ color: t.ink, fontSize: 22, fontWeight: '700', letterSpacing: -0.4 }}>{fmtCount(n)}</Text>
+      <Text style={{ color: t.ink, fontSize: 12.5, fontWeight: '600', opacity: 0.85 }}>{label}</Text>
     </View>
   );
-  void t;
   return <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>{cell(karma, 'karma', 'sage')}{cell(posts, posts === 1 ? 'post' : 'posts', 'blush')}{cell(comments, comments === 1 ? 'comment' : 'comments', 'butter')}</View>;
 }
 

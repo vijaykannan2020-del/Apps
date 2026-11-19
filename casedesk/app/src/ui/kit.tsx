@@ -82,9 +82,6 @@ const ListCtx = createContext<ListOS | null>(null);
 export function SettingsList({ children, os }: { children: React.ReactNode; os?: ListOS }) {
   return <ListCtx.Provider value={os ?? listOS()}>{children}</ListCtx.Provider>;
 }
-/** A stack screen shown as a tab (the Community feed): no back button, room for the tab bar. */
-const TabHostCtx = createContext(false);
-export const TabHost = ({ children }: { children: React.ReactNode }) => <TabHostCtx.Provider value>{children}</TabHostCtx.Provider>;
 const flat = (children: React.ReactNode): React.ReactNode[] => React.Children.toArray(children).flatMap((c) => (React.isValidElement(c) && c.type === React.Fragment ? flat((c.props as { children?: React.ReactNode }).children) : [c])).filter(Boolean);
 
 export function LargeTitle({ title, right }: { title: string; right?: React.ReactNode }) {
@@ -122,11 +119,10 @@ function Bar({ children, style, edge }: { children: React.ReactNode; style?: Vie
 
 export type NavProps = { title?: string; back?: string; onBack?: () => void; right?: React.ReactNode; appBar?: 'android'; progress?: { label: string; right?: string; value: number } };
 
-export function NavBar({ title, back: backProp, onBack, right, progress, appBar }: NavProps) {
+export function NavBar({ title, back, onBack, right, progress, appBar }: NavProps) {
   const insets = useSafeAreaInsets();
   const L = useLayout();
   const t = useTheme();
-  const back = useContext(TabHostCtx) ? undefined : backProp; // a tab root has no back button
   // Material 3 small top app bar: back arrow, title at the start, actions at the end
   if (appBar === 'android') {
     return (
@@ -192,9 +188,8 @@ function Progress({ label, right, value }: { label: string; right?: string; valu
 export function Footer({ children, column }: { children: React.ReactNode; column?: boolean }) {
   const insets = useSafeAreaInsets();
   const L = useLayout();
-  const hosted = useContext(TabHostCtx); // a stack screen shown as a tab: keep the footer above the tab bar
   return (
-    <Bar edge="bottom" style={{ paddingBottom: 12 + insets.bottom + (hosted ? 58 : 0), paddingTop: 12, paddingLeft: insets.left, paddingRight: insets.right }}>
+    <Bar edge="bottom" style={{ paddingBottom: 12 + insets.bottom, paddingTop: 12, paddingLeft: insets.left, paddingRight: insets.right }}>
       <View style={{ flexDirection: column ? 'column' : 'row', flexWrap: column ? 'nowrap' : 'wrap', gap: 10, paddingHorizontal: L.side, alignSelf: 'center', width: '100%', maxWidth: L.maxWidth + 2 * L.side }}>{children}</View>
     </Bar>
   );
@@ -206,12 +201,10 @@ export function Footer({ children, column }: { children: React.ReactNode; column
  * the left column (list) stays put while the right one (detail) scrolls on its own. On phones the
  * panes are one normal scrolling page: left, then right.
  */
-export function Screen({ nav, footer, children, scroll = true, tabRoot: tabRootProp, keyboard, padTop = true, wide, panes, paneRatio = 1, tour }: { nav?: NavProps; footer?: React.ReactNode; children?: React.ReactNode; scroll?: boolean; tabRoot?: boolean; keyboard?: boolean; padTop?: boolean; wide?: boolean; panes?: { left: React.ReactNode; right: React.ReactNode }; paneRatio?: number; tour?: Tour }) {
+export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard, padTop = true, wide, panes, paneRatio = 1, tour }: { nav?: NavProps; footer?: React.ReactNode; children?: React.ReactNode; scroll?: boolean; tabRoot?: boolean; keyboard?: boolean; padTop?: boolean; wide?: boolean; panes?: { left: React.ReactNode; right: React.ReactNode }; paneRatio?: number; tour?: Tour }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const L = useLayout();
-  const hosted = useContext(TabHostCtx);
-  const tabRoot = tabRootProp || hosted;
   const inner: ViewStyle = { paddingHorizontal: L.side, paddingTop: nav ? 20 : padTop ? insets.top + 14 : 0, paddingBottom: (footer ? 24 : 32) + (tabRoot ? insets.bottom + 56 : footer ? 0 : insets.bottom), alignSelf: 'center', width: '100%', maxWidth: wide && L.twoCol ? L.wideMax + 2 * L.side : L.maxWidth + 2 * L.side };
   const split = !!panes && L.twoCol;
   const paneInner = (left: boolean): ViewStyle => ({ ...inner, maxWidth: undefined, alignSelf: 'stretch', paddingLeft: left ? L.side : 10, paddingRight: left ? 10 : L.side });

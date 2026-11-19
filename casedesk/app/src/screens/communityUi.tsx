@@ -3,10 +3,9 @@
 // small menu / confirm sheets. Presentational only — no network calls here (see communityCards.tsx).
 import React, { useState } from 'react';
 import { Pressable, Text, View, type ViewStyle } from 'react-native';
-import { avatarOf, byline, daysLabel, fmtCount, pastelFor, pollPercents, shortDate, timelineView, typeLabel, type AuthorLike, type Dir, type TimelineData } from '../core/community';
-import { CARD_RADIUS, INK, PASTEL, VOTE, type PastelName } from '../core/communityColors';
+import { avatarOf, byline, daysLabel, fmtCount, pastelFor, pollPercents, shortDate, timelineView, typeLabel, type AuthorLike, type Dir, type PastelName, type TimelineData } from '../core/community';
 import type { Embed, Poll } from '../data/communityApi';
-import { Button, Group, Icon, MIN_TOUCH, Note, Row, SheetButtons, T, Why, font, useTheme } from '../ui';
+import { Button, Group, Icon, MIN_TOUCH, Note, Row, SheetButtons, T, Why, font, radius, useTheme } from '../ui';
 import { go } from './common';
 
 export const openProfile = (a: AuthorLike) => { if (a.id && !a.deleted) go(`/community/user/${a.id}`); };
@@ -16,8 +15,8 @@ export function CAvatar({ a, size = 30, onPress }: { a: AuthorLike; size?: numbe
   const t = useTheme();
   const v = avatarOf(a);
   const circle = (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: a.deleted ? t.fill : PASTEL[v.pastel], alignItems: 'center', justifyContent: 'center' }}>
-      <Text allowFontScaling={false} style={v.emoji ? { fontSize: size * 0.54, lineHeight: size * 0.72, textAlign: 'center' } : { color: a.deleted ? t.text2 : INK, fontWeight: '700', fontSize: Math.max(10, size * 0.37) }}>{v.text}</Text>
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: a.deleted ? t.fill : t.pastel[v.pastel], alignItems: 'center', justifyContent: 'center' }}>
+      <Text allowFontScaling={false} style={v.emoji ? { fontSize: size * 0.54, lineHeight: size * 0.72, textAlign: 'center' } : { color: a.deleted ? t.text2 : t.ink, fontWeight: '700', fontSize: Math.max(10, size * 0.37) }}>{v.text}</Text>
     </View>
   );
   if (!onPress || !a.id || a.deleted) return <View accessible={false}>{circle}</View>;
@@ -45,10 +44,11 @@ export function AuthorLine({ a, at, edited, size = 30, badges, link = true }: { 
 }
 
 export function TagChip({ text, pastel, icon }: { text: string; pastel?: PastelName; icon?: string }) {
+  const t = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: PASTEL[pastel ?? pastelFor(text)], borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
-      {icon ? <Icon name={icon} size={12} color={INK} weight="bold" /> : null}
-      <Text style={{ color: INK, fontSize: 12, fontWeight: '700' }}>{text}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: t.pastel[pastel ?? pastelFor(text)], borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
+      {icon ? <Icon name={icon} size={12} color={t.ink} weight="bold" /> : null}
+      <Text style={{ color: t.ink, fontSize: 12, fontWeight: '700' }}>{text}</Text>
     </View>
   );
 }
@@ -57,7 +57,7 @@ export const Tags = ({ children, style }: { children: React.ReactNode; style?: V
 
 export function useVoteColors() {
   const t = useTheme();
-  return { up: t.dark ? VOTE.upDark : VOTE.upLight, down: t.dark ? VOTE.downDark : VOTE.downLight };
+  return { up: t.pos, down: t.inkRed };
 }
 
 /** ▲ 24 ▽ — one pill; the arrow you picked is coloured, tapping it again clears the vote. */
@@ -97,7 +97,7 @@ export function ActionButton({ icon, text, label, onPress, active, color }: { ic
 /** The dark rounded card every post sits in. */
 export function PostShell({ children, onPress, label, style }: { children: React.ReactNode; onPress?: () => void; label?: string; style?: ViewStyle }) {
   const t = useTheme();
-  const base: ViewStyle = { backgroundColor: t.card, borderRadius: CARD_RADIUS, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 6 };
+  const base: ViewStyle = { backgroundColor: t.card, borderRadius: radius.card, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 6 };
   if (!onPress) return <View style={[base, style]}>{children}</View>;
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [base, style, pressed && { opacity: 0.85 }]}>{children}</Pressable>;
 }
@@ -123,7 +123,7 @@ export function TimelineCard({ tl, compact }: { tl: TimelineData; compact?: bool
           {v.rows.map((r, i) => (
             <View key={r.label} style={{ flexDirection: 'row', gap: 12, minHeight: 34 }}>
               <View style={{ width: 12, alignItems: 'center' }}>
-                <View style={{ width: 12, height: 12, borderRadius: 6, marginTop: 4, backgroundColor: i === v.rows.length - 1 ? tone : PASTEL.sage }} />
+                <View style={{ width: 12, height: 12, borderRadius: 6, marginTop: 4, backgroundColor: i === v.rows.length - 1 ? tone : t.green }} />
                 {i < v.rows.length - 1 ? <View style={{ flex: 1, width: 2, backgroundColor: t.sep, marginVertical: 2 }} /> : null}
               </View>
               <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', gap: 8, paddingBottom: 8 }}>
@@ -149,13 +149,13 @@ export function PollCard({ poll, onVote, mine, busy }: { poll: Poll; onVote?: (i
       {poll.options.map((o, i) => {
         const picked = poll.myVote === i;
         const inner = (
-          <View style={{ backgroundColor: t.card2, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, minHeight: MIN_TOUCH, justifyContent: 'center', borderWidth: 1.5, borderColor: picked ? PASTEL.sage : 'transparent' }}>
+          <View style={{ backgroundColor: t.card2, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, minHeight: MIN_TOUCH, justifyContent: 'center', borderWidth: 1.5, borderColor: picked ? t.green : 'transparent' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {picked ? <Icon name="checkc" size={16} color={PASTEL.sage} weight="bold" /> : null}
+              {picked ? <Icon name="checkc" size={16} color={t.green} weight="bold" /> : null}
               <T style={[font.sub, { flex: 1, fontWeight: picked ? '700' : '500' }]}>{o.text}</T>
               {showResults ? <T tone="text2" style={[font.sub, { fontWeight: '600', fontVariant: ['tabular-nums'] }]}>{`${pct[i]}%`}</T> : null}
             </View>
-            {showResults ? <View style={{ height: 6, borderRadius: 3, backgroundColor: t.fill, marginTop: 8, overflow: 'hidden' }}><View style={{ height: 6, borderRadius: 3, width: `${pct[i]}%`, backgroundColor: picked ? PASTEL.sage : PASTEL.sky }} /></View> : null}
+            {showResults ? <View style={{ height: 6, borderRadius: 3, backgroundColor: t.fill, marginTop: 8, overflow: 'hidden' }}><View style={{ height: 6, borderRadius: 3, width: `${pct[i]}%`, backgroundColor: picked ? t.green : t.accent }} /></View> : null}
           </View>
         );
         if (!onVote || mine) return <View key={i} accessible accessibilityLabel={`${o.text}, ${pct[i]} percent`}>{inner}</View>;

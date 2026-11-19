@@ -8,10 +8,9 @@ import path from 'node:path';
 import fs from 'node:fs';
 import {
   AVATARS, FLAIRS, MAX_DEPTH, POST_TYPES, SORTS, applyVote, avatarOf, buildTree, byline, commentProblem, countReplies, daysBetween, draftProblem, feedQuery, fmtCount, googleRedirect, hotScore,
-  initials, joined, mergePage, nextVote, pastelFor, pollPercents, postIdFromLink, postLink, reversedClientId, shareText, threadRows, timelineProblem, timelineTitle, timelineView, typeLabel,
+  PASTEL_NAMES, initials, joined, mergePage, nextVote, pastelFor, pollPercents, postIdFromLink, postLink, reversedClientId, shareText, threadRows, timelineProblem, timelineTitle, timelineView, typeLabel,
 } from '../src/core/community';
-import { INK, PASTEL, PASTEL_NAMES } from '../src/core/communityColors';
-import { contrast } from '../src/ui/tokens';
+import { DARK, LIGHT, contrast } from '../src/ui/tokens';
 import { TOURS } from '../src/content/tours';
 
 const S = require(path.join(__dirname, 'stubs/community-modules.cjs'));
@@ -25,15 +24,24 @@ M._load = function (req: string, ...a: any[]) {
 };
 M._resolveFilename = function (req: string, ...a: any[]) { return req === 'react-native' ? path.join(__dirname, 'stubs/react-native.cjs') : origResolve.call(this, req, ...a); };
 
-test('pastels: the four colours live in one file and carry dark ink at AA contrast', () => {
-  assert.deepEqual(PASTEL, { sage: '#A9CDB9', blush: '#F8D2D3', butter: '#FDD78C', sky: '#BFD9F8' });
-  assert.equal(INK, '#1D2A24');
-  for (const n of PASTEL_NAMES) assert.ok(contrast(INK, PASTEL[n]) >= 4.5, `${n}: ${contrast(INK, PASTEL[n]).toFixed(2)}`);
-  // …and nowhere else: screens import them instead of repeating the hex values
+test('pastels: raw colours live only in the theme tokens (ui/tokens.ts) and carry dark ink at AA contrast', () => {
+  assert.deepEqual(PASTEL_NAMES, ['sage', 'blush', 'butter', 'sky']);
+  for (const theme of [DARK, LIGHT]) {
+    for (const n of PASTEL_NAMES) assert.ok(contrast(theme.ink, theme.pastel[n]) >= 4.5, `${n}: ${contrast(theme.ink, theme.pastel[n]).toFixed(2)}`);
+    // selected chips, the New post button and the send button: primary / onPrimary, never the accent
+    assert.ok(contrast(theme.onPrimary, theme.primary) >= 7);
+    // vote colours and the saved bookmark are text-safe on cards
+    for (const c of [theme.pos, theme.inkRed, theme.inkAmber]) assert.ok(contrast(c, theme.card) >= 4.5, `${c} on ${theme.card}`);
+  }
+  assert.ok(!fs.existsSync(path.join(__dirname, '..', 'src', 'core', 'communityColors.ts')), 'the stop-gap colour file is gone');
+  // community code names tokens (t.pastel.sage, t.ink, t.primary…) and never repeats a hex colour — Google's brand blue on its button is the one exception
   const dir = path.join(__dirname, '..', 'src');
-  const walk = (d: string): string[] => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
-  const offenders = walk(dir).filter((f) => /\.(ts|tsx)$/.test(f) && !f.endsWith('communityColors.ts') && /#(A9CDB9|F8D2D3|FDD78C|BFD9F8|1D2A24)/i.test(fs.readFileSync(f, 'utf8')));
-  assert.deepEqual(offenders.map((f) => path.relative(dir, f)), []);
+  const files = [...fs.readdirSync(path.join(dir, 'screens')).filter((f) => /^community.*\.tsx$/.test(f)).map((f) => path.join(dir, 'screens', f)), path.join(dir, 'core', 'community.ts'), path.join(dir, 'data', 'communityApi.ts'), path.join(dir, 'data', 'communityAuth.ts')];
+  assert.ok(files.length >= 9);
+  const raw = files.flatMap((f) => (fs.readFileSync(f, 'utf8').match(/#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b|rgba?\(/g) ?? []).filter((c) => c !== '#4285F4').map((c) => `${path.relative(dir, f)}: ${c}`));
+  assert.deepEqual(raw, []);
+  const blue = files.filter((f) => /\bt\.accent\b[^;\n]*#fff|color: '#fff'|color="#fff"/i.test(fs.readFileSync(f, 'utf8')));
+  assert.deepEqual(blue, [], 'no white text on the accent');
 });
 
 test('avatars: initials on a stable pastel, or one of 24 built-in avatars; [deleted] has neither', () => {

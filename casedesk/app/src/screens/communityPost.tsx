@@ -4,10 +4,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { COMMUNITY_DISCLAIMER, LIMITS, MAX_DEPTH, applyVote, buildTree, commentProblem, nextVote, threadRows, typeLabel, type CommentSort, type Dir, type ThreadRow } from '../core/community';
-import { CARD_RADIUS, INK, PASTEL } from '../core/communityColors';
+import { COMMUNITY_DISCLAIMER, LIMITS, MAX_DEPTH, applyVote, buildTree, commentProblem, nextVote, threadRows, typeLabel, type CommentSort, type Dir, type PastelName, type ThreadRow } from '../core/community';
 import { acceptAnswer, deleteComment, editComment, emitPost, emitRemoved, getPost, postComment, useCommunityUser, vote, type Comment, type Post } from '../data/communityApi';
-import { Button, ChipToggle, EmptyState, Field, Icon, MIN_TOUCH, Note, Screen, SheetButtons, Spinner, T, font, useSheet, useTheme, useToast, TourTarget, useTour } from '../ui';
+import { Button, ChipToggle, EmptyState, Field, Icon, MIN_TOUCH, Note, Screen, radius, SheetButtons, Spinner, T, font, useSheet, useTheme, useToast, TourTarget, useTour } from '../ui';
 import { back, go } from './common';
 import { BlockSheet, ReportSheet, maybeAskNotify, useCommunityGate } from './communityAccount';
 import { PostActions, PostExtras, PostTags } from './communityCards';
@@ -29,9 +28,10 @@ function EditCommentSheet({ c, onSaved, onClose }: { c: Comment; onSaved: (x: Co
   );
 }
 
-const Badge = ({ text, pastel }: { text: string; pastel: keyof typeof PASTEL }) => (
-  <View style={{ backgroundColor: PASTEL[pastel], borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}><Text style={{ color: INK, fontSize: 11, fontWeight: '800', letterSpacing: 0.3 }}>{text}</Text></View>
-);
+function Badge({ text, pastel }: { text: string; pastel: PastelName }) {
+  const t = useTheme();
+  return <View style={{ backgroundColor: t.pastel[pastel], borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 }}><Text style={{ color: t.ink, fontSize: 11, fontWeight: '800', letterSpacing: 0.3 }}>{text}</Text></View>;
+}
 
 /** One comment row inside a thread card. Depth shows as thread lines on the left; tapping the header collapses the thread. */
 function CommentRow({ row, onVote, onReply, onMenu, onToggle }: { row: ThreadRow<Comment>; onVote: (c: Comment, d: 1 | -1) => void; onReply: (c: Comment) => void; onMenu: (c: Comment) => void; onToggle: (id: string) => void }) {
@@ -170,8 +170,8 @@ export function CommunityPostScreen() {
             style={[font.callout, { minHeight: 44, maxHeight: 130, borderRadius: 22, backgroundColor: t.field, color: t.text, paddingHorizontal: 16, paddingTop: 11, paddingBottom: 11, borderWidth: t.dark ? 0 : 1, borderColor: t.fieldBorder }]} />
         </TourTarget>
         <Pressable onPress={send} disabled={sending || !live2} accessibilityRole="button" accessibilityLabel={replyTo ? 'Post reply' : 'Post comment'} accessibilityState={{ disabled: sending || !live2 }}
-          style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: live2 ? PASTEL.sage : t.fill, opacity: pressed ? 0.7 : 1 })}>
-          {sending ? <Spinner /> : <Icon name="send" size={18} color={live2 ? INK : t.text3} weight="semibold" />}
+          style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: live2 ? t.primary : t.fill, opacity: pressed ? 0.7 : 1 })}>
+          {sending ? <Spinner /> : <Icon name="send" size={18} color={live2 ? t.onPrimary : t.text3} weight="semibold" />}
         </Pressable>
       </View>
     </View>
@@ -202,13 +202,13 @@ export function CommunityPostScreen() {
       {tree.length ? (
         <View style={{ gap: 10 }}>
           {tree.map((root) => (
-            <View key={root.id} style={{ backgroundColor: t.card, borderRadius: CARD_RADIUS - 4, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6, borderWidth: root.accepted ? 1.5 : 0, borderColor: PASTEL.sage }}>
+            <View key={root.id} style={{ backgroundColor: t.card, borderRadius: radius.card - 2, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6, borderWidth: root.accepted ? 1.5 : 0, borderColor: t.green }}>
               {threadRows([root], collapsed).map((row) => <CommentRow key={row.c.id} row={row} onVote={voteComment} onReply={startReply} onMenu={commentMenu} onToggle={toggle} />)}
             </View>
           ))}
         </View>
       ) : (
-        <View style={{ backgroundColor: t.card, borderRadius: CARD_RADIUS - 4, padding: 18 }}>
+        <View style={{ backgroundColor: t.card, borderRadius: radius.card - 2, padding: 18 }}>
           <T tone="text2" style={font.sub}>{post.deleted ? 'No comments.' : post.type === 'question' ? 'No answers yet. If you’ve been through this, share what happened.' : 'No comments yet. Be the first to reply.'}</T>
         </View>
       )}

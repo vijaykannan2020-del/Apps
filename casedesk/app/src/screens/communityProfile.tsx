@@ -4,9 +4,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { mergePage, timeAgo } from '../core/community';
-import { CARD_RADIUS, INK, PASTEL } from '../core/communityColors';
 import { getNotifications, getProfile, getSaved, readNotifications, refreshMe, unblockUser, usePostBus, useCommunityUser, type Notice, type PostSummary, type Profile } from '../data/communityApi';
-import { Button, EmptyState, Icon, IconButton, Note, Screen, Segmented, Spinner, T, font, useSheet, useTheme, useToast, TourTarget, useTour } from '../ui';
+import { Button, EmptyState, Icon, IconButton, Note, Screen, Segmented, radius, Spinner, T, font, useSheet, useTheme, useToast, TourTarget, useTour } from '../ui';
 import { back, go } from './common';
 import { BlockSheet, ProfileHeader, ReportSheet, StatRow, useCommunityGate } from './communityAccount';
 import { PostCard } from './communityCards';
@@ -54,7 +53,7 @@ export function CommunityProfileScreen() {
                 : <EmptyState small icon="doc" title="No posts yet" />
             ) : data.comments.length ? data.comments.map((c) => (
               <Pressable key={c.id} onPress={() => go(`/community/post/${c.postId}`)} accessibilityRole="button" accessibilityLabel={`Comment on ${c.postTitle}: ${c.body}`}
-                style={({ pressed }) => ({ backgroundColor: t.card, borderRadius: CARD_RADIUS - 4, padding: 16, opacity: pressed ? 0.85 : 1 })}>
+                style={({ pressed }) => ({ backgroundColor: t.card, borderRadius: radius.card - 2, padding: 16, opacity: pressed ? 0.85 : 1 })}>
                 <T tone="text2" numberOfLines={1} style={font.caption}>{`On “${c.postTitle}”`}</T>
                 <T numberOfLines={4} style={[font.sub, { marginTop: 6 }]}>{c.body}</T>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
@@ -121,14 +120,14 @@ export function CommunityNotificationsScreen() {
         <View style={{ gap: 10 }}>
           {items.map((n) => (
             <Pressable key={n.id} onPress={() => go(`/community/post/${n.postId}`)} accessibilityRole="button" accessibilityLabel={`${n.read ? '' : 'New. '}${n.title}. ${n.text}`}
-              style={({ pressed }) => ({ flexDirection: 'row', gap: 14, alignItems: 'center', backgroundColor: t.card, borderRadius: CARD_RADIUS, paddingVertical: 14, paddingHorizontal: 18, opacity: pressed ? 0.85 : 1 })}>
-              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: n.kind === 'milestone' ? PASTEL.butter : PASTEL.sky, alignItems: 'center', justifyContent: 'center' }}><Icon name={n.kind === 'milestone' ? 'up' : 'reply'} size={20} color={INK} weight="bold" /></View>
+              style={({ pressed }) => ({ flexDirection: 'row', gap: 14, alignItems: 'center', backgroundColor: t.card, borderRadius: radius.card, paddingVertical: 14, paddingHorizontal: 18, opacity: pressed ? 0.85 : 1 })}>
+              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: n.kind === 'milestone' ? t.pastel.butter : t.pastel.sky, alignItems: 'center', justifyContent: 'center' }}><Icon name={n.kind === 'milestone' ? 'up' : 'reply'} size={20} color={t.ink} weight="bold" /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <T style={[font.callout, { fontWeight: '600' }]}>{n.title}</T>
                 <T tone="text2" numberOfLines={2} style={[font.foot, { marginTop: 2 }]}>{n.text}</T>
                 <T tone="text2" style={[font.caption, { marginTop: 4 }]}>{timeAgo(n.at)}</T>
               </View>
-              {n.read ? null : <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: PASTEL.blush }} />}
+              {n.read ? null : <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: t.red }} />}
             </Pressable>
           ))}
         </View>
