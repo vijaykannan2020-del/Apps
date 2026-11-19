@@ -7,7 +7,7 @@ import { isResident, isCitizen, STATUS_LABEL } from '../core/model';
 import { stepsFor, stepKeys } from '../core/steps';
 import { docBadges, docNote, docTitle, fieldRows, parseField, FIELDS, showField } from '../core/docs';
 import { addYears, addDays, daysBetween, daysTo, fmt, today, isISO } from '../core/dates';
-import { metroOf } from '../core/metro';
+import { metroOf, placeText } from '../core/metro';
 import { MAX_YEARS } from '../core/rules/status';
 import { evaluateFamily } from '../core/rules/engine';
 import { isPendingCase } from '../core/cases';
@@ -15,6 +15,8 @@ import { useFamily, usePerson } from '../data/FamilyProvider';
 import { readText } from '../native/ocr';
 import { fileUri, keepFile, pick, preview, share as shareFile, type Source } from '../native/files';
 import { readDocument } from '../core/read';
+import { copyReminders, reminderSummary, LEAD_CHOICES, REMINDER_TYPES, typeDates, typeSetting, typesFor, type ReminderType } from '../core/reminders';
+import { belongsElsewhere, identityOf, sameName } from '../core/identity';
 import {
   Avatar, Button, Card, CheckRow, Chip, DateField, EmptyState, Field, Group, H1, Hint, Icon, LegalLine, Meter, NavButton, Note, Pill, Row, Screen, SectionHeader, Switch, T, Why, ChipToggle, Chips,
   font, useSheet, useTheme, useToast, Spinner, Columns, BigText,
@@ -22,8 +24,9 @@ import {
 } from '../ui';
 import { NextFiling } from './filings';
 import { NOT_OFFICIAL_ID } from '../content/legal';
-import { AttentionRow, back, ctaFor, go, LegalFooter, locationChip, needsLocation, relationLabel, statusLabel, untilText } from './common';
+import { AttentionRow, ReviewChip, back, ctaFor, go, LegalFooter, locationChip, needsLocation, relationLabel, statusLabel, untilText } from './common';
 import { walletFacts } from '../core/priority';
+import { reasonLine } from '../core/review';
 import { StatusView } from './priority';
 import { AddCase, AskWhere, Confirm, EditDetails, FixClass, RemovePerson, RenewSheet, Trips, Unemployment, WorkLocation } from './sheets';
 import { newId } from '../data/store';
@@ -52,7 +55,9 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
   const t = useTheme();
   if (!p || !rec) return <EmptyState icon="user" title="Removed" />;
   const you = p.relation === 'self';
-  const legal = rec.legalName;
+  // Legal name under the name only when it differs from the display name and is this person's own
+  // (never another family member's name from a misfiled document).
+  const legal = rec.legalName && normName(rec.legalName) !== normName(p.name) && !f.people.some((o) => o.id !== p.id && sameName(rec.legalName, o.name)) ? rec.legalName : undefined;
   const steps = stepsFor(p, rec);
   const order = stepKeys(p, rec);
   const docs = f.docs.filter((d) => d.ownerId === p.id).sort((a, b) => {
@@ -77,15 +82,16 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
   const hasDocs = rec.docTypes.length > 0;
   const w = walletFacts({ today: today(), hasDocs, citizen: isCitizen(rec.visa), outside: rec.location === 'Outside', resident: isResident(rec.visa), until: result?.facts.statusUntil ?? rec.i94?.until ?? rec.greenCard?.expires, label: result?.facts.visaLabel });
   const line = untilText(p, rec, result);
+  const reason = result ? reasonLine(result.findings, result.facts.statusUntil) : undefined;
   const openAdd = () => sheet.open('Add or renew a document', <RenewSheet pid={p.id} />);
   const left = (
     <>
       <TourTarget id="status">
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <WalletCard name={legal && legal !== p.name ? `${p.name} · ${legal}` : p.name} line={`${statusLabel(p, rec, result)} · ${relationLabel(p)}`} corner={w.corner}
-              caption={w.caption} big={w.big} foot={line} footWord={w.word} footTone={w.wordTone}
-              a11y={`${p.name}. ${statusLabel(p, rec, result)}. ${w.caption} ${w.big}. ${line}`} />
+            <WalletCard name={legal ? `${p.name} · ${legal}` : p.name} line={`${statusLabel(p, rec, result)} · ${relationLabel(p)}`} corner={w.corner}
+              caption={w.caption} big={w.big} foot={line} footWord={reason && w.word === 'valid' ? undefined : w.word} footTone={w.wordTone}
+              a11y={`${p.name}. ${statusLabel(p, rec, result)}. ${w.caption} ${w.big}. ${line}${reason ? `. ${reason}` : ''}`} />
           </View>
           <View style={{ gap: 10, width: 64 }}>
             <SquareAction icon="plus" label="Add or renew a document" onPress={openAdd} />
@@ -94,9 +100,11 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
           </View>
         </View>
       </TourTarget>
+      {/* The card says how long; the chip says Review and opens why. Needs attention below has the full
+          list, so the reason line is not repeated here (it shows on the Home and Family cards). */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, marginHorizontal: 4 }}>
         <Chip text={locationChip(p, rec)} />
-        {result && result.worst !== 'good' ? <Pill severity={result.worst} /> : null}
+        {result ? <ReviewChip findings={result.findings} until={result.facts.statusUntil} worst={result.worst} name={p.name} /> : null}
       </View>
       <WalletCardRow pid={p.id} />
 
@@ -139,9 +147,10 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
         <>
           <SectionHeader>Work</SectionHeader>
           <Group>
-            <Row icon="building" title={rec.employer ?? 'Employer not added'} subtitle="Employer" />
-            {(() => { const w = p.facts.workLocation ?? rec.approvedWorkLocation; const city = w ? [w.city, w.state].filter(Boolean).join(', ') : undefined; return <Row icon="pin" title={city ?? 'Not added'} subtitle={`${w ? metroOf(w.city, w.state) ?? 'Unknown' : 'Unknown'} metro · work location`} />; })()}
-            <Row icon="edit" iconPastel="mint" title="Work location changed?" onPress={() => sheet.open('Work location changed?', <WorkLocation pid={p.id} />)} />
+            <Row icon="building" title={p.facts.employer ?? rec.employer ?? 'Employer not added'} subtitle="Employer" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} />
+            {(() => { const w = p.facts.workLocation ?? rec.approvedWorkLocation; const city = w ? placeText(w) : ''; const metro = w ? metroOf(w.city, w.state) ?? w.metro : undefined; return w && city
+              ? <Row icon="pin" title={city} subtitle={`${metro ?? 'Unknown'} metro · work location`} onPress={() => sheet.open('Work location changed?', <WorkLocation pid={p.id} />)} />
+              : <Row icon="pin" iconPastel="butter" title="Add work location" subtitle="City or ZIP · tells the metro for H-1B worksite checks" onPress={() => sheet.open('Work location', <WorkLocation pid={p.id} />)} />; })()}
           </Group>
         </>
       ) : null}
@@ -154,10 +163,23 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
 
       <Counters p={p} />
 
+      {(you || p.isMain) && f.people.length > 1 ? (
+        <>
+          <SectionHeader>Family members</SectionHeader>
+          <Group>
+            {f.people.filter((o) => o.id !== p.id).map((o) => {
+              const follows = f.results[o.id]?.principalId;
+              const sub = [relationLabel(o), follows === p.id ? `follows ${you ? 'you' : p.name}` : follows ? `follows ${f.people.find((x) => x.id === follows)?.name ?? 'someone'}` : 'own status'].join(' · ');
+              return <Row key={o.id} avatar={o.name} title={o.name} subtitle={sub} value="Edit" chevron={false} label={`Edit ${o.name}: ${sub}`} onPress={() => sheet.open(`Edit ${o.name}`, <EditDetails pid={o.id} />)} />;
+            })}
+          </Group>
+        </>
+      ) : null}
+
       <SectionHeader>Details</SectionHeader>
       <Group>
-        <Row icon="edit" title="Edit details" subtitle="Name, relation, status" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} chevron={false} />
-        <Row icon="bell" title="Reminders" subtitle={rm.on ? `On · ${leadText(rm.lead)}` : 'Off'} onPress={() => go(`/reminders/${p.id}`)} chevron={false} />
+        <Row icon="edit" title="Edit details" subtitle="Name, relationship, birth date, status, employer, where now" onPress={() => sheet.open('Edit details', <EditDetails pid={p.id} />)} chevron={false} />
+        <Row icon="bell" title="Reminders" subtitle={reminderSummary(rm, typesFor(rec, f.caseList.some((c) => c.ownerId === p.id && c.keyDates.some((k) => k.date >= today()))))} onPress={() => go(`/reminders/${p.id}`)} chevron={false} />
         {!you ? <Row icon="trash" iconTone="red" title={`Remove ${p.name}`} titleTone="red" chevron={false} onPress={() => sheet.open(`Remove ${p.name}?`, <RemovePerson pid={p.id} />)} /> : null}
       </Group>
     </>
@@ -169,6 +191,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
     </>
   );
 }
+const normName = (n?: string) => (n || '').toLowerCase().replace(/[^a-z]/g, '');
 const stepTitleWhere = (p: Person) => (p.relation === 'self' ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`);
 
 const DOC_ICON: Record<string, [string, 'sky' | 'blush' | 'sage' | 'butter' | 'mint']> = {
@@ -258,6 +281,7 @@ export function DocumentScreen() {
   if (!d || !p) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="doc" title="Document deleted" /></Screen>;
   const superseded = f.superseded.has(d.id);
   const note = docNote(d, { superseded, inUS: f.records[p.id]?.location !== 'Outside' });
+  const elsewhere = whoseElse(d, f);
   const file = d.files?.[0];
   const replace = async (src: Source) => {
     const picked = await pick(src).catch((e: Error) => { toast(e.message); return null; });
@@ -277,7 +301,7 @@ export function DocumentScreen() {
     try { await Share.share({ message: `${docTitle(d)}\n${lines}\n\n${NOT_OFFICIAL_ID}` }); } catch {}
   };
   return (
-    <Screen keyboard tour={tour} nav={{ back: p.name, onBack: back, title: docTitle(d) }} footer={<>
+    <Screen keyboard tour={tour} nav={{ back: p.name, onBack: back, title: docTitle(d), right: <NavButton title="Edit" onPress={() => sheet.open('Edit document', <DocEditMenu docId={d.id} />)} /> }} footer={<>
       <TourTarget id="actions" style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
         <Button kind="ghost" icon="refresh" title="Replace" onPress={() => sheet.open('Replace document', <ReplacePicker onPick={(s) => { sheet.close(); replace(s); }} />)} />
         <Button kind="tint" icon="share" title="Share" onPress={doShare} />
@@ -298,6 +322,11 @@ export function DocumentScreen() {
           <T style={[font.body, { fontWeight: '500', flex: 1 }]}>{`${b.label} ${b.value}`}</T>
         </Card>
       ))}
+      {elsewhere ? (
+        <Note tone="amber" actions={<Button size="sm" kind="tint" title={`Move to ${elsewhere.name}`} onPress={async () => { await f.actions.updateDoc(d.id, { ownerId: elsewhere.id }); toast(`Moved to ${elsewhere.name}`); }} />}>
+          {`The name on this ${docTitle(d).toLowerCase()} matches ${elsewhere.name}, not ${p.name}. Move it if it is ${elsewhere.name}’s.`}
+        </Note>
+      ) : null}
       {note && !(note.tone === 'green' && /^(Valid until|Good for travel until|Approval valid until|Program ends)/.test(note.text)) ? <Note tone={note.tone}>{note.text}</Note> : null}
       {d.fields.dateNote ? <Note tone="amber">{d.fields.dateNote}</Note> : null}
       <SectionHeader>Read from the document</SectionHeader>
@@ -314,6 +343,50 @@ export function DocumentScreen() {
     </Screen>
   );
 }
+/** Another family member this saved document looks like it belongs to (name or passport number). */
+function whoseElse(d: Document, f: ReturnType<typeof useFamily>): Person | undefined {
+  const others = f.docs.filter((x) => x.id !== d.id);
+  const ids = f.people.map((p) => identityOf(p.id, others.filter((x) => x.ownerId === p.id), { displayName: p.name }));
+  const who = belongsElsewhere(d.fields, d.ownerId, ids);
+  return who ? f.people.find((p) => p.id === who.id) : undefined;
+}
+
+/** Edit menu on a document: move it to another person (the one it replaced comes back as current). */
+function DocEditMenu({ docId }: { docId: string }) {
+  const f = useFamily();
+  const sheet = useSheet();
+  const toast = useToast();
+  const d = f.docs.find((x) => x.id === docId);
+  const [moving, setMoving] = useState(false);
+  if (!d) return null;
+  const owner = f.people.find((p) => p.id === d.ownerId);
+  const others = f.people.filter((p) => p.id !== d.ownerId);
+  const move = async (to: Person) => {
+    sheet.close();
+    await f.actions.updateDoc(d.id, { ownerId: to.id });
+    toast(`Moved to ${to.name}`);
+  };
+  if (!moving) {
+    return (
+      <View style={{ marginTop: 10 }}>
+        <Group>
+          <Row icon="people" title="Move to another person" subtitle={others.length ? `Saved under ${owner?.name ?? 'this person'} by mistake?` : 'Add a family member first'} onPress={others.length ? () => setMoving(true) : undefined} />
+        </Group>
+        <Hint>Fields can be corrected right on the document page.</Hint>
+      </View>
+    );
+  }
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Why>{`Whose ${docTitle(d).toLowerCase()} is this?`}</Why>
+      <Group style={{ marginTop: 12 }}>
+        {others.map((p) => <Row key={p.id} avatar={p.name} title={p.name} subtitle={relationLabel(p)} onPress={() => move(p)} />)}
+      </Group>
+      <Hint>{`If it replaced one of ${owner?.name ?? 'this person'}’s documents, that one becomes current again.`}</Hint>
+    </View>
+  );
+}
+
 function ReplacePicker({ onPick }: { onPick: (s: Source) => void }) {
   return (
     <View style={{ gap: 10, marginTop: 14 }}>
@@ -387,14 +460,27 @@ function LayoffPlan({ id }: { id?: string }) {
 }
 
 // ---------- reminders ----------
+// v2.9: real per-type switches with their own lead times, only for the types this person has;
+// the same settings can be copied to everyone or to chosen people.
 export function RemindersScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const f = useFamily();
+  const toast = useToast();
+  const [to, setTo] = useState<string[]>([]);
   const p = f.people.find((x) => x.id === id);
   if (!p) return <Screen nav={{ back: 'Back', onBack: back }}><EmptyState icon="user" title="Removed" /></Screen>;
   const r = p.reminders ?? { on: true, lead: [180, 90, 30, 7] };
   const set = (patch: Partial<typeof r>) => f.actions.updatePerson(p.id, { reminders: { ...r, ...patch } });
-  const what = stepsFor(p, f.records[p.id]).filter((s) => !['travel', 'receipt', 'i485', 'n400', 'i140'].includes(s.key)).map((s) => s.title).concat(['Case dates (RFE, biometrics, interview)']);
+  const hasCaseDates = f.caseList.some((c) => c.ownerId === p.id && c.keyDates.some((k) => k.date >= today()));
+  const kinds = typesFor(f.records[p.id], hasCaseDates);
+  const dates = typeDates(f.records[p.id]);
+  const setType = (k: ReminderType, s: { on: boolean; lead: number[] }) => set({ types: { ...(r.types ?? {}), [k]: s } });
+  const others = f.people.filter((x) => x.id !== p.id);
+  const apply = async () => {
+    const ids = to.includes('*') ? others.map((x) => x.id) : to;
+    for (const oid of ids) { const o = f.people.find((x) => x.id === oid); if (o) await f.actions.updatePerson(oid, { reminders: copyReminders(r, o.reminders) }); }
+    setTo([]); toast(ids.length ? `Same reminders for ${ids.length === others.length ? 'everyone' : listOf(ids.map((x) => f.people.find((o) => o.id === x)?.name ?? ''))}` : 'Choose people first');
+  };
   return (
     <Screen nav={{ back: 'Back', onBack: back, title: 'Reminders' }}>
       <H1>{`${p.name}’s reminders`}</H1>
@@ -404,12 +490,47 @@ export function RemindersScreen() {
       </Group>
       {r.on ? (
         <>
-          <SectionHeader>Remind me</SectionHeader>
-          <Chips style={{ marginTop: 0 }}>{[180, 90, 60, 30, 14, 7, 1].map((d) => <ChipToggle key={d} role="checkbox" text={`${d} day${d === 1 ? '' : 's'} before`} on={r.lead.includes(d)} onPress={() => set({ lead: r.lead.includes(d) ? r.lead.filter((x) => x !== d) : [...r.lead, d].sort((a, b) => b - a) })} />)}</Chips>
           <SectionHeader>For</SectionHeader>
-          <Group>{what.map((w) => <Row key={w} icon="check" title={w} titleStyle={font.callout} />)}</Group>
+          {kinds.length ? (
+            <Group>
+              {kinds.map((k) => {
+                const s = typeSetting(r, k);
+                const meta = REMINDER_TYPES.find((x) => x.key === k)!;
+                const d = k === 'cases' ? undefined : dates[k];
+                return (
+                  <View key={k} style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <T style={[font.body, { fontWeight: '600' }]}>{meta.title}</T>
+                        <T tone="text2" style={font.foot}>{d ? `${meta.what[0].toUpperCase()}${meta.what.slice(1)} ${fmt(d)}` : 'Biometrics, interview, RFE due dates'}</T>
+                      </View>
+                      <Switch value={s.on} label={`${meta.title} reminders`} onValueChange={(on) => setType(k, { ...s, on })} />
+                    </View>
+                    {s.on ? (
+                      <Chips style={{ marginTop: 10 }}>
+                        {LEAD_CHOICES.map((n) => <ChipToggle key={n} role="checkbox" text={`${n} day${n === 1 ? '' : 's'}`} on={s.lead.includes(n)}
+                          onPress={() => setType(k, { on: true, lead: s.lead.includes(n) ? s.lead.filter((x) => x !== n) : [...s.lead, n].sort((a, b) => b - a) })} />)}
+                      </Chips>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </Group>
+          ) : <Hint>No dated documents yet. Add a passport, I-94 or approval to get reminders.</Hint>}
+          <Hint style={{ marginHorizontal: 4 }}>Days before the date. Checks that need action (for example the I-94 ending before the approval) follow the same type.</Hint>
+          {others.length ? (
+            <>
+              <SectionHeader>Use the same reminders for</SectionHeader>
+              <Chips style={{ marginTop: 0 }}>
+                <ChipToggle role="checkbox" text="Everyone" on={to.includes('*')} onPress={() => setTo(to.includes('*') ? [] : ['*'])} />
+                {others.map((o) => <ChipToggle key={o.id} role="checkbox" text={o.name} on={to.includes('*') || to.includes(o.id)} onPress={() => setTo(to.includes(o.id) ? to.filter((x) => x !== o.id) : [...to.filter((x) => x !== '*'), o.id])} />)}
+              </Chips>
+              <View style={{ flexDirection: 'row', marginTop: 12 }}><Button kind="tint" title="Apply" disabled={!to.length} onPress={apply} /></View>
+            </>
+          ) : null}
         </>
       ) : <Hint style={{ marginTop: 12 }}>Off. Dates still show on Home.</Hint>}
     </Screen>
   );
 }
+const listOf = (xs: string[]) => (xs.length <= 2 ? xs.join(' and ') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);

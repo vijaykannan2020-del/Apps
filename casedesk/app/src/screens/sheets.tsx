@@ -6,7 +6,7 @@ import type { Person, Relation, StatusCategory } from '../core/model';
 import { STATUS_GROUPS, STATUS_LABEL, STATUS_CHIP } from '../core/model';
 import { stepsFor, type StepKey } from '../core/steps';
 import { fmt, today, addDays, daysBetween, isISO } from '../core/dates';
-import { differentMetro, metroOf } from '../core/metro';
+import { differentMetro, metroOf, parsePlace, placeText } from '../core/metro';
 import { FORMS, isReceipt, type CaseView } from '../core/cases';
 import type { KeyDate } from '../core/model';
 import { showField, FIELDS } from '../core/docs';
@@ -88,33 +88,85 @@ export function RenewSheet({ pid }: { pid: string }) {
 }
 
 // ---- people ----
+/**
+ * Edit details (v2.9): everything set during setup — name, relationship, principal link, date of
+ * birth, status, employer, in the US or abroad, and the work location. Values read from documents
+ * stay the source of truth; a typed value is kept only where it differs from them.
+ */
 export function EditDetails({ pid }: { pid: string }) {
   const f = useFamily(); const s = useSheet(); const toast = useToast();
   const p = f.people.find((x) => x.id === pid);
+  const rec = f.records[pid];
   const [name, setName] = useState(p?.name ?? '');
   const [rel, setRel] = useState<Relation>(p?.relation ?? 'child');
   const [st, setSt] = useState<StatusCategory>(p?.status ?? 'unsure');
+  const [follows, setFollows] = useState<string>(p?.facts.dependentOf ?? (p?.isMain ? 'own' : 'auto'));
+  const [dob, setDob] = useState<string | undefined>(p?.facts.birthDate ?? rec?.birthDate);
+  const [emp, setEmp] = useState(p?.facts.employer ?? rec?.employer ?? '');
+  const [where, setWhere] = useState<'US' | 'Outside' | undefined>(rec?.locationKnown ? rec.location : p?.facts.location);
+  const [country, setCountry] = useState(p?.facts.country ?? rec?.country ?? 'India');
   if (!p) return null;
+  const self = p.relation === 'self';
+  const dependentKind = !self && (rel === 'spouse' || rel === 'child');
+  const others = f.people.filter((x) => x.id !== p.id);
+  // who this person's status can follow: a parent-generation member (never a child), for a child also the spouse
+  const principals = others.filter((x) => x.relation === 'self' || x.relation === 'spouse' || x.isMain);
+  const w = p.facts.workLocation ?? rec?.approvedWorkLocation;
   const save = async () => {
     if (!name.trim()) { toast('Name can’t be empty'); return; }
-    await f.actions.updatePerson(pid, { name: name.trim(), relation: p.relation === 'self' ? 'self' : rel, status: st });
+    const facts = { ...p.facts };
+    facts.dependentOf = dependentKind && follows !== 'auto' && follows !== 'own' ? follows : undefined;
+    facts.birthDate = dob && dob !== rec?.birthDate ? dob : rec?.birthDate ? undefined : dob;
+    const e = emp.trim();
+    facts.employer = e && e !== rec?.employer ? e : rec?.employer ? undefined : e || undefined;
+    const before = rec?.locationKnown ? rec.location : p.facts.location;
+    if (where && (where !== before || (where === 'Outside' && country !== (rec?.country ?? p.facts.country)))) {
+      facts.location = where; facts.country = where === 'Outside' ? country : undefined; facts.locationOn = today();
+    }
+    await f.actions.updatePerson(pid, {
+      name: name.trim(), relation: self ? 'self' : rel, status: st, facts,
+      isMain: self ? p.isMain : follows === 'own' ? true : p.isMain && follows === 'auto' ? true : false,
+    });
     s.close(); toast('Saved');
   };
   return (
     <View>
       <Field label="Name" value={name} onChangeText={setName} autoCapitalize="words" />
-      {p.relation !== 'self' ? (
+      {!self ? (
         <>
-          <T tone="text2" style={[font.caption, { marginTop: 14, marginLeft: 2 }]}>Relation</T>
-          <Chips style={{ marginTop: 8 }}>{(['spouse', 'child', 'parent'] as Relation[]).map((r) => <ChipToggle key={r} text={r[0].toUpperCase() + r.slice(1)} on={rel === r} onPress={() => setRel(r)} />)}</Chips>
+          <T tone="text2" style={[font.caption, { marginTop: 14, marginLeft: 2 }]}>Relationship</T>
+          <Chips style={{ marginTop: 8 }}>{(['spouse', 'child', 'parent', 'other'] as Relation[]).map((r) => <ChipToggle key={r} text={REL_WORD[r]} on={rel === r} onPress={() => setRel(r)} />)}</Chips>
         </>
       ) : null}
-      <SelectField label="Status" value={st} onChange={setSt} groups={statusGroups()} />
+      {dependentKind && principals.length ? (
+        <>
+          <T tone="text2" style={[font.caption, { marginTop: 14, marginLeft: 2 }]}>Status follows</T>
+          <Chips style={{ marginTop: 8 }}>
+            <ChipToggle text="Automatic" on={follows === 'auto'} onPress={() => setFollows('auto')} />
+            {principals.map((o) => <ChipToggle key={o.id} text={o.name} on={follows === o.id} onPress={() => setFollows(o.id)} />)}
+            <ChipToggle text="Own status (principal)" on={follows === 'own'} onPress={() => setFollows('own')} />
+          </Chips>
+          <Hint>A spouse or child on H-4 / L-2 follows the principal’s dates.</Hint>
+        </>
+      ) : null}
+      <DateField label="Date of birth" value={dob} onChange={setDob} />
+      <SelectField label="Status / visa type" value={st} onChange={setSt} groups={statusGroups()} />
       <Hint>Changing the status changes which documents and checks apply.</Hint>
+      {rel !== 'child' || self ? <Field label="Employer" value={emp} onChangeText={setEmp} placeholder="e.g. Acme Tech Inc" autoCapitalize="words" /> : null}
+      <T tone="text2" style={[font.caption, { marginTop: 14, marginLeft: 2 }]}>Where now</T>
+      <Chips style={{ marginTop: 8 }}>
+        <ChipToggle text="In the US" on={where === 'US'} onPress={() => setWhere('US')} />
+        <ChipToggle text="Outside the US" on={where === 'Outside'} onPress={() => setWhere('Outside')} />
+      </Chips>
+      {where === 'Outside' ? <SelectField label="Country" value={country} onChange={setCountry} options={COUNTRIES.map((x) => ({ value: x, label: x }))} /> : null}
+      <Group style={{ marginTop: 16 }}>
+        <Row icon="pin" title="Work location" subtitle={w ? `${placeText(w)} · ${metroOf(w.city, w.state) ?? w.metro ?? 'unknown'} metro` : 'Not added'} onPress={() => s.open('Work location', <WorkLocation pid={pid} />)} />
+      </Group>
       <SheetButtons><Cancel /><Button grow title="Save" onPress={save} /></SheetButtons>
     </View>
   );
 }
+const REL_WORD: Record<Relation, string> = { self: 'You', spouse: 'Spouse', child: 'Child', parent: 'Parent', other: 'Other' };
 
 export function RemovePerson({ pid }: { pid: string }) {
   const f = useFamily(); const s = useSheet(); const toast = useToast();
@@ -192,41 +244,51 @@ export function Unemployment({ pid }: { pid: string }) {
   );
 }
 
+/** Work location: city, "City, ST" or a ZIP code → metro (core/metro). First time it just saves;
+ *  a change is checked against the approved worksite (H-1B amendment, L-1, OPT reporting). */
 export function WorkLocation({ pid }: { pid: string }) {
   const f = useFamily(); const s = useSheet(); const toast = useToast();
   const p = f.people.find((x) => x.id === pid);
   const [q, setQ] = useState('');
-  const [res, setRes] = useState<{ city: string; state?: string; metro?: string } | null>(null);
+  const [res, setRes] = useState<WorkLoc | null>(null);
   if (!p) return null;
   const rec = f.records[pid];
   const cur = p.facts.workLocation ?? rec?.approvedWorkLocation;
-  const curMetro = cur ? metroOf(cur.city, cur.state) : undefined;
+  const curMetro = cur ? metroOf(cur.city, cur.state) ?? cur.metro : undefined;
   const check = (x = q) => {
-    const m = x.match(/^\s*([^,]+?)\s*(?:,\s*([A-Za-z]{2}))?\s*$/);
-    if (!m) { toast('Type the new city'); return; }
-    setQ(x); setRes({ city: m[1], state: m[2]?.toUpperCase(), metro: metroOf(m[1], m[2]) });
+    const r = parsePlace(x);
+    if (!r) { toast('Type a city or a ZIP code'); return; }
+    setQ(x); setRes(r);
   };
-  const save = async () => { if (!res) return; await f.actions.setFacts(pid, { workLocation: { city: res.city, state: res.state }, ...(cur && !p.facts.approvedWorkLocation ? { approvedWorkLocation: cur } : {}) }); s.close(); toast('Work location updated'); };
+  const save = async () => {
+    if (!res) return;
+    await f.actions.setFacts(pid, { workLocation: { city: res.city, state: res.state, zip: res.zip, metro: res.metro }, ...(cur && !p.facts.approvedWorkLocation ? { approvedWorkLocation: cur } : {}) });
+    s.close(); toast(res.metro ? `Work location saved · ${res.metro} metro` : 'Work location saved');
+  };
   const v = rec?.visa;
+  const label = res ? placeText(res) : '';
   let result: React.ReactNode = null;
   if (res) {
-    const upd = <Button size="sm" kind="tint" title="Update work location" onPress={save} />;
-    if (v === 'L-1A' || v === 'L-1B') result = <Note tone="blue" actions={upd}>{`L-1 has no LCA. Tell your immigration team before you start working in ${res.city}.`}</Note>;
+    const upd = <Button size="sm" kind="tint" title={cur ? 'Update work location' : 'Save work location'} onPress={save} />;
+    if (!cur) result = <Note tone={res.metro ? 'green' : 'amber'} actions={upd}>{res.metro ? `${label} is in the ${res.metro} metro.` : `We couldn’t tell which metro ${label} is in. You can still save it.`}</Note>;
+    else if (v === 'L-1A' || v === 'L-1B') result = <Note tone="blue" actions={upd}>{`L-1 has no LCA. Tell your immigration team before you start working in ${label}.`}</Note>;
     else if (v === 'F-1 OPT' || v === 'STEM OPT') result = <Note tone="amber" actions={upd}>Report the new work address in the SEVP portal within 10 days.</Note>;
-    else if (cur && !differentMetro({ city: res.city, state: res.state }, cur)) result = <Note tone="green" actions={upd}>{`Same metro (${res.metro ?? curMetro ?? 'same area'}). No amendment needed — your employer posts the LCA notice at the new site.`}</Note>;
-    else if (res.metro || res.state) result = <><Note tone="red" actions={upd}>{`${res.city} is in the ${res.metro ?? res.state} area. An amended H-1B and a new LCA are needed before you start there.`}</Note><Hint>Your employer files it. Working from home in another metro counts too.</Hint><LegalLine /></>;
-    else result = <Note tone="amber">{`We couldn’t tell which metro ${res.city} is in. Ask your immigration team before you move.`}</Note>;
+    else if (v !== 'H-1B') result = <Note tone={res.metro ? 'green' : 'amber'} actions={upd}>{res.metro ? `${label} is in the ${res.metro} metro.` : `We couldn’t tell which metro ${label} is in.`}</Note>;
+    else if (!differentMetro(res, cur)) result = <Note tone="green" actions={upd}>{`Same metro (${res.metro ?? curMetro ?? 'same area'}). No amendment needed — your employer posts the LCA notice at the new site.`}</Note>;
+    else if (res.metro || res.state) result = <><Note tone="red" actions={upd}>{`${label} is in the ${res.metro ?? res.state} area. An amended H-1B and a new LCA are needed before you start there.`}</Note><Hint>Your employer files it. Working from home in another metro counts too.</Hint><LegalLine /></>;
+    else result = <Note tone="amber" actions={upd}>{`We couldn’t tell which metro ${label} is in. Ask your immigration team before you move.`}</Note>;
   }
   return (
     <View>
-      <Why>Where will you work now? Count working from home too.</Why>
-      <Field label="New city" value={q} onChangeText={setQ} placeholder="e.g. Austin, TX" autoCapitalize="words" />
+      <Why>{cur ? `Now: ${placeText(cur)}${curMetro ? ` · ${curMetro} metro` : ''}. Where will you work now? Count working from home too.` : 'Where do you work? A city or a ZIP code.'}</Why>
+      <Field label={cur ? 'New city or ZIP' : 'City or ZIP'} value={q} onChangeText={setQ} placeholder="e.g. Austin, TX or 75038" autoCapitalize="words" />
       <Chips>{['Irving, TX', 'Austin, TX', 'Plano, TX', 'Chicago, IL'].map((c) => <ChipToggle key={c} role="button" text={c} onPress={() => check(c)} />)}</Chips>
       {result}
       <SheetButtons><Cancel label={res ? 'Close' : 'Cancel'} /><Button grow title="Check" onPress={() => check()} /></SheetButtons>
     </View>
   );
 }
+type WorkLoc = { city?: string; state?: string; zip?: string; metro?: string };
 
 // ---- cases ----
 export function AddCase({ pid }: { pid?: string }) {

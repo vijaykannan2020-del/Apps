@@ -81,7 +81,7 @@ export const PRINCIPAL_OF: Partial<Record<VisaType, VisaType[]>> = {
   'F-2': ['F-1', 'F-1 OPT', 'STEM OPT'], 'J-2': ['J-1'], TD: ['TN'], 'E-3D': ['E-3'], 'O-3': ['O-1'],
 };
 
-export type WorkLocation = { city?: string; state?: string; metro?: string };
+export type WorkLocation = { city?: string; state?: string; metro?: string; zip?: string };
 
 export type Trip = {
   id: string;
@@ -110,6 +110,9 @@ export type PersonFacts = {
   stemEligibleDegree?: boolean;
   marriedToCitizen?: boolean; // 3-year citizenship path
   daysInUS?: number; // days physically in the US since resident-since (when no travel history is loaded)
+  birthDate?: ISODate; // v2.9 Edit details: typed when no document shows it
+  employer?: string; // v2.9 Edit details: typed when no approval / receipt shows it
+  locationOn?: ISODate; // v2.9 Edit details: when "In the US / Outside" was set (wins over older I-94s)
 };
 
 export type Person = {
@@ -117,7 +120,7 @@ export type Person = {
   name: string; // what the family calls them ("Dad", "Asha") — display only, never used for matching
   relation: Relation;
   isMain?: boolean; // the main person in the family (F2: anyone can be)
-  reminders?: { on: boolean; lead: number[] }; // local notifications before this person's dates
+  reminders?: { on: boolean; lead: number[]; types?: Partial<Record<'passport' | 'visa' | 'i94' | 'approval' | 'ead' | 'ap' | 'gc' | 'cases', { on: boolean; lead: number[] }>> }; // local notifications before this person's dates (v2.9: per type)
   status?: StatusCategory; // picked at setup
   facts: PersonFacts;
   createdAt: ISODate;

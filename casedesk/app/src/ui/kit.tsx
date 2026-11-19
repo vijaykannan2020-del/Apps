@@ -139,20 +139,35 @@ export function NavBar({ title, back, onBack, right, progress, appBar }: NavProp
       </Bar>
     );
   }
+  // iOS bar: [back | title | actions]. Both sides get the SAME width (the wider of the two, measured)
+  // so the title stays centred, and the title takes only what is left and truncates with "…".
+  // The back label is dropped first when space is short; actions never cover the title.
+  const [bar, setBar] = useState(0);
+  const [lw, setLw] = useState(0);
+  const [rw, setRw] = useState(0);
+  const cap = bar ? Math.floor(bar * 0.36) : 0;
+  const showLabel = !L.compact && !!back && (!cap || lw <= cap);
+  const side = bar ? Math.min(Math.max(lw, rw, MIN_TOUCH), Math.max(cap, rw)) : undefined;
   return (
     <Bar edge="top" style={{ paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
-      <View style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, alignSelf: 'center', width: '100%', maxWidth: L.maxWidth + 2 * L.side }}>
-        <View style={{ flex: 1, flexDirection: 'row' }}>
-          {back !== undefined ? (
-            <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={`Back to ${back}`} hitSlop={6}
-              style={{ flexDirection: 'row', alignItems: 'center', minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, paddingHorizontal: 4 }}>
-              <Icon name="chevL" size={22} color={t.text} weight="semibold" />
-              {!L.compact ? <T numberOfLines={1} style={{ maxWidth: 110, marginLeft: 2 }}>{back}</T> : null}
-            </Pressable>
-          ) : null}
+      <View onLayout={(e) => setBar(e.nativeEvent.layout.width)} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, alignSelf: 'center', width: '100%', maxWidth: L.maxWidth + 2 * L.side }}>
+        <View style={{ width: side, flexShrink: 0, flexDirection: 'row', overflow: 'hidden' }}>
+          <View onLayout={(e) => setLw(Math.ceil(e.nativeEvent.layout.width))} style={{ flexDirection: 'row', flexShrink: 0 }}>
+            {back !== undefined ? (
+              <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={`Back to ${back}`} hitSlop={6}
+                style={{ flexDirection: 'row', alignItems: 'center', minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, paddingHorizontal: 4 }}>
+                <Icon name="chevL" size={22} color={t.text} weight="semibold" />
+                {!L.compact ? <T numberOfLines={1} style={{ maxWidth: 96, marginLeft: 2, opacity: showLabel ? 1 : 0 }}>{back}</T> : null}
+              </Pressable>
+            ) : null}
+          </View>
         </View>
-        <T a11y="header" numberOfLines={1} style={[font.headline, { flexShrink: 1, textAlign: 'center', maxWidth: '55%' }]}>{title ?? ''}</T>
-        <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end' }}>{right}</View>
+        <View style={{ flex: 1, minWidth: 0, paddingHorizontal: 4 }}>
+          <T a11y="header" numberOfLines={1} style={[font.headline, { textAlign: 'center' }]}>{title ?? ''}</T>
+        </View>
+        <View style={{ width: side, flexShrink: 0, flexDirection: 'row', justifyContent: 'flex-end' }}>
+          <View onLayout={(e) => setRw(Math.ceil(e.nativeEvent.layout.width))} style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>{right}</View>
+        </View>
       </View>
       {progress ? <Progress {...progress} /> : null}
     </Bar>

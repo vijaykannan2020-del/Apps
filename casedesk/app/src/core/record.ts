@@ -12,6 +12,7 @@ import type { Document, DocFields, PetitionKind, Person, Relation, StatusCategor
 import { canBeBlanket, isStudent } from './model';
 import { daysTo } from './dates';
 import { metroOf } from './metro';
+import { ownName, sameName } from './identity';
 
 export type ApprovalInfo = {
   docId: string; form?: string; kind?: PetitionKind; receipt?: string; noticeDate?: string;
@@ -116,7 +117,10 @@ export function deriveRecord(person: Person, allDocs: Document[]): PersonRecord 
   };
 
   // ---- identity ----
-  const passports = of('passport');
+  // v2.9: only this person's own passports count (a spouse's passport saved here by mistake never
+  // becomes the current one, and never gives this person its legal name or number).
+  const own = ownName(person.name, of('passport').map((d) => d.fields.name).concat(docs.filter((d) => ['i94', 'visa', 'ead', 'green-card'].includes(d.type)).map((d) => d.fields.name)));
+  const passports = of('passport').filter((d) => !own || !d.fields.name || sameName(d.fields.name, own));
   const curPass = latestBy(passports.filter((d) => d.fields.validTo), (d) => d.fields.validTo) ?? passports[0];
   for (const d of passports) {
     if (d.fields.passportNo && !r.passportNos.includes(d.fields.passportNo)) r.passportNos.push(d.fields.passportNo);
@@ -131,11 +135,12 @@ export function deriveRecord(person: Person, allDocs: Document[]): PersonRecord 
   }
   for (const d of docs) {
     if (!r.passportNo && d.fields.passportNo && ['visa', 'i94', 'ead'].includes(d.type)) r.passportNo = d.fields.passportNo;
-    if (!r.legalName && d.fields.name && d.type !== 'i129s') r.legalName = d.fields.name;
+    if (!r.legalName && d.fields.name && d.type !== 'i129s' && (!own || sameName(d.fields.name, own))) r.legalName = d.fields.name;
     if (!r.birthDate && d.fields.birthDate && d.type !== 'approval') r.birthDate = d.fields.birthDate;
     if (!r.nationality && d.fields.nationality) r.nationality = d.fields.nationality;
   }
   if (r.passportNo && !r.passportNos.includes(r.passportNo)) r.passportNos.unshift(r.passportNo);
+  if (!r.birthDate && facts.birthDate) r.birthDate = facts.birthDate; // typed in Edit details
 
   // ---- visa type (strongest current source wins) ----
   let visaRank = -1;
@@ -198,6 +203,7 @@ export function deriveRecord(person: Person, allDocs: Document[]): PersonRecord 
     offer(visaFromClass(cur.cls, relation, 'approval'), 'approval');
   }
   if (of('i129s').length) r.blanket = true;
+  if (!r.employer && facts.employer) r.employer = facts.employer; // typed in Edit details
   r.approvedWorkLocation = withMetro(facts.approvedWorkLocation) ?? list.find((a) => !a.superseded && a.workLocation)?.workLocation ?? list.find((a) => a.workLocation)?.workLocation;
   r.statusStart = facts.statusStart ?? list.map((a) => a.validFrom).filter(Boolean).sort()[0];
 
@@ -282,7 +288,10 @@ export function deriveRecord(person: Person, allDocs: Document[]): PersonRecord 
   r.pending = latestBy(pend, (p) => p.filed);
 
   // ---- where they are ----
-  if (of('i94').length) { r.location = 'US'; r.locationKnown = true; }
+  // An answer given in Edit details (dated) wins over an I-94 saved before it (they left after that entry).
+  const lastEntry = of('i94').map((d) => d.fields.entryDate ?? d.addedAt?.slice(0, 10) ?? '').sort().pop() ?? '';
+  if (facts.location && facts.locationOn && facts.locationOn >= lastEntry) { r.location = facts.location; r.locationKnown = true; if (facts.location === 'Outside') r.country = facts.country ?? 'India'; }
+  else if (of('i94').length) { r.location = 'US'; r.locationKnown = true; }
   else if (facts.location) { r.location = facts.location; r.locationKnown = true; if (facts.location === 'Outside') r.country = facts.country ?? 'India'; }
 
   // ---- trips: travel history + typed trips ----

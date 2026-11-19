@@ -1,4 +1,5 @@
 // Profile: you, family, reminders, privacy & look, help, Data (Back up now / Restore / Delete all), About.
+import { reminderSummary, typesFor } from '../core/reminders';
 import React, { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -49,7 +50,7 @@ export function ProfileScreen() {
       </Group>
       <SectionHeader>Alerts &amp; reminders</SectionHeader>
       <Group>
-        {f.people.map((p) => { const r = p.reminders ?? { on: true, lead: f.settings.reminderLeadDays }; return <Row key={p.id} icon="bell" title={p.name} subtitle={r.on ? leadText(r.lead, ' · ') : 'Off'} onPress={() => go(`/reminders/${p.id}`)} />; })}
+        {f.people.map((p) => { const r = p.reminders ?? { on: true, lead: f.settings.reminderLeadDays }; return <Row key={p.id} icon="bell" title={p.name} subtitle={reminderSummary(r, typesFor(f.records[p.id], f.caseList.some((c) => c.ownerId === p.id && c.keyDates.length > 0)))} onPress={() => go(`/reminders/${p.id}`)} />; })}
       </Group>
       <Group style={{ marginTop: 24 }}><Row icon="gear" title="Settings" subtitle="Appearance, Face ID, backups, help, about" onPress={() => go('/settings')} /></Group>
     </Screen>

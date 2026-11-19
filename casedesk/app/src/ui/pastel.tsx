@@ -65,8 +65,8 @@ export function StatTile({ tone, icon, label, big, sub, onPress }: { tone: Paste
 }
 
 /** Wallet-style card at the top of a person page: sky header (identity), dark body with the number. */
-export function WalletCard({ name, line, corner, caption, big, foot, footTone, footWord, onPress, a11y }: {
-  name: string; line: string; corner?: string; caption: string; big: string; foot?: string; footTone?: 'green' | 'amber' | 'red'; footWord?: string; onPress?: () => void; a11y: string;
+export function WalletCard({ name, line, corner, caption, big, foot, footTone, footWord, reason, reasonTone, onPress, a11y }: {
+  name: string; line: string; corner?: string; caption: string; big: string; foot?: string; footTone?: 'green' | 'amber' | 'red'; footWord?: string; reason?: string; reasonTone?: 'amber' | 'red'; onPress?: () => void; a11y: string;
 }) {
   const t = useTheme();
   const body = (
@@ -82,6 +82,7 @@ export function WalletCard({ name, line, corner, caption, big, foot, footTone, f
         <T tone="text2" style={font.foot}>{caption}</T>
         <BigText size={34} style={{ letterSpacing: -0.5 }}>{big}</BigText>
         {foot ? <T tone="text2" style={font.foot}>{foot}{footWord ? <T tone={footTone ?? 'green'} style={[font.foot, { fontWeight: '600' }]}>{` · ${footWord}`}</T> : null}</T> : null}
+        {reason ? <T tone={reasonTone ?? 'amber'} numberOfLines={1} style={[font.foot, { fontWeight: '600', marginTop: 2 }]}>{reason}</T> : null}
       </View>
     </>
   );

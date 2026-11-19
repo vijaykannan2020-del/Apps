@@ -1,5 +1,6 @@
 // Home tab (v2.7 pastel): greeting, the hero = the family's single most urgent item, two tiles = the
 // next two most useful facts (core/priority.ts), family rows, what else needs attention, cases, updates.
+import { reasonLine } from '../core/review';
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
@@ -63,6 +64,7 @@ export function Home() {
 
   const topPart = (
     <>
+      <HomeSearchBar />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flex: 1, minWidth: 0 }}>
           <T a11y="header" numberOfLines={1} style={{ fontSize: 26, lineHeight: 32, fontWeight: '600', letterSpacing: -0.4 }}>{`Hi, ${me.name}`}</T>
@@ -105,7 +107,8 @@ export function Home() {
           <Row key={p.id} avatar={p.name} onPress={() => go(`/person/${p.id}`)} pill={f.results[p.id]?.worst} chevron={false}
             label={`${p.name}, ${statusLabel(p, f.records[p.id], f.results[p.id])}, ${untilText(p, f.records[p.id], f.results[p.id])}`}
             title={p.name}
-            subtitle={`${statusLabel(p, f.records[p.id], f.results[p.id])} · ${untilText(p, f.records[p.id], f.results[p.id]).replace('Status valid until', 'until')}`} />
+            subtitle={(() => { const res = f.results[p.id]; const top = `${statusLabel(p, f.records[p.id], res)} · ${untilText(p, f.records[p.id], res).replace('Status valid until', 'until')}`; const why = res ? reasonLine(res.findings, res.facts.statusUntil) : undefined;
+              return why ? <><T tone="text2" style={font.foot}>{top}</T><T tone={res!.worst === 'act' ? 'red' : 'amber'} numberOfLines={1} style={[font.foot, { fontWeight: '600', marginTop: 1 }]}>{why}</T></> : top; })()} />
         ))}
         {onlyMe && !f.settings.familyCardDismissed ? (
           <Row icon="plus" iconPastel="mint" title="Add your family" subtitle="Optional · spouse, children or parents" onPress={() => go('/family-setup')} chevron={false}
@@ -191,5 +194,17 @@ function CasesGlance() {
       <SectionHeader right={<LinkButton title="See all" onPress={() => router.navigate('/(tabs)/cases' as never)} />}>Cases</SectionHeader>
       <Group>{list.map((c) => <CaseRow key={c.id} c={c} />)}</Group>
     </>
+  );
+}
+
+/** v2.9: search field at the top of Home (iOS style). Opens Search with the keyboard up. */
+function HomeSearchBar() {
+  const t = useTheme();
+  return (
+    <Pressable onPress={() => go('/search')} accessibilityRole="search" accessibilityLabel="Search people, documents, cases and tools"
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.dark ? t.card : t.card2, borderRadius: 12, paddingHorizontal: 12, minHeight: 44, marginBottom: 14, opacity: pressed ? 0.75 : 1 })}>
+      <Icon name="search" size={17} color={t.text2} />
+      <T tone="text2" style={font.body}>Search</T>
+    </Pressable>
   );
 }

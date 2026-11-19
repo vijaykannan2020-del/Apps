@@ -7,6 +7,7 @@ import type { Person } from '../core/model';
 import type { PersonResult } from '../core/rules/engine';
 import type { PersonRecord } from '../core/record';
 import { addDays, fmt, today } from '../core/dates';
+import { REMINDER_TYPES, typeDates, typeOfFinding, typeSetting, type ReminderType } from '../core/reminders';
 
 type Item = { at: string; title: string; body: string; url: string };
 
@@ -17,18 +18,18 @@ export function reminderItems(people: Person[], records: Record<string, PersonRe
     const rm = p.reminders ?? { on: true, lead: [180, 90, 30, 7] };
     if (!rm.on) continue;
     const r = records[p.id];
-    const dates: [string, string | undefined][] = [
-      ['passport expires', r?.passportExpiry], ['I-94 ends', r?.i94?.until], ['work permit ends', r?.ead?.expires],
-      ['green card expires', r?.greenCard?.expires], ['approval ends', r?.petitionEnd], ['travel document ends', r?.advanceParole?.expires],
-      ['visa stamp expires', r?.visaStamp?.expires],
-    ];
-    for (const f of results[p.id]?.findings ?? []) if (f.date && (f.severity === 'act' || f.severity === 'review')) dates.push([f.title, f.date]);
-    for (const k of keyDates.filter((x) => x.ownerId === p.id)) dates.push([k.label, k.date]);
+    // v2.9: each type has its own switch and lead times (core/reminders).
+    const dated = typeDates(r);
+    const dates: [string, string | undefined, ReminderType | undefined][] = REMINDER_TYPES.filter((x) => x.key !== 'cases').map((x) => [x.what, dated[x.key], x.key]);
+    for (const f of results[p.id]?.findings ?? []) if (f.date && (f.severity === 'act' || f.severity === 'review')) dates.push([f.title, f.date, typeOfFinding(f.id)]);
+    for (const k of keyDates.filter((x) => x.ownerId === p.id)) dates.push([k.label, k.date, 'cases']);
     const seen = new Set<string>();
-    for (const [what, d] of dates) {
+    for (const [what, d, type] of dates) {
       if (!d || seen.has(what + d)) continue;
       seen.add(what + d);
-      for (const lead of rm.lead) {
+      const s = type ? typeSetting(rm, type) : { on: true, lead: rm.lead };
+      if (!s.on) continue;
+      for (const lead of s.lead) {
         const at = addDays(d, -lead);
         if (at <= t) continue;
         items.push({ at, title: `${p.name}: ${what}`, body: `${fmt(d)} — in ${lead} day${lead === 1 ? '' : 's'}. Open Immigration Wallet to see what to do.`, url: `/person/${p.id}` });
