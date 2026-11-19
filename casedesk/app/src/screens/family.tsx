@@ -10,7 +10,7 @@ import { newId } from '../data/store';
 import { Avatar, Button, Card, Chip, ChipToggle, Chips, EmptyState, H1, Icon, IconButton, LargeTitle, NavButton, Pill, Screen, Stack, T, Tag, Why, font, radius, useTheme, useToast, MIN_TOUCH } from '../ui';
 import { ReviewChip, go, home, locationChip, relationLabel, runFlow, statusLabel, untilText } from './common';
 import { reasonLine } from '../core/review';
-import { statusGroups } from './sheets';
+import { BirthCountryField, statusGroups } from './sheets';
 import { SelectField } from '../ui';
 import { PersonBody } from './person';
 import { FamilyWalletRow } from './wallet';
@@ -74,7 +74,7 @@ export function AddButton({ title, onPress }: { title: string; onPress: () => vo
   );
 }
 
-type Draft = { id: string; name: string; relation: Relation; status: StatusCategory; isNew?: boolean; touched?: boolean };
+type Draft = { id: string; name: string; relation: Relation; status: StatusCategory; isNew?: boolean; touched?: boolean; birthCountry?: string };
 
 function PersonForm({ d, onChange, onRemove, fixedYou, index = 0 }: { d: Draft; onChange: (d: Draft) => void; onRemove?: () => void; fixedYou?: boolean; index?: number }) {
   const t = useTheme();
@@ -100,6 +100,7 @@ function PersonForm({ d, onChange, onRemove, fixedYou, index = 0 }: { d: Draft; 
         ))}
       </Chips>
       <SelectField label="Status" value={d.status} onChange={(status) => onChange({ ...d, status, touched: true })} groups={statusGroups()} />
+      <BirthCountryField value={d.birthCountry ?? ''} onChange={(v) => onChange({ ...d, birthCountry: v || undefined })} />
     </Card>
   );
 }
@@ -114,14 +115,15 @@ function FamilySetupForm() {
   const f = useFamily();
   const toast = useToast();
   const [list, setList] = useState<Draft[]>(() => {
-    const cur = f.people.map((p) => ({ id: p.id, name: p.name, relation: p.relation, status: p.status ?? 'unsure', touched: true }));
+    const cur = f.people.map((p) => ({ id: p.id, name: p.name, relation: p.relation, status: p.status ?? 'unsure', touched: true, birthCountry: p.facts.birthCountry }));
     return cur.length > 1 ? cur : [...cur, { id: newId('p'), name: '', relation: 'spouse' as Relation, status: dependentStatusFor(f.main?.status, 'spouse'), isNew: true }];
   });
   const save = async () => {
     const keep = list.filter((d) => d.name.trim() || d.relation === 'self');
     const people: Person[] = keep.map((d) => {
       const old = f.people.find((p) => p.id === d.id);
-      return { ...(old ?? { facts: {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } }), id: d.id, name: d.name.trim() || 'Person', relation: d.relation, status: d.status } as Person;
+      const base: Pick<Person, 'facts' | 'createdAt' | 'reminders'> = old ?? { facts: {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } };
+      return { ...base, id: d.id, name: d.name.trim() || 'Person', relation: d.relation, status: d.status, facts: { ...base.facts, birthCountry: d.birthCountry ?? base.facts.birthCountry } } as Person;
     });
     const removed = f.people.filter((p) => !keep.some((d) => d.id === p.id));
     for (const p of removed) if (p.relation !== 'self') await f.actions.removePerson(p.id);
@@ -160,13 +162,13 @@ function AddMemberForm() {
   const [d, setD] = useState<Draft>({ id: newId('p'), name: '', relation: 'spouse', status: dependentStatusFor(f.main?.status, 'spouse'), isNew: true });
   const goNext = async () => {
     if (!d.name.trim()) { toast('Type a name first'); return; }
-    const p: Person = { id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } };
+    const p: Person = { id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: d.birthCountry ? { birthCountry: d.birthCountry } : {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } };
     await f.actions.upsertPerson(p);
     router.back();
     setTimeout(() => runFlow({ mode: 'add', pids: [p.id], returnTo: `/person/${p.id}` }, { ...f, people: [...f.people, p], records: f.records, missing: f.missing }, toast), 80);
   };
   return (
-    <Screen keyboard nav={{ title: 'Add family member', back: 'Family', onBack: () => router.back(), right: <NavButton title="Home" label="Save and go to Home" onPress={async () => { if (d.name.trim()) { await f.actions.upsertPerson({ id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } }); toast(`${d.name.trim()} saved · add documents anytime from Home`); } home(); }} /> }} footer={<Button title="Continue to documents" onPress={goNext} />}>
+    <Screen keyboard nav={{ title: 'Add family member', back: 'Family', onBack: () => router.back(), right: <NavButton title="Home" label="Save and go to Home" onPress={async () => { if (d.name.trim()) { await f.actions.upsertPerson({ id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: d.birthCountry ? { birthCountry: d.birthCountry } : {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } }); toast(`${d.name.trim()} saved · add documents anytime from Home`); } home(); }} /> }} footer={<Button title="Continue to documents" onPress={goNext} />}>
       <H1>Who are you adding?</H1>
       <Why>Same short form as setup. Then we’ll go through their documents.</Why>
       <View style={{ marginTop: 22 }}><PersonForm d={d} index={1} onChange={setD} /></View>

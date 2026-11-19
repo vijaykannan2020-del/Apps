@@ -8,7 +8,7 @@ import { STATUS_GROUPS } from '../core/model';
 import { useFamily } from '../data/FamilyProvider';
 import { Button, Card, ChipToggle, Chips, Field, H1, Hint, Icon, RowIcon, Screen, T, Why, font, useTheme, useToast, Footer, useLayout, MIN_TOUCH } from '../ui';
 import { DISCLAIMER_LINE } from '../content/legal';
-import { chipLabel } from './sheets';
+import { BirthCountryField, chipLabel } from './sheets';
 import { home, replace } from './common';
 
 export function Welcome() {
@@ -58,12 +58,13 @@ export function AboutYou() {
   const toast = useToast();
   const [name, setName] = useState('');
   const [st, setSt] = useState<StatusCategory | null>(null);
+  const [born, setBorn] = useState('');
   const [busy, setBusy] = useState(false);
   const go = async () => {
     if (!name.trim()) { toast('Type your name first'); return; }
     if (!st) { toast('Pick the situation that fits'); return; }
     setBusy(true);
-    await f.actions.createSelf(name, st);
+    await f.actions.createSelf(name, st, born || undefined);
     home();
     setTimeout(() => toast('Saved on this phone'), 400);
   };
@@ -73,6 +74,7 @@ export function AboutYou() {
       <H1>About you</H1>
       <Why>Your name is just a label — your legal name comes from your passport. Your situation decides which documents and checks you’ll see.</Why>
       <Field label="Your name" value={name} onChangeText={setName} placeholder="What should we call you?" autoCapitalize="words" />
+      <BirthCountryField value={born} onChange={setBorn} />
       <T tone="text2" style={[font.caption, { marginTop: 22, marginLeft: 2, textTransform: 'uppercase', letterSpacing: 0.4 }]}>What’s your situation?</T>
       <View style={{ marginTop: 8, gap: 8 }}>
         {STATUS_GROUPS.map((g) => (
