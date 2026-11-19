@@ -138,7 +138,7 @@ The app uses HTTPS through iOS (exempt) **and** encrypts backups itself with AES
 
 | Data | Built-in as of | Status | What to confirm |
 |---|---|---|---|
-| Visa Bulletin (EB) | November 2026 | Partly checked | EB-1/2/3 final action and filing dates match two summaries (cilawgroup.com Oct 22, 2026; Newsweek). Not confirmed: Other Workers and EB-5 filing dates; EB-3 Mexico filing (one summary says Mar 15, 2026 — left blank); Other Workers / EB-5 Mexico & Philippines filing (blank). Confirm on travel.state.gov. |
+| Visa Bulletin (EB) | November 2026 | Partly checked | India EB-1/2/3 final action and filing dates confirmed by the owner against travel.state.gov (Nov 19, 2026). Other EB-1/2/3 final action and filing dates match two summaries (cilawgroup.com Oct 22, 2026; Newsweek). Not confirmed: Other Workers and EB-5 filing dates; EB-3 Mexico filing (one summary says Mar 15, 2026 — left blank); Other Workers / EB-5 Mexico & Philippines filing (blank). Confirm on travel.state.gov. |
 | Which chart USCIS uses (Nov 2026) | Dates for Filing | Unverified | Summaries disagree; confirm on uscis.gov “Adjustment of status filing charts”. |
 | EB-2 India vs news | — | Resolved | The Nov 2026 news item quotes the **final action** date (Nov 1, 2013); the app used to show only the **filing** date (Jan 15, 2015) on Priority date. It now shows both, labels which one USCIS uses this month, and explains that news usually quotes the final action date. Built-in values match the bulletin. |
 | Processing times | Oct 19, 2026 | Unverified | 20 rows in `src/content/processing.ts` against egov.uscis.gov/processing-times. |
