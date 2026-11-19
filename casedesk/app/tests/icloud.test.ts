@@ -62,7 +62,7 @@ test('friendly iCloud errors', async () => {
   assert.match(f(new Error('You don’t have enough storage in iCloud')), /^iCloud storage is full/);
   assert.equal(f(new Error('not signed in')), 'Sign in to iCloud in iOS Settings');
   assert.equal(f({ code: 'ERR_AUTHENTICATION_FAILED', message: 'x' }), 'Sign in to iCloud in iOS Settings');
-  assert.match(f({ message: 'The operation couldn’t be completed. (NSUbiquitousFileErrorDomain error 4353.)' }), /^Turn on iCloud Drive for CaseDesk/);
+  assert.match(f({ message: 'The operation couldn’t be completed. (NSUbiquitousFileErrorDomain error 4353.)' }), /^Turn on iCloud Drive for Immigration Wallet/);
   assert.equal(f(new Error('Needs the latest app version from TestFlight')), 'Needs the latest app version from TestFlight');
   assert.equal(f(undefined), 'Couldn’t back up to iCloud');
   // error 640 in another domain isn't "full"
