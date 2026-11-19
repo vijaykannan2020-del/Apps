@@ -216,7 +216,7 @@ export function AboutScreen() {
 
       <SectionHeader>Privacy</SectionHeader>
       <Card>
-        {['Documents are read and stored only on this phone.', 'No account needed (Community sign-in is optional), no ads, no analytics, no tracking, no selling data.', 'Our server only sends public data (news, Visa Bulletin, processing times, wages). It never receives your documents, names or receipt numbers.', 'Never logs in to USCIS, CBP or SEVP for you.', 'Backups are encrypted with your password before they leave the app.'].map((x) => (
+        {['Documents are read and stored only on this phone.', 'No account needed (Community sign-in is optional), no ads, no analytics, no tracking, no selling data.', 'Our server never receives your documents, names or receipt numbers. What to expect sends only the form, office code and dates.', 'Community posts and anonymous Cases like mine timelines are sent only when you choose to post or share.', 'Never logs in to USCIS, CBP or SEVP for you.', 'Backups are encrypted with your password before they leave the app.'].map((x) => (
           <View key={x} style={{ flexDirection: 'row', gap: 10, alignItems: 'baseline', paddingVertical: 5 }}><View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: t.green }} /><T style={[font.sub, { flex: 1 }]}>{x}</T></View>
         ))}
       </Card>

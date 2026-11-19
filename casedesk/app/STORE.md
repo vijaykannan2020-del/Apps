@@ -15,7 +15,7 @@ Items marked **CONFIRM** need the owner before submission; the full list is at t
 | Secondary category | Reference | |
 | Price | Free, no in-app purchases | |
 | Privacy policy URL | https://casedeskapp.duckdns.org/privacy.html (**CONFIRM** hosting, see below) | |
-| Support URL | https://casedeskapp.duckdns.org/support.html | |
+| Support URL | https://casedeskapp.duckdns.org/support (served by the server, `server/src/support.mjs`) | |
 | Copyright | 2026 Vijayakannan Krishnan (**CONFIRM** legal name / company) | |
 
 ### Promotional text (170)
@@ -80,24 +80,31 @@ uscis,case status,green card,h1b,visa bulletin,i-94,ead,priority date,h4,opt,rec
 | Simulated gambling / contests | None (the “H-1B lottery” tool explains the government selection process; no gambling) |
 | Medical or treatment information | None |
 | Unrestricted web access | **No** — links open specific official pages (uscis.gov, travel.state.gov, dol.gov, news articles) in the system browser sheet; there is no general browser or search |
-| User-generated content / messaging / chat | No |
+| User-generated content / messaging / chat | **Yes** — Community Q&A (moderated: report, block, rules, 24 h review; see Guideline 1.2) |
 | Age assurance, parental controls | No |
 | Result | **4+** |
 
 ## App Privacy (nutrition label)
 
-Answer: **Data Not Collected.**
+With Community Q&A and Cases like mine merged (integ), the answer is **no longer “Data Not Collected”**. Declare:
 
-Why this is accurate (checked against the code):
+| Data type | Collected when | Linked to the user? | Used for tracking? | Purpose |
+|---|---|---|---|---|
+| **Identifiers → User ID** | Community sign-in (hash of the Apple user id, our random account id) | Yes | No | App Functionality |
+| **User Content → Other User Content** | Community questions, answers, display name, reports | Yes | No | App Functionality |
+| **Identifiers → Device ID** | Only if “Notify me of answers” is on (Expo push token) | Yes | No | App Functionality |
+| **Other Data** (anonymous case timeline: form, office code, dates, outcome, premium, class) | Only if “Add my case anonymously” is on | **No** (random id made on the phone, no account) | No | App Functionality |
 
-- People, documents, files, cases, receipt numbers and settings are stored only on the device (`src/data/store.ts`, AsyncStorage + app files). OCR runs on the device (`src/native/ocr.ts`).
-- The app’s only network calls are GETs to our server for public data (`src/data/api.ts`): `/api/news`, `/api/visa-bulletin`, `/api/processing-times`, `/api/visa-waits`, and the look-up tools `/api/wage*` (job title / state / county the user types) and `/api/employer` (employer name the user types). No identifiers, no receipt numbers, nothing saved in the app. The server keeps no request logs. Apple’s definition of “collect” excludes data processed only to serve a request in real time.
-- No receipt number is ever sent to our server. USCIS case status is checked by the user on uscis.gov in Safari (`src/screens/sheets.tsx` → `startCaseCheck`).
-- No push token is registered with our server in this build (no POST to `/api/alerts`); all reminders and alerts are local notifications.
-- Backups are encrypted on the device and go to the user’s own iCloud container or to a file the user chooses; the developer never receives them.
-- Diagnostics are shared only when the user taps Share (optional, user-initiated, no document details).
+Everything else stays as before:
+
+- People, documents, files, cases, receipt numbers and settings are stored only on the device (`src/data/store.ts`). OCR runs on the device (`src/native/ocr.ts`).
+- Public-data GETs (`src/data/api.ts`): `/api/news`, `/api/visa-bulletin`, `/api/processing-times`, `/api/visa-waits`, `/api/wage*` and `/api/employer` (only what the user types), and `/api/expect` (form, office code, received date, premium, class — `src/data/expect.ts`). Processed in real time, not stored → not “collected”.
+- No receipt number is ever sent to our server. USCIS case status is checked by the user on uscis.gov in Safari.
+- Email: never stored (`server/src/auth.mjs` keeps only a hash of the provider’s user id).
+- Backups go only to the user’s own iCloud or a file. Diagnostics are shared only by the user.
 - No third-party analytics, ads or crash SDKs.
-- **CONFIRM:** `expo-updates` contacts Expo’s update service (u.expo.dev) with platform, runtime version and an install-scoped client id used for update statistics. Expo’s guidance is that this needs no disclosure; re-check Expo’s current privacy manifest before submitting.
+- Account deletion is in the app (Community → Account → Delete account), as Guideline 5.1.1(v) requires.
+- **CONFIRM:** `expo-updates` contacts Expo’s update service with platform, runtime version and an install-scoped client id. Re-check Expo’s privacy manifest before submitting.
 
 Tracking: **No** (no ATT prompt needed).
 
@@ -111,7 +118,7 @@ The app uses HTTPS through iOS (exempt) **and** encrypts backups itself with AES
 
 ## Review notes (paste into App Review Information)
 
-> No account or login — the app has none. All data is entered by the user and stays on the device.
+> No login is needed for any feature except posting in Community Q&A (Sign in with Apple; reading is open). All family data is entered by the user and stays on the device.
 >
 > Quickest way to see the app with data: on the Welcome screen tap Get started, type any name, pick “H-1B”, then go to Settings → Help → Example family → Load example. This loads a made-up H-1B family (Arun, Meera, Leela) with documents, cases, reminders and items that need attention. Everything is fictional.
 >
