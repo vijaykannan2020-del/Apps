@@ -7,6 +7,7 @@ import { ErrorBoundary, SheetProvider, ThemeProvider, ToastProvider, useTheme } 
 import { FamilyProvider, useFamily } from '../src/data/FamilyProvider';
 import { AppLock } from '../src/screens/lock';
 import { Tours } from '../src/screens/tours';
+import { NotifyPrompt } from '../src/screens/notify';
 import { native } from '../src/native/safe';
 import { diag, startDiag } from '../src/native/diag';
 startDiag().catch(() => {});
@@ -70,6 +71,7 @@ export default function Root() {
                 <Tours>
                   <SheetProvider>
                     <Nav />
+                    <NotifyPrompt />
                   </SheetProvider>
                 </Tours>
               </AppLock>

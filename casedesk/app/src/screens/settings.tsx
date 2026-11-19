@@ -15,6 +15,7 @@ import { Confirm } from './sheets';
 import { BackupSheet, DiagSheet, RestoreSheet, WipeSheet, leadText } from './profile';
 import { ICloudRows } from './icloud';
 import { HELP } from '../content/help';
+import { NotifyRows } from './notify';
 
 export function SettingsTab() {
   const f = useFamily();
@@ -42,7 +43,9 @@ export function SettingsTab() {
           await f.actions.updateSettings({ faceId: on, hideInSwitcher: on }); toast(on ? 'Face ID on' : 'Face ID off');
         }} />} />
       </Group>
-      <SectionHeader>Reminders</SectionHeader>
+      <SectionHeader>Notifications</SectionHeader>
+      <NotifyRows />
+      <SectionHeader>Reminder timing</SectionHeader>
       <Group>
         <Row icon="bell" title="Default reminders" subtitle={leadText(f.settings.reminderLeadDays, ' · ')} onPress={() => sheet.open('Default reminders', <ReminderDefaults />)} />
         <Row icon="users" title="Per person" subtitle="Turn reminders on or off for each person" onPress={() => go('/profile')} />
