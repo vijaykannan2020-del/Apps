@@ -216,6 +216,7 @@ export type Document = {
   fields: DocFields;
   filedFor?: PetitionKind; // answer to "What was filed?" on an I-129 / I-539 receipt
   addedAt: string; // ISO timestamp; also the tie-breaker for upload order
+  updatedAt?: string; // ISO timestamp of the last edit (shares: the newer copy of a document wins)
   seq?: number; // upload order within a flow
   files?: DocFile[];
   edited?: (keyof DocFields)[]; // fields the user corrected
