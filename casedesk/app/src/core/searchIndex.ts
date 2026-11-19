@@ -73,12 +73,20 @@ export function buildSearchIndex(x: IndexInput): SearchItem[] {
     const r = x.records[p.id];
     out.push({ id: `p:${p.id}`, section: 'People', title: p.name, sub: `${REL[p.relation] ?? 'Family'} · ${x.statusLabel?.(p) ?? visaOf(p)}`, path: `/person/${p.id}`, keywords: [r?.legalName ?? '', String(visaOf(p)), REL[p.relation] ?? '', p.relation === 'self' ? 'me' : ''] });
   }
-  // what needs attention, per person (opens the person)
+  // what needs attention (opens the person); the same item for several people is one row
+  const att = new Map<string, { f: NonNullable<PersonResult['findings']>[number]; who: Person[] }>();
   for (const p of x.people) {
     for (const f of x.results[p.id]?.findings ?? []) {
       if (f.severity !== 'act' && f.severity !== 'review') continue;
-      out.push({ id: `f:${p.id}:${f.id}`, section: 'Needs attention', title: f.title, sub: `${p.name} · ${f.severity === 'act' ? 'Act now' : 'Review'}`, path: `/person/${p.id}`, body: f.detail, keywords: [p.name, f.rule ? RULES[f.rule]?.name ?? '' : '', ...dateWords(f.date)] });
+      const k = `${f.id}|${f.title}`;
+      const e = att.get(k);
+      if (e) e.who.push(p); else att.set(k, { f, who: [p] });
     }
+  }
+  for (const { f, who } of att.values()) {
+    const names = who.map((p) => p.name);
+    const list = names.length <= 2 ? names.join(' and ') : `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`;
+    out.push({ id: `f:${who[0].id}:${f.id}`, section: 'Needs attention', title: f.title, sub: `${list} · ${f.severity === 'act' ? 'Act now' : 'Review'}`, path: `/person/${who[0].id}`, body: f.detail, keywords: [...names, f.rule ? RULES[f.rule]?.name ?? '' : '', ...dateWords(f.date)] });
   }
   // documents: type, form, category, class, employer, dates as text — never the passport number
   for (const d of x.docs) {

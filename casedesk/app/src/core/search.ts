@@ -99,7 +99,7 @@ function wordScore(q: string, w: string): number {
   if (q === w) return 10;
   if (w.startsWith(q)) return q.length >= 2 || /\d/.test(q) ? 7 : 2;
   if (q.length >= 4 && w.includes(q)) return 4;
-  const k = typoAllowed(q.length);
+  const k = q[0] === w[0] ? typoAllowed(q.length) : 0; // a typo never in the first letter
   if (k && Math.abs(w.length - q.length) <= k && editDistance(q, w, k) <= k) return 3;
   if (k && w.length > q.length && editDistance(q, w.slice(0, q.length), k) <= k && q.length >= 5) return 2; // typo in a prefix
   return 0;
