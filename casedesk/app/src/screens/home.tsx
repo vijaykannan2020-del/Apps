@@ -1,15 +1,18 @@
-// Home tab: greeting, the optional "Add your family" / "Add your documents" cards (owner change),
-// backup reminder, family strip, Needs attention, cases at a glance, official updates.
+// Home tab (v2.7 pastel): greeting, the hero = the family's single most urgent item, two tiles = the
+// next two most useful facts (core/priority.ts), family rows, what else needs attention, cases, updates.
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
-import { fmt, today, toDate } from '../core/dates';
+import { fmt, today } from '../core/dates';
 import { isPendingCase } from '../core/cases';
 import { needsAttention } from '../core/rules/engine';
 import { useFamily } from '../data/FamilyProvider';
-import { backupDue } from '../data/backupIO';
-import { TourButton, TourTarget, useTour, useLayout, Avatar, BigText, Columns, Button, Card, EmptyState, Group, Hint, Icon, LargeTitle, LinkButton, Pill, Row, Screen, SectionHeader, T, Tag, font, useSheet, useTheme, useToast, tint } from '../ui';
-import { AttentionRow, go, needsLocation, runFlow, statusLabel, untilText } from './common';
+import { TourButton, TourTarget, useTour, useLayout, Appear, Avatar, Button, EmptyState, Group, HeroCard, Icon, LargeTitle, LinkButton, Pastel, Row, Screen, SectionHeader, StatTile, T, font, useSheet, useTheme, useToast } from '../ui';
+import { AttentionRow, go, LegalFooter, needsLocation, statusLabel, untilText } from './common';
+import { heroLine } from '../core/priority';
+import { ORDER } from '../core/rules/types';
+import { usePriority, useOpenTarget } from './priority';
+import { CaseRow } from './cases';
 import { Confirm, SourceSheet } from './sheets';
 import { endFlow, unsavedCount, useFlow } from '../data/flow';
 import { RULES_CHECKED } from '../core/rules/catalog';
@@ -26,6 +29,8 @@ export const UPDATES = [
   { tag: 'Citizenship', t: '2025 civics test: 20 questions asked, 12 right to pass', src: 'uscis.gov', url: 'https://www.uscis.gov/citizenship', body: 'Applies to N-400s filed on or after Oct 20, 2025. Practise in Tools → Citizenship test.' },
 ];
 
+const TONE_ICON = { act: 'alert', review: 'alert', deadline: 'clock', setup: 'doc', allgood: 'checkc' } as const;
+
 export function Home() {
   const f = useFamily();
   const t = useTheme();
@@ -36,6 +41,8 @@ export function Home() {
   const news = useNews();
   const L = useLayout();
   const tour = useTour('home');
+  const { hero, tiles } = usePriority();
+  const open = useOpenTarget();
   const unsaved = draft ? unsavedCount() : 0;
   if (!f.people.length || !me) {
     return (
@@ -45,73 +52,46 @@ export function Home() {
       </Screen>
     );
   }
-  const att = needsAttention(f.results, 99);
+  const att = needsAttention(f.results, 99).filter((x) => `finding:${x.personId}:${x.finding.id}` !== hero.key);
   const alerts = updateAlerts(news.items, familyTags(f.people, f.records), f.settings.updatesDismissed ?? [], today());
   const total = att.length + Math.min(2, alerts.length);
-  const missingCount = f.people.reduce((n, p) => n + (f.missing[p.id]?.length ?? 0), 0);
-  const noDocs = f.docs.length === 0;
   const onlyMe = f.people.length === 1;
-  const d = toDate(today())!;
-  const dateLine = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-  const continueDocs = () => {
-    const pids = f.people.filter((p) => (f.missing[p.id]?.length ?? 0) > 0).map((p) => p.id);
-    if (!pids.length) { toast('Everything is added'); return; }
-    runFlow({ mode: 'missing', pids, missingOnly: true }, f, toast);
-  };
   const locAsk = f.people.filter((p) => needsLocation(f.records[p.id]));
+  const worst = f.people.map((p) => f.results[p.id]?.worst).sort((a, b) => (a ? ORDER[a] : 9) - (b ? ORDER[b] : 9))[0];
+  const count = `${f.people.length} ${f.people.length === 1 ? 'person' : 'people'}`;
+  const subline = worst === 'act' ? `Something needs action · ${count}` : worst === 'review' ? `Something to review · ${count}` : `${onlyMe ? 'You’re' : 'Your family is'} all set · ${count}`;
 
   const topPart = (
     <>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
-        <View style={{ flex: 1 }}>
-          <T tone="text2" style={[font.caption, { textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }]}>{dateLine}</T>
-          <T a11y="header" style={font.largeTitle}>{`Hi, ${me.name}`}</T>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <T a11y="header" numberOfLines={1} style={{ fontSize: 26, lineHeight: 32, fontWeight: '600', letterSpacing: -0.4 }}>{`Hi, ${me.name}`}</T>
+          <T tone="text2" style={[font.foot, { marginTop: 2 }]}>{subline}</T>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
           <TourButton />
-          <Pressable onPress={() => go('/profile')} accessibilityRole="button" accessibilityLabel="Profile and settings"><Avatar name={me.name} accent /></Pressable>
+          <Pressable onPress={() => go('/profile')} accessibilityRole="button" accessibilityLabel="Profile and settings" hitSlop={4}><Avatar name={me.name} tone="sky" /></Pressable>
         </View>
       </View>
 
-      {onlyMe && !f.settings.familyCardDismissed ? (
-        <Card style={{ marginTop: 16 }}>
-          <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}><Icon name="users" size={20} color={t.accent} /><T style={[font.headline, { flex: 1 }]}>Add your family</T><Tag text="Optional" /></View>
-          <T tone="text2" style={[font.foot, { marginTop: 4 }]}>Spouse, children or parents on a visa or green card — even if they’re in India now.</T>
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-            <Button title="Add family" onPress={() => go('/family-setup')} grow />
-            <Button kind="ghost" title="Not now" onPress={() => f.actions.updateSettings({ familyCardDismissed: true })} />
-          </View>
-        </Card>
-      ) : null}
+      <TourTarget id="hero" style={{ marginTop: 16 }}>
+        <Appear>
+          <HeroCard tone={hero.tone} icon={TONE_ICON[hero.kind]} label={hero.label} chip={hero.chip} big={hero.big} line={heroLine(hero)} progress={hero.progress}
+            onPress={() => open(hero.target)} a11y={`${hero.label}. ${hero.big}. ${heroLine(hero)}`} />
+        </Appear>
+        <Appear delay={60} style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+          {tiles.map((x) => <StatTile key={x.key} tone={x.tone} icon={x.icon} label={x.label} big={x.big} sub={x.sub} onPress={() => open(x.target)} />)}
+        </Appear>
+      </TourTarget>
 
       {draft && unsaved > 0 ? (
-        <Card style={{ marginTop: 12 }}>
-          <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}><Icon name="doc" size={20} color={t.amber} /><T style={[font.headline, { flex: 1 }]}>{`${unsaved} document${unsaved === 1 ? '' : 's'} read, not saved yet`}</T></View>
-          <T tone="text2" style={[font.foot, { marginTop: 4 }]}>Pick up where you left off, or discard them.</T>
+        <Pastel tone="butter" style={{ marginTop: 10 }}>
+          <T style={font.headline}>{`${unsaved} document${unsaved === 1 ? '' : 's'} read, not saved yet`}</T>
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
             <Button title="Continue" grow onPress={() => go('/flow/review')} />
             <Button kind="ghost" title="Discard" onPress={() => sheet.open('Discard these documents?', <Confirm body="The documents you read but didn’t save are removed from this phone." action="Discard" onConfirm={() => { endFlow(); toast('Discarded'); }} />)} />
           </View>
-        </Card>
-      ) : null}
-
-      {missingCount > 0 ? (
-        <Card style={{ marginTop: 12 }}>
-          <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}><Icon name="doc" size={20} color={t.accent} /><T style={[font.headline, { flex: 1 }]}>{noDocs ? 'Add your documents' : `${missingCount} document${missingCount === 1 ? '' : 's'} still to add`}</T></View>
-          <T tone="text2" style={[font.foot, { marginTop: 4 }]}>{noDocs ? 'Start with the passport. Each one is read on this phone, and the checks get better with every document. Skip any you don’t have.' : 'Add them whenever you’re ready. Checks get better with each one.'}</T>
-          <Button block title={noDocs ? 'Add documents' : 'Continue adding documents'} onPress={continueDocs} />
-        </Card>
-      ) : null}
-
-      {backupDue(f.settings, f.docs.length) ? (
-        <Card style={{ marginTop: 12, backgroundColor: tint(t.accent, 0.12) }}>
-          <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}><Icon name="backup" size={20} color={t.accent} /><T style={[font.headline, { flex: 1 }]}>Back up your documents</T></View>
-          <T tone="text2" style={[font.foot, { marginTop: 4 }]}>{f.settings.lastBackupAt ? `Last backup ${fmt(f.settings.lastBackupAt.slice(0, 10))}.` : 'No backup yet.'} A password-protected copy keeps them safe if you lose or change your phone.</T>
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-            <Button title="Back up now" grow onPress={() => router.navigate({ pathname: '/(tabs)/settings', params: { backup: '1' } } as never)} />
-            <Button kind="ghost" title="Later" onPress={() => f.actions.updateSettings({ backupReminderSnoozed: new Date(Date.now() + 7 * 864e5).toISOString() })} />
-          </View>
-        </Card>
+        </Pastel>
       ) : null}
 
       <ICloudAfterRestore />
@@ -119,51 +99,48 @@ export function Home() {
   );
   const familyPart = (
     <>
-          <SectionHeader>Family</SectionHeader>
-          <TourTarget id="family"><Group>
-            {f.people.map((p) => (
-              <Row key={p.id} avatar={p.name} onPress={() => go(`/person/${p.id}`)} pill={f.results[p.id]?.worst} chevron={false}
-                label={`${p.name}, ${statusLabel(p, f.records[p.id], f.results[p.id])}, ${untilText(p, f.records[p.id], f.results[p.id])}`}
-                title={<T style={[font.body, { fontWeight: '600' }]}>{p.name} <T tone="text2" style={font.foot}>· {statusLabel(p, f.records[p.id], f.results[p.id])}</T></T>}
-                subtitle={untilText(p, f.records[p.id], f.results[p.id]).replace('Status valid until', 'Valid until')} />
-            ))}
-          </Group></TourTarget>
+      <SectionHeader right={<LinkButton title="See all" onPress={() => router.navigate('/(tabs)/family' as never)} />}>Family</SectionHeader>
+      <TourTarget id="family"><Group>
+        {f.people.map((p) => (
+          <Row key={p.id} avatar={p.name} onPress={() => go(`/person/${p.id}`)} pill={f.results[p.id]?.worst} chevron={false}
+            label={`${p.name}, ${statusLabel(p, f.records[p.id], f.results[p.id])}, ${untilText(p, f.records[p.id], f.results[p.id])}`}
+            title={p.name}
+            subtitle={`${statusLabel(p, f.records[p.id], f.results[p.id])} · ${untilText(p, f.records[p.id], f.results[p.id]).replace('Status valid until', 'until')}`} />
+        ))}
+        {onlyMe && !f.settings.familyCardDismissed ? (
+          <Row icon="plus" iconPastel="mint" title="Add your family" subtitle="Optional · spouse, children or parents" onPress={() => go('/family-setup')} chevron={false}
+            trailing={<Pressable onPress={() => f.actions.updateSettings({ familyCardDismissed: true })} accessibilityRole="button" accessibilityLabel="Not now" hitSlop={6} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginRight: -8 }}><Icon name="x" size={15} color={t.text2} /></Pressable>} />
+        ) : null}
+      </Group></TourTarget>
     </>
   );
-  const attentionPart = (
+  const attentionPart = att.length || locAsk.length || alerts.length ? (
     <TourTarget id="attention">
-          <SectionHeader right={total > 3 ? <T tone="text2" style={font.caption}>{`${total} items`}</T> : undefined}>Needs attention</SectionHeader>
-          {att.length || locAsk.length || alerts.length ? (
-            <>
-              <Group>
-                {locAsk.slice(0, 1).map((p) => (
-                  <Row key={`loc-${p.id}`} dot="amber" alignTop onPress={() => go(`/person/${p.id}`)} title={p.relation === 'self' ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`} titleStyle={{ ...font.callout, fontWeight: '500' }} subtitle={`${p.name} · People outside the US don’t have an I-94.`} />
-                ))}
-                {att.slice(0, locAsk.length ? 2 : 3).map((x) => <GroupedAttention key={x.personId + x.finding.id} x={x} />)}
-                {alerts.slice(0, 2).map((n) => <UpdateAlertRow key={n.id} n={n} />)}
-              </Group>
-              {total > 3 ? <LinkButton title="See all on Family" onPress={() => router.navigate('/(tabs)/family' as never)} /> : null}
-            </>
-          ) : (
-            <Card><View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}><Icon name="checkc" size={20} color={t.green} /><T style={font.headline}>Nothing needs attention</T></View></Card>
-          )}
+      <SectionHeader right={total > 3 ? <LinkButton title={`All ${total}`} onPress={() => router.navigate('/(tabs)/family' as never)} /> : undefined}>{hero.kind === 'act' || hero.kind === 'review' ? 'Also needs attention' : 'Needs attention'}</SectionHeader>
+      <Group>
+        {locAsk.slice(0, 1).map((p) => (
+          <Row key={`loc-${p.id}`} icon="pin" iconTone="amber" alignTop onPress={() => go(`/person/${p.id}`)} title={p.relation === 'self' ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`} subtitle={`${p.name} · people outside the US don’t have an I-94`} />
+        ))}
+        {att.slice(0, locAsk.length ? 2 : 3).map((x) => <GroupedAttention key={x.personId + x.finding.id} x={x} />)}
+        {alerts.slice(0, 2).map((n) => <UpdateAlertRow key={n.id} n={n} />)}
+      </Group>
     </TourTarget>
-  );
+  ) : null;
+  const casesPart = <CasesGlance />;
   const famTags = familyTags(f.people, f.records);
   const communityPart = (
     <>
       <SectionHeader>Community</SectionHeader>
       <Group>
-        <Row icon="chat" title="Ask the community" subtitle={famTags.length ? `Questions from people with ${famTags.slice(0, 3).join(', ')} — read freely, sign in to ask` : 'Questions from people with the same visa — read freely, sign in to ask'} onPress={() => go('/tools/community')} />
+        <Row icon="chat" iconPastel="blush" title="Ask the community" subtitle={famTags.length ? `People with ${famTags.slice(0, 3).join(', ')}` : 'People with the same visa'} onPress={() => go('/tools/community')} />
       </Group>
     </>
   );
-  const casesPart = <><SectionHeader>Cases at a glance</SectionHeader><CasesGlance /></>;
-  const foot = <Hint center style={{ marginTop: 18 }}>{`General information, not legal advice. Rules checked ${fmt(RULES_CHECKED)}.`}</Hint>;
-  // Wide (≥ 700): two independent scroll areas — you, family and cases stay put on the left while
-  // Needs attention and Updates scroll on the right. Phones: one page, same order as before.
+  const foot = <LegalFooter asOf={fmt(RULES_CHECKED)} />;
+  // Wide (≥ 700): two independent scroll areas — you, the hero and the family stay put on the left
+  // while attention, cases and updates scroll on the right. Phones: one page.
   if (L.twoCol) {
-    return <Screen tabRoot wide panes={{ left: <>{topPart}{familyPart}{casesPart}</>, right: <><View style={{ height: 8 }} />{attentionPart}<TourTarget id="updates"><HomeUpdates /></TourTarget>{communityPart}{foot}</> }} tour={tour} />;
+    return <Screen tabRoot wide panes={{ left: <>{topPart}{familyPart}</>, right: <>{attentionPart}{casesPart}<TourTarget id="updates"><HomeUpdates /></TourTarget>{communityPart}{foot}</> }} tour={tour} />;
   }
   return (
     <Screen tabRoot tour={tour}>
@@ -177,7 +154,6 @@ export function Home() {
     </Screen>
   );
 }
-
 /** One Needs-attention item; the same finding for several dependents is listed once with their names. */
 function GroupedAttention({ x }: { x: AttentionItem }) {
   const f = useFamily();
@@ -198,39 +174,22 @@ function UpdateAlertRow({ n }: { n: NewsItem }) {
   const t = useTheme();
   const seen = () => f.actions.updateSettings({ updatesDismissed: [...new Set([...(f.settings.updatesDismissed ?? []), n.id])] });
   return (
-    <Row dot="blue" alignTop title={n.title} titleStyle={{ ...font.callout, fontWeight: '500' }} label={`Info: ${n.title}`}
+    <Row icon="news" alignTop title={n.title} label={`Info: ${n.title}`}
       onPress={() => { seen(); go(`/news/${encodeURIComponent(n.id)}`); }} chevron={false}
       subtitle={<T tone="text2" style={[font.foot, { marginTop: 2 }]}>{`Update for ${orderTags(n.tags, familyTags(f.people, f.records)).slice(0, 2).join(', ')} · ${n.agency}`}</T>}
       trailing={<Pressable onPress={seen} accessibilityRole="button" accessibilityLabel="Dismiss this update" hitSlop={6} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: -10, marginRight: -8 }}><Icon name="x" size={15} color={t.text2} /></Pressable>} />
   );
 }
 
-/** Cases at a glance: one simple card with no cases; counts that fit when there are some. */
+/** Latest case updates: the two most recently changed cases (the tiles above carry the counts). */
 function CasesGlance() {
   const f = useFamily();
-  const t = useTheme();
-  const pending = f.caseList.filter(isPendingCase);
-  const latest = [...f.caseList].sort((a, b) => (b.updated || '').localeCompare(a.updated || ''))[0];
-  if (!f.caseList.length) {
-    return <Card onPress={() => router.navigate('/(tabs)/cases' as never)} label="No cases yet. Add a receipt number">
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Icon name="doc" size={22} color={t.inkAccent} />
-        <View style={{ flex: 1 }}><T style={font.headline}>No cases yet</T><T tone="accent" style={[font.foot, { marginTop: 2 }]}>Add a receipt number</T></View>
-        <Icon name="chevR" size={14} color={t.text3} />
-      </View>
-    </Card>;
-  }
+  const list = [...f.caseList].sort((a, b) => Number(isPendingCase(b)) - Number(isPendingCase(a)) || (b.updated || '').localeCompare(a.updated || '')).slice(0, 2);
+  if (!list.length) return null;
   return (
-    <View style={{ flexDirection: 'row', gap: 8 }}>
-      <Card style={{ flex: 1, minWidth: 0 }} onPress={() => router.navigate('/(tabs)/cases' as never)} label={`${pending.length} pending, ${f.caseList.length - pending.length} completed`}>
-        <BigText size={32}>{String(pending.length)}</BigText>
-        <T tone="text2" style={[font.foot, { marginTop: 4 }]}>{`pending · ${f.caseList.length - pending.length} done`}</T>
-      </Card>
-      <Card style={{ flex: 1.4, minWidth: 0 }} onPress={() => (latest ? go(`/case/${encodeURIComponent(latest.id)}`) : router.navigate('/(tabs)/cases' as never))} label="Latest update">
-        <T tone="text2" style={font.foot}>Latest update</T>
-        <T style={[font.callout, { fontWeight: '600', marginTop: 4 }]} numberOfLines={2}>{`${latest.form ?? 'Case'} · ${latest.status}`}</T>
-        {latest.updated ? <T tone="text2" style={font.foot}>{fmt(latest.updated)}</T> : null}
-      </Card>
-    </View>
+    <>
+      <SectionHeader right={<LinkButton title="See all" onPress={() => router.navigate('/(tabs)/cases' as never)} />}>Cases</SectionHeader>
+      <Group>{list.map((c) => <CaseRow key={c.id} c={c} />)}</Group>
+    </>
   );
 }
