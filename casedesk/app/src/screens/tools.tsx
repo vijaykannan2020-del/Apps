@@ -471,11 +471,10 @@ function Employer() {
 
 function Guides() {
   const sheet = useSheet();
-  return (
-    <>
-      <Group style={{ marginTop: 18 }}>
-        {VISAS.map((v) => (
-          <Row key={v.id} icon="book" title={v.code} subtitle={v.tagline} onPress={() => sheet.open(`${v.code} · ${v.name}`, (
+  // v2.9 search: /tools/guides?visa=<id> opens that guide
+  const { visa } = useLocalSearchParams<{ visa?: string }>();
+  useEffect(() => { const v = VISAS.find((x) => x.id === visa); if (v) setTimeout(() => openGuide(v), 350); }, [visa]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openGuide = (v: (typeof VISAS)[number]) => sheet.open(`${v.code} · ${v.name}`, (
             <View>
               <Why>{v.tagline}</Why>
               <Group style={{ marginTop: 12 }}>{v.facts.map((x) => <Row key={x.label} title={x.label} value={x.value} />)}</Group>
@@ -485,8 +484,11 @@ function Guides() {
               <Src text={`Source: ${v.source.replace(/^https?:\/\//, '').split('/')[0]} · reviewed ${GUIDES_REVIEWED}`} />
               <View style={{ marginTop: 14 }}><Button kind="tint" title="Open source" onPress={() => { sheet.close(); openUrl(v.source); }} /></View>
             </View>
-          ))} />
-        ))}
+  ));
+  return (
+    <>
+      <Group style={{ marginTop: 18 }}>
+        {VISAS.map((v) => <Row key={v.id} icon="book" title={v.code} subtitle={v.tagline} onPress={() => openGuide(v)} />)}
       </Group>
     </>
   );
