@@ -95,8 +95,20 @@ export const COLOUR_THEMES: { id: ColourTheme; name: string }[] = [{ id: 'pastel
 
 /** Five soft tints of one family, in the pastel style (light tints that carry dark ink text). */
 export function familyBlocks(f: Family) {
-  const h2 = f.h2 ?? f.h;
-  return { sky: hsl(f.h, f.s, 85), sage: hsl(h2, f.s * 0.8, 82), blush: hsl(f.h + 8, f.s, 90), butter: hsl(h2 - 6, f.s * 0.7, 79), mint: hsl(f.h - 6, f.s * 0.85, 93) };
+  // v2.9 (owner: one hue everywhere felt flat): the five tints spread around the family hue so cards
+  // next to each other differ, while staying in the same family.
+  const h2 = f.h2 ?? f.h + 40;
+  return { sky: hsl(f.h, f.s, 85), sage: hsl(h2, f.s * 0.8, 82), blush: hsl(f.h - 36, f.s * 0.9, 88), butter: hsl(f.h + 70, f.s * 0.7, 82), mint: hsl(f.h - 6, f.s * 0.85, 93) };
+}
+/** Shortest-way blend of two hues (t = 0 gives a, 1 gives b). */
+const mixHue = (a: number, b: number, t: number) => { const d = ((b - a + 540) % 360) - 180; return a + d * t; };
+/** Status blocks in a theme: still green-ish for good and amber-ish for attention, pulled a third of
+ *  the way to the family hue so they belong to the theme but never look like each other. */
+export function familyStatus(f: Family) {
+  const s = Math.max(f.s, 6) / 78;
+  const clamp = (h: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, ((h % 360) + 360) % 360));
+  // Hues are kept in their meaning's band (good 125–175, attention 34–52) so attention never drifts to red.
+  return { good: hsl(clamp(mixHue(150, f.h, 0.35), 125, 175), 30 + 30 * s, 80), warn: hsl(clamp(mixHue(42, f.h, 0.3), 34, 52), 55 + 35 * s, 80) };
 }
 /** The picker dots: Pastel shows its four pastels; a family shows its main tint and a deeper one. */
 export function swatchOf(c: ColourTheme): string[] {
@@ -125,7 +137,7 @@ export function themeFor(dark: boolean, colour: ColourTheme = 'pastel'): typeof 
       ...base, colour,
       // v2.9 (owner): the big Home cards must change with the theme too. Good and attention blocks take the
       // family's tints (meaning stays in the icon, label and status pills); urgent stays the fixed red.
-      pastel: { ...base.pastel, ...b, good: b.sky, warn: b.butter },
+      pastel: { ...base.pastel, ...b, ...familyStatus(f) },
       accent: dark ? b.sky : deep(f.h, Math.min(70, s), 3.3), inkAccent: dark ? b.sky : deep(f.h, Math.min(72, s + 6), 5),
       chipOn: b.sky, onChipOn: INK,
       tab: dark ? b.sky : deep(f.h, Math.min(72, s + 6), 5),
