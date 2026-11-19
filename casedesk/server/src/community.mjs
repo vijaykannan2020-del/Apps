@@ -68,5 +68,3 @@ export function stats(q) {
 export const communityStatus = () => ({ entries: rows.length });
 // Read-only copy of matching rows (used by expect.mjs). Rows hold no receipt numbers or ids beyond the hash.
 export const cohort = (pred) => rows.filter(pred).map(({ h, ...r }) => r);
-// Tests only: replace the in-memory rows.
-export const _setRows = (r) => { rows = r; };
