@@ -160,6 +160,8 @@ function GcDocRow({ k, c, mine }: { k: StepKey; c: Ctx; mine: FamilyState['docs'
   const st = stepMeta(p, k, f.records[p.id]);
   const d = mine.find((x) => fillsStep(st, x));
   const v = d ? (d.fields[st.keyField.field] as string | undefined) : undefined;
+  const ap = f.records[p.id]?.advanceParole;
+  if (!d && k === 'ap' && ap?.from === 'combo-card') return <Row icon="checkc" iconPastel="sage" title={st.title} subtitle={`Covered by the combo card · valid until ${fmt(ap.expires)}`} chevron={false} />;
   return d
     ? <Row icon="doc" iconPastel="sky" title={docTitle(d)} subtitle={`${st.keyField.label} ${v && /^\d{4}-/.test(String(v)) ? fmt(String(v)) : v ?? '—'}`} onPress={() => go(`/document/${d.id}`)} chevron />
     : <Row icon="plus" iconPastel="mint" title={st.title} subtitle={st.why} onPress={() => runFlow({ mode: 'renew', pids: [p.id], only: [k] }, f, toast)} chevron={false} trailing={<T tone="text2" style={font.foot}>Add</T>} />;

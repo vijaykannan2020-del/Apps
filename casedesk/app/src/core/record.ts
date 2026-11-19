@@ -297,7 +297,7 @@ export function deriveRecord(person: Person, allDocs: Document[]): PersonRecord 
 
   // ---- green card documents (v2.9) ----
   const perm = latestBy(of('perm'), (d) => d.fields.noticeDate ?? d.fields.priorityDate);
-  if (perm) r.perm = { caseNumber: perm.fields.caseNumber, filed: perm.fields.priorityDate, certified: perm.fields.noticeDate, expires: perm.fields.validTo, employer: perm.fields.employer, docId: perm.id };
+  if (perm) r.perm = { caseNumber: perm.fields.caseNumber, filed: perm.fields.priorityDate, certified: perm.fields.noticeDate, expires: perm.fields.dueDate, employer: perm.fields.employer, docId: perm.id };
   const med = latestBy(of('medical'), (d) => d.fields.signedDate ?? d.addedAt);
   if (med) r.medical = { signed: med.fields.signedDate, docId: med.id };
 

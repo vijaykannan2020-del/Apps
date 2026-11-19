@@ -38,7 +38,8 @@ test('reads PERM, I-693, I-140 (priority date + category), I-485, interview and 
   assert.equal(perm.fields.caseNumber, 'G-100-26001-123456');
   assert.equal(perm.fields.priorityDate, '2026-01-15');
   assert.equal(perm.fields.noticeDate, '2026-10-01');
-  assert.equal(perm.fields.validTo, '2027-03-30');
+  assert.equal(perm.fields.dueDate, '2027-03-30');
+  assert.equal(perm.fields.validTo, undefined); // never counted as an expiring document
   const med = readDocument(G.medical());
   assert.equal(med.type, 'medical');
   assert.equal(med.fields.signedDate, '2026-09-12');

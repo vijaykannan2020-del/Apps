@@ -27,7 +27,7 @@ export const FIELDS: Record<DocType, FieldSpec[]> = {
   naturalization: [T('Name', 'name'), T('Certificate no.', 'certificateNo'), D('Naturalized on', 'naturalizedOn')],
   'travel-history': [],
   lca: [D('Valid from', 'validFrom'), D('Valid to', 'validTo')],
-  perm: [T('Case no.', 'caseNumber'), T('Employer', 'employer'), D('Filed (priority date)', 'priorityDate'), D('Certified', 'noticeDate'), D('Expires', 'validTo')],
+  perm: [T('Case no.', 'caseNumber'), T('Employer', 'employer'), D('Filed (priority date)', 'priorityDate'), D('Certified', 'noticeDate'), D('File the I-140 by', 'dueDate')],
   medical: [T('Name', 'name'), D('Civil surgeon signed', 'signedDate')],
   other: [T('Name', 'name'), D('Date', 'validTo')],
 };
@@ -110,10 +110,12 @@ export function docNote(d: Document | { type: DocType; fields: DocFields }, ctx:
       return f.programEnd ? { tone: 'green', text: `Program ends ${fmt(f.programEnd)}.${f.travelSignature ? ` Travel signature ${fmt(f.travelSignature)}.` : ''}` } : undefined;
     case 'travel-history':
       return { tone: 'blue', text: `${f.trips?.length ?? 0} trips read. Days outside the US are counted on the person page.` };
-    case 'perm':
+    case 'perm': {
+      const n = daysTo(f.dueDate);
       if (n === null) return f.noticeDate ? { tone: 'blue', text: `Certified ${fmt(f.noticeDate)}. The I-140 must be filed within 180 days of certification.` } : undefined;
-      if (n < 0) return { tone: 'blue', text: `Certification expired ${fmt(f.validTo)} — fine once the I-140 was filed before then.` };
-      return { tone: 'amber', text: `File the I-140 by ${fmt(f.validTo)} (180 days after certification).` };
+      if (n < 0) return { tone: 'blue', text: `Certification was valid to ${fmt(f.dueDate)} — fine once the I-140 was filed before then.` };
+      return { tone: 'amber', text: `File the I-140 by ${fmt(f.dueDate)} (180 days after certification).` };
+    }
     case 'medical':
       return { tone: 'blue', text: `${f.signedDate ? `Signed ${fmt(f.signedDate)}. ` : ''}Filed with the I-485 in its sealed envelope; it counts only for that I-485.` };
     default:
@@ -148,7 +150,7 @@ export function docBadges(d: { type: DocType; fields: DocFields }): { label: str
     const v = d.fields.validTo ? fmt(d.fields.validTo) : '—';
     return [{ label: 'Work permit until', value: v }, { label: 'Travel document until', value: v }];
   }
-  const spec = FIELDS[d.type].find((s) => s.key === 'validTo') ?? (d.type === 'medical' ? FIELDS.medical[1] : FIELDS[d.type][0]);
+  const spec = FIELDS[d.type].find((s) => s.key === 'validTo') ?? (d.type === 'medical' ? FIELDS.medical[1] : d.type === 'perm' ? FIELDS.perm[4] : FIELDS[d.type][0]);
   return spec ? [{ label: spec.label, value: showField(d.fields, spec) || '—' }] : [];
 }
 

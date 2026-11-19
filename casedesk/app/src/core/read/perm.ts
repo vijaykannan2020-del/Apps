@@ -14,7 +14,8 @@ export function readPerm(T: string): DocFields {
   f.caseNumber = U.match(/\b([AG]-\d{3}-\d{5}-\d{6})\b/)?.[1];
   f.priorityDate = dateAfter(T, /(?:filing|filed|received|submitted)\s*date|date\s*(?:of\s*)?(?:filing|filed|received)/i);
   f.noticeDate = dateAfter(T, /(?:certification|certified|determination|decision)\s*date|date\s*certified/i);
-  f.validTo = dateAfter(T, /expiration\s*date|expires?(?:\s*on)?|valid\s*(?:until|through|to)/i) ?? (f.noticeDate ? addDays(f.noticeDate, 180) : undefined);
+  // Kept as the I-140 due date, not an expiry: once the I-140 is filed the date no longer matters.
+  f.dueDate = dateAfter(T, /expiration\s*date|expires?(?:\s*on)?|valid\s*(?:until|through|to)/i) ?? (f.noticeDate ? addDays(f.noticeDate, 180) : undefined);
   const emp = tableValue(T, /employer(?:'s)?\s*(?:name|legal business name)?/i);
   if (emp && !/^(name|address|information)\b/i.test(emp)) f.employer = emp;
   return f;

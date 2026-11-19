@@ -66,7 +66,8 @@ export type GcTrack = {
   next: string[]; // what happens next (plain lines)
 };
 
-const has = (r: PersonRecord, form: string) => r.cases.filter((c) => c.form === form);
+/** A form's cases from receipts and approvals (biometrics / interview notices carry the form too, but aren't the case itself). */
+const has = (r: PersonRecord, form: string) => r.cases.filter((c) => c.form === form && (!c.noticeKind || c.noticeKind === 'rfe' || c.noticeKind === 'noid' || c.noticeKind === 'denial'));
 const latest = (cs: CaseInfo[]) => [...cs].sort((a, b) => (b.noticeDate ?? b.received ?? '').localeCompare(a.noticeDate ?? a.received ?? ''))[0];
 /** A form's case, approved first, then pending (denied ones last). */
 const best = (cs: CaseInfo[]) => cs.find((c) => c.status === 'approved') ?? latest(cs.filter((c) => c.status === 'pending')) ?? latest(cs);
