@@ -7,16 +7,31 @@ provisioning profile, and saves it encrypted in credentials/ios.enc.
 
 iCloud: Apple's API can turn the ICLOUD capability on, but it can NOT create the iCloud container or
 assign it to the App ID — the owner does that once on developer.apple.com (see ICLOUD.md). This script
-stops with a clear message if the new profile doesn't carry the container yet."""
+stops with a clear message if the new profile doesn't carry the container yet.
+
+v2.5 widgets: when app.json has an App Group (ios.entitlements com.apple.security.application-groups), the
+App Groups capability is turned on for the app's App ID and for the widget extension's own App ID
+com.vijaykannan.casedesk.widget (registered here if missing; each capability only when it's off), and the
+widget gets its own App Store profile. Apple's API can't create an App Group or assign it to an App ID — the
+owner does that on developer.apple.com (WIDGETS.md); a profile without the group stops the build early.
+credentials.json then lists both Xcode targets (ImmigrationWallet + widget) for EAS local credentials."""
 import base64, hashlib, json, os, subprocess, sys, tarfile, time, urllib.request, urllib.error
 import jwt  # pyjwt
 
 BUNDLE = 'com.vijaykannan.casedesk'
-VERSION = 'v3-applesignin'  # bump when capabilities change → new profile (v2: iCloud Documents, v3: Sign in with Apple)
+VERSION = 'v4-widgets'  # bump when capabilities change → new profile (v2: iCloud Documents, v3: Sign in with Apple, v4: App Group + widget profile)
 CONTAINER = 'iCloud.com.vijaykannan.casedesk'
 # v2.4 Community: Sign in with Apple, only when app.json asks for it (ios.usesAppleSignIn).
 APPLE_SIGNIN = bool(json.load(open('app.json'))['expo'].get('ios', {}).get('usesAppleSignIn'))
 SIGNIN_ENT = b'com.apple.developer.applesignin'
+# v2.5 widgets: App Group shared with the widget extension (only when app.json asks for it).
+_EXPO = json.load(open('app.json'))['expo']
+GROUPS = (_EXPO.get('ios', {}).get('entitlements', {}) or {}).get('com.apple.security.application-groups') or []
+GROUP = GROUPS[0] if GROUPS else None
+WIDGET_BUNDLE = BUNDLE + '.widget'
+WIDGET = bool(GROUP) and os.path.isdir('targets/widget')
+MAIN_TARGET = ''.join(ch for ch in _EXPO['name'] if ch.isalnum())  # Xcode target name made by prebuild: ImmigrationWallet
+WIDGET_TARGET = 'widget'  # targets/widget → productName widget
 KEY_ID, ISSUER, KEY_PATH = os.environ['EXPO_ASC_KEY_ID'], os.environ['EXPO_ASC_ISSUER_ID'], os.environ['EXPO_ASC_API_KEY_PATH']
 PRIV = open(KEY_PATH).read()
 KEYSTR = ''.join(PRIV.split())
@@ -41,8 +56,16 @@ def api(method, path, body=None, ok409=False, tries=5):
         if e.code >= 500 and n < tries - 1: print(f'Apple busy ({e.code}), retrying…'); time.sleep(10 * (n + 1)); continue
         print(f'Apple API {method} {path} -> {e.code}: {msg}', file=sys.stderr); raise SystemExit(1)
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ios_profile import credentials_doc, ensure_capability
+
 def write_credentials_json(pw):
-    json.dump({'ios': {'provisioningProfilePath': f'{OUT}/profile.mobileprovision', 'distributionCertificate': {'path': f'{OUT}/dist.p12', 'password': pw}}}, open('credentials.json', 'w'), indent=2)
+    json.dump(credentials_doc(pw, OUT, MAIN_TARGET if WIDGET else None, WIDGET_TARGET if WIDGET else None), open('credentials.json', 'w'), indent=2)
+
+def group_error():
+    return (f'::error::The App Group {GROUP} is not assigned yet. On developer.apple.com: Identifiers → App Groups → '
+            f'register {GROUP}; then App IDs → {BUNDLE} and {WIDGET_BUNDLE} → App Groups → Edit (Configure) → tick it → Save. '
+            'Then run this build again. (See casedesk/app/WIDGETS.md)')
 
 def decrypt(src, pw, dest):
     run('openssl', 'enc', '-d', '-aes-256-cbc', '-pbkdf2', '-iter', '200000', '-in', src, '-out', '/tmp/c.tar', '-pass', 'env:P', env={**os.environ, 'P': pw})
@@ -52,7 +75,7 @@ def decrypt(src, pw, dest):
 # 0. Saved and current? reuse
 if os.path.exists(ENC):
     decrypt(ENC, PASS, OUT)
-    if open(f'{OUT}/version').read().strip() == VERSION and os.path.exists(f'{OUT}/profile.mobileprovision'):
+    if open(f'{OUT}/version').read().strip() == VERSION and os.path.exists(f'{OUT}/profile.mobileprovision') and (not WIDGET or os.path.exists(f'{OUT}/widget.mobileprovision')):
         write_credentials_json(open(f'{OUT}/p12pass').read().strip()); print('Reusing saved CaseDesk signing ✓'); sys.exit(0)
 
 MANUAL = 'signing/CaseDesk_App_Store.mobileprovision'  # made by hand in the developer portal when Apple's API is down
@@ -70,7 +93,7 @@ for extra in (['-legacy'], []):
         der = subprocess.run(['openssl', 'x509', '-outform', 'DER'], input=r.stdout, capture_output=True, check=True).stdout; break
 # A hand-made profile is only used if it already carries the iCloud container (the v1 one doesn't)
 # and, when the app uses Sign in with Apple, that entitlement too.
-if os.path.exists(MANUAL) and CONTAINER.encode() in open(MANUAL, 'rb').read() and (not APPLE_SIGNIN or SIGNIN_ENT in open(MANUAL, 'rb').read()):
+if not WIDGET and os.path.exists(MANUAL) and CONTAINER.encode() in open(MANUAL, 'rb').read() and (not APPLE_SIGNIN or SIGNIN_ENT in open(MANUAL, 'rb').read()):
     run('cp', MANUAL, f'{OUT}/profile.mobileprovision')
     write_credentials_json(pw); print('Using hand-made provisioning profile + Inbox certificate ✓'); sys.exit(0)
 serial = subprocess.run(['openssl', 'x509', '-inform', 'DER', '-noout', '-serial'], input=der, capture_output=True, check=True).stdout.decode().strip().split('=')[1].upper().lstrip('0')
@@ -100,8 +123,9 @@ print('Push Notifications on ✓')
 # Only turn iCloud on when it's off: re-posting it can reset the container ticked on developer.apple.com.
 try:
     _caps = api('GET', f'/v1/bundleIds/{bid}/bundleIdCapabilities', tries=2).get('data', [])
+    _caps_ok = True
 except SystemExit:
-    _caps = []
+    _caps, _caps_ok = [], False
 if not any(c.get('attributes', {}).get('capabilityType') == 'ICLOUD' for c in _caps):
     api('POST', '/v1/bundleIdCapabilities', {'data': {'type': 'bundleIdCapabilities', 'attributes': {'capabilityType': 'ICLOUD',
         'settings': [{'key': 'ICLOUD_VERSION', 'options': [{'key': 'XCODE_6'}]}]},
@@ -117,12 +141,30 @@ if APPLE_SIGNIN:
     else:
         print('Sign in with Apple capability already on ✓')
 
+# 2b. v2.5 App Groups: capability on for the app and the widget extension (only when off). The group itself and
+#     its assignment are done by the owner on developer.apple.com (WIDGETS.md) — the profiles below check for it.
+def caps_of(b):
+    try: return api('GET', f'/v1/bundleIds/{b}/bundleIdCapabilities', tries=2).get('data', [])
+    except SystemExit: return None  # unknown → never re-post (it could reset the group assigned on the portal)
+def ensure_app_groups(b, caps, label):
+    print(ensure_capability(api, b, caps, 'APP_GROUPS', label))
+wid = None
+if WIDGET:
+    ensure_app_groups(bid, _caps if _caps_ok else None, BUNDLE)
+    wfound = [b for b in api('GET', f'/v1/bundleIds?filter[identifier]={WIDGET_BUNDLE}&limit=20')['data'] if b['attributes']['identifier'] == WIDGET_BUNDLE]
+    wid = wfound[0]['id'] if wfound else api('POST', '/v1/bundleIds', {'data': {'type': 'bundleIds', 'attributes': {'identifier': WIDGET_BUNDLE, 'name': 'CaseDesk Widget', 'platform': 'IOS'}}})['data']['id']
+    print(f'App ID {WIDGET_BUNDLE} ' + ('✓' if wfound else 'registered ✓'))
+    ensure_app_groups(wid, caps_of(wid), WIDGET_BUNDLE)
+
 # 3. App Store provisioning profile — the iCloud container is checked BEFORE a profile is kept, so a
 #    run that stops here never leaves a stray profile behind (scripts/ios_profile.py, tested).
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ios_profile import pick_or_make_profile, ContainerMissing
+from ios_profile import pick_or_make_profile, ContainerMissing, EntitlementMissing
+MUST = [GROUP.encode()] if WIDGET else []
 try:
-    content, how = pick_or_make_profile(api, bid, cert_id, CONTAINER, int(time.time()), require=[SIGNIN_ENT] if APPLE_SIGNIN else [])
+    content, how = pick_or_make_profile(api, bid, cert_id, CONTAINER, int(time.time()), require=[SIGNIN_ENT] if APPLE_SIGNIN else [], must=MUST)
+except EntitlementMissing:
+    print(group_error(), file=sys.stderr)
+    sys.exit(1)
 except ContainerMissing:
     print(f'::error::The App ID has no iCloud container {CONTAINER} yet. On developer.apple.com: Identifiers → '
           f'iCloud Containers → create {CONTAINER}; then App IDs → {BUNDLE} → iCloud → Edit → tick it → Save. '
@@ -130,11 +172,19 @@ except ContainerMissing:
     sys.exit(1)
 print(how)
 open(f'{OUT}/profile.mobileprovision', 'wb').write(content)
+if WIDGET:
+    try:
+        wcontent, whow = pick_or_make_profile(api, wid, cert_id, None, int(time.time()), must=MUST, name='CaseDesk Widget App Store')
+    except EntitlementMissing:
+        print(group_error(), file=sys.stderr)
+        sys.exit(1)
+    print('Widget: ' + whow)
+    open(f'{OUT}/widget.mobileprovision', 'wb').write(wcontent)
 
 # 4. Save encrypted
 open(f'{OUT}/version', 'w').write(VERSION)
 with tarfile.open('/tmp/c.tar', 'w') as t:
-    for f in ['dist.p12', 'p12pass', 'version', 'profile.mobileprovision']: t.add(f'{OUT}/{f}', arcname=f)
+    for f in ['dist.p12', 'p12pass', 'version', 'profile.mobileprovision'] + (['widget.mobileprovision'] if WIDGET else []): t.add(f'{OUT}/{f}', arcname=f)
 run('openssl', 'enc', '-aes-256-cbc', '-pbkdf2', '-iter', '200000', '-salt', '-in', '/tmp/c.tar', '-out', ENC, '-pass', 'env:P', env={**os.environ, 'P': PASS})
 write_credentials_json(pw)
 print('NEW_CREDENTIALS=1')
