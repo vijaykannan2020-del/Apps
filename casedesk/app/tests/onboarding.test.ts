@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   SETUP_ORDER, OPTIONAL_STEPS, applies, setupSteps, setupProgress, nextStep, prevStep, resumeStep, startRoute, showContinueCard, rerunProgress,
-  suggestStatus, familyStatusLabel, docChecklist, docProgress, gcFactsFor, gcAnswerOf, nextDeadline, countedSteps, type SetupStep,
+  suggestStatus, familyStatusLabel, setupOpen, docChecklist, docProgress, gcFactsFor, gcAnswerOf, nextDeadline, countedSteps, type SetupStep,
 } from '../src/core/onboarding';
 import { deriveRecord } from '../src/core/record';
 import { gcTrackOf } from '../src/core/gc';
@@ -102,6 +102,12 @@ test('onboarding: where the app opens — setupDone users never see it again; Fi
   assert.equal(showContinueCard({ setupDone: true, setup: { step: 'docs', rerun: true } }, 1), false, 'a rerun never shows the card');
   assert.equal(showContinueCard({}, 1), false);
   assert.equal(showContinueCard({ setup: { step: 'docs' } }, 0), false);
+  // open right now (tips and the alert prompt wait)
+  assert.equal(setupOpen({ setup: { step: 'docs' } }), true);
+  assert.equal(setupOpen({ setup: { step: 'docs', later: true } }), false, 'put off: Home behaves normally');
+  assert.equal(setupOpen({ setupDone: true, setup: { step: 'you', rerun: true } }), true, 'Run setup again');
+  assert.equal(setupOpen({ setupDone: true, setup: { step: 'docs' } }), false, 'example family / restore after a partial setup');
+  assert.equal(setupOpen({ setupDone: true }), false);
 });
 
 test('onboarding: family status is suggested from yours (editable)', () => {

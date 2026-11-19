@@ -83,6 +83,10 @@ export function startRoute(s: Pick<Settings, 'setupDone' | 'setup'>, people: num
 /** Home's "Continue setup" card: setup started, not finished, not dismissed. */
 export const showContinueCard = (s: Pick<Settings, 'setupDone' | 'setup'>, people: number) => people > 0 && !s.setupDone && !!s.setup && !s.setup.dismissed;
 
+/** The onboarding is open right now (no tips, no alert prompt): started and not put off; after setup
+ *  is done only a rerun counts (example family, restore and share import set setupDone). */
+export const setupOpen = (s: Pick<Settings, 'setupDone' | 'setup'>) => !!s.setup && !s.setup.later && (!s.setupDone || !!s.setup.rerun);
+
 /** Settings → Run setup again: progress for a rerun (keeps data). */
 export const rerunProgress = (): NonNullable<Settings['setup']> => ({ step: 'you', rerun: true, at: new Date().toISOString() });
 

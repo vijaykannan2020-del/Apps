@@ -17,7 +17,7 @@ import { FIELDS, showField } from '../core/docs';
 import { REMINDER_TYPES, TYPE_DEFAULT, typeDates, typeSetting, typesFor, type ReminderType } from '../core/reminders';
 import { widgetName } from '../core/widgets';
 import {
-  GC_ANSWERS, OPTIONAL_STEPS, docChecklist, docProgress, familyStatusLabel, gcAnswerOf, gcFactsFor, nextDeadline, nextStep, prevStep, resumeStep, setupProgress, setupSteps,
+  GC_ANSWERS, OPTIONAL_STEPS, SETUP_ORDER, docChecklist, docProgress, familyStatusLabel, gcAnswerOf, gcFactsFor, nextDeadline, nextStep, prevStep, resumeStep, setupProgress, setupSteps,
   suggestStatus, type GcAnswer, type SetupStep,
 } from '../core/onboarding';
 import { useFamily, type FamilyState } from '../data/FamilyProvider';
@@ -391,7 +391,7 @@ function YouStep({ a, set, next }: StepCtx) {
               style={({ pressed }) => ({ flex: 1, backgroundColor: t.card, borderRadius: 22, padding: 14, borderWidth: 2, borderColor: on ? t.text : 'transparent', transform: [{ scale: pressed ? 0.98 : 1 }] })}>
               <View style={{ backgroundColor: t.pastel.sage, borderRadius: 16, padding: 10, minHeight: 64, justifyContent: 'space-between' }}>
                 <T style={[font.headline, { color: t.ink }]} numberOfLines={1}>{widgetName(full, k)}</T>
-                <T style={[font.caption, { color: t.ink2 }]}>H-1B · 412 days</T>
+                <T style={[font.caption, { color: t.ink2 }]} numberOfLines={1}>{`${a.status ? familyStatusLabel(a.status, 'self') : 'Status'} · 412 days`}</T>
               </View>
               <T style={[font.sub, { fontWeight: '600', marginTop: 8, textAlign: 'center' }]}>{k === 'initials' ? 'Initials' : 'First name'}</T>
             </Pressable>
@@ -654,18 +654,16 @@ function DocsStep({ f }: StepCtx) {
             <T tone="text2" style={font.foot} numberOfLines={2}>{d ? `${m.keyField.label} ${val || 'saved'}` : isLater ? 'Later · add it anytime' : hint}</T>
           </View>
           {isLater ? <Pressable onPress={() => setLater(id, false)} accessibilityRole="button" accessibilityLabel={`Add ${m.title} now`} style={{ minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: 6 }}><T tone="accent" style={[font.sub, { fontWeight: '600' }]}>Add now</T></Pressable> : null}
+          {!d && !isLater ? <Pressable onPress={() => setLater(id, true)} accessibilityRole="button" accessibilityLabel={`Later: ${m.title} for ${p.name}`} style={{ minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: 6 }}><T tone="text2" style={[font.sub, { fontWeight: '600' }]}>Later</T></Pressable> : null}
         </View>
         {!d && !isLater ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8, marginLeft: 34 }}>
-            {([['camera', 'Scan', 'camera'], ['photo', 'Photo', 'photos'], ['folder', 'File', 'files'], ['edit', 'Type dates', 'type']] as const).map(([icon, label, src]) => (
-              <Pressable key={label} onPress={() => open(p.id, k, src)} accessibilityRole="button" accessibilityLabel={`${label}: ${m.title} for ${p.name}`}
-                style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, height: 34, paddingHorizontal: 11, borderRadius: 17, backgroundColor: t.dark ? t.card2 : '#E4E5E9', opacity: pressed ? 0.7 : 1 })}>
-                <Icon name={icon} size={15} color={t.text} /><T style={[font.foot, { fontWeight: '600' }]}>{label}</T>
+          <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+            {([['camera', 'Scan', 'camera', 'Scan with the camera'], ['photo', 'Photo', 'photos', 'Choose a photo'], ['folder', 'File', 'files', 'Upload a file'], ['edit', 'Type', 'type', 'Type dates']] as const).map(([icon, label, src, a11y]) => (
+              <Pressable key={label} onPress={() => open(p.id, k, src)} accessibilityRole="button" accessibilityLabel={`${a11y}: ${m.title} for ${p.name}`}
+                style={({ pressed }) => ({ flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', gap: 3, minHeight: 54, borderRadius: 16, backgroundColor: t.dark ? t.card2 : '#EEEFF2', transform: [{ scale: pressed ? 0.95 : 1 }] })}>
+                <Icon name={icon} size={18} color={t.text} /><T style={[font.caption, { fontWeight: '600' }]} numberOfLines={1}>{label}</T>
               </Pressable>
             ))}
-            <Pressable onPress={() => setLater(id, true)} accessibilityRole="button" accessibilityLabel={`Later: ${m.title} for ${p.name}`} style={{ height: 34, justifyContent: 'center', paddingHorizontal: 8 }}>
-              <T tone="text2" style={[font.foot, { fontWeight: '600' }]}>Later</T>
-            </Pressable>
           </View>
         ) : null}
       </View>
@@ -760,6 +758,7 @@ function CasesStep({ f, toast }: StepCtx) {
 }
 
 // ---- alerts: explain first, then the system permission (the button) ----
+const STEP_REMINDER: Partial<Record<StepKey, ReminderType>> = { passport: 'passport', visa: 'visa', i94: 'i94', approval: 'approval', ead: 'ead', combo: 'ead', ap: 'ap', gc: 'gc' };
 function useFamilyItems(f: FamilyState) {
   return useMemo(() => reminderItems(f.people, f.records, f.results, []), [f.people, f.records, f.results]);
 }
@@ -768,7 +767,15 @@ function AlertsStep({ f }: StepCtx) {
   const items = useFamilyItems(f);
   const first = items[0];
   const me = f.main;
-  const kinds: ReminderType[] = (() => { const s = new Set<ReminderType>(); for (const p of f.people) for (const k of typesFor(f.records[p.id], false)) s.add(k); return s.size ? [...s] : ['passport', 'i94', 'approval', 'ead'] as ReminderType[]; })();
+  // the types the family has dates for, plus the ones their document checklists will bring
+  const kinds: ReminderType[] = (() => {
+    const s = new Set<ReminderType>();
+    for (const p of f.people) {
+      for (const k of typesFor(f.records[p.id], false)) s.add(k);
+      for (const k of docChecklist(p, f.records[p.id]).key) { const ty = STEP_REMINDER[k]; if (ty) s.add(ty); }
+    }
+    return REMINDER_TYPES.map((x) => x.key).filter((k) => s.has(k));
+  })();
   const onFor = (k: ReminderType) => f.people.every((p) => typeSetting(p.reminders, k).on);
   const toggle = async (k: ReminderType, on: boolean) => {
     tap();
@@ -880,7 +887,7 @@ function DoneStep({ f }: StepCtx) {
           <T a11y="header" style={[font.title, { marginTop: 16 }]}>{`You’re all set${me ? `, ${me.name.split(' ')[0]}` : ''}`}</T>
           <T style={[font.sub, { marginTop: 4 }]}>Saved on this phone. Add or change anything from Home.</T>
           <View style={{ marginTop: 18, gap: 12 }}>
-            <SummaryLine icon="users" label="People" value={`${f.people.length}`} extra={<View style={{ flexDirection: 'row', gap: -6 }}>{f.people.slice(0, 5).map((p) => <Avatar key={p.id} name={p.name} size="sm" />)}</View>} />
+            <SummaryLine icon="users" label="People" value={`${f.people.length}`} extra={<View style={{ flexDirection: 'row', gap: 4 }}>{f.people.slice(0, 4).map((p) => <Avatar key={p.id} name={p.name} size="sm" tone="sky" />)}</View>} />
             <SummaryLine icon="doc" label="Documents added" value={`${prog.added} of ${prog.total}`} />
             <SummaryLine icon="cal" label="Next date" value={nd ? `${nd.what} · ${fmt(nd.date)}` : 'Add documents to see dates'} sub={nd && f.people.length > 1 ? nd.name : undefined} />
           </View>
@@ -928,7 +935,7 @@ function SetupPreview({ step, a }: { step: SetupStep; a: Answers }) {
       <View style={{ width: '100%', maxWidth: 420 }}>
         <Pastel tone="sky" pad={22}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Avatar name={name || 'You'} />
+            <Avatar name={name || 'You'} tone="sage" />
             <View style={{ flex: 1, minWidth: 0 }}>
               <T style={font.big} numberOfLines={1}>{name || 'Your name'}</T>
               <T style={font.foot}>{[st, a.where === 'Outside' ? `In ${a.country}` : a.where === 'US' ? 'In the US' : undefined].filter(Boolean).join(' · ')}</T>
@@ -940,7 +947,7 @@ function SetupPreview({ step, a }: { step: SetupStep; a: Answers }) {
               {fam.map((d) => <View key={d.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.fill, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10 }}><T style={font.caption}>{`${d.name.split(' ')[0]} · ${familyStatusLabel(d.status, d.relation)}`}</T></View>)}
             </View>
           ) : null}
-          {rows.length ? <View style={{ marginTop: 14 }}><T style={font.caption}>{`Documents · ${prog.added} of ${prog.total}`}</T><Meter value={prog.added} max={Math.max(1, prog.total)} /></View> : null}
+          {rows.length && SETUP_ORDER.indexOf(step) >= SETUP_ORDER.indexOf('docs') ? <View style={{ marginTop: 14 }}><T style={font.caption}>{`Documents · ${prog.added} of ${prog.total}`}</T><Meter value={prog.added} max={Math.max(1, prog.total)} /></View> : null}
         </Pastel>
         <View style={{ alignItems: 'center', marginTop: 28 }}>
           <View style={{ width: 110, height: 110, borderRadius: 40, backgroundColor: t.pastel[tone], alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={48} color={t.ink} /></View>
@@ -994,7 +1001,7 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
       </View>
       <Footer column>
         <Button title="Get started" onPress={onStart} />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
           <Button kind="ghost" size="sm" icon="download" title="I have a shared file" onPress={() => router.push('/share-import' as never)} />
           <Button kind="ghost" size="sm" icon="restore" title="Restore a backup" onPress={() => router.push('/restore' as never)} />
           {Platform.OS === 'ios' ? <Button kind="ghost" size="sm" icon="backup" title="iCloud" label="Restore from iCloud" onPress={() => router.push('/restore-icloud' as never)} /> : null}

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, View } from 'react-native';
 import { useFamily } from '../data/FamilyProvider';
 import { askNotificationPermission, notificationPermission, openNotificationSettings } from '../native/reminders';
+import { setupOpen } from '../core/onboarding';
 import { alertOn, permText, shouldAskNotifications, type AlertKind, type Perm } from '../core/notify';
 import { Button, Group, Icon, Row, SheetButtons, Switch, T, TourTarget, Why, font, useSheet, useTheme, useToast, useTourActive } from '../ui';
 
@@ -58,7 +59,7 @@ export function NotifyPrompt() {
   const touring = useTourActive();
   const [perm] = usePermission();
   const shown = useRef(false);
-  const want = !!perm && f.ready && !!f.settings.setupDone && !(f.settings.setup && !f.settings.setup.later) && shouldAskNotifications({ perm, settings: f.settings, docs: f.docs.length, cases: f.cases.length });
+  const want = !!perm && f.ready && !!f.settings.setupDone && !setupOpen(f.settings) && shouldAskNotifications({ perm, settings: f.settings, docs: f.docs.length, cases: f.cases.length });
   useEffect(() => {
     if (!want || touring || shown.current) return;
     const timer = setTimeout(() => { shown.current = true; sheet.open('Get alerts?', <NotifyExplainer />); }, 1500);
