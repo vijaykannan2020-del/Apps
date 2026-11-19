@@ -16,14 +16,17 @@ def pick_or_make_profile(api, bid, cert_id, container, stamp):
     """api(method, path, body=None, ...) -> dict (the App Store Connect helper). Returns (content, message)."""
     want = container.encode()
     # 1. What Apple says about the iCloud capability (it doesn't always list containers).
-    caps = api('GET', f'/v1/bundleIds/{bid}/bundleIdCapabilities?limit=50')
+    try:  # this relationship endpoint takes no query parameters
+        caps = api('GET', f'/v1/bundleIds/{bid}/bundleIdCapabilities', tries=2)
+    except SystemExit:
+        caps = {}
     icloud = [c for c in caps.get('data', []) if c.get('attributes', {}).get('capabilityType') == 'ICLOUD']
     listed = json.dumps(icloud)
     if icloud and 'iCloud.' in listed and container not in listed:
         raise ContainerMissing()
     # 2. Reuse an active App Store profile with the container and our certificate.
     try:
-        profs = api('GET', f'/v1/bundleIds/{bid}/profiles?limit=50&include=certificates', tries=2)
+        profs = api('GET', f'/v1/bundleIds/{bid}/profiles', tries=2)
     except SystemExit:
         profs = {}
     for pr in profs.get('data', []):

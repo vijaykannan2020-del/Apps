@@ -16,7 +16,7 @@ class FakeApi:
 
     def __call__(self, method, path, body=None, ok409=False, tries=5):
         self.calls.append((method, path.split('?')[0]))
-        if method == 'GET' and path.endswith('/bundleIdCapabilities?limit=50') or 'bundleIdCapabilities' in path and method == 'GET':
+        if method == 'GET' and 'bundleIdCapabilities' in path and method == 'GET':
             return {'data': self.caps}
         if method == 'GET' and '/profiles' in path:
             return {'data': self.profiles}
