@@ -57,7 +57,7 @@ export function useOpenTarget() {
     if (x.to === 'person' && x.id) go(`/person/${x.id}`);
     else if (x.to === 'case' && x.id) go(`/case/${encodeURIComponent(x.id)}`);
     else if (x.to === 'cases') router.navigate('/(tabs)/cases' as never);
-    else if (x.to === 'backup') router.navigate({ pathname: '/(tabs)/settings', params: { backup: '1' } } as never);
+    else if (x.to === 'backup') go('/settings', { backup: '1' });
     else if (x.to === 'docs') {
       const pids = f.people.filter((p) => (f.missing[p.id]?.length ?? 0) > 0).map((p) => p.id);
       if (pids.length) runFlow({ mode: 'missing', pids, missingOnly: true }, f); else router.navigate('/(tabs)/family' as never);

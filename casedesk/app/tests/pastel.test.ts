@@ -90,3 +90,26 @@ test('pastel: one brand palette — Appearance offers System, Light and Dark onl
   assert.match(tabs, /indicatorColor/, 'Material 3 pill indicator colour');
   assert.doesNotMatch(tabs, /from 'expo-router'.*Tabs\b/, 'no custom JS tab bar on phones');
 });
+
+test('navigation (v2.7): five tabs — Home, Family, Cases, Community, Tools; Settings is a pushed native-style page', () => {
+  const tabs = readFileSync(new URL('../app/(tabs)/_layout.tsx', import.meta.url), 'utf8');
+  assert.deepEqual([...tabs.matchAll(/Trigger name="([a-z]+)"/g)].map((m) => m[1]), ['index', 'family', 'cases', 'forum', 'tools']);
+  assert.match(tabs, /bubble\.left\.and\.bubble\.right/);
+  assert.match(tabs, /md="forum"/);
+  assert.throws(() => readFileSync(new URL('../app/(tabs)/settings.tsx', import.meta.url)), 'Settings is no longer a tab');
+  // deep link casedesk://settings → app/settings.tsx
+  assert.match(readFileSync(new URL('../app/settings.tsx', import.meta.url), 'utf8'), /SettingsScreen as default/);
+  // the Community tab hosts the existing feed; Tools no longer lists it
+  assert.match(readFileSync(new URL('../app/(tabs)/forum.tsx', import.meta.url), 'utf8'), /<TabHost><CommunityFeedScreen/);
+  assert.doesNotMatch(readFileSync(new URL('../src/screens/tools.tsx', import.meta.url), 'utf8'), /id: 'community'/);
+  const home = readFileSync(new URL('../src/screens/home.tsx', import.meta.url), 'utf8');
+  assert.match(home, /go\('\/settings'\)/, 'the avatar opens Settings');
+  assert.match(home, /\(tabs\)\/forum/, 'Ask the community opens the tab');
+  const st = readFileSync(new URL('../src/screens/settings.tsx', import.meta.url), 'utf8');
+  for (const sec of ['Appearance', 'Privacy &amp; Face ID', 'Notifications', 'Backup &amp; iCloud', 'Widgets &amp; Wallet', 'Help', 'About', 'Delete all data']) assert.ok(st.includes(`<SectionHeader>${sec}</SectionHeader>`), sec);
+  assert.match(st, /<SettingsList os=\{os\}>/);
+  assert.match(st, /Linking\.openSettings\(\)/, 'Open system settings row');
+  assert.match(st, /go\('\/profile'\)/, 'Profile at the top');
+  assert.match(st, /appBar: 'android'/, 'Material top app bar on Android');
+  assert.doesNotMatch(readFileSync(new URL('../src/screens/profile.tsx', import.meta.url), 'utf8') + home, /\(tabs\)\/settings/);
+});

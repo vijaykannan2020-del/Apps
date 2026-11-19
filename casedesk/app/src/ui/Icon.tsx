@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 type Ion = React.ComponentProps<typeof Ionicons>['name'];
 const MAP: Record<string, [string, Ion]> = {
-  chevL: ['chevron.left', 'chevron-back'], chevR: ['chevron.right', 'chevron-forward'], x: ['xmark', 'close'], plus: ['plus', 'add'],
+  arrowL: ['arrow.left', 'arrow-back'], chevL: ['chevron.left', 'chevron-back'], chevR: ['chevron.right', 'chevron-forward'], x: ['xmark', 'close'], plus: ['plus', 'add'],
   minus: ['minus.circle', 'remove-circle-outline'], camera: ['camera', 'camera-outline'], photo: ['photo', 'image-outline'], folder: ['folder', 'folder-outline'],
   check: ['checkmark', 'checkmark'], checkc: ['checkmark.circle', 'checkmark-circle-outline'], alert: ['exclamationmark.triangle', 'warning-outline'],
   info: ['info.circle', 'information-circle-outline'], share: ['square.and.arrow.up', 'share-outline'], refresh: ['arrow.clockwise', 'refresh'],

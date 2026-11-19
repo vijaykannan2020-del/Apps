@@ -1,7 +1,7 @@
 // Design tokens for the pastel look (v2.7): true black + dark grey cards + pastel blocks; light mode
 // is the soft-grey equivalent. One brand palette; the user picks System / Light / Dark only.
 import React, { createContext, useContext } from 'react';
-import { AccessibilityInfo, useColorScheme, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Platform, useColorScheme, useWindowDimensions } from 'react-native';
 import type { Severity } from '../core/rules/types';
 import { DARK, LIGHT, PASTEL, TONE_PASTEL, onPastel, type PastelTone } from './tokens';
 export { DARK, LIGHT, PASTEL, INK, INK2, contrast, m3Roles, onPastel, TONE_PASTEL } from './tokens';
@@ -107,3 +107,13 @@ export function useReduceMotion() {
   }, []);
   return rm;
 }
+
+/**
+ * Which platform's list conventions to draw (SettingsList): iOS inset grouped rows or Android
+ * Material 3 preference rows. Web preview only: ?os=android / ?os=ios picks one for review.
+ */
+export type ListOS = 'ios' | 'android';
+export const WEB_OS: ListOS | undefined = (() => {
+  try { const m = /[?&]os=(ios|android)/.exec((globalThis as any).location?.search ?? ''); return m ? (m[1] as ListOS) : undefined; } catch { return undefined; }
+})();
+export const listOS = (): ListOS => WEB_OS ?? Platform.select<ListOS>({ android: 'android', default: 'ios' })!;

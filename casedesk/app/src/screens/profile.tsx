@@ -30,9 +30,9 @@ export function ProfileScreen() {
   const t = useTheme();
   const params = useLocalSearchParams<{ backup?: string }>();
   // Old links (Home's "Back up now" in v2.0) go to Settings now.
-  useEffect(() => { if (params.backup === '1') router.replace({ pathname: '/(tabs)/settings', params: { backup: '1' } } as never); }, [params.backup]);
+  useEffect(() => { if (params.backup === '1') router.replace({ pathname: '/settings', params: { backup: '1' } } as never); }, [params.backup]);
   return (
-    <Screen nav={{ back: 'Home', onBack: back, title: 'Profile' }}>
+    <Screen nav={{ back: 'Back', onBack: back, title: 'Profile', right: <Pressable onPress={() => go('/settings')} accessibilityRole="button" accessibilityLabel="Settings" hitSlop={6} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="gear" size={22} color={t.text} /></Pressable> }}>
       {me ? (
         <Card onPress={() => go(`/person/${me.id}`)} label={`${me.name}, your page`}>
           <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
@@ -51,7 +51,7 @@ export function ProfileScreen() {
       <Group>
         {f.people.map((p) => { const r = p.reminders ?? { on: true, lead: f.settings.reminderLeadDays }; return <Row key={p.id} icon="bell" title={p.name} subtitle={r.on ? leadText(r.lead, ' · ') : 'Off'} onPress={() => go(`/reminders/${p.id}`)} />; })}
       </Group>
-      <Group style={{ marginTop: 24 }}><Row icon="gear" title="Settings" subtitle="Appearance, Face ID, backups, help, about" onPress={() => router.navigate('/(tabs)/settings' as never)} /></Group>
+      <Group style={{ marginTop: 24 }}><Row icon="gear" title="Settings" subtitle="Appearance, Face ID, backups, help, about" onPress={() => go('/settings')} /></Group>
     </Screen>
   );
 }

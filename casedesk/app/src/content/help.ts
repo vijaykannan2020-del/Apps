@@ -63,7 +63,7 @@ export const HELP: HelpTopic[] = [
   {
     id: 'backups', title: 'Backups', sub: 'Keep everything safe when you change phones',
     body: [
-      'iCloud backup (Settings → Backup & restore): turn it on once and set a password. Like WhatsApp, Immigration Wallet then backs up to your own iCloud every day and after changes, and keeps the last 3. Restore from iCloud on a new phone from the Welcome screen.',
+      'iCloud backup (Settings → Backup & iCloud): turn it on once and set a password. Like WhatsApp, Immigration Wallet then backs up to your own iCloud every day and after changes, and keeps the last 3. Restore from iCloud on a new phone from the Welcome screen.',
       'Settings → Back up to a file makes one password-protected .casedesk file with every person, document (images and PDFs) and case. Save it to Files, iCloud Drive or Google Drive, or AirDrop it to your new phone.',
       'To restore, choose the file and type its password. On a new phone everything is restored; on a phone that already has data you can replace it or merge (you’ll see exactly what was added).',
       'Nobody can open the file without the password — and we can’t recover it, so keep it somewhere safe.',
@@ -113,10 +113,10 @@ export const HELP: HelpTopic[] = [
     body: [
       'Immigration Wallet has two widgets. Next deadline (small, and on the Lock Screen) shows who, what and how many days are left, coloured by how close it is: red within 30 days, amber within 90. Family status (medium and large) lists up to 4 people with their status and valid-until date; the large size adds the latest case update and when the next Visa Bulletin is expected.',
       'To add one: touch and hold an empty part of the Home Screen → Edit → Add Widget → Immigration Wallet → pick a size. For the Lock Screen: touch and hold the Lock Screen → Customize → Lock Screen → tap the widget area. Tapping a widget opens that person or case.',
-      'Widgets show only a short summary — initials or first names (Settings → Widgets), status labels and dates. Never passport, receipt or A-numbers. When Face ID lock is on, widgets hide everything and only say “Open Immigration Wallet” (you can change this in Settings → Widgets).',
+      'Widgets show only a short summary — initials or first names (Settings → Widgets & Wallet), status labels and dates. Never passport, receipt or A-numbers. When Face ID lock is on, widgets hide everything and only say “Open Immigration Wallet” (you can change this in Settings → Widgets & Wallet).',
       'Widgets update when you change something in the app and once a day. They are for your reference — not an official document, and not legal advice. Widgets need the latest app version from TestFlight and iOS 17 or later.',
     ],
-    steps: ['Home Screen → touch and hold → Edit → Add Widget → Immigration Wallet', 'Settings → Widgets → Show names on widgets'],
+    steps: ['Home Screen → touch and hold → Edit → Add Widget → Immigration Wallet', 'Settings → Widgets & Wallet → Show names on widgets'],
   },
   {
     id: 'wallet-card', title: 'Wallet card', sub: 'A status reminder card in Apple Wallet',

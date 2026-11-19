@@ -70,7 +70,7 @@ export function Home() {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
           <TourButton />
-          <Pressable onPress={() => go('/profile')} accessibilityRole="button" accessibilityLabel="Profile and settings" hitSlop={4}><Avatar name={me.name} tone="sky" /></Pressable>
+          <Pressable onPress={() => go('/settings')} accessibilityRole="button" accessibilityLabel="Settings and profile" hitSlop={4}><Avatar name={me.name} tone="sky" /></Pressable>
         </View>
       </View>
 
@@ -132,7 +132,7 @@ export function Home() {
     <>
       <SectionHeader>Community</SectionHeader>
       <Group>
-        <Row icon="chat" iconPastel="blush" title="Ask the community" subtitle={famTags.length ? `People with ${famTags.slice(0, 3).join(', ')}` : 'People with the same visa'} onPress={() => go('/tools/community')} />
+        <Row icon="chat" iconPastel="blush" title="Ask the community" subtitle={famTags.length ? `People with ${famTags.slice(0, 3).join(', ')}` : 'People with the same visa'} onPress={() => router.navigate('/(tabs)/forum' as never)} />
       </Group>
     </>
   );

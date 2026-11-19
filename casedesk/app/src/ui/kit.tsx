@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
-import { font, MIN_TOUCH, radius, space, tint, toneColor, toneInk, TONE_WORD, useLayout, useTheme, useReduceMotion, PastelScope, PlainScope, pastelFor, tonePastel, type Tone, type PastelTone } from './theme';
+import { font, MIN_TOUCH, radius, space, tint, toneColor, toneInk, TONE_WORD, useLayout, useTheme, useReduceMotion, PastelScope, PlainScope, pastelFor, tonePastel, listOS, m3Roles, type ListOS, type Tone, type PastelTone } from './theme';
 import type { Severity } from '../core/rules/types';
 import { fmt, isISO } from '../core/dates';
 
@@ -71,6 +71,22 @@ export const H1 = ({ children }: { children: React.ReactNode }) => <T a11y="head
 export const Why = ({ children }: { children: React.ReactNode }) => <T tone="text2" style={[font.sub, { marginTop: 4 }]}>{children}</T>;
 export const Hint = ({ children, center, style }: { children: React.ReactNode; center?: boolean; style?: TextStyle }) => <T tone="text2" style={[font.caption, { marginTop: 8 }, center ? { textAlign: 'center' } : {}, style ?? {}]}>{children}</T>;
 
+/** Inside a <SettingsList>: Group, Row and SectionHeader draw the platform's own list style. */
+const ListCtx = createContext<ListOS | null>(null);
+/**
+ * A platform-native settings list. iOS: inset grouped — rows joined in rounded groups with inset
+ * hairlines, small icon tiles, grey section headers. Android: Material 3 preference list —
+ * full-width rows, no cards, section headers in the accent colour, switches at the end.
+ * Put the usual <SectionHeader>, <Group> and <Row> inside; they pick the style up from here.
+ */
+export function SettingsList({ children, os }: { children: React.ReactNode; os?: ListOS }) {
+  return <ListCtx.Provider value={os ?? listOS()}>{children}</ListCtx.Provider>;
+}
+/** A stack screen shown as a tab (the Community feed): no back button, room for the tab bar. */
+const TabHostCtx = createContext(false);
+export const TabHost = ({ children }: { children: React.ReactNode }) => <TabHostCtx.Provider value>{children}</TabHostCtx.Provider>;
+const flat = (children: React.ReactNode): React.ReactNode[] => React.Children.toArray(children).flatMap((c) => (React.isValidElement(c) && c.type === React.Fragment ? flat((c.props as { children?: React.ReactNode }).children) : [c])).filter(Boolean);
+
 export function LargeTitle({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -81,6 +97,10 @@ export function LargeTitle({ title, right }: { title: string; right?: React.Reac
 }
 
 export function SectionHeader({ children, right }: { children: string; right?: React.ReactNode }) {
+  const os = useContext(ListCtx);
+  const t = useTheme();
+  if (os === 'ios') return <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 26, marginBottom: 7, marginHorizontal: 18, gap: 8 }}><T tone="text2" a11y="header" style={[font.caption, { flexShrink: 1 }]}>{children}</T>{right}</View>;
+  if (os === 'android') return <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 4, gap: 8, minHeight: 32 }}><Text accessibilityRole="header" style={{ color: m3Roles(t).primary, fontSize: 14, fontWeight: '600', letterSpacing: 0.1, flexShrink: 1 }}>{children}</Text>{right}</View>;
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 26, marginBottom: 12, marginHorizontal: 2, gap: 8, minHeight: 28 }}>
       <T a11y="header" style={[font.title2, { fontSize: 20, lineHeight: 26, flexShrink: 1 }]}>{children}</T>
@@ -100,12 +120,29 @@ function Bar({ children, style, edge }: { children: React.ReactNode; style?: Vie
   return <View style={[{ backgroundColor: t.bar }, border, style]}>{children}</View>;
 }
 
-export type NavProps = { title?: string; back?: string; onBack?: () => void; right?: React.ReactNode; progress?: { label: string; right?: string; value: number } };
+export type NavProps = { title?: string; back?: string; onBack?: () => void; right?: React.ReactNode; appBar?: 'android'; progress?: { label: string; right?: string; value: number } };
 
-export function NavBar({ title, back, onBack, right, progress }: NavProps) {
+export function NavBar({ title, back: backProp, onBack, right, progress, appBar }: NavProps) {
   const insets = useSafeAreaInsets();
   const L = useLayout();
   const t = useTheme();
+  const back = useContext(TabHostCtx) ? undefined : backProp; // a tab root has no back button
+  // Material 3 small top app bar: back arrow, title at the start, actions at the end
+  if (appBar === 'android') {
+    return (
+      <Bar edge="top" style={{ paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
+        <View style={{ minHeight: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, gap: 4, alignSelf: 'center', width: '100%', maxWidth: L.maxWidth + 2 * L.side }}>
+          {back !== undefined ? (
+            <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Navigate up" android_ripple={{ color: t.fill, borderless: true, radius: 22 }} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="arrowL" size={24} color={t.text} />
+            </Pressable>
+          ) : <View style={{ width: 12 }} />}
+          <T a11y="header" numberOfLines={1} style={{ fontSize: 22, lineHeight: 28, fontWeight: '400', flex: 1 }}>{title ?? ''}</T>
+          {right}
+        </View>
+      </Bar>
+    );
+  }
   return (
     <Bar edge="top" style={{ paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
       <View style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, alignSelf: 'center', width: '100%', maxWidth: L.maxWidth + 2 * L.side }}>
@@ -155,8 +192,9 @@ function Progress({ label, right, value }: { label: string; right?: string; valu
 export function Footer({ children, column }: { children: React.ReactNode; column?: boolean }) {
   const insets = useSafeAreaInsets();
   const L = useLayout();
+  const hosted = useContext(TabHostCtx); // a stack screen shown as a tab: keep the footer above the tab bar
   return (
-    <Bar edge="bottom" style={{ paddingBottom: 12 + insets.bottom, paddingTop: 12, paddingLeft: insets.left, paddingRight: insets.right }}>
+    <Bar edge="bottom" style={{ paddingBottom: 12 + insets.bottom + (hosted ? 58 : 0), paddingTop: 12, paddingLeft: insets.left, paddingRight: insets.right }}>
       <View style={{ flexDirection: column ? 'column' : 'row', flexWrap: column ? 'nowrap' : 'wrap', gap: 10, paddingHorizontal: L.side, alignSelf: 'center', width: '100%', maxWidth: L.maxWidth + 2 * L.side }}>{children}</View>
     </Bar>
   );
@@ -168,10 +206,12 @@ export function Footer({ children, column }: { children: React.ReactNode; column
  * the left column (list) stays put while the right one (detail) scrolls on its own. On phones the
  * panes are one normal scrolling page: left, then right.
  */
-export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard, padTop = true, wide, panes, paneRatio = 1, tour }: { nav?: NavProps; footer?: React.ReactNode; children?: React.ReactNode; scroll?: boolean; tabRoot?: boolean; keyboard?: boolean; padTop?: boolean; wide?: boolean; panes?: { left: React.ReactNode; right: React.ReactNode }; paneRatio?: number; tour?: Tour }) {
+export function Screen({ nav, footer, children, scroll = true, tabRoot: tabRootProp, keyboard, padTop = true, wide, panes, paneRatio = 1, tour }: { nav?: NavProps; footer?: React.ReactNode; children?: React.ReactNode; scroll?: boolean; tabRoot?: boolean; keyboard?: boolean; padTop?: boolean; wide?: boolean; panes?: { left: React.ReactNode; right: React.ReactNode }; paneRatio?: number; tour?: Tour }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const L = useLayout();
+  const hosted = useContext(TabHostCtx);
+  const tabRoot = tabRootProp || hosted;
   const inner: ViewStyle = { paddingHorizontal: L.side, paddingTop: nav ? 20 : padTop ? insets.top + 14 : 0, paddingBottom: (footer ? 24 : 32) + (tabRoot ? insets.bottom + 56 : footer ? 0 : insets.bottom), alignSelf: 'center', width: '100%', maxWidth: wide && L.twoCol ? L.wideMax + 2 * L.side : L.maxWidth + 2 * L.side };
   const split = !!panes && L.twoCol;
   const paneInner = (left: boolean): ViewStyle => ({ ...inner, maxWidth: undefined, alignSelf: 'stretch', paddingLeft: left ? L.side : 10, paddingRight: left ? 10 : L.side });
@@ -224,9 +264,26 @@ export const Stack = ({ children, gap = 12, style }: { children: React.ReactNode
  */
 export function Group({ children, style, joined }: { children: React.ReactNode; style?: ViewStyle; joined?: boolean }) {
   const t = useTheme();
-  const items = React.Children.toArray(children).filter(Boolean);
+  const os = useContext(ListCtx);
+  const L = useLayout();
+  const items = flat(children);
   const { backgroundColor, ...rest } = (StyleSheet.flatten(style) ?? {}) as ViewStyle;
   const bg = backgroundColor ?? t.card;
+  // Android preference list: full-width rows straight on the page, no cards, no dividers
+  if (os === 'android') return <View style={[{ marginHorizontal: -L.side }, rest]}>{items.map((c, i) => <View key={i}>{c}</View>)}</View>;
+  // iOS inset grouped: one rounded group, hairlines inset past the icon tile
+  if (os === 'ios') {
+    return (
+      <View style={[{ backgroundColor: bg, borderRadius: 24, overflow: 'hidden' }, rest]}>
+        {items.map((c, i) => (
+          <View key={i}>
+            {i > 0 ? <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.sep, marginLeft: 60 }} /> : null}
+            {c}
+          </View>
+        ))}
+      </View>
+    );
+  }
   if (joined) {
     return (
       <View style={[{ backgroundColor: bg, borderRadius: radius.card, overflow: 'hidden' }, rest]}>
@@ -289,7 +346,10 @@ export function Dot({ tone, label }: { tone: Tone; label?: string }) {
  *  (red urgent · amber attention · green good); without one it is sky (information). */
 export function RowIcon({ name, tone, pastel, size = 40 }: { name: string; tone?: Tone; pastel?: PastelTone; size?: number }) {
   const t = useTheme();
+  const os = useContext(ListCtx);
   const bg = t.onPastel ? t.fill : t.pastel[pastel ?? (tone ? tonePastel(tone) : 'sky')];
+  // iOS settings rows: the small rounded-square icon tile
+  if (os === 'ios') return <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}><Icon name={name} size={17} color={t.ink} /></View>;
   return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}><Icon name={name} size={Math.round(size * 0.47)} color={t.ink} /></View>;
 }
 
@@ -300,8 +360,12 @@ export function Row({ title, subtitle, value, icon, iconTone, iconPastel, avatar
   onPress?: () => void; titleTone?: 'accent' | 'red' | 'text2'; titleStyle?: TextStyle; children?: React.ReactNode; label?: string; alignTop?: boolean;
 }) {
   const t = useTheme();
+  const os = useContext(ListCtx);
+  const L = useLayout();
+  const box: ViewStyle = os === 'ios' ? { gap: 14, paddingHorizontal: 16, paddingVertical: 11, minHeight: 52 } : os === 'android' ? { gap: 16, paddingHorizontal: L.side + 4, paddingVertical: 12, minHeight: 68 } : { gap: 14, paddingHorizontal: 18, paddingVertical: 14, minHeight: 60 };
+  if (os && typeof title === 'string' && !titleStyle) titleStyle = os === 'ios' ? { ...font.body, fontWeight: '400' } : { fontSize: 16, lineHeight: 22, fontWeight: '400' };
   const inner = (
-    <View style={{ flexDirection: 'row', alignItems: alignTop ? 'flex-start' : 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 14, minHeight: 60 }}>
+    <View style={[{ flexDirection: 'row', alignItems: alignTop ? 'flex-start' : 'center' }, box]}>
       {dot ? <View style={{ marginTop: alignTop ? 7 : 0 }}><Dot tone={dot} label={TONE_WORD[dot]} /></View> : null}
       {avatar !== undefined ? <Avatar name={avatar} size="sm" /> : null}
       {icon ? <RowIcon name={icon} tone={iconTone} pastel={iconPastel} /> : null}
@@ -313,13 +377,13 @@ export function Row({ title, subtitle, value, icon, iconTone, iconPastel, avatar
       {value ? <T tone="text2" style={[font.sub, { textAlign: 'right', flexShrink: 0, maxWidth: '45%' }]}>{value}</T> : null}
       {pill ? <Pill severity={pill} plain /> : null}
       {trailing}
-      {chevron ?? !!onPress ? <Icon name="chevR" size={14} color={t.text3} weight="semibold" /> : null}
+      {os !== 'android' && (chevron ?? !!onPress) ? <Icon name="chevR" size={14} color={t.text3} weight="semibold" /> : null}
     </View>
   );
   if (!onPress) return inner;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label ?? (typeof title === 'string' ? [title, typeof subtitle === 'string' ? subtitle : '', value].filter(Boolean).join(', ') : undefined)}
-      style={({ pressed }) => pressed && { backgroundColor: t.fill }}>{inner}</Pressable>
+      android_ripple={os === 'android' ? { color: t.fill } : undefined} style={({ pressed }) => pressed && { backgroundColor: t.fill }}>{inner}</Pressable>
   );
 }
 
