@@ -1,4 +1,6 @@
-# Builds the CaseDesk iPhone app on EAS and sends it to TestFlight (same Apple setup as Inbox).
+# Builds the CaseDesk iPhone app and sends it to TestFlight (same Apple setup as Inbox).
+# Since Nov 2026 it builds on GitHub's own Mac (eas build --local): free for this public repo and not
+# limited by the EAS free plan's monthly iOS builds. Set repo variable CASEDESK_BUILD_ON_EAS=1 to use EAS's servers again.
 # Start it by changing casedesk/app/ios-build.txt (or Run workflow).
 # Secrets (shared with Inbox): EXPO_TOKEN, ASC_KEY_ID, ASC_ISSUER_ID, APPLE_TEAM_ID, ASC_KEY_P8.
 # Repo variable CASEDESK_ASC_APP_ID = the app's Apple ID from App Store Connect (needed for TestFlight upload).
@@ -13,7 +15,7 @@ permissions:
 concurrency: { group: casedesk-ios, cancel-in-progress: false }
 jobs:
   ios:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 120
     defaults: { run: { working-directory: casedesk/app } }
     env:
@@ -43,6 +45,11 @@ jobs:
           open('asc.p8', 'w').write('-----BEGIN PRIVATE KEY-----\n' + '\n'.join(body[i:i+64] for i in range(0, len(body), 64)) + '\n-----END PRIVATE KEY-----\n')
           PY
           openssl pkey -in asc.p8 -noout && echo "Key file looks valid ✓"
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Newest Xcode on the runner
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | grep -v beta | sort -V | tail -1); echo "Using $X"; sudo xcode-select -s "$X"; xcodebuild -version
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: casedesk/app/package-lock.json }
       - run: npm ci
@@ -68,13 +75,20 @@ jobs:
             git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
             git add -f credentials/ios.enc && git commit -m "CaseDesk: save encrypted iPhone signing" && git stash -q && git pull --rebase -q && git push && git stash pop -q
           fi
+      - name: Build (on this Mac, 20–40 min)
+        if: vars.CASEDESK_BUILD_ON_EAS != '1'
+        run: |
+          npx -y eas-cli@latest build --platform ios --profile production --non-interactive --local --output "$GITHUB_WORKSPACE/build.ipa"
+          ls -la "$GITHUB_WORKSPACE/build.ipa"
+        env: { EAS_BUILD_NO_EXPO_GO_WARNING: 'true' }
       - name: Build on EAS (takes 15–40 min)
+        if: vars.CASEDESK_BUILD_ON_EAS == '1'
         run: |
           npx -y eas-cli@latest build --platform ios --profile production --non-interactive --wait --json > /tmp/build.json
           jq -r '.[0].id' /tmp/build.json > /tmp/build-id && echo "Build id: $(cat /tmp/build-id)"
         env: { EAS_BUILD_NO_EXPO_GO_WARNING: 'true' }
       - name: Show why the build failed
-        if: failure()
+        if: failure() && vars.CASEDESK_BUILD_ON_EAS == '1'
         run: |
           npx -y eas-cli@latest build:list --platform ios --limit 1 --non-interactive --json > /tmp/last.json || true
           jq -r '.[0].error.message // empty, .[0].error.errorCode // empty' /tmp/last.json || true
@@ -84,7 +98,11 @@ jobs:
         run: |
           jq --arg k "$EXPO_ASC_KEY_ID" --arg i "$EXPO_ASC_ISSUER_ID" --arg t "$EXPO_APPLE_TEAM_ID" --arg a "$ASC_APP_ID" \
             '.submit.production.ios = {ascApiKeyPath: "./asc.p8", ascApiKeyId: $k, ascApiKeyIssuerId: $i, appleTeamId: $t, ascAppId: $a}' eas.json > e.json && mv e.json eas.json
-          npx -y eas-cli@latest submit --platform ios --profile production --id "$(cat /tmp/build-id)" --non-interactive --wait
+          if [ -f "$GITHUB_WORKSPACE/build.ipa" ]; then
+            npx -y eas-cli@latest submit --platform ios --profile production --path "$GITHUB_WORKSPACE/build.ipa" --non-interactive --wait
+          else
+            npx -y eas-cli@latest submit --platform ios --profile production --id "$(cat /tmp/build-id)" --non-interactive --wait
+          fi
       - name: Next step
         if: env.ASC_APP_ID == ''
         run: echo "::notice::Build done. Create CaseDesk in App Store Connect and add its Apple ID as repo variable CASEDESK_ASC_APP_ID, then re-run."
