@@ -1,61 +1,68 @@
-// v2.9 search from Home: one field, results grouped by section, tap goes straight to the screen.
-// The index is built on the phone from what is already saved here; nothing is sent anywhere.
-import React, { useMemo, useState } from 'react';
+// v2.9 search from Home: one field over the whole app, results grouped by section, a tap goes
+// straight to the screen. The index is built on the phone from what is saved here plus the app's
+// own screens and content; queries are never sent anywhere. Recent searches stay on this phone.
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { search, STATIC_ITEMS, type SearchItem } from '../core/search';
-import { docTitle } from '../core/docs';
-import { fmt } from '../core/dates';
+import { search, SUGGESTIONS, type SearchItem, type SearchSection } from '../core/search';
+import { buildSearchIndex } from '../core/searchIndex';
 import { useFamily, type FamilyState } from '../data/FamilyProvider';
-import { HELP } from '../content/help';
-import { Group, Hint, Icon, Row, Screen, SectionHeader, T, font, radius, useTheme, MIN_TOUCH } from '../ui';
-import { back, go, relationLabel, statusLabel } from './common';
+import { newsOnPhone } from '../data/news';
+import { clearRecent, loadRecent, rememberSearch } from '../data/recentSearches';
+import { ChipToggle, Chips, Group, Hint, Icon, LinkButton, Row, Screen, SectionHeader, T, font, radius, useTheme, MIN_TOUCH } from '../ui';
+import { back, go, statusLabel } from './common';
 import { TOOLS } from './tools';
-import { GC_SEARCH } from '../content/searchGc';
 
-const DOC_ICON: Record<string, string> = { 'Green card': 'idcard', People: 'user', Documents: 'doc', Cases: 'list', Tools: 'grid', Help: 'help', Community: 'chat' };
+const ICON: Record<SearchSection, string> = {
+  People: 'user', 'Needs attention': 'alert', Documents: 'doc', Cases: 'list', 'Green card': 'idcard', Screens: 'grid', Tools: 'grid', Settings: 'gear',
+  Updates: 'news', 'Visa types': 'book', Help: 'help', Checks: 'checkc', Community: 'chat',
+};
 
-/** Everything searchable, from the family on this phone plus the app's own screens. */
+/** Everything searchable on this phone. */
 export function searchIndex(f: FamilyState): SearchItem[] {
-  const name = (id: string) => f.people.find((p) => p.id === id)?.name ?? '';
-  const people: SearchItem[] = f.people.map((p) => ({ id: `p:${p.id}`, section: 'People', title: p.name, sub: `${relationLabel(p)} · ${statusLabel(p, f.records[p.id], f.results[p.id])}`, path: `/person/${p.id}`, keywords: [f.records[p.id]?.legalName ?? '', f.records[p.id]?.visa ?? ''] }));
-  const docs: SearchItem[] = f.docs.map((d) => ({
-    id: `d:${d.id}`, section: 'Documents', title: docTitle(d), sub: [name(d.ownerId), d.fields.validTo ? `ends ${fmt(d.fields.validTo)}` : undefined].filter(Boolean).join(' · '), path: `/document/${d.id}`,
-    keywords: [d.type, d.fields.form ?? '', d.fields.receipt ?? '', d.fields.category ?? '', d.fields.classOfAdmission ?? '', name(d.ownerId), d.type === 'visa' ? 'visa stamp' : '', d.type === 'ead' ? 'work permit' : '', d.type === 'green-card' ? 'green card' : '', d.type === 'advance-parole' ? 'advance parole' : ''],
-  }));
-  const cases: SearchItem[] = f.caseList.map((c) => ({ id: `c:${c.id}`, section: 'Cases', title: `${c.form ?? 'Case'} · ${c.name}`, sub: [name(c.ownerId), c.status, c.receipt].filter(Boolean).join(' · '), path: `/case/${encodeURIComponent(c.id)}`, keywords: [c.receipt ?? '', c.form ?? ''] }));
-  // Tool rows take the extra words (and GC tracking wording) of the matching fixed entry.
-  const extra = (path: string) => STATIC_ITEMS.find((s) => s.path === path);
-  const tools: SearchItem[] = TOOLS.flatMap(([, list]) => list).map((t) => ({ id: `t:${t.id}`, section: 'Tools', title: t.title, sub: extra(`/tools/${t.id}`)?.sub ?? t.sub, path: `/tools/${t.id}`, keywords: [t.id, ...(extra(`/tools/${t.id}`)?.keywords ?? [])] }));
-  const help: SearchItem[] = HELP.map((h) => ({ id: `h:${h.id}`, section: h.id === 'community' ? 'Community' : 'Help', title: h.title, sub: h.sub, path: `/help/${h.id}`, keywords: h.body.slice(0, 3) }));
-  const main = f.people.find((p) => p.relation === 'self') ?? f.people[0];
-  const gc: SearchItem[] = main ? GC_SEARCH.filter((g) => !g.route.startsWith('/tools/')).map((g) => ({ id: `g:${g.id}`, section: 'Green card', title: g.title, sub: g.subtitle, path: g.route.replace(':pid', main.id), keywords: g.synonyms })) : [];
-  const gcTool = (path: string) => GC_SEARCH.find((g) => g.route === path)?.synonyms ?? [];
-  tools.forEach((t) => { t.keywords = [...(t.keywords ?? []), ...gcTool(t.path)]; });
-  const seen = new Set(tools.map((t) => t.path));
-  return [...people, ...docs, ...cases, ...gc, ...tools, ...STATIC_ITEMS.filter((s) => !seen.has(s.path)), ...help];
+  return buildSearchIndex({
+    people: f.people, records: f.records, results: f.results, docs: f.docs, caseList: f.caseList,
+    news: newsOnPhone(), tools: TOOLS.flatMap(([, list]) => list), statusLabel: (p) => statusLabel(p, f.records[p.id], f.results[p.id]),
+  });
 }
 
 export function SearchScreen() {
   const f = useFamily();
   const t = useTheme();
   const [q, setQ] = useState('');
+  const [recent, setRecent] = useState<string[]>([]);
+  useEffect(() => { loadRecent().then(setRecent); }, []);
   const index = useMemo(() => searchIndex(f), [f]);
   const groups = useMemo(() => search(index, q), [index, q]);
+  const remember = () => { if (q.trim().length >= 2) rememberSearch(recent, q).then(setRecent); };
+  const open = (it: SearchItem) => { remember(); go(it.path, it.params); };
+  const names = f.people.slice(0, 2).map((p) => p.name.split(' ')[0]);
   return (
     <Screen keyboard nav={{ back: 'Home', onBack: back, title: 'Search' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.field, borderRadius: radius.field, paddingHorizontal: 12, minHeight: MIN_TOUCH, borderWidth: t.dark ? 0 : 1, borderColor: t.fieldBorder }}>
         <Icon name="search" size={18} color={t.text2} />
-        <TextInput value={q} onChangeText={setQ} autoFocus placeholder="People, documents, GC, EAD, stamping…" placeholderTextColor={t.text3} accessibilityLabel="Search"
+        <TextInput value={q} onChangeText={setQ} onSubmitEditing={remember} autoFocus placeholder="Search the whole app" placeholderTextColor={t.text3} accessibilityLabel="Search"
           autoCorrect={false} autoCapitalize="none" returnKeyType="search" clearButtonMode="while-editing" style={[font.body, { flex: 1, color: t.text, minHeight: MIN_TOUCH }]} />
         {q ? <Pressable onPress={() => setQ('')} accessibilityRole="button" accessibilityLabel="Clear search" hitSlop={8} style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH, alignItems: 'center', justifyContent: 'center', marginRight: -10 }}><Icon name="x" size={16} color={t.text2} /></Pressable> : null}
       </View>
-      {!q ? <Hint style={{ marginHorizontal: 4 }}>Searches what is saved on this phone and the app’s screens. Try GC, EAD, AP, stamping, a name or a receipt number.</Hint> : null}
+      {!q ? (
+        <>
+          {recent.length ? (
+            <>
+              <SectionHeader right={<LinkButton title="Clear" onPress={() => { clearRecent(); setRecent([]); }} />}>Recent</SectionHeader>
+              <Group>{recent.map((r) => <Row key={r} icon="clock" title={r} onPress={() => setQ(r)} chevron={false} />)}</Group>
+            </>
+          ) : null}
+          <SectionHeader>Try</SectionHeader>
+          <Chips style={{ marginTop: 0 }}>{[...SUGGESTIONS, ...names].map((s) => <ChipToggle key={s} role="button" text={s} onPress={() => setQ(s)} />)}</Chips>
+          <Hint style={{ marginHorizontal: 4 }}>Searches people, documents, cases, every screen and setting, updates and help. Only on this phone — nothing is sent.</Hint>
+        </>
+      ) : null}
       {q && !groups.length ? <T tone="text2" style={[font.sub, { marginTop: 20, textAlign: 'center' }]}>{`Nothing found for “${q}”.`}</T> : null}
       {groups.map((g) => (
         <View key={g.section}>
           <SectionHeader>{g.section}</SectionHeader>
           <Group>
-            {g.items.map((it) => <Row key={it.id} icon={DOC_ICON[g.section]} title={it.title} subtitle={it.sub} onPress={() => go(it.path, it.params)} />)}
+            {g.items.map((it) => <Row key={it.id} icon={ICON[g.section]} title={it.title} subtitle={it.sub} onPress={() => open(it)} />)}
           </Group>
         </View>
       ))}

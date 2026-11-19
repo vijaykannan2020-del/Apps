@@ -28,8 +28,17 @@ export function SettingsScreen() {
   const theme = useThemeChoice();
   const os = listOS();
   const tour = useTour('settings');
-  const params = useLocalSearchParams<{ backup?: string }>();
+  const params = useLocalSearchParams<{ backup?: string; open?: string }>();
   useEffect(() => { if (params.backup === '1') { router.setParams({ backup: undefined } as never); setTimeout(() => sheet.open('Back up now', <BackupSheet />), 350); } }, [params.backup, sheet]);
+  // v2.9 search: open one sheet straight away (?open=restore | reminders | wipe | diag)
+  useEffect(() => {
+    const k = params.open;
+    if (!k) return;
+    router.setParams({ open: undefined } as never);
+    const opens: Record<string, [string, React.ReactNode]> = { restore: ['Restore from backup', <RestoreSheet />], reminders: ['Default reminders', <ReminderDefaults />], wipe: ['Delete all data?', <WipeSheet />], diag: ['Diagnostics', <DiagSheet />] };
+    const o = opens[k];
+    if (o) setTimeout(() => sheet.open(o[0], o[1]), 350);
+  }, [params.open, sheet]);
   const lastBackup = f.settings.lastBackupAt ? fmt(f.settings.lastBackupAt.slice(0, 10)) : 'Never';
   let version = '2.1';
   try { version = require('expo-constants').default?.expoConfig?.version ?? version; } catch {}

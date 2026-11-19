@@ -2,7 +2,7 @@
 // CaseDesk never logs in to USCIS or reads the site.
 import React from 'react';
 import { Share, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { fmt, daysTo } from '../core/dates';
 import { isPendingCase, type CaseView } from '../core/cases';
 import { useFamily } from '../data/FamilyProvider';
@@ -47,6 +47,9 @@ export function CasesTab() {
     return l.length ? <View key={p.id}><SectionHeader>{p.name}</SectionHeader><Group>{l.map((c) => <CaseRow key={c.id} c={c} who={false} onPick={pick} on={selected === c.id} />)}</Group></View> : null;
   });
   const add = () => sheet.open('Add a case', <AddCase />);
+  // v2.9 search: Cases tab opened with ?add=1 opens Add a case
+  const { add: addParam } = useLocalSearchParams<{ add?: string }>();
+  React.useEffect(() => { if (addParam === '1') { router.setParams({ add: undefined } as never); setTimeout(add, 350); } }, [addParam]); // eslint-disable-line react-hooks/exhaustive-deps
   const tour = useTour('cases');
   return (
     <Screen tabRoot wide paneRatio={0.9} tour={tour} panes={{ left: <>

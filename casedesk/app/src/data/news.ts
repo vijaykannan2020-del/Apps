@@ -35,3 +35,5 @@ export function useNews() {
 }
 export const newsById = (id?: string) => state.items.find((n) => n.id === id) ?? BUILT_IN.find((n) => n.id === id);
 export const kindOf = (n: NewsItem) => n.kind ?? 'official';
+/** The headlines already on this phone (no network call) — for the Home search. */
+export const newsOnPhone = () => state.items;
