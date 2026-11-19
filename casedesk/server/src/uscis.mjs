@@ -18,6 +18,14 @@ async function getToken() {
   return token.value;
 }
 
+/** 'production' | 'sandbox' | null — the app shows Live check only for 'production'. Sandbox base URLs contain api-int. */
+export function uscisMode(env = process.env) {
+  if (!env.USCIS_CLIENT_ID || !env.USCIS_CLIENT_SECRET || !env.USCIS_API_BASE) return null;
+  return /api-int/i.test(env.USCIS_API_BASE) ? 'sandbox' : 'production';
+}
+/** Error logs keep the route, never the receipt: /api/case/IOE… → /api/case/[receipt]. */
+export const redactPath = (p) => String(p).replace(/\/api\/case\/[^/]+/i, '/api/case/[receipt]').replace(/\b[A-Z]{3}\d{10}\b/gi, '[receipt]');
+
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 
 const isoDate = (s) => {
