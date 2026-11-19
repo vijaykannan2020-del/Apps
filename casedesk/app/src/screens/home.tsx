@@ -149,12 +149,21 @@ export function Home() {
           )}
     </TourTarget>
   );
+  const famTags = familyTags(f.people, f.records);
+  const communityPart = (
+    <>
+      <SectionHeader>Community</SectionHeader>
+      <Group>
+        <Row icon="chat" title="Ask the community" subtitle={famTags.length ? `Questions from people with ${famTags.slice(0, 3).join(', ')} — read freely, sign in to ask` : 'Questions from people with the same visa — read freely, sign in to ask'} onPress={() => go('/tools/community')} />
+      </Group>
+    </>
+  );
   const casesPart = <><SectionHeader>Cases at a glance</SectionHeader><CasesGlance /></>;
   const foot = <Hint center style={{ marginTop: 18 }}>{`General information, not legal advice. Rules checked ${fmt(RULES_CHECKED)}.`}</Hint>;
   // Wide (≥ 700): two independent scroll areas — you, family and cases stay put on the left while
   // Needs attention and Updates scroll on the right. Phones: one page, same order as before.
   if (L.twoCol) {
-    return <Screen tabRoot wide panes={{ left: <>{topPart}{familyPart}{casesPart}</>, right: <><View style={{ height: 8 }} />{attentionPart}<TourTarget id="updates"><HomeUpdates /></TourTarget>{foot}</> }} tour={tour} />;
+    return <Screen tabRoot wide panes={{ left: <>{topPart}{familyPart}{casesPart}</>, right: <><View style={{ height: 8 }} />{attentionPart}<TourTarget id="updates"><HomeUpdates /></TourTarget>{communityPart}{foot}</> }} tour={tour} />;
   }
   return (
     <Screen tabRoot tour={tour}>
@@ -163,6 +172,7 @@ export function Home() {
       {attentionPart}
       {casesPart}
       <TourTarget id="updates"><HomeUpdates /></TourTarget>
+      {communityPart}
       {foot}
     </Screen>
   );
