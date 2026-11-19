@@ -99,7 +99,8 @@ export function gcLocalStage(person: Person, rec?: PersonRecord): 'none' | 'star
   if (i485.some((c) => c.status === 'approved')) return 'approved';
   if (i485.length) return 'i485';
   const f = person.facts?.gc;
-  if (rec?.perm || cases.some((c) => c.form === 'I-140') || person.facts?.greenCardStarted || person.status === 'green-card-applicant' || f?.category || f?.priorityDate || f?.followsId) return 'started';
+  if (f?.stage === 'i485') return 'i485'; // v3.0 setup answer, until the I-485 receipt is saved
+  if (f?.stage || rec?.perm || cases.some((c) => c.form === 'I-140') || person.facts?.greenCardStarted || person.status === 'green-card-applicant' || f?.category || f?.priorityDate || f?.followsId) return 'started';
   return 'none';
 }
 /** A spouse / child without their own PERM or I-140 follows someone else's case. */
@@ -119,8 +120,9 @@ function stayKeys(person: Person, rec: PersonRecord | undefined, s: StatusCatego
   if (s === 'F-1' || s === 'F-1 OPT' || s === 'STEM OPT' || s === 'F-2') return ['passport', ...visa, 'i94', 'i20', ...(s === 'F-1 OPT' || s === 'STEM OPT' ? ['ead' as StepKey] : [])];
   if (s === 'J-1' || s === 'J-2') return ['passport', ...visa, 'i94', 'ds2019'];
   if (s === 'B-2') return ['passport', ...visa, 'i94'];
-  if (s === 'L-2') return ['passport', ...visa, 'i94', ...(spouse ? ['ead' as StepKey] : [])];
-  if (s === 'H-4') return ['passport', ...visa, 'i94', 'approval', 'receipt', ...(spouse ? ['ead' as StepKey] : [])];
+  const ead = spouse || !!person.facts?.hasEad; // v3.0: an H-4 / L-2 who said they have an EAD (any relation)
+  if (s === 'L-2') return ['passport', ...visa, 'i94', ...(ead ? ['ead' as StepKey] : [])];
+  if (s === 'H-4') return ['passport', ...visa, 'i94', 'approval', 'receipt', ...(ead ? ['ead' as StepKey] : [])];
   return ['passport', ...visa, 'i94', 'approval', 'receipt'];
 }
 
@@ -137,12 +139,13 @@ export function stepMeta(person: Person, k: StepKey, rec?: PersonRecord): Step {
   const poss = me ? 'your' : `${person.name || 'their'}’s`;
   const s = stepStatus(person, rec);
   const L = s === 'L-1A' || s === 'L-1B';
+  const Lb = L && person.facts?.blanketL !== false; // v3.0: an individual L petition has an I-797, not an I-129S
   const student = s === 'F-1' || s === 'F-1 OPT' || s === 'STEM OPT';
   const M: Record<StepKey, Omit<Step, 'key' | 'optional'>> = {
     passport: { title: 'Passport', accepts: ['passport'], keyField: { label: 'Expires', field: 'validTo' }, why: `Proves who ${me ? 'you are' : `${n} is`}. Its expiry can cut the I-94 short.` },
     visa: { title: 'Visa stamp', accepts: ['visa'], keyField: { label: 'Expires', field: 'validTo' }, why: `Lets ${n} travel back into the US. It doesn’t control how long ${me ? 'you' : n} can stay.` },
     i94: { title: 'I-94 record', accepts: ['i94'], keyField: { label: 'Admit until', field: 'validTo' }, why: `Controls how long ${n} can stay. Get it from the CBP I-94 website. The newest one counts.` },
-    approval: { title: L ? 'Approval · I-129S' : 'Approval notice', accepts: ['approval', 'i129s'], keyField: { label: 'Valid to', field: 'validTo' }, why: L ? 'For blanket L, the I-129S is the approval. It shows the petition dates.' : s === 'H-4' ? `I-797A for ${poss} I-539, if there is one.` : 'I-797A or I-797B. It shows the petition dates.' },
+    approval: { title: Lb ? 'Approval · I-129S' : 'Approval notice', accepts: ['approval', 'i129s'], keyField: { label: 'Valid to', field: 'validTo' }, why: Lb ? 'For blanket L, the I-129S is the approval. It shows the petition dates.' : s === 'H-4' ? `I-797A for ${poss} I-539, if there is one.` : 'I-797A or I-797B. It shows the petition dates.' },
     receipt: { title: 'Pending receipt', accepts: ['receipt', 'notice'], keyField: { label: 'Received', field: 'receivedDate' }, why: 'An I-797C for a case that is still pending. Skip if nothing is pending.' },
     ead: { title: student ? 'OPT work permit (EAD)' : 'Work permit (EAD)', accepts: ['ead'], keyField: { label: 'Valid to', field: 'validTo' }, why: student ? 'Shows the OPT dates and category (c3B or c3C).' : s === 'L-2' ? 'Optional. On L-2S the I-94 itself allows work.' : `Lets ${n} work on H-4. Renewals don’t extend automatically.` },
     i20: { title: s === 'F-2' ? 'Dependent I-20' : 'I-20', accepts: ['i20'], keyField: { label: 'Program end', field: 'programEnd' }, why: 'Gives the program end date, OPT dates and the travel signature.' },

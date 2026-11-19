@@ -115,6 +115,9 @@ export type PersonFacts = {
   employer?: string; // v2.9 Edit details: typed when no approval / receipt shows it
   locationOn?: ISODate; // v2.9 Edit details: when "In the US / Outside" was set (wins over older I-94s)
   gc?: GcFacts; // v2.9 green-card track (answers only the person can give; documents decide the rest)
+  blanketL?: boolean; // v3.0 setup: L-1 on a blanket petition (I-129S) or an individual one (I-797). Documents decide once saved
+  hasEad?: boolean; // v3.0 setup: H-4 / L-2 with a work permit (adds the EAD document)
+  lastEntry?: ISODate; // v3.0 setup: most recent entry to the US, typed (an I-94 shows its own; needed on the CBP I-94 site)
 };
 
 /** v2.9 green-card answers. All optional: families saved before v2.9 load unchanged. */
@@ -128,6 +131,8 @@ export type GcFacts = {
   priorityDate?: ISODate;
   /** Visa Bulletin column override (country of chargeability). Unset = from the country of birth (facts.birthCountry), else the passport. */
   chargeability?: 'all' | 'china' | 'india' | 'mexico' | 'philippines';
+  /** v3.0 setup: how far the green card is, typed when no document shows it yet (documents win). */
+  stage?: 'perm' | 'i140' | 'i485';
   /** Interview preparation: checklist items ticked (ids from core/gc.ts). */
   interviewTicks?: string[];
 };
@@ -297,6 +302,17 @@ export type Settings = {
   widgetNames?: 'initials' | 'first'; // v2.5 home-screen widgets: how names show (default initials)
   widgetHideLocked?: boolean; // v2.5: hide widget details while Face ID lock is on (default true)
   walletName?: 'full' | 'first' | 'initials'; // v2.5 Wallet status card: last name style picked
+  setup?: SetupProgress; // v3.0 onboarding in progress (cleared when finished); setupDone stays the gate
+};
+
+/** v3.0 onboarding progress (kept in settings, no new storage key). */
+export type SetupProgress = {
+  step: string; // the step to resume at (core/onboarding SetupStep)
+  later?: boolean; // Finish later tapped: open Home, show Continue setup there
+  dismissed?: boolean; // Continue setup card closed on Home
+  rerun?: boolean; // Settings, Run setup again (keeps data, fills gaps)
+  docsLater?: string[]; // document rows put off ("pid:step")
+  at?: string; // ISO timestamp of the last change
 };
 
 export const DEFAULT_SETTINGS: Settings = { reminderLeadDays: [180, 90, 30, 7] };

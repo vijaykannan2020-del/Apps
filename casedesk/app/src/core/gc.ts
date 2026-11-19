@@ -137,6 +137,8 @@ export function gcTrackOf(me: Who, all: Who[], bulletin?: VisaBulletin): GcTrack
   else if (i140?.status === 'approved' || (pdFrom === 'typed' && category)) stage = 'waiting';
   else if (i140) stage = 'i140';
   else if (o.perm || owner.person.facts?.greenCardStarted || p.facts?.greenCardStarted || p.status === 'green-card-applicant' || owner.person.status === 'green-card-applicant' || gcf.category) stage = 'perm';
+  // v3.0 setup answer: only while no PERM, I-140 or I-485 document says how far it is (documents win).
+  if (!approved && !i140 && !i485 && !o.perm && (stage === 'not-started' || stage === 'perm' || stage === 'waiting') && gcf.stage) stage = gcf.stage === 'i485' ? 'i485' : gcf.stage === 'i140' ? 'waiting' : 'perm';
   if (r.visa === 'Green card' || r.visa === 'Conditional green card') stage = 'approved';
 
   const t: GcTrack = {
