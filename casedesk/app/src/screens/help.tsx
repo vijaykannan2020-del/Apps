@@ -16,7 +16,7 @@ export function HelpCard({ tab }: { tab: keyof typeof TAB_HELP }) {
   if (!f.ready || !h || (f.settings.helpSeen ?? []).includes(tab)) return null;
   const dismiss = () => f.actions.updateSettings({ helpSeen: [...new Set([...(f.settings.helpSeen ?? []), tab])] });
   return (
-    <Card style={{ marginTop: 14, backgroundColor: tint(t.accent, t.dark ? 0.14 : 0.09), paddingRight: 8 }}>
+    <Card style={{ marginTop: 14, backgroundColor: t.card2, paddingRight: 8 }}>
       <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
         <View style={{ marginTop: 2 }}><Icon name="bulb" size={20} color={t.inkAccent} /></View>
         <T style={[font.sub, { flex: 1 }]}>{h.text}</T>
@@ -35,7 +35,7 @@ export function HelpButton({ topic, label }: { topic: string; label?: string }) 
   return (
     <Pressable onPress={() => go(`/help/${topic}`)} accessibilityRole="button" accessibilityLabel={label ?? `Help: ${helpTopic(topic)?.title ?? 'help'}`} hitSlop={6}
       style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' }}>
-      <Icon name="help" size={22} color={t.inkAccent} />
+      <Icon name="help" size={22} color={t.text2} />
     </Pressable>
   );
 }
@@ -66,7 +66,7 @@ export function HelpTopicScreen() {
         <Card style={{ marginTop: 18 }}>
           {h.steps.map((x, i) => (
             <View key={i} style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', paddingVertical: 6 }}>
-              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: tint(t.accent, 0.18), alignItems: 'center', justifyContent: 'center' }}><T tone="accent" style={[font.foot, { fontWeight: '600' }]}>{String(i + 1)}</T></View>
+              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: t.pastel.sky, alignItems: 'center', justifyContent: 'center' }}><T style={[{ color: t.ink }, font.foot, { fontWeight: '600' }]}>{String(i + 1)}</T></View>
               <T style={[font.callout, { flex: 1 }]}>{x}</T>
             </View>
           ))}

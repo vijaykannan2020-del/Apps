@@ -17,7 +17,7 @@ import { WEIGHTS, WEIGHT_NOTE, STEPS as LOT_STEPS, LAST_SEASON, CAP_GAP, FEE_STA
 import { CIVICS, CIVICS_SOURCE } from '../content/civics';
 import { TOP_INITIAL_FY25, H1B_SOURCE } from '../content/h1b';
 import {
-  TourButton, TourTarget, useTour, tint, radius, Avatar, BigText, Button, Card, CheckRow, useLayout, Chip, ChipToggle, Chips, DateField, Field, Group, H1, Hint, Icon, LargeTitle, LinkButton, Note, Option, Row, Screen, SectionHeader, Segmented, SelectField, Stack, T, Timeline, Why, font, useSheet, useTheme, useToast, Pill,
+  TourButton, TourTarget, useTour, tint, radius, IconTile, Avatar, BigText, Button, Card, CheckRow, useLayout, Chip, ChipToggle, Chips, DateField, Field, Group, H1, Hint, Icon, LargeTitle, LinkButton, Note, Option, Row, Screen, SectionHeader, Segmented, SelectField, Stack, T, Timeline, Why, font, useSheet, useTheme, useToast, Pill,
 } from '../ui';
 import { back, DataFooter, go, statusLabel } from './common';
 import { SOURCES } from '../content/legal';
@@ -55,6 +55,7 @@ export const TOOLS: [string, ToolDef[]][] = [
     { id: 'i9', icon: 'idcard', title: 'I-9 documents', sub: 'What to show a new employer' },
   ]],
 ];
+const TILE_TONES = ['sky', 'sage', 'butter', 'blush', 'mint'] as const;
 const HR: [string, ToolDef[]] = ['For HR', [{ id: 'hr', icon: 'hr', title: 'Expiring documents', sub: 'Every date coming up across the family' }]];
 
 export function ToolsTab() {
@@ -66,21 +67,18 @@ export function ToolsTab() {
   return (
     <Screen tabRoot wide tour={tour}>
       <LargeTitle title="Tools" right={<TourButton />} />
-      <T tone="text2" style={[font.sub, { marginTop: 2 }]}>Plans, look-ups and guides.</T>
-      {groups.map(([g, list]) => (
+      {groups.map(([g, list], gi) => (
         <TourTarget key={g} id={g === 'My plans' ? 'plan' : g === 'Look up' ? 'lookup' : `g-${g}`}>
           <SectionHeader>{g}</SectionHeader>
-          {L.twoCol ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-              {list.map((x) => (
-                <Card key={x.id} onPress={() => go(`/tools/${x.id}`)} label={`${x.title}. ${x.sub}`} style={{ flexBasis: L.width >= 1000 ? '31%' : '47%', flexGrow: 1, minHeight: 120 }}>
-                  <Icon name={x.icon} size={24} color={t.inkAccent} />
-                  <T style={[font.headline, { marginTop: 10 }]}>{x.title}</T>
-                  <T tone="text2" style={[font.foot, { marginTop: 2 }]}>{x.sub}</T>
-                </Card>
-              ))}
-            </View>
-          ) : <Group>{list.map((x) => <Row key={x.id} icon={x.icon} title={x.title} subtitle={x.sub} onPress={() => go(`/tools/${x.id}`)} />)}</Group>}
+          {/* pastel icon tiles in a grid: 2 across on phones (1 at very large text), 3–4 on wide screens */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+            {list.map((x, i) => (
+              <IconTile key={x.id} tone={TILE_TONES[(i + gi) % TILE_TONES.length]} icon={x.icon} title={x.title} sub={x.sub} onPress={() => go(`/tools/${x.id}`)}
+                style={{ flexBasis: L.fontScale > 1.5 ? '100%' : L.width >= 1000 ? '23%' : L.twoCol ? '31%' : '47%', flexGrow: 1, minWidth: 0 }} />
+            ))}
+            {/* keep the last row's tiles the same width as the rows above */}
+            {L.fontScale > 1.5 ? null : Array.from({ length: (L.width >= 1000 ? 4 : L.twoCol ? 3 : 2) - 1 }).map((_, k) => <View key={`pad${k}`} style={{ flexBasis: L.width >= 1000 ? '23%' : L.twoCol ? '31%' : '47%', flexGrow: 1, height: 0 }} />)}
+          </View>
         </TourTarget>
       ))}
     </Screen>
@@ -122,10 +120,8 @@ export function ToolScreen() {
   })();
   return (
     <Screen keyboard nav={{ back: 'Tools', onBack: back, title: def.title }} footer={foot ?? undefined} tour={tour}>
-      <TourTarget id="body">
-        <H1>{def.title}</H1>
-        {def.sub ? <Why>{/[.?!]$/.test(def.sub) ? def.sub : `${def.sub}.`}</Why> : null}
-      </TourTarget>
+      {/* the nav bar already has the title: one short line here, the rest is behind ? */}
+      <TourTarget id="body">{def.sub ? <T tone="text2" style={font.sub}>{def.sub}</T> : <View />}</TourTarget>
       {body}
       {FOOTER_SOURCE[def.id] ? <DataFooter source={SOURCES[FOOTER_SOURCE[def.id]]} /> : null}
     </Screen>
@@ -583,19 +579,21 @@ function AnswerOption({ text, state, onPress }: { text: string; state: AnswerSta
   const t = useTheme();
   const green = state === 'correct' || state === 'answer';
   const red = state === 'wrong';
-  const bg = state === 'correct' ? tint(t.green, t.dark ? 0.28 : 0.2) : red ? tint(t.red, t.dark ? 0.28 : 0.16) : t.card;
-  const border = green ? (t.dark ? t.green : t.inkGreen) : red ? (t.dark ? t.red : t.inkRed) : 'transparent';
+  // chosen right = sage block, chosen wrong = blush block (ink text on both); the right answer when
+  // you missed it = a sage outline on the card.
+  const block = state === 'correct' ? t.pastel.sage : red ? t.pastel.blush : undefined;
+  const fg = block ? t.ink : t.text;
   const label = ANSWER_LABEL[state];
   return (
     <Pressable onPress={onPress} disabled={state !== 'idle'} accessibilityRole="radio" accessibilityState={{ checked: state === 'correct' || state === 'wrong', disabled: state !== 'idle' }}
       accessibilityLabel={label ? `${text}, ${label}` : text}
-      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, minHeight: 56, borderRadius: radius.card, backgroundColor: bg, borderWidth: 2, borderColor: border, opacity: state === 'dim' ? 0.6 : pressed ? 0.85 : 1 })}>
-      <View style={{ width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: green ? (t.dark ? t.green : t.inkGreen) : red ? (t.dark ? t.red : t.inkRed) : 'transparent', borderWidth: green || red ? 0 : 2, borderColor: t.text3 }}>
-        {green ? <Icon name="check" size={15} color={t.dark ? '#000' : '#fff'} weight="bold" /> : red ? <Icon name="x" size={14} color={t.dark ? '#000' : '#fff'} weight="bold" /> : null}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, minHeight: 56, borderRadius: radius.row, backgroundColor: block ?? t.card, borderWidth: 2, borderColor: state === 'answer' ? t.green : 'transparent', opacity: state === 'dim' ? 0.6 : pressed ? 0.85 : 1 })}>
+      <View style={{ width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: block ? t.ink : state === 'answer' ? t.green : 'transparent', borderWidth: green || red ? 0 : 2, borderColor: t.text3 }}>
+        {green ? <Icon name="check" size={15} color={block ? '#fff' : t.dark ? t.ink : '#fff'} weight="bold" /> : red ? <Icon name="x" size={14} color="#fff" weight="bold" /> : null}
       </View>
       <View style={{ flex: 1 }}>
-        <T style={[font.body, { fontWeight: state === 'idle' || state === 'dim' ? '500' : '600' }]}>{text}</T>
-        {label ? <T tone={green ? 'green' : 'red'} style={[font.foot, { fontWeight: '600', marginTop: 2 }]}>{label}</T> : null}
+        <T style={[font.body, { color: fg, fontWeight: state === 'idle' || state === 'dim' ? '500' : '600' }]}>{text}</T>
+        {label ? <T tone={block ? 'text' : 'green'} style={[font.foot, { fontWeight: '600', marginTop: 2 }, block ? { color: t.ink } : {}]}>{label}</T> : null}
       </View>
     </Pressable>
   );

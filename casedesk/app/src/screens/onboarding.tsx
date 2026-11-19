@@ -22,16 +22,16 @@ export function Welcome() {
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <Screen>
         <View style={{ alignItems: 'center', marginTop: 24 }}>
-          <View style={{ width: 84, height: 84, borderRadius: 24, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="shield" size={42} color="#fff" />
+          <View style={{ width: 88, height: 88, borderRadius: 30, backgroundColor: t.pastel.sage, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="shield" size={42} color={t.ink} />
           </View>
           <T a11y="header" style={[font.largeTitle, { marginTop: 22, textAlign: 'center' }]}>Immigration Wallet</T>
           <T tone="text2" style={[font.body, { marginTop: 6, textAlign: 'center' }]}>US immigration status for you and your family.</T>
         </View>
         <View style={{ marginTop: 36, gap: 22 }}>
-          {points.map(([icon, title, sub]) => (
+          {points.map(([icon, title, sub], k) => (
             <View key={title} style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start' }}>
-              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: t.fill, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={22} color={t.accent} /></View>
+              <View style={{ width: 46, height: 46, borderRadius: 17, backgroundColor: t.pastel[(['sky', 'butter', 'blush', 'mint'] as const)[k % 4]], alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={22} color={t.ink} /></View>
               <View style={{ flex: 1 }}>
                 <T style={font.headline}>{title}</T>
                 <T tone="text2" style={[font.sub, { marginTop: 2 }]}>{sub}</T>
@@ -110,7 +110,7 @@ export function Tour() {
           onMomentumScrollEnd={(e) => setI(Math.round(e.nativeEvent.contentOffset.x / box.w))} onScroll={Platform.OS === 'web' ? (e) => setI(Math.round(e.nativeEvent.contentOffset.x / box.w)) : undefined} scrollEventThrottle={64}>
           {SLIDES.map((item, index) => (
             <View key={item[1]} accessibilityLabel={`Slide ${index + 1} of ${SLIDES.length}`} style={{ width: box.w, maxWidth: box.w, flexShrink: 0, height: box.h, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, overflow: 'hidden' }}>
-              <View style={{ width: 150, height: 150, borderRadius: 75, backgroundColor: t.fill, alignItems: 'center', justifyContent: 'center', marginBottom: 32 }}><Icon name={item[0]} size={64} color={t.accent} /></View>
+              <View style={{ width: 150, height: 150, borderRadius: 54, backgroundColor: t.pastel[(['sage', 'sky', 'butter', 'blush'] as const)[index % 4]], alignItems: 'center', justifyContent: 'center', marginBottom: 32 }}><Icon name={item[0]} size={64} color={t.ink} /></View>
               <T a11y="header" style={[font.title, { textAlign: 'center', width: box.w - 64 }]}>{item[1]}</T>
               <T tone="text2" style={[font.body, { textAlign: 'center', marginTop: 12, width: box.w - 64, lineHeight: 26 }]}>{item[2]}</T>
             </View>
@@ -120,7 +120,7 @@ export function Tour() {
       </View>
       <Footer column>
         <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center' }} accessibilityElementsHidden>
-          {SLIDES.map((_, k) => <View key={k} style={{ width: k === i ? 24 : 8, height: 8, borderRadius: 4, backgroundColor: k === i ? t.accent : t.text3 }} />)}
+          {SLIDES.map((_, k) => <View key={k} style={{ width: k === i ? 24 : 8, height: 8, borderRadius: 4, backgroundColor: k === i ? t.text : t.outline }} />)}
         </View>
         <Button title={i === SLIDES.length - 1 ? 'Done' : 'Continue'} onPress={next} />
         <Button kind="ghost" title="Close" onPress={done} />

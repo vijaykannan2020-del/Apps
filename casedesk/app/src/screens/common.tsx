@@ -12,7 +12,7 @@ import { fmt } from '../core/dates';
 import { startFlow, type Flow } from '../data/flow';
 import type { FamilyState } from '../data/FamilyProvider';
 import { Pressable } from 'react-native';
-import { TourTarget, Button, Icon, LegalLine, MIN_TOUCH, Row, T, font, severityTone, tint, TONE_WORD, useTheme } from '../ui';
+import { TourTarget, Button, Icon, LegalLine, MIN_TOUCH, Row, T, font, severityTone, TONE_WORD, useSheet, useTheme } from '../ui';
 import { DISCLAIMER, type Source } from '../content/legal';
 import { openUrl } from '../native/device';
 
@@ -65,11 +65,11 @@ export function ctaFor(f: Finding, p: Person, handlers: { askWhere: () => void; 
   }
 }
 
-/** Attention row: dot + word, title, "Name · detail", optional action, legal line on Act now. */
+/** Attention row: a pastel disc in the colour of its meaning + the word, title, "Name · detail", optional action, legal line on Act now. */
 export function AttentionRow({ f, name, onPress, cta }: { f: Finding; name?: string; onPress?: () => void; cta?: Cta }) {
   const tone = severityTone(f.severity);
   return (
-    <Row dot={tone} alignTop onPress={onPress} chevron={!!onPress} title={f.title} titleStyle={{ ...font.callout, fontWeight: '500' }}
+    <Row icon={tone === 'red' || tone === 'amber' ? 'alert' : 'info'} iconTone={tone === 'grey' ? 'blue' : tone} alignTop onPress={onPress} chevron={!!onPress} title={f.title}
       label={`${TONE_WORD[tone]}: ${f.title}`}
       subtitle={<T tone="text2" style={[font.foot, { marginTop: 2 }]}>{name ? `${name} · ` : ''}{f.detail}</T>}>
       {cta && !onPress ? <View style={{ marginTop: 10 }}><Button size="sm" kind="tint" title={cta.label} onPress={cta.run} /></View> : null}
@@ -93,24 +93,51 @@ export function asOfText(o: { live?: boolean; asOf?: string; fetchedAt?: string 
   return ['Built-in copy', o.asOf ? `data as of ${o.asOf}` : undefined].filter(Boolean).join(' · ');
 }
 
-/** Footer for every government-data screen: as-of line, the official source link, the disclaimer. */
+/** The one compact line: "Source · as of date · Not legal advice". */
+export function footerLine(o: { live?: boolean; asOf?: string; source?: Source }): string {
+  const src = o.source ? o.source.label.replace(/^https?:\/\//, '').replace(/^www\./, '').split(/[\s/—–(]/)[0] : undefined;
+  const as = o.asOf ? `as of ${o.asOf}` : o.live ? 'live' : o.live === false ? 'built-in copy' : undefined;
+  return [src, as, 'Not legal advice'].filter(Boolean).join(' · ');
+}
+
+/**
+ * Footer for every government-data screen — ONE compact line ("Source · as of date · Not legal
+ * advice"). Tap it for the full text: live / built-in copy, when it was fetched, the official source
+ * link and the disclaimer. (Owner: calmer screens; the detail stays one tap away.)
+ */
 export function DataFooter({ live, asOf, fetchedAt, source, note }: { live?: boolean; asOf?: string; fetchedAt?: string; source?: Source; note?: string }) {
   const t = useTheme();
+  const sheet = useSheet();
+  const line = footerLine({ live, asOf, source });
+  const full = (
+    <View style={{ gap: 10, marginTop: 10 }}>
+      {asOf || live !== undefined ? <T style={font.sub}>{asOfText({ live, asOf, fetchedAt })}</T> : null}
+      {note ? <T tone="text2" style={font.sub}>{note}</T> : null}
+      {source ? <Button kind="tint" icon="globe" title={`Official source: ${source.label}`} onPress={() => openUrl(source.url)} /> : null}
+      <T tone="text2" style={font.foot}>{DISCLAIMER}</T>
+    </View>
+  );
   return (
-    <TourTarget id="source" style={{ marginTop: 14, gap: 4 }}>
-      {asOf || live !== undefined ? (
-        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          <View style={{ backgroundColor: live ? tint(t.green, t.pillAlpha) : t.fill, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}><T tone={live ? 'green' : 'text2'} style={[font.caption, { fontWeight: '600' }]}>{live ? 'Live' : 'Built-in copy'}</T></View>
-          <T tone="text2" style={[font.caption, { flexShrink: 1 }]}>{asOfText({ live, asOf, fetchedAt }).replace(/^(Live|Built-in copy)( · )?/, '')}</T>
-        </View>
-      ) : null}
-      {note ? <T tone="text2" style={font.caption}>{note}</T> : null}
-      {source ? (
-        <Pressable onPress={() => openUrl(source.url)} accessibilityRole="link" accessibilityLabel={`Official source: ${source.label}`} style={{ flexDirection: 'row', gap: 6, alignItems: 'center', minHeight: MIN_TOUCH }}>
-          <Icon name="globe" size={14} color={t.inkAccent} /><T tone="accent" style={[font.caption, { fontWeight: '500' }]}>{`Official source: ${source.label}`}</T>
-        </Pressable>
-      ) : null}
-      <T tone="text2" style={font.caption}>{DISCLAIMER}</T>
+    <TourTarget id="source" style={{ marginTop: 16 }}>
+      <Pressable onPress={() => sheet.open('Source and disclaimer', full)} accessibilityRole="button" accessibilityLabel={`${line}. Tap for the source and full disclaimer`}
+        style={{ flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', minHeight: MIN_TOUCH, paddingHorizontal: 8 }}>
+        <Icon name="info" size={13} color={t.text2} />
+        <T tone="text2" numberOfLines={1} style={[font.caption, { flexShrink: 1 }]}>{line}</T>
+      </Pressable>
     </TourTarget>
+  );
+}
+
+/** Screens without a data source: the same compact line, opening the disclaimer. */
+export function LegalFooter({ asOf }: { asOf?: string }) {
+  const t = useTheme();
+  const sheet = useSheet();
+  const line = [asOf ? `Rules checked ${asOf}` : undefined, 'Not legal advice'].filter(Boolean).join(' · ');
+  return (
+    <Pressable onPress={() => sheet.open('Not legal advice', <T tone="text2" style={[font.sub, { marginTop: 10 }]}>{DISCLAIMER}</T>)} accessibilityRole="button" accessibilityLabel={`${line}. Tap for the full disclaimer`}
+      style={{ flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', minHeight: MIN_TOUCH, marginTop: 14 }}>
+      <Icon name="info" size={13} color={t.text2} />
+      <T tone="text2" numberOfLines={1} style={[font.caption, { flexShrink: 1 }]}>{line}</T>
+    </Pressable>
   );
 }

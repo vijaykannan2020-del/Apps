@@ -17,10 +17,10 @@ const inDays = (n: number) => (n < 0 ? `${-n} day${n === -1 ? '' : 's'} ago` : n
 
 export function CaseStatusPill({ c }: { c: CaseView }) {
   const t = useTheme();
-  if (c.status === 'Approved') return <Pill severity="good" text="Approved" />;
-  if (c.status === 'RFE') return <Pill severity="review" text="RFE" />;
-  if (c.status === 'Denied') return <Pill severity="act" text="Denied" />;
-  return <View style={{ backgroundColor: t.fill, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}><T style={[font.caption, { fontWeight: '600' }]}>{c.status}</T></View>;
+  if (c.status === 'Approved') return <Pill plain severity="good" text="Approved" />;
+  if (c.status === 'RFE') return <Pill plain severity="review" text="RFE" />;
+  if (c.status === 'Denied') return <Pill plain severity="act" text="Denied" />;
+  return <T tone="text2" style={[font.sub, { fontWeight: '600' }]}>{c.status}</T>;
 }
 
 export function CaseRow({ c, who = true, onPick, on }: { c: CaseView; who?: boolean; onPick?: (id: string) => void; on?: boolean }) {
@@ -28,7 +28,7 @@ export function CaseRow({ c, who = true, onPick, on }: { c: CaseView; who?: bool
   const nd = c.keyDates.find((k) => (daysTo(k.date) ?? -1) >= 0);
   const name = f.people.find((p) => p.id === c.ownerId)?.name;
   return (
-    <Row icon={on ? 'checkc' : 'doc'} onPress={() => (onPick ? onPick(c.id) : go(`/case/${encodeURIComponent(c.id)}`))} chevron={false} trailing={<CaseStatusPill c={c} />}
+    <Row icon={on ? 'checkc' : c.status === 'Approved' ? 'check' : 'doc'} iconPastel={c.status === 'Approved' ? 'sage' : c.status === 'RFE' ? 'butter' : c.status === 'Denied' ? 'blush' : 'sky'} onPress={() => (onPick ? onPick(c.id) : go(`/case/${encodeURIComponent(c.id)}`))} chevron={false} trailing={<CaseStatusPill c={c} />}
       title={<T style={font.body}><T style={[font.body, { fontWeight: '600' }]}>{c.form ?? 'Case'}</T>{` · ${c.name}`}</T>}
       subtitle={`${who && name ? `${name} · ` : ''}${nd ? `${nd.label} ${fmt(nd.date)}` : c.updated ? `Updated ${fmt(c.updated)}` : 'Added by you'}`} />
   );
@@ -51,12 +51,11 @@ export function CasesTab() {
   return (
     <Screen tabRoot wide paneRatio={0.9} tour={tour} panes={{ left: <>
       <LargeTitle title="Cases" right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><TourButton /><TourTarget id="add"><IconButton icon="plus" label="Add a case" onPress={add} /></TourTarget></View>} />
-      <T tone="text2" style={[font.sub, { marginTop: 2 }]}>Every USCIS form, by person. Pending first.</T>
       {f.caseList.length ? (
         <TourTarget id="list">
-          {pend.length ? <T a11y="header" style={[font.title2, { marginTop: 24 }]}>{`Pending · ${pend.length}`}</T> : null}
+          {pend.length ? <T tone="text2" a11y="header" style={[font.sub, { marginTop: 14, fontWeight: '600' }]}>{`Pending · ${pend.length}`}</T> : null}
           {byPerson(pend)}
-          {done.length ? <T a11y="header" style={[font.title2, { marginTop: 28 }]}>{`Completed · ${done.length}`}</T> : null}
+          {done.length ? <T tone="text2" a11y="header" style={[font.sub, { marginTop: 26, fontWeight: '600' }]}>{`Completed · ${done.length}`}</T> : null}
           {byPerson(done)}
         </TourTarget>
       ) : <EmptyState small icon="clock" title="No cases yet" body="Add a receipt number from an I-797C notice." action={{ title: 'Add a case', onPress: add }} />}
@@ -110,7 +109,7 @@ export function CaseBody({ id }: { id: string }) {
       <SectionHeader>Key dates</SectionHeader>
       <Group>
         {c.keyDates.map((k, i) => <Row key={i} icon="cal" iconTone={/RFE|NOID/.test(k.label) ? 'amber' : undefined} title={k.label} subtitle={`${fmt(k.date)} · ${inDays(daysTo(k.date) ?? 0)}`} />)}
-        <Row icon="plus" title="Add biometrics, interview, RFE or oath date" titleTone="accent" chevron={false} onPress={() => sheet.open('Add a key date', <AddKeyDate view={c} />)} />
+        <Row icon="plus" iconPastel="mint" title="Add a key date" subtitle="Biometrics, interview, RFE or oath" chevron={false} onPress={() => sheet.open('Add a key date', <AddKeyDate view={c} />)} />
       </Group>
       {c.consular ? <Note tone="blue">Approved at a US consulate. There is no USCIS case to check online.</Note> : (
         <>
@@ -118,12 +117,11 @@ export function CaseBody({ id }: { id: string }) {
           <Card>
             {['Copy the receipt number', 'Safari opens uscis.gov — paste it and tap Check Status', 'Copy what the page says, tap Done, then “Paste what USCIS says”'].map((x, i) => (
               <View key={i} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 5 }}>
-                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: tint(t.accent, 0.18), alignItems: 'center', justifyContent: 'center' }}><T tone="accent" style={[font.foot, { fontWeight: '600' }]}>{String(i + 1)}</T></View>
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: t.pastel.sky, alignItems: 'center', justifyContent: 'center' }}><T style={[font.foot, { fontWeight: '700', color: t.ink }]}>{String(i + 1)}</T></View>
                 <T style={[font.callout, { flex: 1 }]}>{x}</T>
               </View>
             ))}
             <T tone="text2" style={[font.foot, { marginTop: 8 }]}>{c.checkedAt ? `Last checked on uscis.gov: ${asOfText({ live: true, fetchedAt: c.checkedAt }).replace(/^Live · updated /, '')}` : 'Not checked on uscis.gov yet'}</T>
-            <Hint>Immigration Wallet never logs in to USCIS or reads the site for you.</Hint>
             <TourTarget id="check"><Button block icon="compass" title="Copy number & open uscis.gov" onPress={() => startCaseCheck(c, sheet.open)} /></TourTarget>
             <TourTarget id="paste"><Button block kind="ghost" icon="copy" title="Paste what USCIS says" onPress={() => sheet.open('What did USCIS say?', <CheckStatus view={c} copied />)} /></TourTarget>
           </Card>

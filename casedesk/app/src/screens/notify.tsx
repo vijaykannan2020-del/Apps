@@ -40,7 +40,7 @@ export function NotifyExplainer({ onDone }: { onDone?: (granted: boolean) => voi
       <View style={{ gap: 14, marginTop: 16 }}>
         {items.map(([icon, title, sub]) => (
           <View key={title} style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: t.fill, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={18} color={t.inkAccent} /></View>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.pastel.sky, alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={18} color={t.ink} /></View>
             <View style={{ flex: 1 }}><T style={font.headline}>{title}</T><T tone="text2" style={font.sub}>{sub}</T></View>
           </View>
         ))}

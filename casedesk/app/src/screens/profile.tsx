@@ -204,7 +204,7 @@ export function AboutScreen() {
   return (
     <Screen nav={{ back: 'Back', onBack: back, title: 'About' }}>
       <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 4 }}>
-        <View style={{ width: 76, height: 76, borderRadius: 20, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Icon name="shield" size={34} color="#fff" /></View>
+        <View style={{ width: 76, height: 76, borderRadius: 26, backgroundColor: t.pastel.sage, alignItems: 'center', justifyContent: 'center' }}><Icon name="shield" size={34} color={t.ink} /></View>
         <BigText size={24} style={{ marginTop: 12 }}>Immigration Wallet</BigText>
         <T tone="text2" style={font.sub}>{`USCIS case updates & status · rules checked ${fmt(RULES_CHECKED)}`}</T>
       </View>

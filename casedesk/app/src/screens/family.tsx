@@ -13,6 +13,7 @@ import { statusGroups } from './sheets';
 import { SelectField } from '../ui';
 import { PersonBody } from './person';
 import { FamilyWalletRow } from './wallet';
+import { StatusView } from './priority';
 import { Columns, LinkButton, useLayout, TourButton, TourTarget, useTour } from '../ui';
 
 export function FamilyTab() {
@@ -31,19 +32,19 @@ export function FamilyTab() {
           {f.people.map((p) => {
             const r = f.records[p.id], res = f.results[p.id];
             return (
-              <Card key={p.id} onPress={() => (L.twoCol ? setSel(p.id) : go(`/person/${p.id}`))} label={`${p.name}, ${res ? res.worst : ''}`} style={selected === p.id ? { borderWidth: 2, borderColor: t.accent } : { borderWidth: 2, borderColor: 'transparent' }}>
+              <Card key={p.id} onPress={() => (L.twoCol ? setSel(p.id) : go(`/person/${p.id}`))} label={`${p.name}, ${res ? res.worst : ''}`} style={selected === p.id ? { borderWidth: 2, borderColor: t.text } : { borderWidth: 2, borderColor: 'transparent' }}>
                 <View style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start' }}>
                   <Avatar name={p.name} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <T style={[font.body, { fontWeight: '600', flexShrink: 1 }]} numberOfLines={1}>{p.name}</T>
-                      {res ? <Pill severity={res.worst} /> : null}
+                      {res ? <Pill severity={res.worst} plain /> : null}
                     </View>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 3 }}>
                       <T tone="text2" style={font.sub}>{`${relationLabel(p)} · ${statusLabel(p, r, res)}`}</T>
                       <Chip text={locationChip(p, r)} />
                     </View>
-                    <T style={[font.sub, { marginTop: 8 }]}>{untilText(p, r, res)}</T>
+                    <T tone="text2" style={[font.sub, { marginTop: 6 }]}>{untilText(p, r, res)}</T>
                   </View>
                 </View>
               </Card>
@@ -53,7 +54,8 @@ export function FamilyTab() {
       ) : <EmptyState small icon="users" title="No family members yet" />}
       <TourTarget id="add"><AddButton title="Add family member" onPress={() => go('/add-member')} /></TourTarget>
       <FamilyWalletRow />
-      </>, right: selected ? <View style={{ marginTop: 4 }}><PersonBody id={selected} single /><LinkButton title="Open full page" onPress={() => go(`/person/${selected}`)} /></View> : null }} />
+      {L.twoCol ? null : <StatusView title="Family documents" />}
+      </>, right: selected ? <View style={{ marginTop: 4 }}><PersonBody key={selected} id={selected} single /><LinkButton title="Open full page" onPress={() => go(`/person/${selected}`)} /></View> : null }} />
   );
 }
 
@@ -61,9 +63,9 @@ export function AddButton({ title, onPress }: { title: string; onPress: () => vo
   const t = useTheme();
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={title}
-      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: t.card, borderRadius: radius.card, padding: 16, marginTop: 12, minHeight: MIN_TOUCH, opacity: pressed ? 0.7 : 1 })}>
-      <Icon name="plus" size={22} color={t.accent} weight="semibold" />
-      <T tone="accent">{title}</T>
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: t.card, borderRadius: radius.row, paddingHorizontal: 18, paddingVertical: 12, marginTop: 10, minHeight: MIN_TOUCH, opacity: pressed ? 0.7 : 1 })}>
+      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.pastel.mint, alignItems: 'center', justifyContent: 'center' }}><Icon name="plus" size={20} color={t.ink} weight="semibold" /></View>
+      <T style={[font.callout, { fontWeight: '600' }]}>{title}</T>
     </Pressable>
   );
 }

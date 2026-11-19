@@ -18,11 +18,13 @@ import { readDocument } from '../core/read';
 import {
   Avatar, Button, Card, CheckRow, Chip, DateField, EmptyState, Field, Group, H1, Hint, Icon, LegalLine, Meter, NavButton, Note, Pill, Row, Screen, SectionHeader, Switch, T, Why, ChipToggle, Chips,
   font, useSheet, useTheme, useToast, Spinner, Columns, BigText,
-  TourTarget, useTour,
+  TourTarget, useTour, WalletCard,
 } from '../ui';
 import { NextFiling } from './filings';
 import { NOT_OFFICIAL_ID } from '../content/legal';
-import { AttentionRow, back, ctaFor, go, locationChip, needsLocation, relationLabel, statusLabel, untilText } from './common';
+import { AttentionRow, back, ctaFor, go, LegalFooter, locationChip, needsLocation, relationLabel, statusLabel, untilText } from './common';
+import { walletFacts } from '../core/priority';
+import { StatusView } from './priority';
 import { AddCase, AskWhere, Confirm, EditDetails, FixClass, RemovePerson, RenewSheet, Trips, Unemployment, WorkLocation } from './sheets';
 import { newId } from '../data/store';
 import { askNotificationPermission } from '../native/reminders';
@@ -72,39 +74,47 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
   const missing = f.missing[p.id] ?? [];
   const rm = p.reminders ?? { on: true, lead: [180, 90, 30, 7] };
 
+  const hasDocs = rec.docTypes.length > 0;
+  const w = walletFacts({ today: today(), hasDocs, citizen: isCitizen(rec.visa), outside: rec.location === 'Outside', resident: isResident(rec.visa), until: result?.facts.statusUntil ?? rec.i94?.until ?? rec.greenCard?.expires, label: result?.facts.visaLabel });
+  const line = untilText(p, rec, result);
+  const openAdd = () => sheet.open('Add or renew a document', <RenewSheet pid={p.id} />);
   const left = (
     <>
-      <View style={{ alignItems: 'center', paddingTop: 4, paddingBottom: 6 }}>
-        <Avatar name={p.name} size="lg" />
-        <T a11y="header" style={{ fontSize: 24, lineHeight: 30, fontWeight: '700', marginTop: 12, letterSpacing: -0.2, textAlign: 'center' }}>{p.name}</T>
-        {legal && legal !== p.name ? <T tone="text2" style={[font.sub, { marginTop: 2 }]}>{legal}</T> : null}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 8 }}>
-          <T tone="text2" style={font.sub}>{`${relationLabel(p)} · ${statusLabel(p, rec, result)}`}</T><Chip text={locationChip(p, rec)} />
+      <TourTarget id="status">
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <WalletCard name={legal && legal !== p.name ? `${p.name} · ${legal}` : p.name} line={`${statusLabel(p, rec, result)} · ${relationLabel(p)}`} corner={w.corner}
+              caption={w.caption} big={w.big} foot={line} footWord={w.word} footTone={w.wordTone}
+              a11y={`${p.name}. ${statusLabel(p, rec, result)}. ${w.caption} ${w.big}. ${line}`} />
+          </View>
+          <View style={{ gap: 10, width: 64 }}>
+            <SquareAction icon="plus" label="Add or renew a document" onPress={openAdd} />
+            <SquareAction icon="plane" tone="mint" label="Plan a trip" onPress={() => go('/tools/travel', { pid: p.id })} />
+            <SquareAction icon="bell" tone="butter" label={`Reminders: ${rm.on ? 'on' : 'off'}`} onPress={() => go(`/reminders/${p.id}`)} />
+          </View>
         </View>
+      </TourTarget>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, marginHorizontal: 4 }}>
+        <Chip text={locationChip(p, rec)} />
+        {result && result.worst !== 'good' ? <Pill severity={result.worst} /> : null}
       </View>
-      <TourTarget id="status"><Card style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <T style={[font.body, { fontWeight: '600', flex: 1 }]}>{untilText(p, rec, result)}</T>
-        {result ? <Pill severity={result.worst} /> : null}
-      </Card></TourTarget>
       <WalletCardRow pid={p.id} />
 
       <SectionHeader>Needs attention</SectionHeader>
       {findings.length || needsLocation(rec) ? (
         <Group>
           {needsLocation(rec) ? (
-            <Row dot="amber" alignTop title={you ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`} titleStyle={{ ...font.callout, fontWeight: '500' }} subtitle="People outside the US (for example in India) don’t have an I-94.">
+            <Row icon="pin" iconTone="amber" alignTop title={you ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`} subtitle="People outside the US don’t have an I-94.">
               <View style={{ marginTop: 10 }}><Button size="sm" kind="tint" title="Answer" onPress={handlers.askWhere} /></View>
             </Row>
           ) : null}
           {findings.filter((x) => !(needsLocation(rec) && x.id === 'i94-missing')).map((x) => <AttentionRow key={x.id} f={x} cta={ctaFor(x, p, handlers)} />)}
         </Group>
       ) : (
-        <Card>
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}><Icon name="checkc" size={18} color={t.green} /><T style={font.body}>All good for now</T></View>
-          <T tone="text2" style={font.foot}>We’ll remind you before dates come up.</T>
-        </Card>
+        <Group><Row icon="checkc" iconTone="green" title="All good for now" subtitle="We’ll remind you before dates come up." /></Group>
       )}
 
+      <StatusView pid={p.id} title="Document status" card />
       <TourTarget id="filing"><NextFiling p={p} /></TourTarget>
     </>
   );
@@ -114,16 +124,15 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
       <Group>
         {docs.map((d) => <DocRow key={d.id} d={d} superseded={f.superseded.has(d.id)} />)}
         {!docs.length ? <Row title="No documents yet." titleTone="text2" /> : null}
-        {missing.map((s) => <Row key={s.key} dot="grey" title={s.title} titleTone="text2" subtitle="Missing" />)}
-        <TourTarget id="docs"><Row icon="plus" title="Add or renew a document" titleTone="accent" chevron={false} onPress={() => sheet.open('Add or renew a document', <RenewSheet pid={p.id} />)} /></TourTarget>
+        {missing.map((s) => <Row key={s.key} icon="doc" iconPastel="butter" title={s.title} subtitle="Not added yet" chevron={false} onPress={openAdd} trailing={<T tone="amber" style={[font.sub, { fontWeight: '600' }]}>Missing</T>} />)}
+        <TourTarget id="docs"><Row icon="plus" iconPastel="mint" title="Add or renew a document" chevron={false} onPress={openAdd} /></TourTarget>
       </Group>
-      {docs.length ? <T tone="text2" style={[font.caption, { marginTop: 6, marginLeft: 4 }]}>{NOT_OFFICIAL_ID}</T> : null}
 
       <SectionHeader>Cases</SectionHeader>
       <Group>
         {cases.map((c) => <Row key={c.id} icon="doc" onPress={() => go(`/case/${encodeURIComponent(c.id)}`)} title={<T style={font.body}><T style={[font.body, { fontWeight: '600' }]}>{c.form ?? 'Case'}</T>{` · ${c.name}`}</T>} subtitle={c.keyDates.find((k) => k.date >= today()) ? `${c.keyDates.find((k) => k.date >= today())!.label} ${fmt(c.keyDates.find((k) => k.date >= today())!.date)}` : c.updated ? `Updated ${fmt(c.updated)}` : ''} chevron={false} value={c.status} />)}
         {!cases.length ? <Row title="No cases yet. A receipt notice adds one." titleTone="text2" /> : null}
-        <Row icon="plus" title="Add a case" titleTone="accent" chevron={false} onPress={() => sheet.open('Add a case', <AddCase pid={p.id} />)} />
+        <Row icon="plus" iconPastel="mint" title="Add a case" chevron={false} onPress={() => sheet.open('Add a case', <AddCase pid={p.id} />)} />
       </Group>
 
       {work ? (
@@ -132,7 +141,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
           <Group>
             <Row icon="building" title={rec.employer ?? 'Employer not added'} subtitle="Employer" />
             {(() => { const w = p.facts.workLocation ?? rec.approvedWorkLocation; const city = w ? [w.city, w.state].filter(Boolean).join(', ') : undefined; return <Row icon="pin" title={city ?? 'Not added'} subtitle={`${w ? metroOf(w.city, w.state) ?? 'Unknown' : 'Unknown'} metro · work location`} />; })()}
-            <Row title="Work location changed?" titleTone="accent" onPress={() => sheet.open('Work location changed?', <WorkLocation pid={p.id} />)} />
+            <Row icon="edit" iconPastel="mint" title="Work location changed?" onPress={() => sheet.open('Work location changed?', <WorkLocation pid={p.id} />)} />
           </Group>
         </>
       ) : null}
@@ -156,20 +165,41 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
   return (
     <>
       <Columns left={left} right={right} stack={single} />
-      <Hint center style={{ marginTop: 18 }}>General information, not legal advice.</Hint>
+      {findings.some((x) => x.severity === 'act') ? null : <LegalFooter />}
     </>
   );
 }
 const stepTitleWhere = (p: Person) => (p.relation === 'self' ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`);
 
+const DOC_ICON: Record<string, [string, 'sky' | 'blush' | 'sage' | 'butter' | 'mint']> = {
+  passport: ['globe', 'sky'], visa: ['plane', 'blush'], i94: ['download', 'sage'], approval: ['doc', 'butter'], i129s: ['doc', 'butter'], receipt: ['copy', 'mint'], notice: ['bell', 'butter'],
+  ead: ['briefcase', 'mint'], 'green-card': ['idcard', 'sage'], i20: ['cap', 'sky'], ds2019: ['cap', 'sky'], 'travel-history': ['map', 'blush'], 'advance-parole': ['plane', 'mint'], 'reentry-permit': ['plane', 'mint'],
+};
+/** A document row: identity-coloured icon, title, end date; the word on the right carries the status. */
 function DocRow({ d, superseded }: { d: Document; superseded: boolean }) {
   const note = docNote(d, { superseded });
   const spec = FIELDS[d.type].find((s) => s.key === 'validTo') ?? FIELDS[d.type].find((s) => s.kind === 'date');
   const v = spec ? showField(d.fields, spec) : '';
-  const tone = superseded ? 'grey' : note?.tone === 'red' || note?.tone === 'amber' || note?.tone === 'green' ? note.tone : 'grey';
+  const n = !superseded && isISO(d.fields.validTo) ? daysTo(d.fields.validTo) : null;
+  const [icon, pastel] = DOC_ICON[d.type] ?? ['doc', 'sky'];
+  const word = superseded ? undefined : n === null ? undefined : n < 0 ? (note?.tone === 'red' ? 'Expired' : 'Ended') : n <= 180 ? `${n} days` : 'Valid';
+  const tone = n === null || superseded ? 'text2' : n < 0 ? (note?.tone === 'red' ? 'red' : 'amber') : n <= 180 ? 'amber' : 'green';
   return (
-    <Row dot={tone} onPress={() => go(`/document/${d.id}`)} title={docTitle(d)} titleTone={superseded ? 'text2' : undefined}
+    <Row icon={icon} iconPastel={pastel} onPress={() => go(`/document/${d.id}`)} chevron={false} title={docTitle(d)} titleTone={superseded ? 'text2' : undefined}
+      label={`${docTitle(d)}${word ? `, ${word}` : ''}`}
+      trailing={word ? <T tone={tone} style={[font.sub, { fontWeight: '600' }]}>{word}</T> : undefined}
       subtitle={d.type === 'travel-history' ? `${d.fields.trips?.length ?? 0} trips` : `${superseded ? 'Superseded · ' : ''}${d.type === 'ead' && d.fields.comboAP ? docBadges(d).map((b) => `${b.label} ${b.value}`).join(' · ') : `${spec?.label ?? ''} ${v || '—'}`}`} />
+  );
+}
+
+/** Square action next to the wallet card (the mock's + / camera / attach column). */
+function SquareAction({ icon, label, onPress, tone }: { icon: string; label: string; onPress: () => void; tone?: 'mint' | 'butter' | 'sky' }) {
+  const t = useTheme();
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}
+      style={({ pressed }) => ({ flex: 1, minHeight: 50, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: tone ? t.pastel[tone] : 'transparent', borderWidth: tone ? 0 : 1.5, borderColor: t.outline, opacity: pressed ? 0.75 : 1 })}>
+      <Icon name={icon} size={22} color={tone ? t.ink : t.text} />
+    </Pressable>
   );
 }
 
@@ -255,7 +285,7 @@ export function DocumentScreen() {
       <Button kind="danger" icon="trash" title="Delete" onPress={() => sheet.open(`Delete ${docTitle(d)}?`, <Confirm body="It’s removed from this phone. This can’t be undone." action="Delete" onConfirm={async () => { back(); await f.actions.deleteDoc(d.id); toast(`Deleted ${docTitle(d)}`); }} />)} />
     </>}>
       <Pressable onPress={() => file && preview(file)} disabled={!file} accessibilityRole={file ? 'button' : undefined} accessibilityLabel={file ? 'Open the document' : 'No image saved'}
-        style={{ borderRadius: 18, backgroundColor: t.card, padding: file?.mime.startsWith('image/') ? 0 : 18, overflow: 'hidden', minHeight: 160, alignItems: 'center', justifyContent: 'center' }}>
+        style={{ borderRadius: 28, backgroundColor: t.card, padding: file?.mime.startsWith('image/') ? 0 : 18, overflow: 'hidden', minHeight: 160, alignItems: 'center', justifyContent: 'center' }}>
         {file?.mime.startsWith('image/') ? <Image source={{ uri: fileUri(file) }} style={{ width: '100%', aspectRatio: 1.55 }} resizeMode="contain" accessibilityIgnoresInvertColors /> : (
           <View style={{ alignItems: 'center', gap: 8 }}><Icon name="doc" size={44} color={t.text3} /><T tone="text2" style={font.foot}>{file ? `${file.name} · tap to open` : 'No image saved'}</T></View>
         )}

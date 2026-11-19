@@ -103,7 +103,7 @@ export function StepScreen() {
           {([['camera', 'Camera', 'Scan with camera'], ['photo', 'Photos', 'Choose from Photos'], ['folder', 'Files', 'Choose a PDF from Files']] as const).map(([icon, label, a11y], i) => (
             <Pressable key={label} onPress={() => pickFrom((['camera', 'photos', 'files'] as Source[])[i])} accessibilityRole="button" accessibilityLabel={a11y}
               style={({ pressed }) => ({ flex: 1, minWidth: 0, backgroundColor: t.card, borderRadius: radius.card, paddingVertical: 20, paddingHorizontal: 4, alignItems: 'center', gap: 10, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
-              <Icon name={icon} size={28} color={t.accent} />
+              <View style={{ width: 52, height: 52, borderRadius: 19, backgroundColor: t.pastel[(['mint', 'sky', 'butter'] as const)[i]], alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={24} color={t.ink} /></View>
               <T style={[font.sub, { fontWeight: '500' }]}>{label}</T>
             </Pressable>
           ))}
