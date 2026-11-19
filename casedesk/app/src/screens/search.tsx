@@ -22,7 +22,9 @@ export function searchIndex(f: FamilyState): SearchItem[] {
     keywords: [d.type, d.fields.form ?? '', d.fields.receipt ?? '', d.fields.category ?? '', d.fields.classOfAdmission ?? '', name(d.ownerId), d.type === 'visa' ? 'visa stamp' : '', d.type === 'ead' ? 'work permit' : '', d.type === 'green-card' ? 'green card' : '', d.type === 'advance-parole' ? 'advance parole' : ''],
   }));
   const cases: SearchItem[] = f.caseList.map((c) => ({ id: `c:${c.id}`, section: 'Cases', title: `${c.form ?? 'Case'} · ${c.name}`, sub: [name(c.ownerId), c.status, c.receipt].filter(Boolean).join(' · '), path: `/case/${encodeURIComponent(c.id)}`, keywords: [c.receipt ?? '', c.form ?? ''] }));
-  const tools: SearchItem[] = TOOLS.flatMap(([, list]) => list).map((t) => ({ id: `t:${t.id}`, section: 'Tools', title: t.title, sub: t.sub, path: `/tools/${t.id}`, keywords: [t.id] }));
+  // Tool rows take the extra words (and GC tracking wording) of the matching fixed entry.
+  const extra = (path: string) => STATIC_ITEMS.find((s) => s.path === path);
+  const tools: SearchItem[] = TOOLS.flatMap(([, list]) => list).map((t) => ({ id: `t:${t.id}`, section: 'Tools', title: t.title, sub: extra(`/tools/${t.id}`)?.sub ?? t.sub, path: `/tools/${t.id}`, keywords: [t.id, ...(extra(`/tools/${t.id}`)?.keywords ?? [])] }));
   const help: SearchItem[] = HELP.map((h) => ({ id: `h:${h.id}`, section: h.id === 'community' ? 'Community' : 'Help', title: h.title, sub: h.sub, path: `/help/${h.id}`, keywords: h.body.slice(0, 3) }));
   const seen = new Set(tools.map((t) => t.path));
   return [...people, ...docs, ...cases, ...tools, ...STATIC_ITEMS.filter((s) => !seen.has(s.path)), ...help];

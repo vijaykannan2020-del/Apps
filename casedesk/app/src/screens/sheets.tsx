@@ -109,6 +109,8 @@ export function EditDetails({ pid }: { pid: string }) {
   const self = p.relation === 'self';
   const dependentKind = !self && (rel === 'spouse' || rel === 'child');
   const others = f.people.filter((x) => x.id !== p.id);
+  // who this person's status can follow: a parent-generation member (never a child), for a child also the spouse
+  const principals = others.filter((x) => x.relation === 'self' || x.relation === 'spouse' || x.isMain);
   const w = p.facts.workLocation ?? rec?.approvedWorkLocation;
   const save = async () => {
     if (!name.trim()) { toast('Name can’t be empty'); return; }
@@ -136,12 +138,12 @@ export function EditDetails({ pid }: { pid: string }) {
           <Chips style={{ marginTop: 8 }}>{(['spouse', 'child', 'parent', 'other'] as Relation[]).map((r) => <ChipToggle key={r} text={REL_WORD[r]} on={rel === r} onPress={() => setRel(r)} />)}</Chips>
         </>
       ) : null}
-      {dependentKind && others.length ? (
+      {dependentKind && principals.length ? (
         <>
           <T tone="text2" style={[font.caption, { marginTop: 14, marginLeft: 2 }]}>Status follows</T>
           <Chips style={{ marginTop: 8 }}>
             <ChipToggle text="Automatic" on={follows === 'auto'} onPress={() => setFollows('auto')} />
-            {others.map((o) => <ChipToggle key={o.id} text={o.name} on={follows === o.id} onPress={() => setFollows(o.id)} />)}
+            {principals.map((o) => <ChipToggle key={o.id} text={o.name} on={follows === o.id} onPress={() => setFollows(o.id)} />)}
             <ChipToggle text="Own status (principal)" on={follows === 'own'} onPress={() => setFollows('own')} />
           </Chips>
           <Hint>A spouse or child on H-4 / L-2 follows the principal’s dates.</Hint>
