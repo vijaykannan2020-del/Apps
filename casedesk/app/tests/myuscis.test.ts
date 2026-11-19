@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   parseMyuscis, parsePayload, parsePageText, buildSnapshot, diffSnapshots, applySync, mergedTimeline, noticeChecklist,
   liveToPart, statusFromSnapshot, touchedAfterLastEvent, syncDue, nextSyncReminder, liveDue, changeAlert, myuscisUrls, isIOE,
-  maskReceipt, NO_DATA_MESSAGE, type ParseOk, type MySnapshot,
+  maskReceipt, NO_DATA_MESSAGE, egovToPart, type ParseOk, type MySnapshot,
 } from '../src/core/myuscis';
 import { decodeEvent, eventLabel, MYUSCIS_CODES } from '../src/core/myuscisCodes';
 import type { Case } from '../src/core/model';
@@ -246,6 +246,21 @@ test('sources are compared only with themselves (Live check after myUSCIS JSON r
   const s3 = snapOf([ok(parseMyuscis(JSON.stringify(caseJSON())))], s2);
   assert.equal(s3.events.filter((e) => e.src === 'live').length, 1, 'live events kept');
   assert.equal(diffSnapshots(s2, s3).any, false);
+});
+
+test('in-app uscis.gov check: parsed status → egov part, status change and history without a myUSCIS prefix', () => {
+  const { parseCaseText } = require('../src/core/uscis');
+  const t1 = parseCaseText(`Case Was Received\nOn March 2, 2026, we received your Form I-485, Receipt Number ${R}.`, R);
+  const s1 = snapOf([ok(egovToPart(t1, '2026-03-10'))]);
+  assert.equal(s1.status, 'Case Was Received');
+  const t2 = parseCaseText(`Case Was Approved\nOn June 1, 2026, we approved your Form I-485, Receipt Number ${R}.`, R);
+  const s2 = snapOf([ok(egovToPart(t2, '2026-06-02'))], s1);
+  const d = diffSnapshots(s1, s2);
+  assert.equal(d.statusChanged, true);
+  const c = applySync(baseCase(), s2, d);
+  assert.ok(c.history.some((h) => h.text === 'Case Was Approved' && h.date === '2026-06-01'));
+  assert.equal(c.status, 'approved');
+  assert.equal((egovToPart(null, '2026-06-02') as any).ok, false);
 });
 
 // ---- myUSCIS case page TEXT ----

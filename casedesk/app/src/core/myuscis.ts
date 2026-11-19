@@ -10,7 +10,7 @@ import { decodeEvent, eventLabel, PUBLIC_KINDS, type CodeKind } from './myuscisC
 
 // ---------- links ----------
 export const MYUSCIS_ACCOUNT_URL = 'https://my.uscis.gov/account';
-export type PartKind = 'case' | 'receipt' | 'documents' | 'page' | 'live';
+export type PartKind = 'case' | 'receipt' | 'documents' | 'page' | 'live' | 'egov';
 export type LinkInfo = { id: 'case' | 'notice' | 'receipt' | 'documents'; title: string; sub: string; url: string; path: string };
 /** The four myUSCIS JSON links for a receipt (internal pages of myUSCIS; they need the session of the
  *  browser where the person signed in — the Safari app, not an in-app browser sheet). */
@@ -31,7 +31,7 @@ export const isIOE = (receipt?: string) => /^IOE\d{10}$/.test((receipt ?? '').tr
 /** Where a sync came from: myUSCIS JSON (Advanced), the myUSCIS case page text, or the official
  *  USCIS Case Status API through our server (Live check, opt-in). Each source is compared only with
  *  itself, so mixing them never shows made-up "new" events. */
-export type Src = 'myuscis' | 'page' | 'live';
+export type Src = 'myuscis' | 'page' | 'live' | 'egov';
 export type MyEvent = { code: string; date: string; text: string; kind: CodeKind; sure: boolean; known: boolean; src: Src };
 export type MyDoc = { id?: string; title: string; type?: string; date?: string };
 export type MyLocation = { office?: string; serviceCenter?: string; fieldOffice?: string; code?: string };
@@ -56,7 +56,8 @@ export type ParseOk = { ok: true; kind: PartKind; receipt?: string; part: Partia
 export type FailKind = 'empty' | 'notSignedIn' | 'html' | 'malformed' | 'notMyuscis' | 'noData';
 export type ParseFail = { ok: false; kind: FailKind; title: string; message: string; requestId?: string };
 export type ParseResult = ParseOk | ParseFail;
-export const srcOf = (k: PartKind): Src | undefined => (k === 'case' ? 'myuscis' : k === 'page' ? 'page' : k === 'live' ? 'live' : undefined);
+export const srcOf = (k: PartKind): Src | undefined => (k === 'case' ? 'myuscis' : k === 'page' || k === 'live' || k === 'egov' ? k : undefined);
+const partOf = (s: Src): PartKind => (s === 'myuscis' ? 'case' : s);
 
 // ---------- small helpers ----------
 const isObj = (x: unknown): x is Record<string, any> => !!x && typeof x === 'object' && !Array.isArray(x);
@@ -314,6 +315,13 @@ export function liveToPart(j: Partial<LiveCase> | null | undefined): ParseResult
   };
 }
 
+/** A uscis.gov Case Status Online result (read in the app or pasted; src/core/uscis.ts parseCaseText). */
+export function egovToPart(p: { status: string; detail: string; form?: string; date?: string } | null, todayIso: string): ParseResult {
+  if (!p) return fail('notMyuscis', 'No status found', 'We couldn’t find a USCIS status on that page yet. Tap Check Status on the page, then wait for the result.');
+  const date = p.date ?? todayIso;
+  return { ok: true, kind: 'egov', receipt: p.detail.toUpperCase().match(RECEIPT_RE)?.[1], part: { form: normForm(p.form), stamps: { egov: { status: p.status, detail: p.detail || undefined, updatedAt: date } }, events: [pubEvent(date, p.status, 'egov')], documents: [], flags: {} } };
+}
+
 // ---------- myUSCIS case page TEXT (what you see when signed in) ----------
 const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
 const DATE_RES: RegExp[] = [
@@ -401,7 +409,7 @@ export function buildSnapshot(parts: ParseOk[], receipt: string, prev: MySnapsho
   const kinds = [...new Set(parts.map((p) => p.kind))];
   const base: MySnapshot = prev ? { ...prev, stamps: { ...(prev.stamps ?? {}) }, flags: { ...prev.flags }, events: [...prev.events], documents: [...prev.documents] } : { syncedAt, parts: [], stamps: {}, events: [], documents: [], flags: {} };
   const snap: MySnapshot = { ...base, receipt: want ?? receipt, syncedAt, parts: kinds };
-  for (const k of ['case', 'page', 'live'] as PartKind[]) {
+  for (const k of ['case', 'page', 'egov', 'live'] as PartKind[]) {
     const p = latest(parts, k);
     const src = srcOf(k)!;
     if (!p) continue;
@@ -425,7 +433,10 @@ export function buildSnapshot(parts: ParseOk[], receipt: string, prev: MySnapsho
   if (kinds.some((k) => k === 'documents' || k === 'case' || k === 'page')) snap.docsRead = true;
   // display fields: live first (official), then the page text, then myUSCIS JSON
   const st = snap.stamps;
-  const firstOf = <K extends keyof Stamp>(k: K) => st.live?.[k] ?? st.page?.[k] ?? st.myuscis?.[k];
+  // newest public status wins: compare the sources' own dates, official ones first on a tie
+  const order = (['live', 'egov', 'page', 'myuscis'] as Src[]).filter((x) => st[x]?.status);
+  const top = [...order].sort((a, b) => day(st[b]?.updatedAt ?? '').localeCompare(day(st[a]?.updatedAt ?? '')))[0];
+  const firstOf = <K extends keyof Stamp>(k: K) => (top ? st[top]?.[k] : undefined) ?? st.live?.[k] ?? st.egov?.[k] ?? st.page?.[k] ?? st.myuscis?.[k];
   snap.status = firstOf('status'); snap.detail = firstOf('detail'); snap.actionCode = st.myuscis?.actionCode;
   snap.updatedAt = (Object.values(st).map((x) => x?.updatedAt).filter(Boolean) as string[]).sort().pop();
   return { ok: true, snap };
@@ -447,7 +458,7 @@ export const maskReceipt = (r: string) => (r.length === 13 ? `${r.slice(0, 3)}�
 export type Change = { kind: 'event' | 'status' | 'location' | 'document' | 'flag' | 'silent' | 'form'; text: string; date?: string; src?: Src };
 export type Diff = { first: boolean; changes: Change[]; silent?: { at: string; src: Src }; any: boolean; statusChanged: boolean };
 const locText = (l?: MyLocation) => (l ? [l.fieldOffice, l.serviceCenter, l.office].filter(Boolean)[0] ?? l.code ?? '' : '');
-const SRC_NAME: Record<Src, string> = { myuscis: 'myUSCIS', page: 'myUSCIS page', live: 'Live check' };
+const SRC_NAME: Record<Src, string> = { myuscis: 'myUSCIS', page: 'myUSCIS page', live: 'Live check', egov: 'uscis.gov' };
 
 /**
  * What changed since the last sync. Only sources read now are compared, each with its own previous
@@ -459,8 +470,8 @@ export function diffSnapshots(prev: MySnapshot | undefined, next: MySnapshot): D
   const ch: Change[] = [];
   let publicChange = false, statusChanged = false;
   const stamps = prev.stamps ?? {};
-  for (const src of ['live', 'page', 'myuscis'] as Src[]) {
-    const k: PartKind = src === 'myuscis' ? 'case' : src;
+  for (const src of ['live', 'egov', 'page', 'myuscis'] as Src[]) {
+    const k = partOf(src);
     if (!next.parts.includes(k)) continue;
     const before = stamps[src];
     if (!before) continue; // first time this source is read: baseline
@@ -487,8 +498,8 @@ export function diffSnapshots(prev: MySnapshot | undefined, next: MySnapshot): D
     if ((f1.evidenceRequests ?? 0) > (f0.evidenceRequests ?? 0)) { ch.push({ kind: 'flag', text: 'New evidence request in myUSCIS' }); publicChange = true; }
   }
   if (!publicChange) {
-    for (const src of ['live', 'myuscis', 'page'] as Src[]) {
-      const k: PartKind = src === 'myuscis' ? 'case' : src;
+    for (const src of ['live', 'myuscis', 'egov', 'page'] as Src[]) {
+      const k = partOf(src);
       const a = stamps[src]?.updatedAt, b = next.stamps[src]?.updatedAt;
       if (next.parts.includes(k) && a && b && b > a && changedStamp(a, b)) {
         ch.push({ kind: 'silent', src, text: `Silent update on ${day(b)} — USCIS touched your case without a public status change`, date: b });
@@ -526,7 +537,7 @@ export function touchedAfterLastEvent(s: MySnapshot): string | undefined {
 const DECISIVE: Partial<Record<CodeKind, CaseStatus>> = { approved: 'approved', card: 'approved', denied: 'denied', withdrawn: 'withdrawn', rfe: 'rfe', 'rfe-response': 'pending' };
 /** The case status the snapshot supports: the official status first, then well-established event codes. */
 export function statusFromSnapshot(s: MySnapshot): CaseStatus | undefined {
-  const official = s.stamps?.live?.status ?? s.stamps?.page?.status;
+  const official = s.status && s.stamps && Object.entries(s.stamps).some(([k, v]) => k !== 'myuscis' && v?.status === s.status) ? s.status : undefined;
   if (official) { const k = kindOfHeading(official); if (DECISIVE[k]) return DECISIVE[k]; if (['received', 'review', 'biometrics', 'interview', 'transfer'].includes(k)) return 'pending'; }
   const sure = s.events.filter((e) => e.sure && e.known && DECISIVE[e.kind]);
   const last = sure[sure.length - 1];
@@ -541,13 +552,14 @@ export function applySync(c: Case, s: MySnapshot, diff: Diff): Case {
   const has = (text: string, date: string) => lines.some((h) => h.text.toLowerCase() === text.toLowerCase() && day(h.date) === day(date));
   for (const e of s.events) {
     if (!e.date) continue;
-    const text = e.src === 'live' ? e.text : `${MY_PREFIX}${eventLabel(e)}`;
-    if (!has(text, e.date) && !(e.src !== 'live' && has(e.text, e.date))) lines.push({ date: day(e.date), text });
+    const pub = e.src === 'live' || e.src === 'egov';
+    const text = pub ? e.text : `${MY_PREFIX}${eventLabel(e)}`;
+    if (!has(text, e.date) && !(!pub && has(e.text, e.date))) lines.push({ date: day(e.date), text });
   }
   if (diff.silent) { const text = `${MY_PREFIX}Silent update (no public status change)`; if (!has(text, diff.silent.at)) lines.push({ date: day(diff.silent.at), text }); }
   lines.sort((a, b) => b.date.localeCompare(a.date));
   const st = statusFromSnapshot(s);
-  const live = s.parts.includes('live');
+  const live = s.parts.includes('live') || s.parts.includes('egov');
   return { ...c, form: c.form ?? s.form, receivedDate: c.receivedDate ?? (s.submittedAt ? day(s.submittedAt) : undefined), status: st ?? c.status, history: lines, ...(live ? { checkedAt: s.syncedAt } : {}) };
 }
 
@@ -561,7 +573,7 @@ export function mergedTimeline(history: { date: string; text: string }[], snap?:
     if (h.text.startsWith(MY_PREFIX)) add(h.date, h.text.slice(MY_PREFIX.length), 'myuscis');
     else add(h.date, h.text, /^(Added in|Checked ·)/.test(h.text) ? 'you' : 'uscis');
   }
-  for (const e of snap?.events ?? []) if (e.date) add(e.date, eventLabel(e), e.src === 'live' ? 'uscis' : 'myuscis');
+  for (const e of snap?.events ?? []) if (e.date) add(e.date, eventLabel(e), e.src === 'live' || e.src === 'egov' ? 'uscis' : 'myuscis');
   return out.sort((a, b) => b.date.localeCompare(a.date));
 }
 
