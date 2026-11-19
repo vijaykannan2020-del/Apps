@@ -258,3 +258,12 @@ test('docKey: same document by number and dates, case and spaces ignored', () =>
   assert.equal(docKey({ type: 'approval', fields: {} }), null);
   assert.notEqual(docKey({ type: 'i94', fields: { entryDate: '2026-01-10', classOfAdmission: 'H4' } }), docKey({ type: 'i94', fields: { entryDate: '2026-05-10', classOfAdmission: 'H4' } }));
 });
+
+test('system links: only local .iwshare files go to the import screen', async () => {
+  const { shareImportPath } = await import('../src/core/shareLink');
+  const u = 'file:///private/var/mobile/Containers/Data/Application/X/Documents/Inbox/Immigration%20Wallet%20share%202026-11-19.iwshare';
+  assert.equal(shareImportPath(u), `/share-import?file=${encodeURIComponent(u)}`);
+  assert.equal(shareImportPath('casedesk://settings'), null);
+  assert.equal(shareImportPath('https://example.com/x.iwshare'), null);
+  assert.equal(shareImportPath('file:///tmp/backup.casedesk'), null);
+});

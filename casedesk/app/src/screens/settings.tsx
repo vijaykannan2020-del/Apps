@@ -19,6 +19,7 @@ import { ICloudRows } from './icloud';
 import { HELP } from '../content/help';
 import { NotifyRows } from './notify';
 import { FamilyWalletRow, WidgetRows } from './wallet';
+import { ImportSharedRow } from './share';
 
 export function SettingsScreen() {
   const f = useFamily();
@@ -83,6 +84,7 @@ export function SettingsScreen() {
           <ICloudRows />
           <Row icon="share" title="Back up to a file" subtitle={`Files, Google Drive or AirDrop · last: ${lastBackup}`} onPress={() => sheet.open('Back up now', <BackupSheet />)} chevron={false} />
           <Row icon="restore" title="Restore from backup" subtitle="From a .casedesk file" onPress={() => sheet.open('Restore from backup', <RestoreSheet />)} chevron={false} />
+          <ImportSharedRow />
         </Group></TourTarget>
 
         <SectionHeader>Widgets &amp; Wallet</SectionHeader>
