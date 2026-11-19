@@ -2,7 +2,8 @@
 import { addDays, addYears, daysBetween, daysTo, fmt, today } from '../dates';
 import { isCitizen } from '../model';
 import { finding, type Finding, type RuleCtx } from './types';
-import { categoryOf, countryOf, cutoff, isCurrent } from '../bulletin';
+import { cutoff, isCurrent } from '../bulletin';
+import { gcTrackOf } from '../gc';
 
 export function addressRule(c: RuleCtx): Finding[] {
   // R9: AR-11 within 10 days of a move, for every non-citizen in the US
@@ -73,17 +74,22 @@ export function applicantRules(c: RuleCtx): Finding[] {
     else out.push(finding('R18', 'review', 'ac21-early', `Job change with the I-485 pending ${since} days`, 'Portability (AC21) needs the I-485 pending 180 days and an approved I-140. Talk to your attorney before changing jobs.'));
   }
   // R21: priority date vs this month's Visa Bulletin (the chart USCIS names), or moved back since last month
-  const pd = r.cases.find((x) => x.form === 'I-140' && x.priorityDate && x.category);
+  // v2.9: the family follows the principal's I-140 (or a typed priority date), so dependents see it too.
+  const t = gcTrackOf(c.me, c.members, c.bulletin);
+  const pd = t && t.priorityDate && t.category && t.pdFrom !== 'perm' ? { priorityDate: t.priorityDate } : undefined;
   const pending485 = r.cases.some((x) => x.form === 'I-485');
   const b = c.bulletin;
-  const cat = categoryOf(pd?.category);
-  if (pd && b && cat && !pending485) {
-    const country = countryOf(r.nationality);
+  const cat = t?.category;
+  if (pd && b && cat && !pending485 && t && t.stage !== 'approved') {
+    const country = t.country;
     const now = cutoff(b.rows, cat, country, b.uscisChart);
     const before = b.previous ? cutoff(b.previous.rows, cat, country, b.uscisChart) : undefined;
     const chart = b.uscisChart === 'filing' ? 'dates for filing' : 'final action dates';
-    if (isCurrent(pd.priorityDate!, now)) out.push(finding('R21', 'info', 'pd-current', `Priority date ${fmt(pd.priorityDate)} is current — you may be able to file the I-485`, `It is before the ${cat} cut-off (${now === 'C' ? 'current' : fmt(now ?? '')}) in the ${b.month} Visa Bulletin, ${chart} — the chart USCIS uses this month. Check with your attorney.`));
-    else if (isCurrent(pd.priorityDate!, before)) out.push(finding('R21', 'info', 'pd-back', 'Your priority date moved back this month', `The ${cat} cut-off went from ${fmt(before ?? '')} to ${now && now !== 'U' ? fmt(now) : 'unavailable'} in the ${b.month} Visa Bulletin (${chart}). It can move forward again.`));
+    const withWho = t.derivative ? ` with ${c.members.find((m) => m.person.id === t.ownerId)?.person.name ?? 'the principal'}` : '';
+    // A dependent sees the same news as a note (source kept, no tag): the principal's finding is the one that counts.
+    const tag = (x: Finding): Finding => (t.derivative ? { ...x, rule: undefined } : x);
+    if (isCurrent(pd.priorityDate!, now)) out.push(tag(finding('R21', 'info', 'pd-current', `Priority date ${fmt(pd.priorityDate)} is current — you may be able to file the I-485${withWho}`, `It is before the ${cat} cut-off (${now === 'C' ? 'current' : fmt(now ?? '')}) in the ${b.month} Visa Bulletin, ${chart} — the chart USCIS uses this month. Check with your attorney.`)));
+    else if (isCurrent(pd.priorityDate!, before)) out.push(tag(finding('R21', 'info', 'pd-back', 'Your priority date moved back this month', `The ${cat} cut-off went from ${fmt(before ?? '')} to ${now && now !== 'U' ? fmt(now) : 'unavailable'} in the ${b.month} Visa Bulletin (${chart}). It can move forward again.`)));
   }
   // R22: child may age out of a green-card case
   if (person.relation === 'child' && r.birthDate) {

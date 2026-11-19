@@ -16,6 +16,8 @@ import { isDS2019, readDS2019 } from './ds2019';
 import { isAdvanceParole, isReentryPermit, readTravelDoc } from './travelDoc';
 import { isNaturalization, readNaturalization } from './naturalization';
 import { isLCA, readLCA } from './lca';
+import { isPerm, readPerm } from './perm';
+import { isMedical, readMedical } from './medical';
 
 export type Reading = { type?: DocType; fields: DocFields; lines: number };
 
@@ -42,6 +44,10 @@ export function readDocument(text: string): Reading {
     type = kind; f = rest;
   } else if (isTravelHistory(U)) {
     type = 'travel-history'; f = readTravelHistory(T);
+  } else if (isPerm(U)) {
+    type = 'perm'; f = readPerm(T);
+  } else if (isMedical(U)) {
+    type = 'medical'; f = readMedical(T);
   } else if (isI94(U)) {
     type = 'i94'; f = readI94(T);
   } else if (isI20(U)) {
@@ -69,7 +75,7 @@ export function readDocument(text: string): Reading {
   }
 
   // Receipt number: on notices and cards. A visa's "P#-WAC…" is the employer's petition, not this person's case.
-  if (type !== 'visa' && type !== 'passport' && type !== 'i94') f.receipt ||= receiptIn(U.replace(/\bP#\s*-?\s*[A-Z]{3}\d{10}/g, ''));
+  if (type !== 'visa' && type !== 'passport' && type !== 'i94' && type !== 'perm' && type !== 'medical') f.receipt ||= receiptIn(U.replace(/\bP#\s*-?\s*[A-Z]{3}\d{10}/g, ''));
   if (type === 'visa') delete f.receipt;
 
   // Who it belongs to: passport number and birth date.
@@ -82,7 +88,7 @@ export function readDocument(text: string): Reading {
   }
   // Name as printed. Visa annotations (PA:, P#, PED…) name the principal — never the holder.
   // The I-129S has preparer / interpreter name fields, so it never falls back to generic labels.
-  if (!f.name && type !== 'i129s' && type !== 'travel-history') {
+  if (!f.name && type !== 'i129s' && type !== 'travel-history' && type !== 'perm') {
     const src = withoutAnnotations(T);
     const nm = mrzName(src) ?? labelledName(src);
     if (nm && nm.length >= 3 && nm.length <= 60) f.name = nm;

@@ -10,8 +10,9 @@ import { HELP } from '../content/help';
 import { Group, Hint, Icon, Row, Screen, SectionHeader, T, font, radius, useTheme, MIN_TOUCH } from '../ui';
 import { back, go, relationLabel, statusLabel } from './common';
 import { TOOLS } from './tools';
+import { GC_SEARCH } from '../content/searchGc';
 
-const DOC_ICON: Record<string, string> = { People: 'user', Documents: 'doc', Cases: 'list', Tools: 'grid', Help: 'help', Community: 'chat' };
+const DOC_ICON: Record<string, string> = { 'Green card': 'idcard', People: 'user', Documents: 'doc', Cases: 'list', Tools: 'grid', Help: 'help', Community: 'chat' };
 
 /** Everything searchable, from the family on this phone plus the app's own screens. */
 export function searchIndex(f: FamilyState): SearchItem[] {
@@ -26,8 +27,12 @@ export function searchIndex(f: FamilyState): SearchItem[] {
   const extra = (path: string) => STATIC_ITEMS.find((s) => s.path === path);
   const tools: SearchItem[] = TOOLS.flatMap(([, list]) => list).map((t) => ({ id: `t:${t.id}`, section: 'Tools', title: t.title, sub: extra(`/tools/${t.id}`)?.sub ?? t.sub, path: `/tools/${t.id}`, keywords: [t.id, ...(extra(`/tools/${t.id}`)?.keywords ?? [])] }));
   const help: SearchItem[] = HELP.map((h) => ({ id: `h:${h.id}`, section: h.id === 'community' ? 'Community' : 'Help', title: h.title, sub: h.sub, path: `/help/${h.id}`, keywords: h.body.slice(0, 3) }));
+  const main = f.people.find((p) => p.relation === 'self') ?? f.people[0];
+  const gc: SearchItem[] = main ? GC_SEARCH.filter((g) => !g.route.startsWith('/tools/')).map((g) => ({ id: `g:${g.id}`, section: 'Green card', title: g.title, sub: g.subtitle, path: g.route.replace(':pid', main.id), keywords: g.synonyms })) : [];
+  const gcTool = (path: string) => GC_SEARCH.find((g) => g.route === path)?.synonyms ?? [];
+  tools.forEach((t) => { t.keywords = [...(t.keywords ?? []), ...gcTool(t.path)]; });
   const seen = new Set(tools.map((t) => t.path));
-  return [...people, ...docs, ...cases, ...tools, ...STATIC_ITEMS.filter((s) => !seen.has(s.path)), ...help];
+  return [...people, ...docs, ...cases, ...gc, ...tools, ...STATIC_ITEMS.filter((s) => !seen.has(s.path)), ...help];
 }
 
 export function SearchScreen() {

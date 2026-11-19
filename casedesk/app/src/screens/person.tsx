@@ -34,6 +34,7 @@ import { askNotificationPermission } from '../native/reminders';
 import { leadText } from './profile';
 import { WalletCardRow } from './wallet';
 import { ShareRow } from './share';
+import { GcSection } from './gc';
 
 export function PersonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -124,6 +125,8 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
       )}
 
       <StatusView pid={p.id} title="Document status" card />
+      {/* v2.9 green card track (own section, separate from the current stay) */}
+      <GcSection pid={p.id} />
       <TourTarget id="filing"><NextFiling p={p} /></TourTarget>
     </>
   );

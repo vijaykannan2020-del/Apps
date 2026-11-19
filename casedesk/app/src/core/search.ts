@@ -1,8 +1,8 @@
 // v2.9 search from Home: a local index of people, documents, cases, tools, help topics and
 // community, with immigration synonyms (GC = green card = I-485 …). Nothing leaves the phone. Pure.
 
-export type SearchSection = 'People' | 'Documents' | 'Cases' | 'Tools' | 'Help' | 'Community';
-export const SECTION_ORDER: SearchSection[] = ['People', 'Documents', 'Cases', 'Tools', 'Help', 'Community'];
+export type SearchSection = 'People' | 'Documents' | 'Cases' | 'Green card' | 'Tools' | 'Help' | 'Community';
+export const SECTION_ORDER: SearchSection[] = ['People', 'Documents', 'Cases', 'Green card', 'Tools', 'Help', 'Community'];
 export type SearchItem = { id: string; section: SearchSection; title: string; sub?: string; path: string; params?: Record<string, string>; keywords?: string[] };
 
 /** Words that mean the same thing here. A query matching any word searches for all of them. */

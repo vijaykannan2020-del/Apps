@@ -113,6 +113,22 @@ export type PersonFacts = {
   birthDate?: ISODate; // v2.9 Edit details: typed when no document shows it
   employer?: string; // v2.9 Edit details: typed when no approval / receipt shows it
   locationOn?: ISODate; // v2.9 Edit details: when "In the US / Outside" was set (wins over older I-94s)
+  gc?: GcFacts; // v2.9 green-card track (answers only the person can give; documents decide the rest)
+};
+
+/** v2.9 green-card answers. All optional: families saved before v2.9 load unchanged. */
+export type GcFacts = {
+  /** While the I-485 is pending: keep working on H-1B / L-1 (or H-4 / L-2) status, or work on the EAD (C9). Unset = worked out from the documents. */
+  workOn?: 'status' | 'ead';
+  /** Person id whose PERM / I-140 this person's green card follows (unset = their principal, or their own case). */
+  followsId?: string;
+  /** Typed when no I-140 is saved yet. */
+  category?: 'EB-1' | 'EB-2' | 'EB-3' | 'EB-3 OW' | 'EB-5';
+  priorityDate?: ISODate;
+  /** Visa Bulletin column (country of chargeability = country of birth, not passport). Unset = from the passport. */
+  chargeability?: 'all' | 'china' | 'india' | 'mexico' | 'philippines';
+  /** Interview preparation: checklist items ticked (ids from core/gc.ts). */
+  interviewTicks?: string[];
 };
 
 export type Person = {
@@ -130,7 +146,7 @@ export type Person = {
 export type DocType =
   | 'passport' | 'visa' | 'i94' | 'approval' | 'receipt' | 'notice' | 'i129s' | 'ead'
   | 'i20' | 'ds2019' | 'green-card' | 'advance-parole' | 'reentry-permit' | 'naturalization'
-  | 'travel-history' | 'lca' | 'other';
+  | 'travel-history' | 'lca' | 'perm' | 'medical' | 'other';
 
 /** User-facing names. (These exact strings are also used by the QA test families.) */
 export const DOC_LABEL: Record<DocType, string> = {
@@ -150,6 +166,8 @@ export const DOC_LABEL: Record<DocType, string> = {
   naturalization: 'Naturalization certificate',
   'travel-history': 'I-94 travel history',
   lca: 'LCA',
+  perm: 'PERM labor certification',
+  medical: 'Medical exam (I-693)',
   other: 'Other document',
 };
 
@@ -204,6 +222,9 @@ export type DocFields = {
   certificateNo?: string;
   // travel history
   trips?: { depart?: ISODate; return?: ISODate }[];
+  // green card (v2.9)
+  caseNumber?: string; // PERM (DOL) case number, e.g. G-100-26001-000001
+  signedDate?: ISODate; // I-693: civil surgeon's signature date
   // reading notes
   dateNote?: string; // a date that needs a second look
 };

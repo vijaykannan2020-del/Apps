@@ -133,7 +133,7 @@ export function visaLabel(r: PersonRecord, cap?: CapGap, principalCap?: CapGap):
   if (v === 'STEM OPT') return cap && !cap.ended ? 'F-1 (cap-gap)' : 'F-1 (STEM OPT)';
   if (v === 'F-1') return cap && !cap.ended ? 'F-1 (cap-gap)' : 'F-1';
   if (v === 'F-2' && principalCap && !principalCap.ended) return 'F-2 (cap-gap)';
-  if (v === 'Green card pending') return 'Green card applicant (I-485 pending)';
+  if (v === 'Green card pending') return r.gcOnEad ? 'EAD (C9) · I-485 pending' : 'Green card applicant (I-485 pending)';
   if (v === 'Green card' || v === 'Conditional green card') return r.greenCard?.category ? `${v} (${r.greenCard.category})` : v;
   return v;
 }
@@ -158,7 +158,8 @@ export function statusFacts(me: Who, principal: Who | undefined, principalFacts:
   } else if (v === 'Green card') {
     if (r.greenCard?.expires && r.cases.some((x) => x.form === 'I-90' && x.status === 'pending')) out.cardPlusReceiptUntil = addMonths(r.greenCard.expires, 36);
   } else if (v === 'Green card pending') {
-    out.statusUntil = undefined;
+    // v2.9: working on the EAD (C9) — the card date is the date that counts for work.
+    out.statusUntil = r.gcOnEad ? r.ead?.expires : undefined;
   } else if (cap) {
     out.statusUntil = cap.ended ? undefined : cap.until;
   } else if (v === 'F-1 OPT' || v === 'STEM OPT') {

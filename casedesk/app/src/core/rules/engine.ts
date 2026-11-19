@@ -12,6 +12,7 @@ import { travelRules } from './travel';
 import { studentRules } from './student';
 import { addressRule, applicantRules, residentRules } from './greenCard';
 import { caseRules } from './cases';
+import { gcRules } from './gc';
 import { finding } from './types';
 import { fmt } from '../dates';
 
@@ -54,14 +55,14 @@ function rulesFor(c: RuleCtx): Finding[] {
     return out;
   }
   if (rec.visa === 'Green card pending') {
-    const out = [...passportRules(c, true), ...eadRules(c), ...travelRules(c), ...applicantRules(c), ...addressRule(c), ...caseRules(c)];
+    const out = [...passportRules(c, true), ...eadRules(c), ...travelRules(c), ...applicantRules(c), ...gcRules(c), ...addressRule(c), ...caseRules(c)];
     const s = c.me.facts;
     out.push(finding(undefined, 'good', 'gca-ok', 'Green card pending — authorized to stay while the I-485 is pending', `${s.workUntil ? `Work permit until ${fmt(s.workUntil)}. ` : ''}${s.travelDocUntil ? `Travel document until ${fmt(s.travelDocUntil)}.` : 'Don’t travel without Advance Parole.'}`));
     return out;
   }
   return [
     ...visaUnconfirmed(c), ...graceRule(c), ...stayRules(c), ...passportRules(c, true), ...visaInUS(c), ...eadRules(c),
-    ...dependentRules(c), ...petitionRules(c), ...studentRules(c), ...travelRules(c), ...applicantRules(c),
+    ...dependentRules(c), ...petitionRules(c), ...studentRules(c), ...travelRules(c), ...applicantRules(c), ...gcRules(c),
     ...addressRule(c), ...caseRules(c), ...familyRules(c),
   ];
 }
@@ -71,6 +72,9 @@ function finalize(out: Finding[]): Finding[] {
   const has = (r: string) => fs.some((f) => f.rule === r);
   if (has('R26')) fs = fs.filter((f) => f.rule !== 'C10'); // a trip turns "visa expired" into stamping
   if (has('R24')) fs = fs.filter((f) => f.rule !== 'C4'); // R24 already says: plan the extension before the I-94 date
+  if (has('R16') || has('R17')) fs = fs.filter((f) => f.rule !== 'G2'); // the trip rule already says what to do about advance parole
+  if (has('G1')) fs = fs.filter((f) => f.rule !== 'C12'); // the C9 EAD rule knows about H / L status and the renewal on file
+  if (has('G4') && fs.some((f) => f.id === 'gc-hl-ends')) fs = fs.filter((f) => f.rule !== 'C4'); // G4 says: extend or switch to the EAD
   if (has('R6') || fs.some((f) => f.rule === 'R5' && f.severity === 'act')) fs = fs.filter((f) => !['C2', 'C3', 'C4'].includes(f.rule ?? '')); // student status ended: the grace date is what counts
   const seen = new Set<string>();
   fs = fs.filter((f) => (seen.has(f.id) ? false : (seen.add(f.id), true)));
