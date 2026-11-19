@@ -39,6 +39,29 @@ export const STEPS = ['Filed', 'Receipt notice', 'Biometrics', 'RFE received', '
 export const MILESTONES = [5, 10, 25, 50, 100, 250, 500, 1000];
 export const DELETED = '[deleted]';
 /** Where people reach the moderators: MODERATION_EMAIL from the environment, else deploy.conf (public settings), else the owner's support address. */
+// v2.9: the pinned Welcome post — made by the server on start when it is missing (or older than WELCOME.v),
+// written by the Immigration Wallet team, flagged official, never voted down or reported, never removed
+// by migrate(). Older apps see it as a normal discussion post (author name, no profile link).
+export const WELCOME_ID = 'p_welcome';
+export const TEAM_AUTHOR = { id: null, name: 'Immigration Wallet team', avatar: null, flair: null, official: true };
+export const WELCOME = {
+  v: 1,
+  title: 'Welcome to the Community',
+  body: [
+    'This is where people on US visas and green cards help each other: questions, timelines, stamping experiences and what worked for them.',
+    '',
+    'Three rules',
+    '1. Never post receipt numbers, A-numbers or passport numbers. Say the service center (EAC, WAC…) instead.',
+    '2. Be kind. No harassment, hate or personal attacks.',
+    '3. Answers come from other users, not lawyers. This is not legal advice.',
+    '',
+    'How to start',
+    '• Ask a question about your visa, form or case.',
+    '• Share a timeline so others know what to expect.',
+    '• Answer someone who is a few steps behind you.',
+  ].join('\n'),
+};
+
 export const SUPPORT_EMAIL = 'immigrationwallet@gmail.com';
 export const moderationEmail = ({ env = process.env, file } = {}) => (env.MODERATION_EMAIL || '').trim() || readConf('MODERATION_EMAIL', file) || SUPPORT_EMAIL;
 const SESSION_DAYS = 180;
@@ -112,9 +135,18 @@ export function commentTree(list, sort = 'best') {
   return walk(roots, 0);
 }
 
-export function createForum({ file = null, now = Date.now, notify = async () => {}, verifyApple, verifyGoogle, exchangeAppleCode = async () => null, revokeApple = async () => false, adminToken = process.env.ADMIN_TOKEN || '', flushMs = 10_000 } = {}) {
+export function createForum({ welcome = true, file = null, now = Date.now, notify = async () => {}, verifyApple, verifyGoogle, exchangeAppleCode = async () => null, revokeApple = async () => false, adminToken = process.env.ADMIN_TOKEN || '', flushMs = 10_000 } = {}) {
   let db = emptyDb();
   if (file) { try { db = migrate(JSON.parse(fs.readFileSync(file, 'utf8'))); } catch {} }
+  /** Create or refresh the pinned Welcome post. Votes, saves and comments on it are kept. It is written to
+   *  disk with the next real change (a restart makes it again), so loading alone never rewrites the file. */
+  function ensureWelcome() {
+    const cur = db.posts[WELCOME_ID];
+    if (cur && !cur.gone && cur.official && (cur.welcomeV || 0) >= WELCOME.v) return;
+    const base = cur || { id: WELCOME_ID, createdAt: new Date(now()).toISOString(), up: 0, down: 0, score: 0, commentIds: [], acceptedId: null, reviewedAt: null };
+    db.posts[WELCOME_ID] = { ...base, uid: null, official: true, pinned: true, welcomeV: WELCOME.v, gone: false, hidden: null, type: 'discussion', title: WELCOME.title, body: WELCOME.body, tags: [], editedAt: null, down: 0, score: (base.up || 0) };
+  }
+  if (welcome) ensureWelcome();
   let dirty = false;
   let statsCache = null;
   const touch = () => { dirty = true; statsCache = null; };
@@ -168,6 +200,7 @@ export function createForum({ file = null, now = Date.now, notify = async () => 
   const unread = (uid) => (db.notes[uid] || []).filter((n) => !n.read).length;
   const me = (u) => ({ id: u.id, name: u.name, avatar: u.avatar || null, flair: u.flair || null, provider: u.provider, createdAt: u.createdAt, rulesAccepted: u.rules === RULES_VERSION, rulesVersion: RULES_VERSION, banned: !!u.banned, notify: !!u.pushToken, unread: unread(u.id), ...stats(u.id) });
   const GONE_AUTHOR = { id: null, name: DELETED, avatar: null, flair: null, deleted: true };
+  const authorOf = (p) => (p.official ? { ...TEAM_AUTHOR } : pub(p.uid));
   const pub = (uid) => { const u = uid ? db.users[uid] : null; return u ? { id: u.id, name: u.name, avatar: u.avatar || null, flair: u.flair || null } : GONE_AUTHOR; };
 
   function userFrom(token) {
@@ -365,13 +398,13 @@ export function createForum({ file = null, now = Date.now, notify = async () => 
   function embed(id, viewer) {
     const o = db.posts[id];
     if (!o || o.gone || !visible(o, viewer)) return { id, removed: true };
-    return { id: o.id, type: o.type, title: o.title, excerpt: excerpt(o.body), tags: o.tags, author: pub(o.uid), createdAt: o.createdAt, score: o.score, comments: liveComments(o).length, timeline: o.timeline || null, poll: o.poll ? { options: o.poll.options.map((text) => ({ text })), total: Object.keys(o.poll.voters).length } : null };
+    return { id: o.id, type: o.type, title: o.title, excerpt: excerpt(o.body), tags: o.tags, author: authorOf(o), createdAt: o.createdAt, score: o.score, comments: liveComments(o).length, timeline: o.timeline || null, poll: o.poll ? { options: o.poll.options.map((text) => ({ text })), total: Object.keys(o.poll.voters).length } : null };
   }
   function summary(p, viewer) {
     const n = liveComments(p).length;
     const v = myVote(viewer, p.id);
     return {
-      id: p.id, type: p.type, title: p.title, excerpt: excerpt(p.body), tags: p.tags, author: pub(p.uid), createdAt: p.createdAt, editedAt: p.editedAt || null,
+      id: p.id, type: p.type, title: p.title, excerpt: excerpt(p.body), tags: p.tags, author: authorOf(p), createdAt: p.createdAt, editedAt: p.editedAt || null, pinned: !!p.pinned, official: !!p.official,
       score: p.score || 0, myVote: v, voted: v === 1, comments: n, answers: n, accepted: !!p.acceptedId, saved: isSaved(viewer, p.id), mine: !!viewer && viewer.id === p.uid,
       hidden: p.hidden ? 'review' : null, deleted: !!p.gone, timeline: p.timeline || null, poll: pollView(p, viewer), repost: p.repostOf ? embed(p.repostOf, viewer) : null,
     };
@@ -414,7 +447,12 @@ export function createForum({ file = null, now = Date.now, notify = async () => 
       const h = new Map(rows.map((p) => [p.id, hotScore(p.score || 0, count.get(p.id), Date.parse(p.createdAt))]));
       rows.sort((a, b) => h.get(b.id) - h.get(a.id) || byNew(a, b));
     } else if (!saved) rows.sort(byNew);
-    const page = rows.slice(offset, offset + limitN);
+    // The pinned post sits above the first page of the plain feed (any sort but Unanswered, no tag, search or
+    // author filter) and is never counted or paged with the others.
+    const pin = rows.filter((p) => p.pinned);
+    if (pin.length) rows = rows.filter((p) => !p.pinned);
+    const plain = !saved && !mine && !author && !type && !tags.length && !words.length && sort !== 'unanswered';
+    const page = [...(plain && offset === 0 ? pin : []), ...rows.slice(offset, offset + limitN)];
     return { posts: page.map((p) => summary(p, viewer)), next: offset + limitN < rows.length ? String(offset + limitN) : null, total: rows.length };
   }
 
@@ -610,6 +648,7 @@ export function createForum({ file = null, now = Date.now, notify = async () => 
     if (it.uid === u.id) throw err(400, 'You can’t vote on your own post.');
     limit(`vote:${u.id}`, 240, 3600_000);
     const dir = b.dir === 1 || b.dir === -1 || b.dir === 0 ? b.dir : b.up === false ? 0 : 1;
+    if (it.official && dir === -1) throw err(400, 'The welcome post can’t be voted down.', 'official');
     const k = `${u.id}|${id}`;
     const prev = db.votes[k] || 0;
     if (prev !== dir) {
@@ -673,6 +712,7 @@ export function createForum({ file = null, now = Date.now, notify = async () => 
     const it = itemOf(kind, id);
     if (!it || it.gone) throw err(404, 'Not found.');
     if ((kind === 'user' ? it.id : it.uid) === u.id) throw err(400, kind === 'user' ? 'You can’t report yourself.' : 'You can’t report your own post.');
+    if (it.official) throw err(400, 'This post is from the Immigration Wallet team and can’t be reported.', 'official');
     const reason = REASONS.includes(b.reason) ? b.reason : 'other';
     const note = clean(b.note).slice(0, LIMITS.note);
     if (!db.reports.some((r) => r.id === id && r.by === u.id)) {

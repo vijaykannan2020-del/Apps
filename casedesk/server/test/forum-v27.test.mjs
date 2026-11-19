@@ -17,7 +17,7 @@ const Q = (o = {}) => new URLSearchParams(o);
 function setup(extra = {}) {
   let clock = Date.parse('2026-11-18T12:00:00Z');
   const pushes = [];
-  const f = createForum({ now: () => clock, adminToken: ADMIN, verifyApple: async (tok) => ({ provider: 'apple', sub: tok }), notify: async (m) => { pushes.push(...m); }, ...extra });
+  const f = createForum({ welcome: false, now: () => clock, adminToken: ADMIN, verifyApple: async (tok) => ({ provider: 'apple', sub: tok }), notify: async (m) => { pushes.push(...m); }, ...extra });
   const call = (method, p, { body, token, query, ip = '1.1.1.1' } = {}) => f.route({ method, path: p, body: body || {}, token, query: query || Q(), ip });
   let n = 0;
   const user = async (sub, { push = false } = {}) => {
