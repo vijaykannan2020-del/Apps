@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Get Immigration Wallet</title>
+<meta name="description" content="Your family’s US immigration documents and dates on your own phone. Private by design.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <div class="icon" aria-hidden="true">W</div>
+  <h1>Immigration Wallet</h1>
+  <p class="sub">Your family’s US immigration documents and dates, on your own phone.</p>
+
+  <h2>Someone shared documents with you?</h2>
+  <div class="card">
+    <ol class="steps">
+      <li><b>Install the app</b><span>Use a button below on your iPhone.</span></li>
+      <li><b>Open the file in the app</b><span>Tap the .iwshare file you were sent and choose Immigration Wallet. Or open the app and tap I have a shared file (Settings → Import shared documents if the app is already set up).</span></li>
+      <li><b>Enter the 6-word code</b><span>The person who shared it tells you the code by phone or in person. It is never in the message or the file.</span></li>
+    </ol>
+  </div>
+
+  <div class="btns" id="btns">
+    <a class="btn off" id="appstore" aria-disabled="true">App Store<small>Coming soon</small></a>
+    <a class="btn alt" id="testflight" hidden>Join the beta on TestFlight<small>Install TestFlight from the App Store first</small></a>
+  </div>
+  <p class="note" id="tester">The beta is invite-only for now: ask the person who shared this to add you as a tester.</p>
+
+  <h2>Private by design</h2>
+  <div class="card"><p>Your documents stay on your phone. Shared files are locked with the code, and this page never sees the file or the code. No account, ads or tracking. Read the <a href="privacy.html">privacy policy</a>.</p></div>
+
+  <p class="note">Immigration Wallet is not affiliated with USCIS, DHS, DOL, the State Department or any government agency. Not legal advice.</p>
+</main>
+<script src="links.js"></script>
+<script>
+(function () {
+  var L = window.IW_LINKS || {};
+  var ok = function (u) { return typeof u === 'string' && /^https:\/\/(apps\.apple\.com|testflight\.apple\.com)\//.test(u); };
+  var as = document.getElementById('appstore'), tf = document.getElementById('testflight'), tester = document.getElementById('tester');
+  if (ok(L.appStore)) { as.href = L.appStore; as.className = 'btn'; as.removeAttribute('aria-disabled'); as.innerHTML = 'Download on the App Store'; }
+  if (ok(L.testFlight)) { tf.href = L.testFlight; tf.hidden = false; tester.hidden = true; if (ok(L.appStore)) tf.querySelector('small').textContent = 'Beta version'; }
+  else if (ok(L.appStore)) tester.hidden = true;
+})();
+</script>
+</body>
+</html>
