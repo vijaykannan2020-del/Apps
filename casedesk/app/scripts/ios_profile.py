@@ -22,7 +22,10 @@ def pick_or_make_profile(api, bid, cert_id, container, stamp):
         caps = {}
     icloud = [c for c in caps.get('data', []) if c.get('attributes', {}).get('capabilityType') == 'ICLOUD']
     listed = json.dumps(icloud)
+    import re, sys
+    print('iCloud capability as Apple lists it: ' + listed[:1500], file=sys.stderr)
     if icloud and 'iCloud.' in listed and container not in listed:
+        print('stopped at step 1: other containers listed', file=sys.stderr)
         raise ContainerMissing()
     # 2. Reuse an active App Store profile with the container and our certificate.
     try:
@@ -40,6 +43,9 @@ def pick_or_make_profile(api, bid, cert_id, container, stamp):
         'relationships': {'bundleId': {'data': {'type': 'bundleIds', 'id': bid}}, 'certificates': {'data': [{'type': 'certificates', 'id': cert_id}]}}}})['data']
     content = base64.b64decode(prof['attributes']['profileContent'])
     if want not in content:
+        import re, sys
+        ents = re.findall(rb'iCloud\.[A-Za-z0-9.\-*]+', content)
+        print('stopped at step 3: new profile iCloud ids = ' + repr(sorted(set(ents)))[:800], file=sys.stderr)
         api('DELETE', f"/v1/profiles/{prof['id']}", tries=2)
         raise ContainerMissing()
     return content, 'Created provisioning profile (with iCloud container) ✓'
