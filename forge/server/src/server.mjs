@@ -363,6 +363,35 @@ function startCodexDeviceLogin() {
   codexLogin = st;
   return st;
 }
+// ---------- GitHub sign-in (device flow, GitHub CLI's public OAuth app — same flow as `gh auth login`) ----------
+const GH_CLIENT = process.env.GITHUB_CLIENT_ID || '178c6fc778ccc68e1d6a';
+let ghLogin = null;
+async function startGithubLogin() {
+  if (ghLogin && !ghLogin.done && Date.now() < ghLogin.until) return ghLogin;
+  const r = await fetch('https://github.com/login/device/code', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: GH_CLIENT, scope: 'repo read:org workflow' }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.device_code) throw httpErr(502, 'GitHub sign-in is unavailable right now: ' + (j.error_description || j.error || r.status));
+  const st = { code: j.user_code, url: 'https://github.com/login/device', done: false, ok: false, error: '', out: '', until: Date.now() + (j.expires_in || 900) * 1000 };
+  ghLogin = st;
+  (async () => {
+    let wait = (j.interval || 5) * 1000;
+    while (!st.done && Date.now() < st.until) {
+      await new Promise(r => setTimeout(r, wait));
+      const t = await fetch('https://github.com/login/oauth/access_token', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: GH_CLIENT, device_code: j.device_code, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' }) }).then(x => x.json()).catch(() => ({}));
+      if (t.access_token) {
+        const u = await fetch('https://api.github.com/user', { headers: { Authorization: `Bearer ${t.access_token}`, 'User-Agent': 'forge' } }).then(x => x.json()).catch(() => ({}));
+        setSecrets({ githubToken: t.access_token, githubLogin: u.login || '' });
+        st.ok = true; st.done = true; break;
+      }
+      if (t.error === 'slow_down') wait += 5000;
+      else if (t.error && t.error !== 'authorization_pending') { st.error = t.error_description || t.error; st.done = true; }
+    }
+    if (!st.done) { st.done = true; st.error = 'The code expired. Tap Connect GitHub again.'; }
+  })();
+  return st;
+}
+const ghView = st => st && { code: st.code, url: st.url, done: st.done, ok: st.ok, error: st.error };
+
 const loginView = st => st && { url: st.url, code: st.code, done: st.done, ok: st.ok, out: st.out.slice(-1500) };
 
 async function status() {
@@ -444,6 +473,8 @@ const server = http.createServer(async (req, res) => {
       setSecrets(patch);
       return send(res, 200, await status());
     }
+    if (M === 'POST' && p === '/github/login') return send(res, 200, ghView(await startGithubLogin()));
+    if (M === 'GET' && p === '/github/login') return send(res, 200, ghView(ghLogin) || {});
     if (M === 'POST' && p === '/codex/login') return send(res, 200, loginView(startCodexDeviceLogin()));
     if (M === 'GET' && p === '/codex/login') return send(res, 200, loginView(codexLogin) || {});
     if (M === 'POST' && p === '/codex/logout') { await run('codex', ['logout'], { timeout: 15000 }); try { fs.rmSync(path.join(CODEX_HOME, 'auth.json')); } catch {} return send(res, 200, await status()); }
