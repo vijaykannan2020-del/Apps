@@ -152,6 +152,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-20, Claude: Forge Version 11 (server 10): shared memory between agents. When a message goes to a different agent than the one(s) since its last turn, the server prepends a HANDOFF block (user messages, the other agent's replies, files/commands it touched, pushes/PRs; last 16k chars) to the prompt and shows 'Shared this chat’s history with …'. Each agent still resumes its own session for its own history.
+
 - 2026-11-20, Claude: Forge Version 10 (server 9): Codex model picker lists the real models from `codex app-server` → `model/list` (server `/codex/models`, cached 10 min, cleared on Codex sign-in/out), each with its own effort levels (e.g. low…max, ultra); effort resets if the new model doesn't support it.
 
 - 2026-11-20, Claude: Forge Version 9 (server 8): voice input (mic button in both composers, Safari webkitSpeechRecognition, live text, keyboard-mic fallback message) and effort picker per agent (Claude `--effort` low/medium/high/xhigh/max; Codex `-c model_reasoning_effort=` low/medium/high/xhigh). Chips wrap instead of scroll.

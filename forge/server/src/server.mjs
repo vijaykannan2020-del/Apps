@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
-const SERVER_VERSION = 9; // raise on every server change; shown in the app's Settings
+const SERVER_VERSION = 10; // raise on every server change; shown in the app's Settings
 const PORT = +(process.env.PORT || 8790);
 const SYNAPSE = process.env.SYNAPSE_URL || 'http://synapse:8008';
 const DATA = process.env.DATA_DIR || '/app/data';
@@ -162,6 +162,27 @@ function agentEnv(agent) {
   if (!codexReady()) throw httpErr(400, 'Connect Codex in Settings first (ChatGPT sign-in or OpenAI key).');
   return baseEnv();
 }
+// Shared memory between agents: when you switch agent, the new one gets a handoff of everything
+// said and done in this chat since it last spoke (your messages, the other agent's replies, files touched).
+function handoff(s, agent) {
+  let start = 0;
+  for (let i = s.events.length - 1; i >= 0; i--) if (s.events[i].kind === 'user' && (s.events[i].agent || s.agent) === agent) { start = i + 1; break; }
+  const slice = s.events.slice(start);
+  if (!slice.some(e => e.kind === 'user' && (e.agent || s.agent) !== agent)) return ''; // nothing new from the other agent
+  const lines = [];
+  for (const e of slice) {
+    const who = e.agent === 'codex' ? 'Codex' : 'Claude Code';
+    if (e.kind === 'user') lines.push(`USER (to ${who}): ${e.text}`);
+    else if (e.kind === 'text') lines.push(`${who.toUpperCase()}: ${e.text}`);
+    else if (e.kind === 'tool' && e.label) lines.push(`  [${who} ${e.status === 'failed' ? 'tried' : 'did'}: ${e.label}]`);
+    else if (e.kind === 'status' && /Pushed|pull request|Merged/.test(e.text)) lines.push(`  [${e.text}]`);
+  }
+  if (!lines.some(l => !l.startsWith('  ['))) return '';
+  let t = lines.join('\n');
+  if (t.length > 16000) t = '…(earlier part cut)…\n' + t.slice(-16000);
+  return `HANDOFF — this chat was also worked on by another AI agent. Here is what happened since you last spoke, so you have the full context. The files in the repo already contain their changes.\n<<<\n${t}\n>>>\n\nNow the user's new message:\n`;
+}
+
 const codexReady = () => fs.existsSync(path.join(CODEX_HOME, 'auth.json'));
 
 function startRun(s, text, agent, model, mode, effort) {
@@ -189,8 +210,11 @@ function startRun(s, text, agent, model, mode, effort) {
     const prompt = (s.codexThread ? '' : GUIDE + '\n\n') + (mode === 'ask' ? '(Ask mode: answer only, do not edit files.)\n' : '') + text;
     args = s.codexThread ? ['exec', 'resume', ...common, s.codexThread, prompt] : ['exec', ...common, '-C', cwd, prompt];
   }
+  const ctx = handoff(s, agent);
+  if (agent === 'claude') args[1] = ctx + args[1]; else args[args.length - 1] = args[args.length - 1].replace(text, ctx + text);
   s.agent = agent; s.status = 'running';
   push(s, { kind: 'user', text, agent, model: model || '', mode, effort: effort || '' });
+  if (ctx) push(s, { kind: 'status', text: `Shared this chat’s history with ${agent === 'codex' ? 'Codex' : 'Claude Code'}` });
   const proc = spawn(cmd, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
   const r = { proc, agent, tools: new Map(), stopped: false };
   runs.set(s.id, r);

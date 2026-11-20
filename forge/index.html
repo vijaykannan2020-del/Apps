@@ -401,7 +401,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 10;
+const APP_VERSION = 11;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -572,7 +572,7 @@ const chev = '<svg viewBox="0 0 10 10"><path d="M2 4l3 3 3-3"/></svg>';
 function paintChips(box, where) {
   const P = prefs();
   box.innerHTML = `<button class="chip ${P.agent}" data-c="agent"><i></i>${P.agent === 'codex' ? 'Codex' : 'Claude'}${chev}</button><button class="chip" data-c="model">${esc(modelLabel(P.agent, P.model[P.agent] || ''))}${chev}</button><button class="chip" data-c="effort">${P.effort[P.agent] ? '⚡ ' + effortLabel(P.agent, P.effort[P.agent]) : 'Effort'}${chev}</button><button class="chip ${P.mode === 'ask' ? 'ask' : ''}" data-c="mode">${P.mode === 'ask' ? 'Ask' : 'Agent'}${chev}</button>`;
-  box.onclick = e => { const c = e.target.closest('.chip'); if (!c) return; chipSheet(c.dataset.c, () => { paintChips($('#pchips'), 'new'); paintChips($('#schips'), 'chat'); if (where === 'chat' && c.dataset.c === 'agent' && CUR && prefs().agent !== CUR.agent) toast(`Next message goes to ${agName(prefs().agent)}. It sees the code, not the other agent’s chat.`, 3600); }); };
+  box.onclick = e => { const c = e.target.closest('.chip'); if (!c) return; chipSheet(c.dataset.c, () => { paintChips($('#pchips'), 'new'); paintChips($('#schips'), 'chat'); if (where === 'chat' && c.dataset.c === 'agent' && CUR && prefs().agent !== CUR.agent) toast(`Next message goes to ${agName(prefs().agent)}. It gets this chat’s history automatically.`, 3600); }); };
 }
 function chipSheet(kind, done) {
   const P = prefs();
