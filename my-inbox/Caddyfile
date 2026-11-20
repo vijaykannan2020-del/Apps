@@ -7,6 +7,10 @@
 	handle /push/* {
 		reverse_proxy pushgw:8080
 	}
+	# Forge API (forge/server): coding agents for the Forge app
+	handle /forge/* {
+		reverse_proxy forge-api:8790
+	}
 	handle /_synapse/client/* {
 		reverse_proxy synapse:8008
 	}

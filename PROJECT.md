@@ -19,6 +19,7 @@ Last updated: 2026-11-15.
 | `segue/` | Segue: plays saved passages selected from timed lyrics in Spotify albums, artists and playlists. Full handoff in `segue/README.md` | https://vijaykannan2020-del.github.io/Apps/segue/ |
 | `inbox-app/` | Native iPhone app for My Inbox (Expo; Expo Go now, TestFlight later) |
 | `my-inbox/` | My Inbox: own Beeper-style unified inbox for WhatsApp, Instagram and Messenger. NOT a GitHub Pages app: it runs on Vijay's own VPS (Docker: Synapse + mautrix bridges + push gateway + Caddy). Setup in `my-inbox/README.md`; holds no secrets (created on the server by `setup.sh`) | Vijay's own domain (not Pages) |
+| `forge/` | Forge: Cursor-style coding app. Pick a GitHub repo, chat with Claude Code or Codex, see the diff, commit, open/merge the PR. App on Pages; agents run in `forge/server` (Docker on the Oracle server, `/opt/forge`, reached at `https://vijayinbox.duckdns.org/forge/api` through My Inbox's Caddy, installs/updates itself from `main`). Sign-in = My Inbox admin login. Keys typed in the app, stored only on the server. No test copy; raise `APP_VERSION` on each change | https://vijaykannan2020-del.github.io/Apps/forge/ |
 | `casedesk/` | CaseDesk – Tracker for USCIS: public immigration app (Expo, `casedesk/app`) + API (`casedesk/server`, Docker on the Oracle server next to My Inbox, HTTPS through My Inbox's Caddy, installs/updates itself from `main`). Secrets only in `/opt/casedesk/.env` on the server | API: domain in `casedesk/server/deploy.conf` |
 
 Hosting is GitHub Pages from the `main` branch. A push to `main` is live in
@@ -150,6 +151,8 @@ the top right and cover part of the page.
   GitHub Pages and the free TMDB terms are for non-commercial use.
 
 ## Change log
+
+- 2026-11-20, Claude: Added Forge (`forge/` app Version 1 + `forge/server`). Server runs Claude Code (`claude -p --output-format stream-json`, `--resume`) and Codex (`codex exec --json`, `exec resume`) per session in a cloned repo on branch `forge/<slug>-<id>`; app long-polls events, shows tool steps, diff, files; Commit & push / PR / squash-merge via the GitHub token. Codex supports ChatGPT device sign-in or API key; Claude supports API key or `claude setup-token` token. My Inbox changes: Caddyfile `handle /forge/*` → `forge-api:8790`; `auto-update.sh` installs forge/server once into /opt/forge and reloads Caddy whenever the Caddyfile changes (reload only, never restart). Tested with a mock Synapse and fake agent CLIs (both event formats) + Playwright light/dark; real agent flags checked against claude 2.1.329 and codex-cli 0.171.0. Not yet run on the real server.
 
 - 2026-11-19, ChatGPT: Deployed isolated `ai-dev-hub/index.html` to GitHub Pages on `main` at `/Apps/ai-dev-hub/`. Read-only public GitHub folder browsing, device-local project notes, context copying, and official Claude/ChatGPT/Codex links. No existing app files changed; no API keys or automatic code editing. Live phone test pending.
 

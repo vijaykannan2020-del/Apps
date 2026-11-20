@@ -1,0 +1,8 @@
+{
+  "name": "forge-server",
+  "private": true,
+  "type": "module",
+  "description": "Forge API: runs Claude Code and Codex on GitHub repos for the Forge phone app",
+  "scripts": { "start": "node src/server.mjs" },
+  "engines": { "node": ">=22" }
+}

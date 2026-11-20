@@ -1,0 +1,22 @@
+# Forge API. Runs next to My Inbox on the same server and is reached through
+# My Inbox's Caddy at https://<inbox domain>/forge/api. Secrets live in data/secrets.json (never in GitHub).
+name: forge
+services:
+  api:
+    build:
+      context: .
+      args:
+        AGENTS_REFRESH: ${AGENTS_REFRESH:-0}
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    networks:
+      inbox:
+        aliases: [forge-api]
+    mem_limit: 4g
+
+networks:
+  inbox:
+    external: true
+    name: ${INBOX_NET:-my-inbox_default}

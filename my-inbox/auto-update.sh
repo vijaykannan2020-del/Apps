@@ -162,6 +162,21 @@ if [ ! -f /etc/cron.d/casedesk-auto ] && [ -z "$(find /tmp/casedesk-install.stam
     && curl -fsSL https://github.com/vijaykannan2020-del/Apps/archive/refs/heads/main.tar.gz | tar xz --strip-components=3 Apps-main/casedesk/server \
     && chmod +x setup.sh auto-update.sh && ./setup.sh' >> /var/log/casedesk-install.log 2>&1 < /dev/null &
 fi
+# Forge API (forge/server in the same repo), same pattern as CaseDesk: install once, then it updates itself.
+if [ ! -f /etc/cron.d/forge-auto ] && [ -z "$(find /tmp/forge-install.stamp -mmin -30 2>/dev/null)" ]; then
+  touch /tmp/forge-install.stamp
+  setsid nohup bash -c 'mkdir -p /opt/forge && cd /opt/forge \
+    && curl -fsSL https://github.com/vijaykannan2020-del/Apps/archive/refs/heads/main.tar.gz | tar xz --strip-components=3 Apps-main/forge/server \
+    && chmod +x setup.sh auto-update.sh && ./setup.sh' >> /var/log/forge-install.log 2>&1 < /dev/null &
+fi
+# Caddy doesn't notice an edited Caddyfile by itself: reload it whenever the file's contents change.
+CH=$(sha256sum Caddyfile | cut -c1-16)
+if [ "$CH" != "$(cat .caddy-loaded 2>/dev/null || true)" ] && docker compose ps --status running caddy 2>/dev/null | grep -q caddy; then
+  # reload is all-or-nothing: a bad Caddyfile is rejected and the running config stays (never restart blindly)
+  if docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
+    echo "$CH" > .caddy-loaded; echo "$(date -u '+%F %T') Caddy config reloaded"
+  else echo "$CH" > .caddy-loaded; echo "$(date -u '+%F %T') Caddy rejected the new Caddyfile; kept the running config"; fi
+fi
 REPO=https://github.com/vijaykannan2020-del/Apps
 SHA=$(git ls-remote "$REPO" refs/heads/main 2>/dev/null | cut -f1)
 [ -n "$SHA" ] || exit 0
