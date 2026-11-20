@@ -205,7 +205,7 @@ export function Footer({ children, column }: { children: React.ReactNode; column
   const L = useLayout();
   return (
     <Bar edge="bottom" style={{ paddingBottom: Math.max(12, insets.bottom), paddingTop: 12, paddingLeft: insets.left, paddingRight: insets.right }}>
-      <View style={{ flexDirection: column ? 'column' : 'row', flexWrap: column ? 'nowrap' : 'wrap', gap: 10, paddingHorizontal: L.side, alignSelf: 'center', width: '100%', maxWidth: L.maxWidth + 2 * L.side }}>{children}</View>
+      <View style={{ flexDirection: column ? 'column' : 'row', flexWrap: column || L.width >= 360 ? 'nowrap' : 'wrap', alignItems: column ? undefined : 'center', gap: 10, paddingHorizontal: L.side, alignSelf: 'center', width: '100%', maxWidth: L.maxWidth + 2 * L.side }}>{children}</View>
     </Bar>
   );
 }

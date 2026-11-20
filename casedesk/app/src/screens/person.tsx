@@ -309,7 +309,7 @@ export function DocumentScreen() {
   };
   return (
     <Screen keyboard tour={tour} nav={{ back: p.name, onBack: back, title: docTitle(d), right: <NavButton title="Edit" onPress={() => sheet.open('Edit document', <DocEditMenu docId={d.id} />)} /> }} footer={<>
-      <TourTarget id="actions" style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+      <TourTarget id="actions" style={{ flexDirection: 'row', gap: 10, flexGrow: 2, flexShrink: 1, flexBasis: 0, minWidth: 0 }}>
         <Button kind="ghost" icon="refresh" title="Replace" onPress={() => sheet.open('Replace document', <ReplacePicker onPick={(s) => { sheet.close(); replace(s); }} />)} />
         <Button kind="tint" icon="share" title="Share" onPress={doShare} />
       </TourTarget>
