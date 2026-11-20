@@ -316,6 +316,8 @@ export type SetupProgress = {
   docsLater?: string[]; // document rows put off ("pid:step")
   at?: string; // ISO timestamp of the last change
   since?: string; // v3.0 fix8: when this setup began (documents saved before it show as Added earlier)
+  bulk?: { id: string; by: 'passport number' | 'name' | 'none' | 'moved' }[]; // v3.0 fix8: documents from the last Add several at once, for the review list
+  bulkUnread?: number; // ...and how many of the picked files couldn't be read
 };
 
 export const DEFAULT_SETTINGS: Settings = { reminderLeadDays: [180, 90, 30, 7] };

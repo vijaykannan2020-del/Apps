@@ -13,7 +13,8 @@ import { parsePlace, placeText } from '../core/metro';
 import { FORMS, isReceipt } from '../core/cases';
 import { birthCountryGuess } from '../core/birth';
 import { fillsStep, stepMeta, type StepKey } from '../core/steps';
-import { FIELDS, checklistRow, docHasData } from '../core/docs';
+import { FIELDS, checklistRow, docHasData, docTitle } from '../core/docs';
+import { importMany } from '../data/bulk';
 import { REMINDER_TYPES, TYPE_DEFAULT, typeDates, typeSetting, typesFor, type ReminderType } from '../core/reminders';
 import { widgetName } from '../core/widgets';
 import {
@@ -771,6 +772,7 @@ function DocsStep({ f }: StepCtx) {
         </View>
         <Meter value={prog.added} max={Math.max(1, prog.total)} />
       </Card>
+      <BulkAdd f={f} />
       {lists.map(({ p, key, more: rest }) => (
         <Card key={p.id} style={{ marginTop: 12, paddingBottom: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
@@ -805,6 +807,86 @@ function DocsStep({ f }: StepCtx) {
       ))}
       <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'center', alignItems: 'center', marginTop: 14 }}><Icon name="lock" size={13} color={t.text2} /><T tone="text2" style={font.caption}>Read on this phone. Your documents are never uploaded.</T></View>
     </View>
+  );
+}
+
+/** v3.0 fix8 (owner): Add several documents at once — each is read here and filed under the person
+ *  whose name (or passport number) is on it; a short review list lets them move any that landed wrong. */
+function BulkAdd({ f }: { f: FamilyState }) {
+  const t = useTheme();
+  const toast = useToast();
+  const sheet = useSheet();
+  const [busy, setBusy] = useState<string | null>(null);
+  const setup = f.settings.setup ?? { step: 'docs' };
+  const review = (setup.bulk ?? []).map((b) => ({ ...b, d: f.docs.find((x) => x.id === b.id) })).filter((x) => !!x.d);
+  const saveBulk = (bulk: NonNullable<typeof setup.bulk> | undefined, unread?: number) => f.actions.updateSettings({ setup: { ...(f.settings.setup ?? { step: 'docs' }), bulk, bulkUnread: unread } });
+  const run = async (src: 'photos' | 'files') => {
+    tap();
+    if (busy) return;
+    setBusy('Opening…');
+    try {
+      const r = await importMany(src, f, (n, of) => setBusy(n < of ? `Reading ${n + 1} of ${of}…` : 'Filing them…'));
+      if (!r.picked) return;
+      await saveBulk([...r.added, ...(setup.bulk ?? []).filter((b) => !r.added.some((x) => x.id === b.id))], r.unread || undefined);
+      toast(r.added.length ? `${r.added.length} added · check who each one is for` : 'Couldn’t read those. Try Scan or Enter or edit.');
+    } catch (e) { toast((e as Error).message || 'Couldn’t add those. Try again.'); } finally { setBusy(null); }
+  };
+  const move = (docId: string) => {
+    const d = f.docs.find((x) => x.id === docId);
+    if (!d) return;
+    sheet.open(`Whose ${docTitle(d).toLowerCase()} is this?`, (
+      <View style={{ gap: 8 }}>
+        {f.people.filter((p) => p.id !== d.ownerId).map((p) => (
+          <Pressable key={p.id} onPress={async () => { sheet.close(); await f.actions.updateDoc(d.id, { ownerId: p.id }); await saveBulk((f.settings.setup?.bulk ?? []).map((b) => (b.id === d.id ? { ...b, by: 'moved' as const } : b)), f.settings.setup?.bulkUnread); toast(`Moved to ${p.name}`); }}
+            accessibilityRole="button" accessibilityLabel={`Move to ${p.name}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 12, borderRadius: radius.row, backgroundColor: t.card }}>
+            <Avatar name={p.name} size="sm" /><T style={[font.body, { fontWeight: '600', flex: 1 }]}>{p.name}</T>
+          </Pressable>
+        ))}
+      </View>
+    ));
+  };
+  const by = (b: string) => (b === 'passport number' ? 'Matched by passport number' : b === 'name' ? 'Matched by the name on it' : b === 'moved' ? 'Moved by you' : 'No name matched · check this one');
+  return (
+    <Card style={{ marginTop: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: t.pastel.butter, alignItems: 'center', justifyContent: 'center' }}><Icon name="layers" size={19} color={t.ink} /></View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <T style={[font.callout, { fontWeight: '600' }]}>Add several documents at once</T>
+          <T tone="text2" style={font.foot}>Pick photos or PDFs for the whole family. Each one is read on this phone and filed under the right person by the name on it. If one lands under the wrong person, move it.</T>
+        </View>
+      </View>
+      {busy ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, minHeight: 44 }} accessibilityLiveRegion="polite"><Spinner /><T tone="text2" style={font.sub}>{busy}</T></View>
+      ) : (
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+          <View style={{ flex: 1 }}><Button kind="tint" icon="photo" title="Photos" label="Add several photos" onPress={() => run('photos')} /></View>
+          <View style={{ flex: 1 }}><Button kind="tint" icon="folder" title="Files" label="Add several files" onPress={() => run('files')} /></View>
+        </View>
+      )}
+      {review.length || setup.bulkUnread ? (
+        <Appear style={{ marginTop: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <T style={[font.headline]}>{`Just added · ${review.length}`}</T>
+            <Pressable onPress={() => { tap(); saveBulk(undefined).catch(() => {}); }} accessibilityRole="button" accessibilityLabel="Done checking" style={{ minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: 6 }}><T tone="accent" style={[font.sub, { fontWeight: '600' }]}>Done</T></Pressable>
+          </View>
+          {review.map(({ id, by: b, d }) => {
+            const owner = f.people.find((p) => p.id === d!.ownerId);
+            return (
+              <View key={id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: 1, borderTopColor: t.sep }}>
+                <Avatar name={owner?.name ?? '?'} size="sm" />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <T style={[font.callout, { fontWeight: '600' }]} numberOfLines={1}>{docTitle(d!)}</T>
+                  <T tone="text2" style={font.foot} numberOfLines={1}>{owner?.name ?? 'No one yet'}</T>
+                  <T tone={b === 'none' ? 'amber' : 'text3'} style={font.caption}>{by(b)}</T>
+                </View>
+                {f.people.length > 1 ? <Button size="sm" kind="ghost" title="Move" label={`Move ${docTitle(d!)} to another person`} onPress={() => move(id)} /> : null}
+              </View>
+            );
+          })}
+          {setup.bulkUnread ? <Hint>{`${setup.bulkUnread} couldn’t be read. Add ${setup.bulkUnread === 1 ? 'it' : 'them'} one by one with Scan or Enter or edit.`}</Hint> : null}
+        </Appear>
+      ) : null}
+    </Card>
   );
 }
 

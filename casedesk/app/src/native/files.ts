@@ -40,6 +40,24 @@ export async function pick(source: Source): Promise<Picked | null> {
   return { uri: a.uri, name: a.fileName ?? `scan-${Date.now()}.jpg`, mime: a.mimeType ?? 'image/jpeg', size: a.fileSize };
 }
 
+/** v3.0 fix8: several photos or files at once (Add several documents at once). Both pickers already
+ *  support multiple selection in the installed native modules (no new native code); a build whose
+ *  picker ignores the option simply returns one. */
+export async function pickMany(source: 'photos' | 'files'): Promise<Picked[]> {
+  if (source === 'files') {
+    const DP = native.documentPicker();
+    if (!DP?.getDocumentAsync) throw new Error('Files aren’t available in this build.');
+    const r = await DP.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true, multiple: true });
+    if (r.canceled || !r.assets?.length) return [];
+    return r.assets.map((a: any, i: number) => ({ uri: a.uri, name: a.name ?? `document-${i + 1}.pdf`, mime: a.mimeType ?? 'application/octet-stream', size: a.size }));
+  }
+  const IP = native.imagePicker();
+  if (!IP?.launchImageLibraryAsync) throw new Error('Photos aren’t available in this build.');
+  const r = await IP.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9, allowsEditing: false, allowsMultipleSelection: true, selectionLimit: 20, orderedSelection: true });
+  if (r.canceled || !r.assets?.length) return [];
+  return r.assets.map((a: any, i: number) => ({ uri: a.uri, name: a.fileName ?? `photo-${Date.now()}-${i + 1}.jpg`, mime: a.mimeType ?? 'image/jpeg', size: a.fileSize }));
+}
+
 /** Full URI of a kept file, rebuilt from its stored name and today's documents folder. */
 export function fileUri(f: Pick<DocFile, 'file'> | undefined | null): string {
   const ref = f?.file ?? '';
