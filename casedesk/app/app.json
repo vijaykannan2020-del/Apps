@@ -13,6 +13,7 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryAddUsageDescription": "Immigration Wallet saves a copy of a document to Photos only when you choose Save Image.",
         "LSSupportsOpeningDocumentsInPlace": false,
         "CFBundleDocumentTypes": [
           {
