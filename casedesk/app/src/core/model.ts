@@ -315,6 +315,7 @@ export type SetupProgress = {
   rerun?: boolean; // Settings, Run setup again (keeps data, fills gaps)
   docsLater?: string[]; // document rows put off ("pid:step")
   at?: string; // ISO timestamp of the last change
+  since?: string; // v3.0 fix8: when this setup began (documents saved before it show as Added earlier)
 };
 
 export const DEFAULT_SETTINGS: Settings = { reminderLeadDays: [180, 90, 30, 7] };

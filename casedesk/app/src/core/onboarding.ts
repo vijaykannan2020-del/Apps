@@ -93,7 +93,7 @@ export const showContinueCard = (s: Pick<Settings, 'setupDone' | 'setup'>, peopl
 export const setupOpen = (s: Pick<Settings, 'setupDone' | 'setup'>) => !!s.setup && !s.setup.later && (!s.setupDone || !!s.setup.rerun);
 
 /** Settings → Run setup again: progress for a rerun (keeps data). */
-export const rerunProgress = (): NonNullable<Settings['setup']> => ({ step: 'you', rerun: true, at: new Date().toISOString() });
+export const rerunProgress = (): NonNullable<Settings['setup']> => { const now = new Date().toISOString(); return { step: 'you', rerun: true, at: now, since: now }; };
 
 // ---- suggestions ----
 

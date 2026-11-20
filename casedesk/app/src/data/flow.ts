@@ -6,7 +6,7 @@ import type { DocType, Document, Person } from '../core/model';
 import { readDocument } from '../core/read';
 import { identityOf, belongsElsewhere } from '../core/identity';
 import { fillsStep, stepKeys, stepMeta, stepOf, type StepKey } from '../core/steps';
-import { FIELDS } from '../core/docs';
+import { FIELDS, docHasData } from '../core/docs';
 import { migrateFile } from '../core/files';
 import type { FamilyState } from './FamilyProvider';
 import { newId } from './store';
@@ -253,7 +253,8 @@ export async function commit(fam: FamilyState) {
   if (!flow) return { saved: 0 };
   const docs: Document[] = [];
   // A document with an unanswered "looks like someone else's" warning is never saved silently.
-  for (const [pid, per] of Object.entries(flow.up)) for (const u of Object.values(per)) if (u?.state === 'done' && u.doc && !u.misfile) docs.push({ ...u.doc, ownerId: pid, addedAt: u.doc.addedAt || new Date().toISOString(), seq: docs.length, edited: u.typedIn ? (Object.keys(u.doc.fields) as never[]) : u.doc.edited });
+  // v3.0 fix8: an empty Type it in draft (opened, nothing typed) is never saved as a document.
+  for (const [pid, per] of Object.entries(flow.up)) for (const u of Object.values(per)) if (u?.state === 'done' && u.doc && !u.misfile && docHasData(u.doc)) docs.push({ ...u.doc, ownerId: pid, addedAt: u.doc.addedAt || new Date().toISOString(), seq: docs.length, edited: u.typedIn ? (Object.keys(u.doc.fields) as never[]) : u.doc.edited });
   diag(`commit: saving ${docs.length} document(s)`);
   try { await fam.actions.addDocs(docs); } catch (e: any) { diag(`commit FAILED: ${e?.message ?? e}`); throw e; }
   for (const [pid, w] of Object.entries(flow.where)) if (w.v) await fam.actions.setFacts(pid, { location: w.v, country: w.v === 'Outside' ? w.c : undefined });

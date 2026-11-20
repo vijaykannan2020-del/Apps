@@ -33,6 +33,26 @@ export const FIELDS: Record<DocType, FieldSpec[]> = {
   other: [T('Name', 'name'), D('Date', 'validTo')],
 };
 
+/** Fields a typed-in draft starts with (from its step), which say nothing about the document. */
+const DRAFT_KEYS: (keyof DocFields)[] = ['form', 'noticeKind', 'category'];
+/** v3.0 fix8: the document holds something — a kept file, or a value someone read or typed. An empty
+ *  "Type it in" draft (tapped, then left) is not a document and never counts as added. */
+export function docHasData(d: Pick<Document, 'fields' | 'files'>): boolean {
+  if (d.files?.length) return true;
+  return Object.entries(d.fields ?? {}).some(([k, v]) => !DRAFT_KEYS.includes(k as keyof DocFields) && v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && !v.length));
+}
+
+export type ChecklistRow = { state: 'missing' | 'added' | 'earlier'; line: string; dated: boolean };
+/** v3.0 fix8: what a setup checklist row says about a saved document — its real key date
+ *  ("Expires May 1, 2033"), and "Added earlier" when it was saved before this setup began. */
+export function checklistRow(d: Pick<Document, 'fields' | 'files' | 'addedAt'> | undefined, key: { label: string; field: keyof DocFields }, spec: FieldSpec | undefined, setupSince?: string): ChecklistRow {
+  if (!d || !docHasData(d)) return { state: 'missing', line: '', dated: false };
+  const val = spec ? showField(d.fields, spec) : '';
+  const earlier = !!setupSince && !!d.addedAt && d.addedAt < setupSince;
+  const date = val ? `${key.label} ${val}` : `${key.label} date not added yet`;
+  return { state: earlier ? 'earlier' : 'added', line: earlier ? `Added earlier · ${date}` : date, dated: !!val };
+}
+
 /** Field value as shown ("Sep 30, 2028", "D/S", "C26"). */
 export function showField(f: DocFields, spec: FieldSpec): string {
   if (spec.key === 'validTo' && f.durationOfStatus) return 'D/S';

@@ -124,3 +124,37 @@ test('fix8 dependents: setup screen asks principal first, children optional, tra
   assert.match(fam, /Optional\. Children/);
   assert.match(s, /filter\(\(p\) => !p\.facts\.trackOnly\)/);
 });
+
+// ---------- 5 / 6. documents checklist ----------
+import { docHasData, checklistRow, FIELDS } from '../src/core/docs';
+
+test('fix8 checklist: an empty typed draft is not a document (the passport that showed Expires saved)', () => {
+  assert.equal(docHasData({ fields: {}, files: [] }), false);
+  assert.equal(docHasData({ fields: { form: 'I-129' }, files: [] }), false, 'step defaults are not data');
+  assert.equal(docHasData({ fields: { category: 'C9' } }), false);
+  assert.equal(docHasData({ fields: { validTo: '2033-05-01' } }), true);
+  assert.equal(docHasData({ fields: {}, files: [{ file: 'x.jpg', name: 'x.jpg', mime: 'image/jpeg' }] }), true, 'a kept photo is real even if nothing was read');
+  assert.equal(checklistRow({ fields: {}, files: [], addedAt: '2026-11-20T10:00:00Z' }, { label: 'Expires', field: 'validTo' }, FIELDS.passport[4]).state, 'missing', 'not ticked');
+  // commit and the Save button refuse an empty draft
+  assert.match(src('src/data/flow.ts'), /!u\.misfile && docHasData\(u\.doc\)\) docs\.push/);
+  assert.match(src('src/screens/flow.tsx'), /const done = [^\n]*docHasData\(u\.doc\)/);
+});
+test('fix8 checklist: saved rows show the real key date, and Added earlier for documents from before setup', () => {
+  const spec = FIELDS.passport.find((s) => s.key === 'validTo');
+  const key = { label: 'Expires', field: 'validTo' as const };
+  const d = { fields: { validTo: '2033-05-01' }, files: [], addedAt: '2026-11-20T10:05:00Z' };
+  assert.deepEqual(checklistRow(d, key, spec, '2026-11-20T10:00:00Z'), { state: 'added', line: 'Expires May 1, 2033', dated: true });
+  assert.deepEqual(checklistRow({ ...d, addedAt: '2026-10-01T08:00:00Z' }, key, spec, '2026-11-20T10:00:00Z'), { state: 'earlier', line: 'Added earlier · Expires May 1, 2033', dated: true });
+  assert.equal(checklistRow(d, key, spec).state, 'added', 'no setup start known: nothing is called earlier');
+  const photo = checklistRow({ fields: {}, files: [{ file: 'p.jpg', name: 'p.jpg', mime: 'image/jpeg' }], addedAt: '2026-11-20T10:05:00Z' }, key, spec);
+  assert.deepEqual(photo, { state: 'added', line: 'Expires date not added yet', dated: false });
+});
+test('fix8 checklist: Enter or edit replaces Type; saved rows open the document and say Edit', () => {
+  const ds = fnBody('src/screens/setup.tsx', 'DocsStep');
+  assert.ok(!/'Type'/.test(ds), 'no Type button');
+  assert.match(ds, /'Enter or edit'/);
+  assert.match(ds, />Edit</);
+  assert.match(ds, /go\(`\/document\/\$\{d\.id\}`\)/);
+  assert.ok(!/saved'\}/.test(ds) && !/\|\| 'saved'/.test(ds), 'never "Expires saved"');
+  assert.match(src('src/core/onboarding.ts'), /since: now/);
+});

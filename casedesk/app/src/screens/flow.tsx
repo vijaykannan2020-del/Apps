@@ -5,7 +5,7 @@ import { Image, Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { Person } from '../core/model';
 import { stepMeta, type StepKey } from '../core/steps';
-import { fieldRows, docNote, parseField, showField, FIELDS } from '../core/docs';
+import { fieldRows, docNote, parseField, showField, FIELDS, docHasData } from '../core/docs';
 import { DOC_LABEL } from '../core/model';
 import { useFamily } from '../data/FamilyProvider';
 import {
@@ -166,7 +166,7 @@ export function StepScreen() {
       </Card>
     );
   }
-  const done = u?.state === 'done' && !u.misfile;
+  const done = u?.state === 'done' && !u.misfile && !!u.doc && docHasData(u.doc); // an empty typed draft can't be saved
   return (
     <Screen keyboard nav={nav} tour={tour} footer={flow.quick ? <>
       <Button kind="ghost" title="Later" onPress={() => quickBack(false)} />

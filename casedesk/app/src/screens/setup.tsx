@@ -13,7 +13,7 @@ import { parsePlace, placeText } from '../core/metro';
 import { FORMS, isReceipt } from '../core/cases';
 import { birthCountryGuess } from '../core/birth';
 import { fillsStep, stepMeta, type StepKey } from '../core/steps';
-import { FIELDS, showField } from '../core/docs';
+import { FIELDS, checklistRow, docHasData } from '../core/docs';
 import { REMINDER_TYPES, TYPE_DEFAULT, typeDates, typeSetting, typesFor, type ReminderType } from '../core/reminders';
 import { widgetName } from '../core/widgets';
 import {
@@ -113,7 +113,8 @@ function OnboardingBody() {
   // Progress is saved on every step (no new storage key: settings.setup).
   useEffect(() => {
     if (finished.current || step === 'done' || (step === 'welcome' && !f.settings.setup)) return;
-    f.actions.updateSettings({ setup: { ...(f.settings.setup ?? {}), step, rerun: rerun || undefined, later: false, at: new Date().toISOString() } }).catch(() => {});
+    const now = new Date().toISOString();
+    f.actions.updateSettings({ setup: { ...(f.settings.setup ?? {}), step, rerun: rerun || undefined, later: false, at: now, since: f.settings.setup?.since ?? now } }).catch(() => {});
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const move = (to: SetupStep, d: 1 | -1) => { setDir(d); setStep(to); };
@@ -696,8 +697,14 @@ function DocsStep({ f }: StepCtx) {
     const p = f.people.find((x) => x.id === pid);
     if (!p) return undefined;
     const m = stepMeta(p, k, f.records[pid]);
-    return f.docs.find((d) => d.ownerId === pid && fillsStep(m, d));
+    // v3.0 fix8: an empty typed draft is not a document (it once ticked "Passport · Expires saved")
+    return f.docs.find((d) => d.ownerId === pid && fillsStep(m, d) && docHasData(d));
   };
+  // ...and empty drafts saved by older versions are removed (no file, no value: nothing is lost)
+  useEffect(() => {
+    for (const d of f.docs) if (!docHasData(d)) f.actions.deleteDoc(d.id).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const since = f.settings.setup?.since;
   // a principal added "only to track" (dependent setup) is not listed until their documents are wanted
   const tracked = f.people.filter((p) => p.facts.trackOnly);
   const lists = f.people.filter((p) => !p.facts.trackOnly).map((p) => ({ p, ...docChecklist(p, f.records[p.id]) }));
@@ -723,25 +730,28 @@ function DocsStep({ f }: StepCtx) {
     const id = `${p.id}:${k}`;
     const isLater = !d && later.has(id);
     const spec = d ? FIELDS[d.type].find((s) => s.key === m.keyField.field) ?? FIELDS[d.type].find((s) => s.key === 'validTo') : undefined;
-    const val = d && spec ? showField(d.fields, spec) : '';
+    const cr = checklistRow(d, m.keyField, spec, since);
+    const openDoc = d ? () => { tap(); go(`/document/${d.id}`); } : undefined;
     const hint = k === 'i94' && p.facts.lastEntry ? `From the CBP I-94 website · entry ${fmt(p.facts.lastEntry)}` : m.keyField.label === 'Expires' ? 'Expiry date' : m.keyField.label;
     return (
       <View key={id} style={{ paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.sep }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <Pressable disabled={!openDoc} onPress={openDoc} accessibilityRole={openDoc ? 'button' : undefined} accessibilityLabel={d ? `${m.title} for ${p.name}: ${cr.line}. Open to view or edit` : undefined}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: d ? MIN_TOUCH : undefined }}>
           {d ? <Tick size={24} /> : <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: isLater ? t.outline : t.text3, borderStyle: isLater ? 'dashed' : 'solid' }} />}
           <View style={{ flex: 1, minWidth: 0 }}>
             <T style={[font.callout, { fontWeight: '600' }]}>{m.title}{!key ? <T tone="text2" style={font.caption}>{'  optional'}</T> : null}</T>
-            <T tone="text2" style={font.foot} numberOfLines={2}>{d ? `${m.keyField.label} ${val || 'saved'}` : isLater ? 'Later · add it anytime' : hint}</T>
+            <T tone={d && !cr.dated ? 'amber' : 'text2'} style={font.foot} numberOfLines={2}>{d ? cr.line : isLater ? 'Later · add it anytime' : hint}</T>
           </View>
+          {d ? <View style={{ minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: 6 }}><T tone="accent" style={[font.sub, { fontWeight: '600' }]}>Edit</T></View> : null}
           {isLater ? <Pressable onPress={() => setLater(id, false)} accessibilityRole="button" accessibilityLabel={`Add ${m.title} now`} style={{ minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: 6 }}><T tone="accent" style={[font.sub, { fontWeight: '600' }]}>Add now</T></Pressable> : null}
           {!d && !isLater ? <Pressable onPress={() => setLater(id, true)} accessibilityRole="button" accessibilityLabel={`Later: ${m.title} for ${p.name}`} style={{ minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: 6 }}><T tone="text2" style={[font.sub, { fontWeight: '600' }]}>Later</T></Pressable> : null}
-        </View>
+        </Pressable>
         {!d && !isLater ? (
           <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
-            {([['camera', 'Scan', 'camera', 'Scan with the camera'], ['photo', 'Photo', 'photos', 'Choose a photo'], ['folder', 'File', 'files', 'Upload a file'], ['edit', 'Type', 'type', 'Type dates']] as const).map(([icon, label, src, a11y]) => (
+            {([['camera', 'Scan', 'camera', 'Scan with the camera'], ['photo', 'Photo', 'photos', 'Choose a photo'], ['folder', 'File', 'files', 'Upload a file'], ['edit', 'Enter or edit', 'type', 'Enter or edit the details']] as const).map(([icon, label, src, a11y]) => (
               <Pressable key={label} onPress={() => open(p.id, k, src)} accessibilityRole="button" accessibilityLabel={`${a11y}: ${m.title} for ${p.name}`}
                 style={({ pressed }) => ({ flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', gap: 3, minHeight: 54, borderRadius: 16, backgroundColor: t.dark ? t.card2 : '#EEEFF2', transform: [{ scale: pressed ? 0.95 : 1 }] })}>
-                <Icon name={icon} size={18} color={t.text} /><T style={[font.caption, { fontWeight: '600' }]} numberOfLines={1}>{label}</T>
+                <Icon name={icon} size={18} color={t.text} /><T style={[font.caption, { fontWeight: '600', textAlign: 'center' }]} numberOfLines={2}>{label}</T>
               </Pressable>
             ))}
           </View>
