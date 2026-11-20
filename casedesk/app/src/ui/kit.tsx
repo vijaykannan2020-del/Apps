@@ -200,12 +200,13 @@ function Progress({ label, right, value }: { label: string; right?: string; valu
   );
 }
 
+const FooterCtx = createContext(false);
 export function Footer({ children, column }: { children: React.ReactNode; column?: boolean }) {
   const insets = useSafeAreaInsets();
   const L = useLayout();
   return (
     <Bar edge="bottom" style={{ paddingBottom: Math.max(12, insets.bottom), paddingTop: 12, paddingLeft: insets.left, paddingRight: insets.right }}>
-      <View style={{ flexDirection: column ? 'column' : 'row', flexWrap: column || L.width >= 360 ? 'nowrap' : 'wrap', alignItems: column ? undefined : 'center', gap: 10, paddingHorizontal: L.side, alignSelf: 'center', width: '100%', maxWidth: L.maxWidth + 2 * L.side }}>{children}</View>
+      <View style={{ flexDirection: column ? 'column' : 'row', flexWrap: 'nowrap', alignItems: column ? undefined : 'center', gap: 10, paddingHorizontal: L.side, alignSelf: 'center', width: '100%', maxWidth: L.maxWidth + 2 * L.side }}><FooterCtx.Provider value={!column}>{children}</FooterCtx.Provider></View>
     </Bar>
   );
 }
@@ -241,7 +242,6 @@ export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const kb = useKeyboardPad(!!keyboard);
-  const [dbg, setDbg] = useState<{ r?: { y: number; height: number }; f?: { y: number; height: number } }>({}); // temporary layout check
   const L = useLayout();
   // iOS tab roots: contentInsetAdjustmentBehavior=automatic already clears the tab bar (bottom, floating or
   // side rail), so they get no extra bottom gap; Android and web still pad for the bottom bar.
@@ -265,15 +265,10 @@ export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard
     </TourScroll>
   ) : <View style={[{ flex: 1 }, sides]}><View style={[{ flex: 1 }, inner]}>{children}</View></View>;
   const content = (
-    <View style={{ flex: 1, backgroundColor: t.bg }} onLayout={(e) => setDbg((d) => ({ ...d, r: e.nativeEvent.layout }))}>
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
       {nav ? <NavBar {...nav} right={tour && tour.steps.length ? <View style={{ flexDirection: 'row', alignItems: 'center' }}><TourButton tour={tour} />{nav.right}</View> : nav.right} /> : null}
       {body}
-      {footer ? <View onLayout={(e) => setDbg((d) => ({ ...d, f: e.nativeEvent.layout }))}><Footer>{footer}</Footer></View> : null}
-      {Platform.OS === 'ios' && footer ? (
-        <T style={{ position: 'absolute', bottom: 0, left: 8, fontSize: 10, lineHeight: 12, color: '#C0392B' }}>
-          {`layout check · win ${Math.round(Dimensions.get('window').height)} scr ${Math.round(Dimensions.get('screen').height)} · inset t${Math.round(insets.top)} b${Math.round(insets.bottom)} l${Math.round(insets.left)} r${Math.round(insets.right)} · root ${Math.round(dbg.r?.y ?? -1)}/${Math.round(dbg.r?.height ?? -1)} · footer ${Math.round(dbg.f?.y ?? -1)}/${Math.round(dbg.f?.height ?? -1)} · kb ${kb}`}
-        </T>
-      ) : null}
+      {footer ? <Footer>{footer}</Footer> : null}
     </View>
   );
   const scoped = tour ? <TourScope tour={tour}>{content}</TourScope> : content;
@@ -482,16 +477,17 @@ export function Button({ title, onPress, kind = 'primary', icon, busy, disabled,
   const bg = kind === 'primary' ? t.primary : kind === 'ghost' ? (t.onPastel ? t.fill : t.dark ? t.card2 : '#E4E5E9') : t.onPastel ? t.fill : kind === 'tint' ? t.pastel.sky : t.pastel.urgent;
   const fg = kind === 'primary' ? t.onPrimary : kind === 'ghost' ? t.text : t.ink;
   const sm = size === 'sm';
+  const inRow = useContext(FooterCtx) && !sm;
   return (
     <Pressable onPress={onPress} disabled={disabled || busy} accessibilityRole="button" accessibilityLabel={label ?? title} accessibilityState={{ disabled: !!(disabled || busy), busy: !!busy }}
       style={({ pressed }) => ({
-        flexGrow: sm ? 0 : grow ? 2 : 1, flexShrink: 1, flexBasis: sm ? 'auto' : block ? '100%' : 0, minWidth: sm ? undefined : 96, minHeight: sm ? MIN_TOUCH : 52,
+        flexGrow: sm ? 0 : grow && !inRow ? 2 : 1, flexShrink: 1, flexBasis: sm ? 'auto' : block ? '100%' : 0, minWidth: sm ? undefined : inRow ? 0 : 96, minHeight: sm ? MIN_TOUCH : 52,
         borderRadius: sm ? 22 : radius.button, backgroundColor: bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
         paddingHorizontal: sm ? 16 : 14, paddingVertical: 6, opacity: disabled ? 0.35 : pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }],
         marginTop: block ? 16 : 0, alignSelf: sm ? 'flex-start' : undefined,
       })}>
       {busy ? <ActivityIndicator color={fg} /> : icon ? <Icon name={icon} size={sm ? 16 : 18} color={fg} weight="semibold" /> : null}
-      <Text style={{ color: fg, fontSize: sm ? 15 : 16, fontWeight: '600', textAlign: 'center' }}>{title}</Text>
+      <Text numberOfLines={inRow ? 1 : undefined} adjustsFontSizeToFit={inRow} minimumFontScale={0.8} style={{ color: fg, fontSize: sm ? 15 : 16, fontWeight: '600', textAlign: 'center', flexShrink: 1 }}>{title}</Text>
     </Pressable>
   );
 }

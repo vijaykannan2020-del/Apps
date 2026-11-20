@@ -309,11 +309,15 @@ export function DocumentScreen() {
   };
   return (
     <Screen keyboard tour={tour} nav={{ back: p.name, onBack: back, title: docTitle(d), right: <NavButton title="Edit" onPress={() => sheet.open('Edit document', <DocEditMenu docId={d.id} />)} /> }} footer={<>
-      <TourTarget id="actions" style={{ flexDirection: 'row', gap: 10, flexGrow: 2, flexShrink: 1, flexBasis: 0, minWidth: 0 }}>
+      <TourTarget id="actions" style={{ flexDirection: 'row', gap: 10, flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 }}>
         <Button kind="ghost" icon="refresh" title="Replace" onPress={() => sheet.open('Replace document', <ReplacePicker onPick={(s) => { sheet.close(); replace(s); }} />)} />
         <Button kind="tint" icon="share" title="Share" onPress={doShare} />
       </TourTarget>
-      <Button kind="danger" icon="trash" title="Delete" onPress={() => sheet.open(`Delete ${docTitle(d)}?`, <Confirm body="It’s removed from this phone. This can’t be undone." action="Delete" onConfirm={async () => { back(); await f.actions.deleteDoc(d.id); toast(`Deleted ${docTitle(d)}`); }} />)} />
+      {/* Delete is a round trash button, like iOS toolbars: Replace and Share keep full labels on every phone */}
+      <Pressable accessibilityRole="button" accessibilityLabel="Delete" hitSlop={4} onPress={() => sheet.open(`Delete ${docTitle(d)}?`, <Confirm body="It’s removed from this phone. This can’t be undone." action="Delete" onConfirm={async () => { back(); await f.actions.deleteDoc(d.id); toast(`Deleted ${docTitle(d)}`); }} />)}
+        style={({ pressed }) => ({ width: 52, height: 52, borderRadius: 26, flexShrink: 0, backgroundColor: t.pastel.urgent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.85 : 1 })}>
+        <Icon name="trash" size={20} color={t.ink} weight="semibold" />
+      </Pressable>
     </>}>
       <Pressable onPress={() => file && preview(file)} disabled={!file} accessibilityRole={file ? 'button' : undefined} accessibilityLabel={file ? 'Open the document' : 'No image saved'}
         style={{ borderRadius: 28, backgroundColor: t.card, padding: file?.mime.startsWith('image/') ? 0 : 18, overflow: 'hidden', minHeight: 160, alignItems: 'center', justifyContent: 'center' }}>
