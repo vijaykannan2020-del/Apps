@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
-const SERVER_VERSION = 11; // raise on every server change; shown in the app's Settings
+const SERVER_VERSION = 12; // raise on every server change; shown in the app's Settings
 const PORT = +(process.env.PORT || 8790);
 const SYNAPSE = process.env.SYNAPSE_URL || 'http://synapse:8008';
 const DATA = process.env.DATA_DIR || '/app/data';
@@ -67,6 +67,36 @@ async function gh(pathname, opts = {}) {
   if (!r.ok) throw httpErr(r.status === 401 ? 400 : r.status, 'GitHub: ' + (j.message || r.statusText) + (j.errors ? ' — ' + j.errors.map(e => e.message || e.code).join(', ') : ''));
   return j;
 }
+// app folders inside a repo (for repos that hold several apps): top-level folders plus nested app
+// folders with their own app.json / package.json; names come from app.json, manifest.json or package.json
+const folderCache = new Map();
+async function repoFolders(repo, branch) {
+  const info = branch ? null : await gh(`/repos/${repo}`);
+  branch = branch || info.default_branch;
+  const t = await gh(`/repos/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`);
+  const key = repo + '@' + t.sha; if (folderCache.has(key)) return folderCache.get(key);
+  const files = new Set(), dirs = new Set();
+  for (const e of t.tree || []) { if (/(^|\/)(node_modules|\.git|dist|build|Pods)(\/|$)/.test(e.path)) continue; (e.type === 'tree' ? dirs : files).add(e.path); }
+  const has = (d, f) => files.has(d + '/' + f);
+  const pick = [];
+  for (const d of dirs) {
+    const depth = d.split('/').length; if (d.split('/').some(x => x.startsWith('.'))) continue;
+    if (depth === 1) pick.push(d);
+    else if (depth <= 3 && (has(d, 'app.json') || has(d, 'package.json') || has(d, 'manifest.json'))) pick.push(d);
+  }
+  const raw = async (f) => { try { const j = await gh(`/repos/${repo}/contents/${f.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(branch)}`); return Buffer.from(j.content || '', 'base64').toString('utf8'); } catch { return ''; } };
+  const nameOf = async (d) => {
+    for (const f of ['app.json', 'manifest.json', 'package.json']) {
+      if (!has(d, f)) continue;
+      try { const j = JSON.parse(await raw(d + '/' + f)); const n = j.expo?.name || j.name || j.displayName; if (n && typeof n === 'string') return n; } catch {}
+    }
+    return '';
+  };
+  const sorted = pick.sort().slice(0, 60);
+  const names = await Promise.all(sorted.map(d => (d.includes('/') || has(d, 'manifest.json') || has(d, 'app.json')) ? nameOf(d) : Promise.resolve('')));
+  const out = sorted.map((d, i) => ({ path: d, name: names[i] || '' }));
+  folderCache.set(key, out); return out;
+}
 function httpErr(status, message) { const e = new Error(message); e.status = status; return e; }
 
 // ---------- auth: My Inbox (Synapse) admin ----------
@@ -117,13 +147,23 @@ function push(s, ev) {
   return ev;
 }
 function wake(id) { const w = waiters.get(id); if (w) { waiters.delete(id); for (const fn of w) fn(); } }
-const summary = s => ({ id: s.id, title: s.title, repo: s.repo, base: s.base, branch: s.branch, agent: s.agent, status: s.status, created: s.created, updated: s.updated, prUrl: s.prUrl || null, last: lastText(s) });
+const summary = s => ({ id: s.id, title: s.title, repo: s.repo, base: s.base, branch: s.branch, agent: s.agent, status: s.status, created: s.created, updated: s.updated, prUrl: s.prUrl || null, folder: s.folder || '', last: lastText(s) });
 function lastText(s) { for (let i = s.events.length - 1; i >= 0; i--) { const e = s.events[i]; if (e.kind === 'text' || e.kind === 'user') return (e.kind === 'user' ? 'You: ' : '') + e.text.slice(0, 140); } return ''; }
 
 const slug = t => String(t || 'task').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'task';
 
-async function createSession({ repo, base, agent, title, prompt }) {
+const cleanFolder = (f) => {
+  f = String(f || '').trim().replace(/^\/+|\/+$/g, '');
+  if (!f) return '';
+  if (!/^[\w.\- ]+(\/[\w.\- ]+)*$/.test(f) || f.split('/').some(x => x === '..' || x === '.')) throw httpErr(400, 'Bad folder name.');
+  return f;
+};
+// the folder an agent works in: the project folder inside the repo, or the repo itself
+const workDir = (s) => s.folder ? path.join(WORK_DIR, s.id, s.folder) : path.join(WORK_DIR, s.id);
+
+async function createSession({ repo, base, agent, title, prompt, folder }) {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo || '')) throw httpErr(400, 'Pick a repository.');
+  folder = cleanFolder(folder);
   const info = await gh(`/repos/${repo}`);
   base = base || info.default_branch;
   agent = agent === 'codex' ? 'codex' : 'claude';
@@ -139,9 +179,11 @@ async function createSession({ repo, base, agent, title, prompt }) {
   await run('git', ['config', 'user.email', email], { cwd: dir });
   await run('git', ['checkout', '-b', branch], { cwd: dir });
   const baseSha = (await run('git', ['rev-parse', 'HEAD'], { cwd: dir })).out.trim();
-  const s = { id, title: (title || prompt || 'New task').slice(0, 80), repo, base, branch, baseSha, agent, status: 'idle', created: now(), updated: now(), claudeSession: null, codexThread: null, prUrl: null, pushed: false, events: [] };
+  if (folder && !fs.existsSync(path.join(dir, folder))) { fs.rmSync(dir, { recursive: true, force: true }); throw httpErr(400, `The folder ${folder} is not in ${repo} (${base}).`); }
+  try { fs.appendFileSync(path.join(dir, '.git', 'info', 'exclude'), '\n.forge-uploads/\n'); } catch {}
+  const s = { id, title: (title || prompt || 'New task').slice(0, 80), repo, base, branch, baseSha, agent, folder, status: 'idle', created: now(), updated: now(), claudeSession: null, codexThread: null, prUrl: null, pushed: false, events: [] };
   sessions.set(id, s);
-  push(s, { kind: 'status', text: `Cloned ${repo} (${base}) → working on branch ${branch}` });
+  push(s, { kind: 'status', text: `Cloned ${repo} (${base}) → working on branch ${branch}${folder ? ` · project folder ${folder}` : ''}` });
   save(s);
   return s;
 }
@@ -185,19 +227,41 @@ function handoff(s, agent) {
 
 const codexReady = () => fs.existsSync(path.join(CODEX_HOME, 'auth.json'));
 
-function startRun(s, text, agent, model, mode, effort) {
+// photos from the phone: saved inside the clone (git-ignored) so both agents can open them
+function saveImages(s, images) {
+  const list = Array.isArray(images) ? images.slice(0, 8) : [];
+  if (!list.length) return [];
+  const dir = path.join(WORK_DIR, s.id, '.forge-uploads'); fs.mkdirSync(dir, { recursive: true });
+  const out = [];
+  list.forEach((im, i) => {
+    const m = /^data:image\/(png|jpe?g|gif|webp|heic);base64,(.+)$/i.exec(String(im?.data || ''));
+    if (!m) return;
+    const ext = m[1].toLowerCase().replace('jpeg', 'jpg');
+    const f = path.join(dir, `${Date.now()}-${i + 1}.${ext}`);
+    fs.writeFileSync(f, Buffer.from(m[2], 'base64'));
+    try { fs.chownSync(f, 1000, 1000); fs.chownSync(dir, 1000, 1000); } catch {}
+    out.push(f);
+  });
+  return out;
+}
+
+function startRun(s, text, agent, model, mode, effort, images) {
   mode = mode === 'ask' ? 'ask' : 'agent';
   if (runs.has(s.id)) throw httpErr(409, 'Still working on the last message. Stop it first or wait.');
   if (!fs.existsSync(path.join(WORK_DIR, s.id))) throw httpErr(410, 'This session’s files are gone. Start a new session.');
   agent = agent === 'codex' ? 'codex' : agent === 'claude' ? 'claude' : s.agent;
   const env = agentEnv(agent);
-  const cwd = path.join(WORK_DIR, s.id);
+  const cwd = workDir(s);
+  const shots = saveImages(s, images);
   const sec = secrets();
+  const where = s.folder ? ` PROJECT FOLDER: work only inside ${s.folder}/ (your current folder) unless the user asks about other parts of the repository.` : '';
+  const said = text; // what the user typed (shown in the chat)
+  if (shots.length) text += `\n\n[The user attached ${shots.length} photo${shots.length > 1 ? 's' : ''} (screenshots from their phone). Open and look at ${shots.length > 1 ? 'each one' : 'it'} before answering:\n${shots.join('\n')}]`;
   model = model || (agent === 'claude' ? sec.claudeModel : sec.codexModel) || '';
   let cmd, args;
   if (agent === 'claude') {
     cmd = 'claude';
-    args = ['-p', text, '--output-format', 'stream-json', '--verbose', '--append-system-prompt', mode === 'ask' ? GUIDE + ' ASK MODE: answer questions and explain; do not change any files.' : GUIDE];
+    args = ['-p', text, '--output-format', 'stream-json', '--verbose', '--append-system-prompt', (mode === 'ask' ? GUIDE + ' ASK MODE: answer questions and explain; do not change any files.' : GUIDE) + where];
     args.push(...(mode === 'ask' ? ['--permission-mode', 'plan'] : ['--dangerously-skip-permissions']));
     if (model) args.push('--model', model);
     if (['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) args.push('--effort', effort); else effort = '';
@@ -207,13 +271,14 @@ function startRun(s, text, agent, model, mode, effort) {
     const common = ['--json', '--skip-git-repo-check', ...(mode === 'ask' ? ['-c', 'sandbox_mode="read-only"', '-c', 'approval_policy="never"'] : ['--dangerously-bypass-approvals-and-sandbox'])];
     if (model) common.push('-m', model);
     if (/^[a-z]{2,12}$/.test(effort || '')) common.push('-c', `model_reasoning_effort="${effort}"`); else effort = '';
-    const prompt = (s.codexThread ? '' : GUIDE + '\n\n') + (mode === 'ask' ? '(Ask mode: answer only, do not edit files.)\n' : '') + text;
-    args = s.codexThread ? ['exec', 'resume', ...common, s.codexThread, prompt] : ['exec', ...common, '-C', cwd, prompt];
+    const prompt = (s.codexThread ? '' : GUIDE + where + '\n\n') + (mode === 'ask' ? '(Ask mode: answer only, do not edit files.)\n' : '') + text;
+    const imgs = s.codexThread ? [] : shots.flatMap(f => ['-i', f]);
+    args = s.codexThread ? ['exec', 'resume', ...common, s.codexThread, prompt] : ['exec', ...common, ...imgs, '-C', cwd, prompt];
   }
   const ctx = handoff(s, agent);
   if (agent === 'claude') args[1] = ctx + args[1]; else args[args.length - 1] = args[args.length - 1].replace(text, ctx + text);
   s.agent = agent; s.status = 'running';
-  push(s, { kind: 'user', text, agent, model: model || '', mode, effort: effort || '' });
+  push(s, { kind: 'user', text: said, agent, model: model || '', mode, effort: effort || '', photos: shots.length || undefined });
   if (ctx) push(s, { kind: 'status', text: `Shared this chat’s history with ${agent === 'codex' ? 'Codex' : 'Claude Code'}` });
   const proc = spawn(cmd, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
   const r = { proc, agent, tools: new Map(), stopped: false };
@@ -514,7 +579,7 @@ function send(res, code, body) {
 }
 function body(req) {
   return new Promise((resolve, reject) => {
-    let d = ''; req.on('data', c => { d += c; if (d.length > 2e6) { reject(httpErr(413, 'Too big')); req.destroy(); } });
+    let d = ''; req.on('data', c => { d += c; if (d.length > 24e6) { reject(httpErr(413, 'Too big — send fewer or smaller photos')); req.destroy(); } });
     req.on('end', () => { try { resolve(d ? JSON.parse(d) : {}); } catch { reject(httpErr(400, 'Bad JSON')); } });
   });
 }
@@ -590,6 +655,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { full: r.full_name, private: r.private, branch: r.default_branch || 'main', pushed: r.pushed_at || new Date().toISOString(), desc: r.description || '' });
     }
     let m;
+    if (M === 'GET' && (m = p.match(/^\/repos\/([\w.-]+\/[\w.-]+)\/folders$/))) return send(res, 200, await repoFolders(m[1], url.searchParams.get('branch') || ''));
     if (M === 'GET' && (m = p.match(/^\/repos\/([\w.-]+\/[\w.-]+)\/branches$/))) {
       const list = await gh(`/repos/${m[1]}/branches?per_page=100`);
       return send(res, 200, list.map(b => b.name));
@@ -598,7 +664,7 @@ const server = http.createServer(async (req, res) => {
     if (M === 'POST' && p === '/sessions') {
       const b = await body(req);
       const s = await createSession(b);
-      if (b.prompt && String(b.prompt).trim()) { try { startRun(s, String(b.prompt).trim(), b.agent, b.model, b.mode, b.effort); } catch (e) { push(s, { kind: 'error', text: e.message }); } }
+      if ((b.prompt && String(b.prompt).trim()) || (Array.isArray(b.images) && b.images.length)) { try { startRun(s, String(b.prompt || '').trim() || 'Look at the attached photo.', b.agent, b.model, b.mode, b.effort, b.images); } catch (e) { push(s, { kind: 'error', text: e.message }); } }
       return send(res, 200, summary(s));
     }
     if ((m = p.match(/^\/sessions\/([a-f0-9]+)(\/[a-z]+)?$/))) {
@@ -614,7 +680,7 @@ const server = http.createServer(async (req, res) => {
         }
         return send(res, 200, { status: s.status, events: ev, prUrl: s.prUrl || null });
       }
-      if (M === 'POST' && sub === '/message') { const b = await body(req); if (!String(b.text || '').trim()) throw httpErr(400, 'Type a message.'); startRun(s, String(b.text).trim(), b.agent, b.model, b.mode, b.effort); return send(res, 200, { ok: true }); }
+      if (M === 'POST' && sub === '/message') { const b = await body(req); const pics = Array.isArray(b.images) && b.images.length; if (!String(b.text || '').trim() && !pics) throw httpErr(400, 'Type a message.'); startRun(s, String(b.text || '').trim() || 'Look at the attached photo.', b.agent, b.model, b.mode, b.effort, b.images); return send(res, 200, { ok: true }); }
       if (M === 'POST' && sub === '/stop') { const r = runs.get(s.id); if (r) { r.stopped = true; r.proc.kill('SIGTERM'); setTimeout(() => { try { r.proc.kill('SIGKILL'); } catch {} }, 4000); } return send(res, 200, { ok: true }); }
       if (M === 'GET' && sub === '/diff') return send(res, 200, await diffOf(s));
       if (M === 'GET' && sub === '/files') { const r = await run('git', ['ls-files', '-co', '--exclude-standard'], { cwd: path.join(WORK_DIR, s.id) }); return send(res, 200, r.out.split('\n').filter(Boolean).slice(0, 20000)); }

@@ -105,6 +105,16 @@ label.fl{display:block;font-weight:500;font-size:12px;margin:16px 0 6px;color:va
 .repos{max-height:34vh;overflow-y:auto;border:1px solid var(--line2);border-radius:8px;background:var(--code-bg);margin-top:8px}
 .repo{display:flex;justify-content:space-between;gap:10px;width:100%;border:0;background:none;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px}
 .repo:last-child{border-bottom:0}
+.repo .rn{display:flex;flex-direction:column;min-width:0;gap:2px}.repo .rn span{font-size:15px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.repo.whole{background:rgba(255,255,255,.03)}
+/* photos in the chat box */
+.pic{flex:none;width:32px;height:32px;border-radius:50%;border:1px solid var(--line2);background:transparent;color:var(--soft);display:grid;place-items:center}
+.pic svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.atts{display:flex;gap:8px;overflow-x:auto;padding:2px 0 8px}.atts:empty{display:none}
+.att{position:relative;flex:none;width:58px;height:58px;border-radius:9px;overflow:hidden;border:1px solid var(--line2);background:var(--raise)}
+.att img{width:100%;height:100%;object-fit:cover;display:block}
+.att button{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;border:0;background:rgba(0,0,0,.72);color:#fff;font-size:13px;line-height:20px;padding:0}
+.photo-chip{display:flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;color:var(--soft)}
 .repo b{font-weight:500;font-family:var(--mono);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .repo small{color:var(--dim);white-space:nowrap;font-size:12px}
 .repo.on{background:rgba(138,180,255,.12)}.repo.on b{color:var(--blue)}
@@ -304,8 +314,9 @@ details.alt[open] summary::before{transform:rotate(90deg)}
   <div class="phead"><button class="back" id="pj-back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="sub" style="margin:0">Projects</span></div>
   <div class="ptitle" id="pj-name"></div>
   <div class="cbox pcomp">
+    <div class="atts" id="atts-pmsg"></div>
     <textarea id="pmsg" rows="2" placeholder="Plan, build, fix anything in this repo…"></textarea>
-    <div class="crow"><div class="chips" id="pchips"></div><button class="mic" data-for="pmsg" aria-label="Voice input"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button class="send" id="pj-go" aria-label="Start chat"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>
+    <div class="crow"><div class="chips" id="pchips"></div><button class="pic" data-for="pmsg" aria-label="Add photo"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg></button><button class="mic" data-for="pmsg" aria-label="Voice input"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button class="send" id="pj-go" aria-label="Start chat"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>
   </div>
   <div class="row" style="margin-top:8px;gap:6px"><span class="hint" style="margin:0">Start from</span><select class="inp" id="pj-base" style="width:auto;flex:1;padding:6px 30px 6px 10px;font-size:14px;font-family:var(--mono)"><option value="">default branch</option></select></div>
   <div class="lh"><span>Chats</span></div>
@@ -389,8 +400,9 @@ details.alt[open] summary::before{transform:rotate(90deg)}
   <div class="pane hidden" id="p-files"></div>
   <div class="composer" id="composer">
     <div class="cbox">
+      <div class="atts" id="atts-msg"></div>
       <textarea id="msg" rows="1" placeholder="Ask Forge to change something…"></textarea>
-      <div class="crow"><div class="chips" id="schips"></div><button class="mic" data-for="msg" aria-label="Voice input"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button class="send" id="send" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>
+      <div class="crow"><div class="chips" id="schips"></div><button class="pic" data-for="msg" aria-label="Add photo"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg></button><button class="mic" data-for="msg" aria-label="Voice input"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button class="send" id="send" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>
     </div>
   </div>
 </section>
@@ -398,10 +410,11 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <div class="veil" id="veil"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
 <div class="toast" id="toast" role="status"></div>
+<input type="file" id="pic-in" accept="image/*" multiple hidden>
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 12;
+const APP_VERSION = 13;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -491,18 +504,24 @@ function paintSetupNote() {
 
 // ---------- projects & chats ----------
 let SESSIONS = [], PROJ = null;
+// a project is a whole repo ("owner/repo") or one app folder inside it ("owner/repo:folder")
+const pkey = (repo, folder) => folder ? repo + ':' + folder : repo;
+const psplit = k => { const i = k.indexOf(':'); return i < 0 ? { repo: k, folder: '' } : { repo: k.slice(0, i), folder: k.slice(i + 1) }; };
+const pname = k => { const { repo, folder } = psplit(k); return folder ? (LS.get('pnames', {})[k] || folder.split('/').pop()) : repo.split('/')[1]; };
+const psub = k => { const { repo, folder } = psplit(k); return folder ? repo.split('/')[1] + ' / ' + folder : repo.split('/')[0]; };
+const skey = s => pkey(s.repo, s.folder);
 const ago = t => { const s = (Date.now() - new Date(t)) / 1000; if (s < 60) return 'now'; if (s < 3600) return Math.floor(s / 60) + 'm'; if (s < 86400) return Math.floor(s / 3600) + 'h'; return Math.floor(s / 86400) + 'd'; };
 const agName = a => a === 'codex' ? 'Codex' : 'Claude Code';
 const agBadge = a => `<span class="ag ${a}"><i></i>${agName(a)}</span>`;
 const plain = t => String(t || '').replace(/```\w*/g, ' ').replace(/[`*#]/g, '').replace(/\s+/g, ' ');
 const chatRow = (s, showRepo) => `<button class="srow" data-id="${s.id}">
     <div class="t">${s.status === 'running' ? '<span class="dot-run" style="flex:none"></span>' : ''}<span>${esc(s.title)}</span><small>${ago(s.updated)}</small></div>
-    <div class="m">${agBadge(s.agent)}${showRepo ? `<span>${esc(s.repo.split('/')[1])}</span>` : `<span>${esc(s.branch)}</span>`}${s.prUrl ? '<span class="pr-chip">PR</span>' : ''}</div>
+    <div class="m">${agBadge(s.agent)}${showRepo ? `<span>${esc(pname(skey(s)))}</span>` : `<span>${esc(s.branch)}</span>`}${s.prUrl ? '<span class="pr-chip">PR</span>' : ''}</div>
     ${s.last ? `<div class="l">${esc(plain(s.last))}</div>` : ''}</button>`;
 function projects() {
   const map = new Map();
   for (const r of LS.get('projects', [])) map.set(r, { repo: r, chats: [], updated: '' });
-  for (const s of SESSIONS) { const p = map.get(s.repo) || { repo: s.repo, chats: [], updated: '' }; p.chats.push(s); if (s.updated > p.updated) p.updated = s.updated; map.set(s.repo, p); }
+  for (const s of SESSIONS) { const k = skey(s); const p = map.get(k) || { repo: k, chats: [], updated: '' }; p.chats.push(s); if (s.updated > p.updated) p.updated = s.updated; map.set(k, p); }
   return [...map.values()].sort((a, b) => (b.updated || '').localeCompare(a.updated || ''));
 }
 function rememberProject(repo) { const l = LS.get('projects', []).filter(r => r !== repo); l.unshift(repo); LS.set('projects', l.slice(0, 30)); }
@@ -517,7 +536,7 @@ function paintHome() {
   $('#rh').classList.toggle('hidden', !rec.length);
   $('#recent').innerHTML = rec.map(s => chatRow(s, true)).join('');
   const ps = projects();
-  $('#plist').innerHTML = ps.length ? ps.map(p => `<button class="prow" data-repo="${esc(p.repo)}"><span class="pi">${esc(p.repo.split('/')[1].slice(0, 2))}</span><span class="pn"><b>${esc(p.repo.split('/')[1])}</b><small>${esc(p.repo.split('/')[0])}</small></span><span class="cnt">${p.chats.some(c => c.status === 'running') ? '<span class="dot-run"></span>' : ''}${p.chats.length ? p.chats.length + ' chat' + (p.chats.length > 1 ? 's' : '') : ''}${p.updated ? ' · ' + ago(p.updated) : ''}</span></button>`).join('')
+  $('#plist').innerHTML = ps.length ? ps.map(p => `<button class="prow" data-repo="${esc(p.repo)}"><span class="pi">${esc(pname(p.repo).slice(0, 2))}</span><span class="pn"><b>${esc(pname(p.repo))}</b><small>${esc(psub(p.repo))}</small></span><span class="cnt">${p.chats.some(c => c.status === 'running') ? '<span class="dot-run"></span>' : ''}${p.chats.length ? p.chats.length + ' chat' + (p.chats.length > 1 ? 's' : '') : ''}${p.updated ? ' · ' + ago(p.updated) : ''}</span></button>`).join('')
     : `<div class="empty" style="margin:0;border:0"><b>No projects yet</b>Tap <b>+ Open project</b> and pick one of your GitHub repos.</div>`;
 }
 $('#recent').onclick = e => { const b = e.target.closest('.srow[data-id]'); if (b) openSession(b.dataset.id); };
@@ -525,25 +544,29 @@ $('#plist').onclick = e => { const b = e.target.closest('.prow'); if (b) openPro
 $('#open-proj').onclick = () => pickRepo();
 setInterval(() => { if (!document.hidden && TOKEN && (!$('#v-home').classList.contains('hidden') || !$('#v-proj').classList.contains('hidden'))) loadSessions(); }, 8000);
 
-function openProject(repo) {
-  PROJ = repo; rememberProject(repo); show('proj'); paintProj(); paintChips($('#pchips'), 'new');
+function openProject(key) {
+  const repo = psplit(key).repo;
+  PROJ = key; rememberProject(key); show('proj'); paintProj(); paintChips($('#pchips'), 'new');
   const sel = $('#pj-base'); sel.innerHTML = '<option value="">default branch</option>';
-  api(`/repos/${repo}/branches`).then(br => { if (PROJ !== repo) return; const def = (REPOS || []).find(r => r.full === repo)?.branch; sel.innerHTML = br.map(b => `<option ${b === def ? 'selected' : ''}>${esc(b)}</option>`).join(''); }).catch(() => {});
+  api(`/repos/${repo}/branches`).then(br => { if (PROJ !== key) return; const def = (REPOS || []).find(r => r.full === repo)?.branch; sel.innerHTML = br.map(b => `<option ${b === def ? 'selected' : ''}>${esc(b)}</option>`).join(''); }).catch(() => {});
 }
 function paintProj() {
-  $('#pj-name').textContent = PROJ.split('/')[1];
-  const chats = SESSIONS.filter(s => s.repo === PROJ);
+  $('#pj-name').textContent = pname(PROJ);
+  const f = psplit(PROJ).folder;
+  $('#pmsg').placeholder = f ? `Plan, build, fix anything in ${pname(PROJ)} (${f})…` : 'Plan, build, fix anything in this repo…';
+  const chats = SESSIONS.filter(s => skey(s) === PROJ);
   $('#pchats').innerHTML = chats.length ? chats.map(s => chatRow(s, false)).join('') : `<div class="empty" style="margin:0;border:0">No chats yet. Type above to start one.</div>`;
 }
 $('#pj-back').onclick = () => { PROJ = null; show('home'); };
 $('#pchats').onclick = e => { const b = e.target.closest('.srow[data-id]'); if (b) openSession(b.dataset.id); };
 $('#pmsg').addEventListener('input', e => { const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 200) + 'px'; });
 $('#pj-go').onclick = async () => {
-  stopMic(); const prompt = $('#pmsg').value.trim(); if (!prompt) return toast('Type what you want to build or fix');
+  stopMic(); const prompt = $('#pmsg').value.trim(); if (!prompt && !PICS.pmsg.length) return toast('Type what you want to build or fix');
   const P = prefs(), b = $('#pj-go'); busy(b, true);
   try {
-    const s = await api('/sessions', { body: { repo: PROJ, base: $('#pj-base').value, agent: P.agent, model: P.model[P.agent] || '', mode: P.mode, effort: P.effort[P.agent] || '', prompt } });
-    $('#pmsg').value = ''; $('#pmsg').style.height = '';
+    const { repo, folder } = psplit(PROJ);
+    const s = await api('/sessions', { body: { repo, folder, images: PICS.pmsg.map(data => ({ data })), base: $('#pj-base').value, agent: P.agent, model: P.model[P.agent] || '', mode: P.mode, effort: P.effort[P.agent] || '', prompt } });
+    $('#pmsg').value = ''; $('#pmsg').style.height = ''; PICS.pmsg = []; paintPics('pmsg');
     SESSIONS.unshift(s); paintProj(); openSession(s.id);
   } catch (e) { toast(e.message, 5000); } finally { busy(b, false); b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>'; }
 };
@@ -639,10 +662,61 @@ async function pickRepo() {
     $('#nw-repos').innerHTML = list.length ? list.map(r => `<button class="repo" data-r="${esc(r.full)}"><b>${esc(r.full)}</b><small>${r.private ? 'private · ' : ''}${ago(r.pushed)}</small></button>`).join('') : `<div class="working" style="padding:0 12px">No repos match.</div>`;
   };
   $('#nw-q').oninput = paint;
-  $('#nw-repos').onclick = e => { const b = e.target.closest('.repo'); if (!b) return; closeSheet(); openProject(b.dataset.r); };
+  $('#nw-repos').onclick = e => { const b = e.target.closest('.repo'); if (!b) return; pickFolder(b.dataset.r); };
   if (REPOS) paint();
   try { REPOS = await api('/repos'); paint(); } catch (e) { if (!REPOS) $('#nw-repos').innerHTML = `<div class="working" style="padding:0 12px">${esc(e.message)}</div>`; }
 }
+
+// step 2: the whole repo, or one app folder inside it (e.g. casedesk/app in Apps)
+async function pickFolder(repo) {
+  openSheet(`<div class="sh-top"><h2>${esc(repo.split('/')[1])}</h2><button class="x" onclick="pickRepo()">Back</button></div>
+    <p class="hint">Open the whole repository, or one app inside it. Chats in an app start in its folder.</p>
+    <div class="search" style="margin-top:6px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="pf-q" placeholder="Search apps and folders" autocapitalize="none" autocorrect="off"></div>
+    <div class="repos" id="pf-list" style="max-height:52vh"><button class="repo whole" data-f=""><span class="rn"><span>Whole repository</span><small>${esc(repo)}</small></span></button><div class="working" style="padding:10px 12px"><span class="spin"></span>Finding apps…</div></div>`);
+  let list = [];
+  const paint = () => {
+    const q = $('#pf-q').value.toLowerCase();
+    const rows = list.filter(f => (f.name + ' ' + f.path).toLowerCase().includes(q));
+    $('#pf-list').innerHTML = `<button class="repo whole" data-f=""><span class="rn"><span>Whole repository</span><small>${esc(repo)}</small></span></button>` +
+      rows.map(f => `<button class="repo" data-f="${esc(f.path)}" data-n="${esc(f.name)}"><span class="rn"><span>${esc(f.name || f.path.split('/').pop())}</span><small>${esc(f.path)}</small></span></button>`).join('');
+  };
+  $('#pf-q').oninput = paint;
+  $('#pf-list').onclick = e => {
+    const b = e.target.closest('.repo'); if (!b) return;
+    const f = b.dataset.f, k = pkey(repo, f);
+    if (f) { const n = LS.get('pnames', {}); n[k] = b.dataset.n || f.split('/').pop(); LS.set('pnames', n); }
+    closeSheet(); openProject(k);
+  };
+  try { list = await api(`/repos/${repo}/folders`); paint(); }
+  catch (e) { list = []; paint(); $('#pf-list').insertAdjacentHTML('beforeend', `<div class="working" style="padding:10px 12px">${/Not found/.test(e.message) ? 'The server is still updating — try again in a minute.' : esc(e.message)}</div>`); }
+}
+
+// ---------- photos (button, or paste a screenshot into the box) ----------
+const PICS = { pmsg: [], msg: [] }; let PIC_FOR = 'msg';
+function shrink(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => { const img = new Image(); img.onload = () => {
+      const max = 1800, k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); resolve(c.toDataURL('image/jpeg', 0.86));
+    }; img.onerror = () => reject(new Error('Could not read that photo')); img.src = fr.result; };
+    fr.onerror = () => reject(new Error('Could not read that photo')); fr.readAsDataURL(file);
+  });
+}
+async function addPics(which, files) {
+  for (const f of files) { if (!/^image\//.test(f.type || 'image/')) continue; if (PICS[which].length >= 6) { toast('Up to 6 photos per message'); break; } try { PICS[which].push(await shrink(f)); } catch (e) { toast(e.message); } }
+  paintPics(which);
+}
+function paintPics(which) {
+  $('#atts-' + which).innerHTML = PICS[which].map((d, i) => `<div class="att"><img src="${d}" alt="Photo ${i + 1}"><button data-i="${i}" aria-label="Remove photo">×</button></div>`).join('');
+}
+for (const w of ['pmsg', 'msg']) {
+  $('#atts-' + w).onclick = e => { const b = e.target.closest('button[data-i]'); if (!b) return; PICS[w].splice(+b.dataset.i, 1); paintPics(w); };
+  $('#' + w).addEventListener('paste', e => { const fs = [...(e.clipboardData?.items || [])].filter(it => it.kind === 'file' && /^image\//.test(it.type)).map(it => it.getAsFile()).filter(Boolean); if (fs.length) { e.preventDefault(); addPics(w, fs); } });
+}
+document.addEventListener('click', e => { const b = e.target.closest('.pic[data-for]'); if (!b) return; PIC_FOR = b.dataset.for; $('#pic-in').value = ''; $('#pic-in').click(); });
+$('#pic-in').onchange = e => addPics(PIC_FOR, [...e.target.files]);
 
 function newRepo() {
   openSheet(`<div class="sh-top"><h2>New repository</h2><button class="x" onclick="closeSheet()">Cancel</button></div>
@@ -692,7 +766,7 @@ $('#sc-back').onclick = closeSession;
   sc.addEventListener('touchmove', e => { if (x0 == null) return; const t = e.touches[0]; dx = Math.max(0, t.clientX - x0); if (Math.abs(t.clientY - y0) > 60 && dx < 30) { x0 = null; sc.style.transition = ''; sc.style.transform = ''; return; } sc.style.transform = `translateX(${dx}px)`; }, { passive: true });
   sc.addEventListener('touchend', () => { if (x0 == null) return; sc.style.transition = ''; sc.style.transform = ''; x0 = null; if (dx > innerWidth * .35) closeSession(); });
 })();
-function paintHead() { $('#sc-title').textContent = CUR.title; $('#sc-sub').innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 4-6 3-11 5.5"/></svg>${esc(CUR.repo)} · ${esc(CUR.branch)}`; }
+function paintHead() { $('#sc-title').textContent = CUR.title; $('#sc-sub').innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 4-6 3-11 5.5"/></svg>${esc(CUR.repo)}${CUR.folder ? " / " + esc(CUR.folder) : ""} · ${esc(CUR.branch)}`; }
 function setPane(p) {
   PANE = p; $$('#sc-tabs button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
   ['chat', 'changes', 'files'].forEach(n => $('#p-' + n).classList.toggle('hidden', n !== p));
@@ -737,7 +811,7 @@ function addEvent(e) {
   if (el) { if (e.kind === 'tool') paintTool(el, e); return; }
   el = document.createElement('div');
   el.className = 'ev ' + e.kind;
-  if (e.kind === 'user') el.innerHTML = `<div class="b">${e.agent ? `<div class="meta"><span class="ag ${e.agent}"><i></i>${agName(e.agent)}</span>${e.model ? `<span>${esc(modelLabel(e.agent, e.model))}</span>` : ''}${e.effort ? `<span>${esc(effortLabel(e.agent, e.effort))} effort</span>` : ''}${e.mode === 'ask' ? '<span style="color:var(--blue)">Ask</span>' : ''}</div>` : ''}${esc(e.text)}</div>`;
+  if (e.kind === 'user') el.innerHTML = `<div class="b">${e.agent ? `<div class="meta"><span class="ag ${e.agent}"><i></i>${agName(e.agent)}</span>${e.model ? `<span>${esc(modelLabel(e.agent, e.model))}</span>` : ''}${e.effort ? `<span>${esc(effortLabel(e.agent, e.effort))} effort</span>` : ''}${e.mode === 'ask' ? '<span style="color:var(--blue)">Ask</span>' : ''}</div>` : ''}${esc(e.text)}${e.photos ? `<div class="photo-chip">📷 ${e.photos} photo${e.photos > 1 ? 's' : ''} attached</div>` : ''}</div>`;
   else if (e.kind === 'text') el.innerHTML = `<div class="md">${md(e.text)}</div>`;
   else if (e.kind === 'tool') { el.innerHTML = `<div class="tool"><button><span class="ic"></span><span class="lb"></span><span class="chev">›</span></button><pre></pre></div>`; el.querySelector('button').onclick = () => el.firstChild.classList.toggle('open'); paintTool(el, e); }
   else if (e.kind === 'error') el.innerHTML = `<div class="b">${esc(e.text)}</div>`;
@@ -784,11 +858,11 @@ ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height =
 $('#send').onclick = async () => {
   if (!CUR) return;
   if (CUR.status === 'running') { try { await api(`/sessions/${CUR.id}/stop`, { method: 'POST' }); toast('Stopping…'); } catch (e) { toast(e.message); } return; }
-  stopMic(); const text = ta.value.trim(); if (!text) return;
-  const keep = text; ta.value = ''; ta.style.height = 'auto';
+  stopMic(); const text = ta.value.trim(); if (!text && !PICS.msg.length) return;
+  const keep = text, pics = PICS.msg; ta.value = ''; ta.style.height = 'auto'; PICS.msg = []; paintPics('msg');
   const P = prefs(); CUR.status = 'running'; CUR.agent = P.agent; paintWorking(); scrollEnd();
-  try { await api(`/sessions/${CUR.id}/message`, { body: { text: keep, agent: P.agent, model: P.model[P.agent] || '', mode: P.mode, effort: P.effort[P.agent] || '' } }); }
-  catch (e) { ta.value = keep; CUR.status = 'idle'; paintWorking(); toast(e.message, 4500); }
+  try { await api(`/sessions/${CUR.id}/message`, { body: { text: keep, images: pics.map(data => ({ data })), agent: P.agent, model: P.model[P.agent] || '', mode: P.mode, effort: P.effort[P.agent] || '' } }); }
+  catch (e) { ta.value = keep; PICS.msg = pics; paintPics('msg'); CUR.status = 'idle'; paintWorking(); toast(e.message, 4500); }
 };
 
 // changes

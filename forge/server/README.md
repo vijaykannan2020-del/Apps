@@ -31,10 +31,16 @@ Install is automatic: `my-inbox/auto-update.sh` (runs every minute) installs thi
 4. The agent never pushes. The app's **Commit & push** / **Create pull request** / **Squash & merge**
    buttons do that with the GitHub token (passed per command as a header, never stored in `.git/config`).
 
+## Project folders and photos
+
+A project can be one app folder inside a repo (e.g. `casedesk/app` in Apps): the session stores `folder` and
+the agents run in that folder. Photos sent with a message are saved in the clone under `.forge-uploads/`
+(git-ignored) and their paths are given to the agent (Codex also gets them with `-i`).
+
 ## API (all under `/forge/api`, Bearer = Matrix access token)
 
 `POST /login` · `GET /me` · `POST /settings` · `POST|GET /codex/login` (ChatGPT device sign-in) ·
-`POST /codex/logout` · `GET /repos` · `GET /repos/:owner/:repo/branches` · `GET|POST /sessions` ·
+`POST /codex/logout` · `GET /repos` · `GET /repos/:owner/:repo/branches|folders` · `GET|POST /sessions` ·
 `GET|DELETE /sessions/:id` · `GET /sessions/:id/events?after=` · `POST /sessions/:id/message|stop|commit|pr|merge|rename` ·
 `GET /sessions/:id/diff|files|file?path=`
 
