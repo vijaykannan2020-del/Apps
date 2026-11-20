@@ -164,7 +164,7 @@ label.fl{display:block;font-weight:500;font-size:12px;margin:16px 0 6px;color:va
 .cbox{border:1px solid var(--line2);background:var(--panel);border-radius:14px;padding:8px 8px 8px 12px;transition:border-color .15s}
 .cbox:focus-within{border-color:#4A4A52}
 .cbox textarea{display:block;width:100%;min-height:24px;max-height:160px;border:0;background:none;resize:none;outline:none;line-height:1.4;padding:2px 0 8px}
-.crow{display:flex;align-items:center;gap:8px}
+.crow{display:flex;align-items:flex-end;gap:6px}
 .agsw{display:flex;gap:4px;flex:1;min-width:0}
 .agsw button{border:1px solid transparent;background:var(--raise);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:500;color:var(--soft);display:flex;align-items:center;gap:6px}
 .agsw button i{width:7px;height:7px;border-radius:2px;background:var(--dim)}
@@ -237,12 +237,16 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 .ptitle{font-size:22px;font-weight:600;font-family:var(--mono);letter-spacing:-.02em;overflow-wrap:anywhere}
 .pcomp{margin-top:14px}
 .pcomp textarea{min-height:64px}
-.chips{display:flex;gap:4px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.chips{display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;border:1px solid var(--line2);background:var(--raise);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:500;color:var(--ink);display:flex;align-items:center;gap:6px;white-space:nowrap}
 .chip i{width:7px;height:7px;border-radius:2px;background:var(--dim);flex:none}
 .chip.claude i{background:var(--claude)}.chip.codex i{background:var(--codex)}
 .chip.ask{color:var(--blue);border-color:rgba(138,180,255,.4)}
+.mic{flex:none;width:32px;height:32px;border-radius:50%;border:1px solid var(--line2);background:transparent;color:var(--soft);display:grid;place-items:center}
+.mic svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mic.on{background:var(--red);border-color:var(--red);color:#fff;animation:micp 1.2s ease-in-out infinite}
+@keyframes micp{0%,100%{box-shadow:0 0 0 0 rgba(248,81,73,.5)}50%{box-shadow:0 0 0 7px rgba(248,81,73,0)}}
 .chip svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:2.5;opacity:.6}
 .opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 4px;border:0;border-bottom:1px solid var(--line);background:none}
 .opt:last-child{border-bottom:0}
@@ -301,7 +305,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
   <div class="ptitle" id="pj-name"></div>
   <div class="cbox pcomp">
     <textarea id="pmsg" rows="2" placeholder="Plan, build, fix anything in this repo…"></textarea>
-    <div class="crow"><div class="chips" id="pchips"></div><button class="send" id="pj-go" aria-label="Start chat"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>
+    <div class="crow"><div class="chips" id="pchips"></div><button class="mic" data-for="pmsg" aria-label="Voice input"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button class="send" id="pj-go" aria-label="Start chat"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>
   </div>
   <div class="row" style="margin-top:8px;gap:6px"><span class="hint" style="margin:0">Start from</span><select class="inp" id="pj-base" style="width:auto;flex:1;padding:6px 30px 6px 10px;font-size:14px;font-family:var(--mono)"><option value="">default branch</option></select></div>
   <div class="lh"><span>Chats</span></div>
@@ -386,7 +390,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
   <div class="composer" id="composer">
     <div class="cbox">
       <textarea id="msg" rows="1" placeholder="Ask Forge to change something…"></textarea>
-      <div class="crow"><div class="chips" id="schips"></div><button class="send" id="send" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>
+      <div class="crow"><div class="chips" id="schips"></div><button class="mic" data-for="msg" aria-label="Voice input"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button class="send" id="send" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>
     </div>
   </div>
 </section>
@@ -397,7 +401,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 8;
+const APP_VERSION = 9;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -535,10 +539,10 @@ $('#pj-back').onclick = () => { PROJ = null; show('home'); };
 $('#pchats').onclick = e => { const b = e.target.closest('.srow[data-id]'); if (b) openSession(b.dataset.id); };
 $('#pmsg').addEventListener('input', e => { const t = e.target; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 200) + 'px'; });
 $('#pj-go').onclick = async () => {
-  const prompt = $('#pmsg').value.trim(); if (!prompt) return toast('Type what you want to build or fix');
+  stopMic(); const prompt = $('#pmsg').value.trim(); if (!prompt) return toast('Type what you want to build or fix');
   const P = prefs(), b = $('#pj-go'); busy(b, true);
   try {
-    const s = await api('/sessions', { body: { repo: PROJ, base: $('#pj-base').value, agent: P.agent, model: P.model[P.agent] || '', mode: P.mode, prompt } });
+    const s = await api('/sessions', { body: { repo: PROJ, base: $('#pj-base').value, agent: P.agent, model: P.model[P.agent] || '', mode: P.mode, effort: P.effort[P.agent] || '', prompt } });
     $('#pmsg').value = ''; $('#pmsg').style.height = '';
     SESSIONS.unshift(s); paintProj(); openSession(s.id);
   } catch (e) { toast(e.message, 5000); } finally { busy(b, false); b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>'; }
@@ -549,13 +553,15 @@ const MODELS = {
   claude: [['', 'Default', 'what your plan picks'], ['claude-opus-5-5', 'Opus 5.5', 'most capable'], ['claude-sonnet-5-5', 'Sonnet 5.5', 'fast + smart'], ['claude-haiku-5-5', 'Haiku 5.5', 'fastest']],
   codex: [['', 'Default', 'Codex picks the best model']],
 };
-function prefs() { const p = LS.get('prefs', {}); return { agent: p.agent || 'claude', model: p.model || {}, mode: p.mode || 'agent' }; }
+const EFFORTS = { claude: [['', 'Default'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['xhigh', 'Extra high'], ['max', 'Max']], codex: [['', 'Default'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['xhigh', 'Extra high']] };
+const effortLabel = (agent, v) => (EFFORTS[agent].find(e => e[0] === v) || ['', 'Default'])[1];
+function prefs() { const p = LS.get('prefs', {}); return { agent: p.agent || 'claude', model: p.model || {}, mode: p.mode || 'agent', effort: p.effort || {} }; }
 function setPrefs(patch) { LS.set('prefs', { ...prefs(), ...patch }); }
 const modelLabel = (agent, id) => (MODELS[agent].find(m => m[0] === id) || [id, id])[1] || 'Default';
 const chev = '<svg viewBox="0 0 10 10"><path d="M2 4l3 3 3-3"/></svg>';
 function paintChips(box, where) {
   const P = prefs();
-  box.innerHTML = `<button class="chip ${P.agent}" data-c="agent"><i></i>${agName(P.agent)}${chev}</button><button class="chip" data-c="model">${esc(modelLabel(P.agent, P.model[P.agent] || ''))}${chev}</button><button class="chip ${P.mode === 'ask' ? 'ask' : ''}" data-c="mode">${P.mode === 'ask' ? 'Ask' : 'Agent'}${chev}</button>`;
+  box.innerHTML = `<button class="chip ${P.agent}" data-c="agent"><i></i>${P.agent === 'codex' ? 'Codex' : 'Claude'}${chev}</button><button class="chip" data-c="model">${esc(modelLabel(P.agent, P.model[P.agent] || ''))}${chev}</button><button class="chip" data-c="effort">${P.effort[P.agent] ? '⚡ ' + effortLabel(P.agent, P.effort[P.agent]) : 'Effort'}${chev}</button><button class="chip ${P.mode === 'ask' ? 'ask' : ''}" data-c="mode">${P.mode === 'ask' ? 'Ask' : 'Agent'}${chev}</button>`;
   box.onclick = e => { const c = e.target.closest('.chip'); if (!c) return; chipSheet(c.dataset.c, () => { paintChips($('#pchips'), 'new'); paintChips($('#schips'), 'chat'); if (where === 'chat' && c.dataset.c === 'agent' && CUR && prefs().agent !== CUR.agent) toast(`Next message goes to ${agName(prefs().agent)}. It sees the code, not the other agent’s chat.`, 3600); }); };
 }
 function chipSheet(kind, done) {
@@ -563,12 +569,13 @@ function chipSheet(kind, done) {
   const opt = (val, label, small, on) => `<button class="opt" data-v="${esc(val)}"><span class="ck">${on ? '✓' : ''}</span><b>${label}</b><small>${small || ''}</small></button>`;
   let html = '';
   if (kind === 'agent') html = `<div class="sh-top"><h2>Agent</h2></div>${opt('claude', '<span class="ag claude"><i></i></span> Claude Code', ME?.claude || 'not connected', P.agent === 'claude')}${opt('codex', '<span class="ag codex"><i></i></span> Codex', ME?.codex ? 'connected' : 'not connected', P.agent === 'codex')}`;
+  if (kind === 'effort') { const cur = P.effort[P.agent] || ''; const hint = { '': 'agent decides', low: 'quick answers', medium: 'balanced', high: 'thinks harder', xhigh: 'very thorough, slower', max: 'deepest thinking, slowest' }; html = `<div class="sh-top"><h2>${agName(P.agent)} effort</h2></div>${EFFORTS[P.agent].map(e => opt(e[0], e[1], hint[e[0]], cur === e[0])).join('')}<p class="hint">More effort = better results on hard tasks, but slower and uses more of your plan.</p>`; }
   if (kind === 'mode') html = `<div class="sh-top"><h2>Mode</h2></div>${opt('agent', 'Agent', 'edits files, runs commands', P.mode !== 'ask')}${opt('ask', 'Ask', 'read-only: explains, plans, no changes', P.mode === 'ask')}`;
   if (kind === 'model') { const cur = P.model[P.agent] || ''; const list = MODELS[P.agent]; html = `<div class="sh-top"><h2>${agName(P.agent)} model</h2></div>${list.map(m => opt(m[0], m[1], m[2], cur === m[0])).join('')}${cur && !list.some(m => m[0] === cur) ? opt(cur, esc(cur), 'custom', true) : ''}<label class="fl">Other model name</label><div class="row"><input class="inp" id="mdl-c" placeholder="${P.agent === 'claude' ? 'e.g. claude-opus-5-5' : 'e.g. a model name from OpenAI'}" autocapitalize="none" autocorrect="off" style="font-family:var(--mono);font-size:14px"><button class="btn ink" id="mdl-ok">Use</button></div>`; }
   openSheet(html);
   $('#sheet').querySelectorAll('.opt').forEach(b => b.onclick = () => {
     const v = b.dataset.v;
-    if (kind === 'agent') setPrefs({ agent: v }); else if (kind === 'mode') setPrefs({ mode: v }); else setPrefs({ model: { ...P.model, [P.agent]: v } });
+    if (kind === 'agent') setPrefs({ agent: v }); else if (kind === 'mode') setPrefs({ mode: v }); else if (kind === 'effort') setPrefs({ effort: { ...P.effort, [P.agent]: v } }); else setPrefs({ model: { ...P.model, [P.agent]: v } });
     closeSheet(); done();
   });
   const ok = $('#mdl-ok'); if (ok) ok.onclick = () => { const v = $('#mdl-c').value.trim(); if (!v) return; setPrefs({ model: { ...P.model, [P.agent]: v } }); closeSheet(); done(); };
@@ -584,6 +591,28 @@ $('#veil').onclick = closeSheet;
   s.addEventListener('touchmove', e => { if (y0 == null) return; dy = Math.max(0, e.touches[0].clientY - y0); s.style.transform = `translateY(${dy}px)`; }, { passive: true });
   s.addEventListener('touchend', () => { if (y0 == null) return; s.style.transition = ''; s.style.transform = ''; if (dy > 110) closeSheet(); y0 = null; });
 })();
+
+// ---------- voice input (Safari speech recognition) ----------
+let REC = null;
+function stopMic() { if (REC) { try { REC.stop(); } catch {} } }
+document.addEventListener('click', e => {
+  const m = e.target.closest('.mic'); if (!m) return;
+  if (REC) return stopMic();
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return toast('Voice input isn’t available here. Use the mic on your iPhone keyboard.', 4000);
+  const ta = document.getElementById(m.dataset.for);
+  const base = ta.value ? ta.value.replace(/\s*$/, ' ') : '';
+  const r = new SR(); r.lang = navigator.language || 'en-US'; r.continuous = true; r.interimResults = true;
+  let finalText = '';
+  r.onresult = ev => {
+    let interim = '';
+    for (let i = ev.resultIndex; i < ev.results.length; i++) { const t = ev.results[i][0].transcript; if (ev.results[i].isFinal) finalText += t; else interim += t; }
+    ta.value = base + finalText + interim; ta.dispatchEvent(new Event('input'));
+  };
+  r.onerror = ev => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') toast('Allow the microphone for this app in iPhone Settings, or use the keyboard mic.', 4500); else if (ev.error !== 'aborted' && ev.error !== 'no-speech') toast('Voice: ' + ev.error); };
+  r.onend = () => { REC = null; $$('.mic').forEach(x => x.classList.remove('on')); ta.focus(); };
+  try { r.start(); REC = r; m.classList.add('on'); if (navigator.vibrate) navigator.vibrate(10); } catch (err) { toast('Could not start voice input'); }
+});
 
 // ---------- open a project (pick a GitHub repo) ----------
 let REPOS = null;
@@ -676,7 +705,7 @@ function addEvent(e) {
   if (el) { if (e.kind === 'tool') paintTool(el, e); return; }
   el = document.createElement('div');
   el.className = 'ev ' + e.kind;
-  if (e.kind === 'user') el.innerHTML = `<div class="b">${e.agent ? `<div class="meta"><span class="ag ${e.agent}"><i></i>${agName(e.agent)}</span>${e.model ? `<span>${esc(modelLabel(e.agent, e.model))}</span>` : ''}${e.mode === 'ask' ? '<span style="color:var(--blue)">Ask</span>' : ''}</div>` : ''}${esc(e.text)}</div>`;
+  if (e.kind === 'user') el.innerHTML = `<div class="b">${e.agent ? `<div class="meta"><span class="ag ${e.agent}"><i></i>${agName(e.agent)}</span>${e.model ? `<span>${esc(modelLabel(e.agent, e.model))}</span>` : ''}${e.effort ? `<span>${esc(effortLabel(e.agent, e.effort))} effort</span>` : ''}${e.mode === 'ask' ? '<span style="color:var(--blue)">Ask</span>' : ''}</div>` : ''}${esc(e.text)}</div>`;
   else if (e.kind === 'text') el.innerHTML = `<div class="md">${md(e.text)}</div>`;
   else if (e.kind === 'tool') { el.innerHTML = `<div class="tool"><button><span class="ic"></span><span class="lb"></span><span class="chev">›</span></button><pre></pre></div>`; el.querySelector('button').onclick = () => el.firstChild.classList.toggle('open'); paintTool(el, e); }
   else if (e.kind === 'error') el.innerHTML = `<div class="b">${esc(e.text)}</div>`;
@@ -723,10 +752,10 @@ ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height =
 $('#send').onclick = async () => {
   if (!CUR) return;
   if (CUR.status === 'running') { try { await api(`/sessions/${CUR.id}/stop`, { method: 'POST' }); toast('Stopping…'); } catch (e) { toast(e.message); } return; }
-  const text = ta.value.trim(); if (!text) return;
+  stopMic(); const text = ta.value.trim(); if (!text) return;
   const keep = text; ta.value = ''; ta.style.height = 'auto';
   const P = prefs(); CUR.status = 'running'; CUR.agent = P.agent; paintWorking(); scrollEnd();
-  try { await api(`/sessions/${CUR.id}/message`, { body: { text: keep, agent: P.agent, model: P.model[P.agent] || '', mode: P.mode } }); }
+  try { await api(`/sessions/${CUR.id}/message`, { body: { text: keep, agent: P.agent, model: P.model[P.agent] || '', mode: P.mode, effort: P.effort[P.agent] || '' } }); }
   catch (e) { ta.value = keep; CUR.status = 'idle'; paintWorking(); toast(e.message, 4500); }
 };
 
