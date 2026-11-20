@@ -140,6 +140,16 @@ export function useSheetTour(id: string, steps?: TourStep[], opts: { help?: stri
   return tour;
 }
 
+/**
+ * Every <TourTarget> also registers here under "<tour id>:<target id>" (e.g. "home:hero"), so the guided
+ * tour (screens/guide.tsx) can point at elements on any screen. Newest first: a screen pushed again wins.
+ */
+type GuideEntry = { ref: React.RefObject<Measurable | null>; scroller?: Scroller };
+const guideTargets = new Map<string, GuideEntry[]>();
+export function guideTargetsFor(key: string): { ref: React.RefObject<Measurable | null>; scrollBy?: (dy: number) => void }[] {
+  return [...(guideTargets.get(key) ?? [])].reverse().map((e) => ({ ref: e.ref, scrollBy: e.scroller?.scrollBy }));
+}
+
 /** Makes <TourTarget>s inside belong to `tour`. <Screen tour={…}> does this for you. */
 export function TourScope({ tour, children }: { tour?: Tour | null; children: React.ReactNode }) {
   if (!tour) return <>{children}</>;
@@ -156,7 +166,15 @@ export function TourTarget({ id, children, style, tour }: { id: string; children
     if (!owner) return;
     owner.refs.set(id, ref as never);
     if (scroller) (owner.scrolls ??= new Map()).set(id, scroller);
-    return () => { if (owner.refs.get(id) === (ref as never)) { owner.refs.delete(id); owner.scrolls?.delete(id); } };
+    const entry: GuideEntry = { ref, scroller: scroller ?? undefined };
+    const key = `${owner.id}:${id}`;
+    const list = guideTargets.get(key) ?? [];
+    guideTargets.set(key, [...list, entry]);
+    return () => {
+      if (owner.refs.get(id) === (ref as never)) { owner.refs.delete(id); owner.scrolls?.delete(id); }
+      const l = (guideTargets.get(key) ?? []).filter((e) => e !== entry);
+      if (l.length) guideTargets.set(key, l); else guideTargets.delete(key);
+    };
   }, [owner, id, scroller]);
   return <View ref={ref} collapsable={false} style={style}>{children}</View>;
 }

@@ -5,6 +5,7 @@ import { AppState, View } from 'react-native';
 import { useFamily } from '../data/FamilyProvider';
 import { askNotificationPermission, notificationPermission, openNotificationSettings } from '../native/reminders';
 import { setupOpen } from '../core/onboarding';
+import { useGuide } from './guide';
 import { alertOn, permText, shouldAskNotifications, type AlertKind, type Perm } from '../core/notify';
 import { Button, Group, Icon, Row, SheetButtons, Switch, T, TourTarget, Why, font, useSheet, useTheme, useToast, useTourActive } from '../ui';
 
@@ -56,7 +57,8 @@ export function NotifyExplainer({ onDone }: { onDone?: (granted: boolean) => voi
  *  onboarding (v3.0), which has its own Alerts step. */
 export function NotifyPrompt() {
   const f = useFamily(); const sheet = useSheet();
-  const touring = useTourActive();
+  const guide = useGuide();
+  const touring = useTourActive() || guide.active;
   const [perm] = usePermission();
   const shown = useRef(false);
   const want = !!perm && f.ready && !!f.settings.setupDone && !setupOpen(f.settings) && shouldAskNotifications({ perm, settings: f.settings, docs: f.docs.length, cases: f.cases.length });
