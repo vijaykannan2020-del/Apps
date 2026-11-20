@@ -263,7 +263,7 @@ export function ShareImportScreen() {
         <Button kind="ghost" title="Cancel" onPress={back} />
         <Button grow title="Open" disabled={!file || !code.trim() || expiredAlready || !!fileError || !!waiting} busy={busy} onPress={open} />
       </SheetButtons>
-      <Hint>Older app versions can’t open share files from Messages or AirDrop directly — save the file to Files, then choose it here.</Hint>
+      <Hint>If a share file doesn’t open from Messages or AirDrop, save it to Files, then choose it here.</Hint>
     </Screen>
   );
 }
