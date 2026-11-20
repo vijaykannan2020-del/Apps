@@ -180,7 +180,7 @@ function OnboardingBody() {
         <View style={{ flex: 1, paddingLeft: insets.left, paddingRight: insets.right }}>
           <View style={{ flex: 1, flexDirection: 'row', alignSelf: 'center', width: '100%', maxWidth: L.wideMax + 2 * L.side }}>
             <View style={{ flex: 1.15, minWidth: 0 }}>{scroll}</View>
-            <View style={{ flex: 1, minWidth: 0, paddingRight: L.side, paddingLeft: 8, paddingTop: 18 }}><SetupPreview step={step} a={a} /></View>
+            <View style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: 'hidden', paddingRight: L.side, paddingLeft: 8, paddingTop: 18 }}><SetupPreview step={step} a={a} /></View>
           </View>
         </View>
       ) : scroll}
@@ -1189,6 +1189,7 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
   const ref = useRef<any>(null);
   const goTo = (k: number) => { if (!box) return; tap(); ref.current?.scrollTo({ x: k * box.w, animated: true }); setI(k); };
   const short = (box?.h ?? 600) < 330;
+  const tiny = (box?.h ?? 600) < 230; // phone in landscape: the title only, so nothing is cut off
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       {/* full-bleed background; the slides and dots keep clear of the left / right insets (the footer handles its own) */}
@@ -1203,9 +1204,9 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
             onMomentumScrollEnd={(e) => setI(Math.round(e.nativeEvent.contentOffset.x / box.w))} onScroll={Platform.OS === 'web' ? (e) => setI(Math.round(e.nativeEvent.contentOffset.x / box.w)) : undefined} scrollEventThrottle={64}>
             {SLIDES.map(([icon, tone, title, sub], k) => (
               <View key={title} accessibilityLabel={`${title}. ${sub}. Page ${k + 1} of ${SLIDES.length}`} style={{ width: box.w, height: box.h, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-                <View style={{ width: short ? 96 : 150, height: short ? 96 : 150, borderRadius: short ? 34 : 54, backgroundColor: t.pastel[tone], alignItems: 'center', justifyContent: 'center', marginBottom: short ? 16 : 30 }}><Icon name={icon} size={short ? 44 : 64} color={t.ink} /></View>
+                {tiny ? null : <View style={{ width: short ? 96 : 150, height: short ? 96 : 150, borderRadius: short ? 34 : 54, backgroundColor: t.pastel[tone], alignItems: 'center', justifyContent: 'center', marginBottom: short ? 16 : 30 }}><Icon name={icon} size={short ? 44 : 64} color={t.ink} /></View>}
                 <T style={[font.title, { textAlign: 'center', maxWidth: Math.min(box.w - 64, 460) }]}>{title}</T>
-                <T tone="text2" style={[font.body, { textAlign: 'center', marginTop: 10, maxWidth: Math.min(box.w - 64, 420), lineHeight: 24 }]}>{sub}</T>
+                {tiny ? null : <T tone="text2" style={[font.body, { textAlign: 'center', marginTop: 10, maxWidth: Math.min(box.w - 64, 420), lineHeight: 24 }]}>{sub}</T>}
               </View>
             ))}
           </ScrollView>
