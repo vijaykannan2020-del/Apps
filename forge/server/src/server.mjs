@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
-const SERVER_VERSION = 8; // raise on every server change; shown in the app's Settings
+const SERVER_VERSION = 9; // raise on every server change; shown in the app's Settings
 const PORT = +(process.env.PORT || 8790);
 const SYNAPSE = process.env.SYNAPSE_URL || 'http://synapse:8008';
 const DATA = process.env.DATA_DIR || '/app/data';
@@ -185,7 +185,7 @@ function startRun(s, text, agent, model, mode, effort) {
     cmd = 'codex';
     const common = ['--json', '--skip-git-repo-check', ...(mode === 'ask' ? ['-c', 'sandbox_mode="read-only"', '-c', 'approval_policy="never"'] : ['--dangerously-bypass-approvals-and-sandbox'])];
     if (model) common.push('-m', model);
-    if (['low', 'medium', 'high', 'xhigh'].includes(effort)) common.push('-c', `model_reasoning_effort="${effort}"`); else effort = '';
+    if (/^[a-z]{2,12}$/.test(effort || '')) common.push('-c', `model_reasoning_effort="${effort}"`); else effort = '';
     const prompt = (s.codexThread ? '' : GUIDE + '\n\n') + (mode === 'ask' ? '(Ask mode: answer only, do not edit files.)\n' : '') + text;
     args = s.codexThread ? ['exec', 'resume', ...common, s.codexThread, prompt] : ['exec', ...common, '-C', cwd, prompt];
   }
@@ -364,7 +364,7 @@ function startCodexDeviceLogin() {
     const c = st.out.match(/\b([A-Z0-9]{4}-[A-Z0-9]{4,5})\b/); if (c) st.code = c[1];
   };
   proc.stdout.on('data', eat); proc.stderr.on('data', eat);
-  proc.on('close', code => { st.done = true; st.ok = code === 0 && codexReady(); });
+  proc.on('close', code => { st.done = true; st.ok = code === 0 && codexReady(); cxModels = null; });
   setTimeout(() => { if (!st.done) proc.kill(); }, 15 * 60 * 1000);
   st.proc = proc;
   codexLogin = st;
@@ -409,6 +409,29 @@ function sendClaudeCode(code) {
   setTimeout(() => { try { st.proc.stdin.write('\r'); } catch {} }, 300);
 }
 const clView = st => st && { url: st.url, done: st.done, ok: st.ok, error: st.error, sent: st.sent };
+
+// ---------- Codex model list (asks Codex itself, so it matches your ChatGPT plan) ----------
+let cxModels = null;
+function codexModels() {
+  if (cxModels && cxModels.until > Date.now()) return Promise.resolve(cxModels.list);
+  return new Promise(resolve => {
+    const p = spawn('codex', ['app-server'], { env: baseEnv(), stdio: ['pipe', 'pipe', 'ignore'] });
+    let buf = '', done = false;
+    const finish = list => { if (done) return; done = true; try { p.kill(); } catch {} if (list?.length) cxModels = { list, until: Date.now() + 10 * 60 * 1000 }; resolve(list || []); };
+    p.stdout.on('data', d => {
+      buf += d; let n;
+      while ((n = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, n); buf = buf.slice(n + 1);
+        let m; try { m = JSON.parse(line); } catch { continue; }
+        if (m.id === 1) { p.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'initialized' }) + '\n'); p.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'model/list', params: {} }) + '\n'); }
+        if (m.id === 2) finish((m.result?.data || []).filter(x => !x.hidden).map(x => ({ id: x.model || x.id, name: x.displayName || x.id, description: x.description || '', isDefault: !!x.isDefault, defaultEffort: x.defaultReasoningEffort || '', efforts: (x.supportedReasoningEfforts || []).map(e => ({ id: e.reasoningEffort, description: e.description || '' })) })));
+      }
+    });
+    p.on('error', () => finish([])); p.on('close', () => finish([]));
+    p.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { clientInfo: { name: 'forge', version: String(SERVER_VERSION) } } }) + '\n');
+    setTimeout(() => finish([]), 20000);
+  });
+}
 
 // ---------- GitHub sign-in (device flow, GitHub CLI's public OAuth app — same flow as `gh auth login`) ----------
 const GH_CLIENT = process.env.GITHUB_CLIENT_ID || '178c6fc778ccc68e1d6a';
@@ -515,11 +538,13 @@ const server = http.createServer(async (req, res) => {
       if ('codexModel' in b) patch.codexModel = String(b.codexModel || '').trim();
       if ('openaiKey' in b && String(b.openaiKey || '').trim()) {
         const r = await run('codex', ['login', '--with-api-key'], { input: String(b.openaiKey).trim() + '\n', timeout: 30000 });
+        cxModels = null;
         if (r.code !== 0 || !codexReady()) return send(res, 400, { error: 'Codex did not accept that key: ' + clip(r.err || r.out, 300) });
       }
       setSecrets(patch);
       return send(res, 200, await status());
     }
+    if (M === 'GET' && p === '/codex/models') return send(res, 200, await codexModels());
     if (M === 'POST' && p === '/claude/login') return send(res, 200, clView(startClaudeLogin()));
     if (M === 'GET' && p === '/claude/login') return send(res, 200, clView(clLogin) || {});
     if (M === 'POST' && p === '/claude/code') { const b = await body(req); sendClaudeCode(b.code); return send(res, 200, clView(clLogin)); }
@@ -527,7 +552,7 @@ const server = http.createServer(async (req, res) => {
     if (M === 'GET' && p === '/github/login') return send(res, 200, ghView(ghLogin) || {});
     if (M === 'POST' && p === '/codex/login') return send(res, 200, loginView(startCodexDeviceLogin()));
     if (M === 'GET' && p === '/codex/login') return send(res, 200, loginView(codexLogin) || {});
-    if (M === 'POST' && p === '/codex/logout') { await run('codex', ['logout'], { timeout: 15000 }); try { fs.rmSync(path.join(CODEX_HOME, 'auth.json')); } catch {} return send(res, 200, await status()); }
+    if (M === 'POST' && p === '/codex/logout') { cxModels = null; await run('codex', ['logout'], { timeout: 15000 }); try { fs.rmSync(path.join(CODEX_HOME, 'auth.json')); } catch {} return send(res, 200, await status()); }
 
     if (M === 'GET' && p === '/repos') {
       const list = await gh('/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member');

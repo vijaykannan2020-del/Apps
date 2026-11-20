@@ -250,7 +250,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 .chip svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:2.5;opacity:.6}
 .opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 4px;border:0;border-bottom:1px solid var(--line);background:none}
 .opt:last-child{border-bottom:0}
-.opt b{font-weight:500;flex:1}.opt small{color:var(--dim);font-size:12px;font-family:var(--mono)}
+.opt b{font-weight:500;flex:none}.opt small{color:var(--dim);font-size:12px;flex:1;text-align:right;line-height:1.3}
 .opt .ck{width:16px;color:var(--ink);font-size:14px}
 .ev.user .b .meta{display:flex;gap:8px;align-items:center;margin-bottom:4px;font-size:11.5px;color:var(--soft)}
 #scr-empty{display:none}
@@ -401,7 +401,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 9;
+const APP_VERSION = 10;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -479,7 +479,7 @@ $('#logout').onclick = () => signOut();
 async function boot() {
   if (!TOKEN) return show('login');
   show('home');
-  try { ME = await api('/me'); paintSetupNote(); } catch (e) { toast(e.message, 4000); }
+  try { ME = await api('/me'); paintSetupNote(); if (ME.codex) loadCodexModels().then(() => { paintChips($('#pchips'), 'new'); paintChips($('#schips'), 'chat'); }); } catch (e) { toast(e.message, 4000); }
 }
 function paintSetupNote() {
   if (!ME) return;
@@ -554,10 +554,20 @@ const MODELS = {
   codex: [['', 'Default', 'Codex picks the best model']],
 };
 const EFFORTS = { claude: [['', 'Default'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['xhigh', 'Extra high'], ['max', 'Max']], codex: [['', 'Default'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['xhigh', 'Extra high']] };
-const effortLabel = (agent, v) => (EFFORTS[agent].find(e => e[0] === v) || ['', 'Default'])[1];
+const EFF_NAME = { low: 'Low', medium: 'Medium', high: 'High', xhigh: 'Extra high', max: 'Max', ultra: 'Ultra', minimal: 'Minimal', none: 'None' };
+const effortLabel = (agent, v) => v ? (EFF_NAME[v] || v) : 'Default';
+// Codex models come from Codex itself on the server (what your ChatGPT plan offers)
+let CX = null, CX_LOADING = null;
+function loadCodexModels() { if (CX) return Promise.resolve(CX); return CX_LOADING = CX_LOADING || api('/codex/models').then(l => { CX_LOADING = null; if (l.length) CX = l; return l; }).catch(() => { CX_LOADING = null; return []; }); }
+function codexModel(id) { const l = CX || []; return l.find(m => m.id === id) || (id ? null : l.find(m => m.isDefault)); }
+function effortsFor(agent, P) {
+  if (agent === 'claude') return EFFORTS.claude;
+  const m = codexModel(P.model.codex || '');
+  return m?.efforts?.length ? [['', 'Default' + (m.defaultEffort ? ` (${EFF_NAME[m.defaultEffort] || m.defaultEffort})` : '')], ...m.efforts.map(e => [e.id, EFF_NAME[e.id] || e.id, e.description])] : EFFORTS.codex;
+}
 function prefs() { const p = LS.get('prefs', {}); return { agent: p.agent || 'claude', model: p.model || {}, mode: p.mode || 'agent', effort: p.effort || {} }; }
 function setPrefs(patch) { LS.set('prefs', { ...prefs(), ...patch }); }
-const modelLabel = (agent, id) => (MODELS[agent].find(m => m[0] === id) || [id, id])[1] || 'Default';
+const modelLabel = (agent, id) => agent === 'codex' ? (id ? (codexModel(id)?.name || id) : 'Default') : ((MODELS[agent].find(m => m[0] === id) || [id, id])[1] || 'Default');
 const chev = '<svg viewBox="0 0 10 10"><path d="M2 4l3 3 3-3"/></svg>';
 function paintChips(box, where) {
   const P = prefs();
@@ -569,13 +579,14 @@ function chipSheet(kind, done) {
   const opt = (val, label, small, on) => `<button class="opt" data-v="${esc(val)}"><span class="ck">${on ? '✓' : ''}</span><b>${label}</b><small>${small || ''}</small></button>`;
   let html = '';
   if (kind === 'agent') html = `<div class="sh-top"><h2>Agent</h2></div>${opt('claude', '<span class="ag claude"><i></i></span> Claude Code', ME?.claude || 'not connected', P.agent === 'claude')}${opt('codex', '<span class="ag codex"><i></i></span> Codex', ME?.codex ? 'connected' : 'not connected', P.agent === 'codex')}`;
-  if (kind === 'effort') { const cur = P.effort[P.agent] || ''; const hint = { '': 'agent decides', low: 'quick answers', medium: 'balanced', high: 'thinks harder', xhigh: 'very thorough, slower', max: 'deepest thinking, slowest' }; html = `<div class="sh-top"><h2>${agName(P.agent)} effort</h2></div>${EFFORTS[P.agent].map(e => opt(e[0], e[1], hint[e[0]], cur === e[0])).join('')}<p class="hint">More effort = better results on hard tasks, but slower and uses more of your plan.</p>`; }
+  if (kind === 'effort') { const cur = P.effort[P.agent] || ''; const hint = { '': 'agent decides', low: 'quick answers', medium: 'balanced', high: 'thinks harder', xhigh: 'very thorough, slower', max: 'deepest thinking, slowest', ultra: 'max + splits work into helpers' }; html = `<div class="sh-top"><h2>${agName(P.agent)} effort</h2></div>${effortsFor(P.agent, P).map(e => opt(e[0], e[1], hint[e[0]] || '', cur === e[0])).join('')}<p class="hint">More effort = better results on hard tasks, but slower and uses more of your plan.</p>`; }
   if (kind === 'mode') html = `<div class="sh-top"><h2>Mode</h2></div>${opt('agent', 'Agent', 'edits files, runs commands', P.mode !== 'ask')}${opt('ask', 'Ask', 'read-only: explains, plans, no changes', P.mode === 'ask')}`;
-  if (kind === 'model') { const cur = P.model[P.agent] || ''; const list = MODELS[P.agent]; html = `<div class="sh-top"><h2>${agName(P.agent)} model</h2></div>${list.map(m => opt(m[0], m[1], m[2], cur === m[0])).join('')}${cur && !list.some(m => m[0] === cur) ? opt(cur, esc(cur), 'custom', true) : ''}<label class="fl">Other model name</label><div class="row"><input class="inp" id="mdl-c" placeholder="${P.agent === 'claude' ? 'e.g. claude-opus-5-5' : 'e.g. a model name from OpenAI'}" autocapitalize="none" autocorrect="off" style="font-family:var(--mono);font-size:14px"><button class="btn ink" id="mdl-ok">Use</button></div>`; }
+  if (kind === 'model' && P.agent === 'codex' && !CX) { openSheet('<div class="sh-top"><h2>Codex model</h2></div><div class="working"><span class="spin"></span>Asking Codex which models your plan has…</div>'); loadCodexModels().then(l => { if (!l.length) toast(ME?.codex ? 'Could not load Codex models. Try again in a moment.' : 'Connect Codex in Settings first.', 4000); if ($('#sheet').classList.contains('open')) chipSheet(kind, done); }); return; }
+  if (kind === 'model') { const cur = P.model[P.agent] || ''; const list = P.agent === 'codex' ? [['', 'Default', (codexModel('')?.name || 'Codex picks')], ...(CX || []).map(m => [m.id, m.name, m.description])] : MODELS[P.agent]; html = `<div class="sh-top"><h2>${agName(P.agent)} model</h2></div>${list.map(m => opt(m[0], m[1], m[2], cur === m[0])).join('')}${cur && !list.some(m => m[0] === cur) ? opt(cur, esc(cur), 'custom', true) : ''}<label class="fl">Other model name</label><div class="row"><input class="inp" id="mdl-c" placeholder="${P.agent === 'claude' ? 'e.g. claude-opus-5-5' : 'e.g. a model name from OpenAI'}" autocapitalize="none" autocorrect="off" style="font-family:var(--mono);font-size:14px"><button class="btn ink" id="mdl-ok">Use</button></div>`; }
   openSheet(html);
   $('#sheet').querySelectorAll('.opt').forEach(b => b.onclick = () => {
     const v = b.dataset.v;
-    if (kind === 'agent') setPrefs({ agent: v }); else if (kind === 'mode') setPrefs({ mode: v }); else if (kind === 'effort') setPrefs({ effort: { ...P.effort, [P.agent]: v } }); else setPrefs({ model: { ...P.model, [P.agent]: v } });
+    if (kind === 'agent') setPrefs({ agent: v }); else if (kind === 'mode') setPrefs({ mode: v }); else if (kind === 'effort') setPrefs({ effort: { ...P.effort, [P.agent]: v } }); else { setPrefs({ model: { ...P.model, [P.agent]: v } }); const np = prefs(); const ok = effortsFor(np.agent, np).some(e => e[0] === (np.effort[np.agent] || '')); if (!ok) setPrefs({ effort: { ...np.effort, [np.agent]: '' } }); }
     closeSheet(); done();
   });
   const ok = $('#mdl-ok'); if (ok) ok.onclick = () => { const v = $('#mdl-c').value.trim(); if (!v) return; setPrefs({ model: { ...P.model, [P.agent]: v } }); closeSheet(); done(); };
