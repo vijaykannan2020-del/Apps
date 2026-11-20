@@ -228,7 +228,6 @@ export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard
   // content column keeps clear of the safe-area insets (top, bottom, left and right — e.g. the
   // system status column on the right of a foldable), centred in what is left.
   const sides: ViewStyle = { paddingLeft: insets.left, paddingRight: insets.right };
-  const indicator = { left: insets.left, right: insets.right };
   const paneInner = (left: boolean): ViewStyle => ({ ...inner, maxWidth: undefined, alignSelf: 'stretch', paddingLeft: left ? L.side : 10, paddingRight: left ? 10 : L.side });
   const body = split ? (
     <View style={[{ flex: 1 }, sides]}>
@@ -238,7 +237,7 @@ export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard
       </View>
     </View>
   ) : scroll ? (
-    <TourScroll style={{ flex: 1 }} contentContainerStyle={sides} scrollIndicatorInsets={indicator} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>
+    <TourScroll style={{ flex: 1 }} contentContainerStyle={sides} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>
       <View style={inner}>{panes ? <>{panes.left}{panes.right}</> : children}</View>
     </TourScroll>
   ) : <View style={[{ flex: 1 }, sides]}><View style={[{ flex: 1 }, inner]}>{children}</View></View>;

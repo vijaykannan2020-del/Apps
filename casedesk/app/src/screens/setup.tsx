@@ -169,7 +169,7 @@ function OnboardingBody() {
   // left / right safe-area insets and is centred in the space between them.
   const scroll = (
     <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"
-      contentContainerStyle={L.twoCol ? undefined : { paddingLeft: insets.left, paddingRight: insets.right }} scrollIndicatorInsets={L.twoCol ? undefined : { left: insets.left, right: insets.right }}>
+      contentContainerStyle={L.twoCol ? undefined : { paddingLeft: insets.left, paddingRight: insets.right }} showsVerticalScrollIndicator={false}>
       <View style={{ paddingHorizontal: L.side, paddingTop: 18, paddingBottom: 32, alignSelf: 'center', width: '100%', maxWidth: L.twoCol ? 600 : L.maxWidth + 2 * L.side }}>{body}</View>
     </ScrollView>
   );
