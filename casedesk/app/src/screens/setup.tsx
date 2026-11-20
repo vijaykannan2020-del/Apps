@@ -281,7 +281,7 @@ function SetupHeader({ at, total, onBack, backLabel, onLater, done }: { at: numb
             <Icon name={backLabel === 'Close' ? 'x' : 'chevL'} size={22} color={t.text} weight="semibold" />
           </Pressable>
         ) : <View style={{ width: MIN_TOUCH }} />}
-        <View style={{ flex: 1 }}><Segments at={at} total={total} /></View>
+        <View style={{ flex: 1 }}><Segments at={at} total={total} done={done} /></View>
         {!done ? (
           <Pressable onPress={onLater} accessibilityRole="button" accessibilityLabel="Finish later and go to Home" hitSlop={6} style={{ minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: 8 }}>
             <T tone="text2" style={[font.sub, { fontWeight: '600' }]}>Finish later</T>
@@ -293,7 +293,7 @@ function SetupHeader({ at, total, onBack, backLabel, onLater, done }: { at: numb
 }
 
 /** Segmented step bar: one segment per step that applies; the current one fills in. */
-function Segments({ at, total }: { at: number; total: number }) {
+function Segments({ at, total, done }: { at: number; total: number; done?: boolean }) {
   const t = useTheme();
   const reduce = useReduceMotion();
   const fill = useRef(new Animated.Value(0)).current;
@@ -302,7 +302,7 @@ function Segments({ at, total }: { at: number; total: number }) {
     if (!reduce) Animated.timing(fill, { toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
   }, [at, total, reduce, fill]);
   return (
-    <View accessibilityRole="progressbar" accessibilityLabel={`Step ${at} of ${total}`} accessibilityValue={{ min: 0, max: total, now: at }}>
+    <View accessibilityRole="progressbar" accessibilityLabel={done ? 'All done' : `Step ${at} of ${total}`} accessibilityValue={{ min: 0, max: total, now: at }}>
       <View style={{ flexDirection: 'row', gap: 4 }}>
         {Array.from({ length: Math.max(1, total) }).map((_, i) => (
           <View key={i} style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: t.fill, overflow: 'hidden' }}>
@@ -310,7 +310,7 @@ function Segments({ at, total }: { at: number; total: number }) {
           </View>
         ))}
       </View>
-      <T tone="text2" style={[font.caption, { textAlign: 'center', marginTop: 4 }]}>{at >= total ? 'All done' : `Step ${at} of ${total}`}</T>
+      <T tone="text2" style={[font.caption, { textAlign: 'center', marginTop: 4 }]}>{done ? 'All done' : `Step ${at} of ${total}`}</T>
     </View>
   );
 }
