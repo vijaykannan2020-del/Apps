@@ -338,7 +338,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 6;
+const APP_VERSION = 7;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -696,7 +696,8 @@ async function paintSettings() {
   st($('#st-cx'), ME.codex, ME.codex ? 'Connected' : 'Not set');
   $('#in-clm').value = ME.claudeModel || ''; $('#in-cxm').value = ME.codexModel || '';
   CL_KIND = ME.claude === 'API key' ? 'key' : 'sub'; paintCl();
-  $('#vers').textContent = `Version ${APP_VERSION} · ${ME.versions?.claude || ''} · ${ME.versions?.codex || ''}`;
+  let sv = null; try { sv = await api('/health'); } catch {}
+  $('#vers').innerHTML = `App version ${APP_VERSION} · Server ${sv?.version ? 'version ' + sv.version + ' <span style="color:var(--green)">● up to date</span>' : '<span style="color:var(--sun)">● still updating</span>'}<br>${esc(ME.versions?.claude || '')} · ${esc(ME.versions?.codex || '')}`;
   paintSetupNote();
 }
 function paintCl() {

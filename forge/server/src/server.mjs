@@ -7,6 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
+const SERVER_VERSION = 6; // raise on every server change; shown in the app's Settings
 const PORT = +(process.env.PORT || 8790);
 const SYNAPSE = process.env.SYNAPSE_URL || 'http://synapse:8008';
 const DATA = process.env.DATA_DIR || '/app/data';
@@ -478,7 +479,7 @@ const server = http.createServer(async (req, res) => {
   if (p.startsWith(PREFIX)) p = p.slice(PREFIX.length) || '/';
   const M = req.method;
   try {
-    if (p === '/health') return send(res, 200, { ok: true, running: runs.size });
+    if (p === '/health') return send(res, 200, { ok: true, version: SERVER_VERSION, running: runs.size, claudeSignIn: true });
     if (M === 'POST' && p === '/login') {
       const { username, password } = await body(req);
       const r = await fetch(`${SYNAPSE}/_matrix/client/v3/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'm.login.password', identifier: { type: 'm.id.user', user: String(username || '').trim() }, password, initial_device_display_name: 'Forge' }) });
