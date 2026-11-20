@@ -327,7 +327,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 3;
+const APP_VERSION = 4;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -700,7 +700,7 @@ $('#gh-go').onclick = () => deviceLogin($('#gh-go'), $('#gh-login'), '/github/lo
 $('#sv-cl').onclick = () => { const v = $('#in-cl').value.trim(); const b = { claudeModel: $('#in-clm').value }; if (v) b[CL_KIND === 'key' ? 'anthropicKey' : 'claudeOauthToken'] = v; saveSet($('#sv-cl'), b).then(() => $('#in-cl').value = ''); };
 $('#sv-cx').onclick = () => { const v = $('#in-cx').value.trim(); const b = { codexModel: $('#in-cxm').value }; if (v) b.openaiKey = v; saveSet($('#sv-cx'), b).then(() => $('#in-cx').value = ''); };
 $('#cx-out').onclick = async () => { try { await api('/codex/logout', { method: 'POST' }); toast('Codex signed out'); paintSettings(); } catch (e) { toast(e.message); } };
-$('#cx-go').onclick = () => deviceLogin($('#cx-go'), $('#cx-login'), '/codex/login', 'Codex connected', 'Open ChatGPT sign-in ↗', '1. Copy this code&nbsp; 2. Open the link and sign in to ChatGPT&nbsp; 3. Enter the code');
+$('#cx-go').onclick = () => deviceLogin($('#cx-go'), $('#cx-login'), '/codex/login', 'Codex connected', 'Open ChatGPT sign-in ↗', '1. Tap the code to copy it&nbsp; 2. Open the ChatGPT page and sign in&nbsp; 3. Paste the code. If ChatGPT says device codes are off: ChatGPT → Settings → Security → turn on device code sign-in for Codex, then try again.');
 async function deviceLogin(b, box, path, okMsg, openLabel, steps) {
   busy(b, true, 'Starting…'); box.innerHTML = '<div class="working"><span class="spin"></span>Getting a code…</div>';
   let ok = false;
@@ -708,9 +708,9 @@ async function deviceLogin(b, box, path, okMsg, openLabel, steps) {
     let j = await api(path, { method: 'POST' });
     for (let n = 0; n < 450; n++) {
       if (j.code || j.url) {
-        if (!box.querySelector('.code-box')) box.innerHTML = `<p class="hint" style="margin-top:12px">${steps}</p><div class="code-box"></div><a class="btn go wide" target="_blank" rel="noopener">${openLabel}</a><div class="working"><span class="spin"></span>Waiting for you to finish…</div>`;
+        if (!box.querySelector('.code-box')) box.innerHTML = `<p class="hint" style="margin-top:12px">${steps}</p><div class="code-box"></div><a class="btn go wide" target="_blank" rel="noopener">${openLabel}</a><div class="hint lnk" style="margin-top:10px">If the button opens an app instead of the code page: <button class="btn quiet" style="padding:4px 10px;font-size:13px;margin-top:6px" data-copy>Copy link</button><br>then paste it into Safari's address bar. <span class="u" style="font-family:var(--mono);font-size:12px;word-break:break-all"></span></div><div class="working"><span class="spin"></span>Waiting for you to finish…</div>`;
         const c = box.querySelector('.code-box'); c.textContent = j.code || '…'; c.onclick = () => navigator.clipboard?.writeText(j.code).then(() => toast('Code copied'));
-        const a = box.querySelector('a'); if (j.url) a.href = j.url; else a.remove();
+        const a = box.querySelector('a'); if (j.url) { a.href = j.url; box.querySelector('.u').textContent = j.url; box.querySelector('[data-copy]').onclick = () => navigator.clipboard?.writeText(j.url).then(() => toast('Link copied — paste it in Safari')); } else { a?.remove(); box.querySelector('.lnk')?.remove(); }
       }
       if (j.done) break;
       await new Promise(r => setTimeout(r, 2000));

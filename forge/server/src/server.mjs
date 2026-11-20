@@ -352,8 +352,9 @@ function startCodexDeviceLogin() {
   const st = { out: '', url: '', code: '', done: false, ok: false };
   const proc = spawn('codex', ['login', '--device-auth'], { env: baseEnv(), stdio: ['ignore', 'pipe', 'pipe'] });
   const eat = d => {
-    st.out = (st.out + String(d).replace(/\x1b\[[0-9;]*m/g, '')).slice(-4000);
-    const u = st.out.match(/https:\/\/\S*auth\.openai\.com\S*/) || st.out.match(/https:\/\/\S+/); if (u) st.url = u[0].replace(/[).,]+$/, '');
+    // strip colour codes and terminal hyperlinks (ESC ] 8 ;; url ESC \\) so the link and code come out clean
+    st.out = (st.out + String(d).replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, '').replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')).slice(-4000);
+    const u = st.out.match(/https:\/\/auth\.openai\.com\/[^\s)'"\x1b]*/); st.url = u ? u[0].replace(/[).,]+$/, '') : 'https://auth.openai.com/codex/device';
     const c = st.out.match(/\b([A-Z0-9]{4}-[A-Z0-9]{4,5})\b/); if (c) st.code = c[1];
   };
   proc.stdout.on('data', eat); proc.stderr.on('data', eat);
