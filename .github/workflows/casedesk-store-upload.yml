@@ -1,0 +1,28 @@
+name: CaseDesk store listing upload
+# Sets the App Store version texts from casedesk/app/store/listing.json and uploads the screenshots in
+# casedesk/app/store/screenshots/{iphone-6.9,ipad-13}. Run by hand only (Actions -> this workflow -> Run workflow).
+on:
+  workflow_dispatch:
+    inputs:
+      version: {description: App Store version, default: '1.0', required: true}
+      texts: {description: Set description, keywords, promo text, URLs, type: boolean, default: true}
+      screenshots: {description: Upload screenshots, type: boolean, default: true}
+      replace: {description: Delete screenshots already uploaded first, type: boolean, default: true}
+      dry_run: {description: Only read and print, change nothing, type: boolean, default: false}
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pyjwt cryptography -q
+      - run: python3 casedesk/app/scripts/store-upload.py
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_APP_ID: ${{ vars.CASEDESK_ASC_APP_ID || '6836097003' }}
+          VERSION: ${{ inputs.version }}
+          DO_TEXT: ${{ inputs.texts && '1' || '0' }}
+          DO_SHOTS: ${{ inputs.screenshots && '1' || '0' }}
+          REPLACE: ${{ inputs.replace && '1' || '0' }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}

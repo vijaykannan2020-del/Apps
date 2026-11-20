@@ -1,112 +1,172 @@
 # App Store listing — Immigration Wallet
 
-Everything App Store Connect asks for, matched to what the code does in v2.3 (Nov 18, 2026).
-Items marked **CONFIRM** need the owner before submission; the full list is at the end.
+Everything App Store Connect asks for, matched to what the code does in v3.0 (Nov 20, 2026).
+The texts live in `store/listing.json` (one source: `scripts/store-upload.py` sends that file to App Store Connect).
+The launch plan and the owner's morning checklist are in `LAUNCH.md`.
+Items marked **CONFIRM** need the owner before submission.
 
-## Name and text
+## App information
 
 | Field | Value | Limit |
 |---|---|---|
 | Name | Immigration Wallet | 18 / 30 |
-| Subtitle | USCIS Case Updates & Status | 27 / 30 |
+| Subtitle (recommended) | USCIS Case Status & Green Card | 30 / 30 |
+| Subtitle (current, fine too) | USCIS Case Updates & Status | 27 / 30 |
 | Bundle ID | com.vijaykannan.casedesk (unchanged) | |
 | SKU | casedesk (unchanged) | |
+| App ID | 6836097003 | |
 | Primary category | Productivity | |
 | Secondary category | Reference | |
-| Price | Free, no in-app purchases | |
-| Privacy policy URL | https://casedeskapp.duckdns.org/privacy.html (**CONFIRM** hosting, see below) | |
-| Support URL | https://casedeskapp.duckdns.org/support (served by the server, `server/src/support.mjs`) | |
-| Copyright | 2026 OWNER_LEGAL_NAME (**CONFIRM** legal name / company) | |
+| Price | Free, no in-app purchases, all countries (or US + India + Canada first, see LAUNCH.md) | |
+| Privacy policy URL | https://vijaykannan2020-del.github.io/Apps/casedesk/site/privacy.html | |
+| Support URL | https://vijaykannan2020-del.github.io/Apps/casedesk/site/support.html | |
+| Marketing URL | https://vijaykannan2020-del.github.io/Apps/casedesk/site/get.html | |
+| Copyright | 2026 OWNER_LEGAL_NAME (**CONFIRM**: your full legal name, or your company) | |
 
-### Promotional text (170)
+### Name and subtitle options (keyword reasoning)
 
-> Your family’s US immigration status in one place: USCIS case updates, document expiry reminders, the Visa Bulletin and processing times. Private — stays on your phone.
+Apple searches the name, subtitle and keyword field together, and gives the name the most weight, then the
+subtitle. A word counts once wherever it is, so never repeat a word across the three. Plurals and simple word
+combinations are matched (“green” + “card” finds “green card”).
 
-(167 characters.)
+| Option | Name (30) | Subtitle (30) | Why |
+|---|---|---|---|
+| **A (recommended)** | Immigration Wallet | USCIS Case Status & Green Card | “uscis case status” is the biggest search in this niche (people paste receipt numbers daily); “green card” is the second. Both get subtitle weight; “updates” searches almost nobody. Frees the keyword field for visa types and forms. |
+| B (current) | Immigration Wallet | USCIS Case Updates & Status | Already set. Keeps “uscis case status” but spends 7 characters on “updates”. Use keyword set B below. |
+| C | Immigration Wallet | H-1B, Green Card & USCIS Case | Pushes the visa type up; slightly weaker on “case status”. |
+| D (if Apple objects to “USCIS”) | Immigration Wallet | Visa, Case & Green Card Tracker | No agency name in the listing title (Guideline 5.2: names must not suggest government affiliation). Move uscis into keywords. |
 
-### Description (4,000)
+Name: keep “Immigration Wallet”. Longer names such as “Immigration Wallet: H-1B & GC” rank a little better for
+those words but look like keyword stuffing and get cut on the Home Screen. Change the subtitle with the
+existing workflow `casedesk-store-name.yml` (inputs name and subtitle) or in App Store Connect → App Information.
 
-> Immigration Wallet keeps your family’s US immigration papers and dates in one place — on your phone, not in the cloud.
->
-> SEE WHERE EVERYONE STANDS
-> • How long each person can stay, worked out from their passport, I-94, approval notice, EAD or green card
-> • “Needs attention” puts the most urgent items first: an I-94 ending, a passport expiring, an extension to file
-> • The next filing for each person, the earliest date it can be filed, and how long USCIS usually takes
->
-> TRACK USCIS CASES
-> • Add receipt numbers from your I-797C notices, by person
-> • Check status on uscis.gov in one tap: the app copies your receipt number and opens the official site; paste the result back and the status, date and history update
-> • Key dates for biometrics, interviews and RFE deadlines
->
-> ADD DOCUMENTS IN SECONDS
-> • Take a photo or pick a PDF — the text is read on your phone, nothing is uploaded
-> • Copies for your reference — not an official ID
->
-> REMINDERS AND ALERTS
-> • Reminders before passports, I-94s, approvals, EADs, visa stamps and green cards expire
-> • Alerts when a case status changes and when a new Visa Bulletin is out
->
-> TOOLS
-> • Can I travel? — checks a trip against everyone’s documents
-> • Priority date and Visa Bulletin, USCIS processing times, fees, prevailing wage levels, visa appointment waits, H-1B employer data, layoff plan, I-9 documents and a citizenship test practice
-> • Every data screen shows its date, whether it is live or a built-in copy, and links the official source
->
-> PRIVATE BY DESIGN
-> • No account, no ads, no analytics, no tracking
-> • Your documents, names and receipt numbers never leave your phone
-> • Optional encrypted backups to your own iCloud or a file, locked with your password
-> • Face ID lock
->
-> Updates for your visa types — H-1B, H-4, L-1, L-2, F-1 OPT and STEM OPT, green card, citizenship — from USCIS, DHS, DOL and the State Department, plus news coverage, clearly labelled.
->
-> Immigration Wallet is not affiliated with USCIS, DHS, DOL, the State Department or any government agency. Information comes from official public sources linked in the app. Not legal advice. For decisions, talk to an immigration attorney.
+### Promotional text (170, can change any time without review)
 
-### Keywords (100)
+> Your family’s US immigration status in one place: deadlines, document reminders, case status, green card and Visa Bulletin. Documents are read and kept on your phone.
+
+(166 characters.)
+
+### Description (2959 / 4,000)
+
+Benefit first, then features as short scannable sections, then the privacy promise and the disclaimer. The
+description is not indexed for search on the App Store, so it is written for people, not keywords. The
+disclaimer is near the top too, so App Review sees it at once.
 
 ```
-uscis,case status,green card,h1b,visa bulletin,i-94,ead,priority date,h4,opt,receipt,tracker,i-797
+Immigration Wallet keeps your family’s US immigration papers, dates and next steps in one place, on your phone. Made for H-1B, H-4, L-1, L-2, F-1 OPT and STEM OPT families and green card applicants.
+
+Not affiliated with USCIS or any government agency. Not legal advice.
+
+SEE YOUR WHOLE FAMILY AT A GLANCE
+• How long each person can stay, worked out from their passport, I-94, approval notice, EAD or green card
+• Needs attention puts the most urgent items first: an I-94 ending, a passport expiring, an extension to file
+• The next filing for each person, the earliest date it can be filed and how long it usually takes
+
+DOCUMENTS, READ ON YOUR PHONE
+• Take a photo or pick a PDF of an I-94, I-797, EAD, passport, visa stamp or green card
+• The dates are read on your phone and fill in each person’s status. Nothing is uploaded
+• Copies for your reference, not an official ID
+
+ALERTS BEFORE DATES
+• Reminders before passports, I-94s, approvals, EADs, visa stamps and green cards expire, at the times you choose
+• Alerts when a new Visa Bulletin is out and for official updates on your visa types
+
+CASE STATUS AND WHAT TO EXPECT
+• Add receipt numbers from your notices, by person
+• Check status on uscis.gov in one tap: the app copies the number and opens the official site; paste the result back to keep the history
+• Key dates for biometrics, interviews and RFE deadlines, and how long similar cases usually take
+
+GREEN CARD AND VISA BULLETIN
+• Your stage from PERM to I-140, I-485 and interview, with what happens next
+• Is your priority date current? Final action and dates for filing, by category and country
+
+PLAN AHEAD
+• Can I travel? checks a trip against everyone’s documents before you book
+• I lost my job: your last day in status and the options, step by step
+• Processing times, fees, prevailing wage, visa appointment waits, H-1B employer data, I-9 documents and citizenship test practice
+• Every data screen shows its date and links the official source
+
+SHARE WITH FAMILY, SECURELY
+• Send documents to your spouse’s phone in a file locked with a one-time code. Nothing goes to our server
+
+COMMUNITY
+• Ask questions and share timelines with people on the same visa. Moderated, with report and block. Sign in with Apple to post; reading is open
+
+ON YOUR HOME SCREEN
+• Widgets for the next deadline, an optional Wallet card for each person, search across everything and 7 colour themes
+
+PRIVATE BY DESIGN
+• No account needed. No ads, no tracking
+• Names, documents and receipt numbers stay on your phone
+• Optional encrypted backup to your own iCloud or a file, locked with your password
+• Face ID lock
+
+Immigration Wallet is not affiliated with, endorsed by or connected to USCIS, DHS, CBP, the Department of State, the Department of Labor or any government agency. Information comes from official public sources linked in the app and may change. This app does not give legal advice; for decisions about your case, talk to an immigration attorney.
 ```
-(98 characters. “Immigration” and “Wallet” are already in the name; don’t repeat them.)
+
+### Keywords (100, comma separated, no spaces)
+
+Set A (with subtitle A, 96 characters):
+```
+h1b,h4,l1,f1,opt,stem,i94,ead,i485,i140,i797,visa,bulletin,priority,date,tracker,passport,travel
+```
+Set B (if you keep subtitle B, 97 characters):
+```
+h1b,h4,l1,f1,opt,green,card,i94,ead,i485,i140,visa,bulletin,priority,date,tracker,passport,travel
+```
+Rules followed: no word from the name or subtitle (immigration, wallet, uscis, case, status / updates, green,
+card), no spaces, no plurals of words already there, no competitor names or trademarks (no Lawfully, Case
+Tracker, MyUSCIS, Boundless), no “app”, “free” or “best”. Hyphens are dropped (h1b finds “H-1B”). Review after 4
+weeks in App Store Connect → Analytics → Sources (search terms) and swap the weakest 2–3 words.
+
+### What’s New (version 1.0)
+
+Apple hides What’s New on an app’s first version (the field is not editable for 1.0). Kept ready for 1.0.1:
+
+> Welcome to Immigration Wallet 1.0. See your family’s status at a glance, get reminders before documents expire, check case status, follow your green card and the Visa Bulletin, check trips, share documents with family securely and ask questions in the Community.
 
 ## Age rating (questionnaire answers)
 
+Apple’s 2025 questionnaire (ratings 4+, 9+, 13+, 16+, 18+). Answer:
+
 | Question | Answer |
 |---|---|
-| Cartoon or fantasy violence / realistic violence / prolonged graphic violence | None |
-| Sexual content or nudity / graphic sexual content | None |
+| Violence (cartoon, realistic, prolonged / graphic) | None |
+| Sexual content, nudity | None |
 | Profanity or crude humour | None |
 | Alcohol, tobacco or drug use or references | None |
-| Mature or suggestive themes / horror or fear themes | None |
-| Simulated gambling / contests | None (the “H-1B lottery” tool explains the government selection process; no gambling) |
-| Medical or treatment information | None |
-| Unrestricted web access | **No** — links open specific official pages (uscis.gov, travel.state.gov, dol.gov, news articles) in the system browser sheet; there is no general browser or search |
-| User-generated content / messaging / chat | **Yes** — Community (moderated: report, block, rules, 24 h review; see Guideline 1.2) |
-| Age assurance, parental controls | No |
-| Result | **4+** |
+| Mature or suggestive themes, horror or fear themes | None |
+| Simulated gambling, contests | None (the H-1B lottery tool explains the government selection; no gambling) |
+| Medical or treatment information, health or wellness topics | None |
+| Unrestricted web access | **No**: links open specific official pages (uscis.gov, travel.state.gov, dol.gov, news articles) in the system browser sheet; there is no general browser |
+| User-generated content | **Yes**: Community (moderated: rules to accept, report, block, hidden after reports, 24 h review, account deletion) |
+| Messaging and chat | **No** private messages (public posts and comments only) |
+| Advertising | No |
+| Parental controls, age assurance | No |
+| Expected result | **4+** or **13+**. If App Store Connect computes 13+ because of user-generated content, accept it: it fits a forum for adults and avoids a 1.2 back-and-forth. |
 
-## App Privacy (nutrition label)
+## App Privacy (nutrition label) — checked against the code on Nov 20, 2026
 
-With Community and Cases like mine merged (integ), the answer is **no longer “Data Not Collected”**. Declare:
+Answer **Yes, we collect data**. Declare exactly these (all: **not** used for tracking, purpose **App Functionality** only):
 
-| Data type | Collected when | Linked to the user? | Used for tracking? | Purpose |
-|---|---|---|---|---|
-| **Identifiers → User ID** | Community sign-in (hash of the Apple user id, our random account id) | Yes | No | App Functionality |
-| **User Content → Other User Content** | Community questions, answers, display name, reports | Yes | No | App Functionality |
-| **Identifiers → Device ID** | Only if “Notify me of answers” is on (Expo push token) | Yes | No | App Functionality |
-| **Other Data** (anonymous case timeline: form, office code, dates, outcome, premium, class) | Only if “Add my case anonymously” is on | **No** (random id made on the phone, no account) | No | App Functionality |
+| Data type | When | Linked to the user? | Where in the code |
+|---|---|---|---|
+| **Identifiers → User ID** | Community sign-in: hash of the Apple (or Google) user id and our random account id | Yes | `server/src/auth.mjs`, `server/src/forum.mjs` |
+| **User Content → Other User Content** | Community posts, comments, display name, flair, reports, messages to moderators | Yes | `server/src/forum.mjs` |
+| **Identifiers → Device ID** | Expo push token: kept with the account only if “Notify me of answers” is on; for news / Visa Bulletin alerts it is stored without any account (token + topics only) | Yes (the Community one) | `forum.mjs` pushToken, `server/src/push.mjs` |
+| **Other Data** | Anonymous case timeline (form, office, dates, outcome), only if “Add my case anonymously” is on; random id, no account | No | `/api/community` |
 
-Everything else stays as before:
+Do **not** declare (not collected):
+- Names, documents, files, photos, receipt numbers, dates, settings: stored only on the phone (`src/data/store.ts`); OCR runs on the phone (`src/native/ocr.ts`). Nothing from documents is sent anywhere.
+- Contact info: the email in a sign-in token is never stored (`auth.mjs` keeps only a hash of the provider’s user id).
+- Diagnostics: there is no crash or analytics SDK. The on-phone log (`src/native/diag.ts`, last 150 lines, no document contents) leaves the phone only if the user shares it by email, so it is not “collected”.
+- Public-data requests (`/api/news`, `/api/visa-bulletin`, `/api/processing-times`, `/api/visa-waits`, `/api/wage*`, `/api/employer`, `/api/expect`): processed in real time, not stored.
+- Wallet card: the card fields are sent once to be signed and are not stored or logged (`server/src/wallet.mjs`).
+- Share with family: the locked file goes phone to phone through the share sheet; nothing goes to our server.
+- Backups go only to the user’s own iCloud or a file.
+- **CONFIRM:** `expo-updates` sends platform, runtime version and an install id to Expo’s update service. Expo’s privacy manifest treats this as not collected for tracking; keep “not collected” unless Expo’s current docs say otherwise.
 
-- People, documents, files, cases, receipt numbers and settings are stored only on the device (`src/data/store.ts`). OCR runs on the device (`src/native/ocr.ts`).
-- Public-data GETs (`src/data/api.ts`): `/api/news`, `/api/visa-bulletin`, `/api/processing-times`, `/api/visa-waits`, `/api/wage*` and `/api/employer` (only what the user types), and `/api/expect` (form, office code, received date, premium, class — `src/data/expect.ts`). Processed in real time, not stored → not “collected”.
-- No receipt number is ever sent to our server. USCIS case status is checked by the user on uscis.gov in Safari.
-- Email: never stored (`server/src/auth.mjs` keeps only a hash of the provider’s user id).
-- Backups go only to the user’s own iCloud or a file. Diagnostics are shared only by the user.
-- No third-party analytics, ads or crash SDKs.
-- Account deletion is in the app (Community → Account → Delete account), as Guideline 5.1.1(v) requires.
-- **CONFIRM:** `expo-updates` contacts Expo’s update service with platform, runtime version and an install-scoped client id. Re-check Expo’s privacy manifest before submitting.
-
-Tracking: **No** (no ATT prompt needed).
+Tracking: **No** (no App Tracking Transparency prompt). Account deletion is in the app (Community → Account → Delete account), as Guideline 5.1.1(v) requires.
 
 ## Export compliance (encryption)
 
@@ -116,21 +176,59 @@ The app uses HTTPS through iOS (exempt) **and** encrypts backups itself with AES
 
 **Recommendation (not changed in v2.3 — the owner should make the declaration):** set `ITSAppUsesNonExemptEncryption` to `true` at the next native build and answer App Store Connect’s questions as: uses standard encryption algorithms (AES, scrypt) instead of proprietary ones → qualifies for the mass-market exemption (EAR Category 5 Part 2, ECCN 5D992.c, License Exception ENC/mass market). Since March 2021 mass-market software with standard algorithms needs no BIS classification request or annual self-classification report, so no documents need uploading. Distribution in France may need an ANSSI declaration — exclude France or file it. The change only takes effect with a new native build (an OTA update can’t change Info.plist).
 
-## Review notes (paste into App Review Information)
 
-> No login is needed for any feature except posting in Community (Sign in with Apple; reading is open). All family data is entered by the user and stays on the device.
->
-> Quickest way to see the app with data: on the Welcome screen tap Get started, type any name, pick “H-1B”, then go to Settings → Help → Example family → Load example. This loads a made-up H-1B family (Arun, Meera, Leela) with documents, cases, reminders and items that need attention. Everything is fictional.
->
-> Things to try: Home (Needs attention, updates for the family’s visa types); Family → a person → a document (shows “Copies for your reference — not an official ID”); Cases → a case → “Copy number & open uscis.gov” opens the official USCIS site in Safari (the app never logs in to USCIS or reads the site; the user pastes the result back with “Paste what USCIS says”); Tools → Can I travel?, Priority date, Visa Bulletin, Citizenship test; Settings → Notifications and About (data sources, version, licences). Each screen shows short first-visit tips (tap ? to replay).
->
-> Notifications are local only (document expiry reminders, case status changes, new Visa Bulletin). The permission is asked after the first document or case is added, with an explanation first.
->
-> Immigration Wallet is not affiliated with USCIS or any government agency; every data screen links its official government source and the disclaimer appears on Welcome, in Settings → About and on each data screen.
+## Review notes (paste into App Review Information → Notes)
+
+Sign-in required: **No** (leave “Sign-in required” unticked; no demo account is needed).
+
+```
+Thank you for reviewing Immigration Wallet.
+
+NO ACCOUNT NEEDED. Every feature works without an account. The only sign-in is Sign in with Apple (Google too where set up), and only to post in Community (reading Community is open). All family data is typed or scanned by the user and stays on the device.
+
+QUICKEST WAY TO SEE THE APP WITH DATA (no real documents needed):
+On the first screen tap "Look around with an example family" at the bottom. (Later: Settings > Example family > Load example.) This loads a made-up H-1B family (Arun, Meera, Leela) with documents, cases and reminders. Everything is fictional.
+
+THINGS TO TRY
+- Home: status, Needs attention, next deadline.
+- Family > a person > a document: dates read from the document; "Copies for your reference - not an official ID".
+- Cases > a case > "Copy number & open uscis.gov": opens the official USCIS site in Safari. The app never logs in to USCIS or reads the site; the user pastes the result back.
+- Tools > Can I travel?, Priority date, Visa Bulletin, I lost my job.
+- Family > Share with family: makes a file locked with a one-time code, sent through the share sheet. Nothing goes to our server.
+- Community: browse without signing in; to post, Sign in with Apple and accept the rules. Moderation: report and block on every post, comment and profile; content reported by several people is hidden until a moderator reviews it, and reports are acted on within 24 hours; Community > Account > Delete account removes the account.
+
+SCANNING: the camera or a photo/PDF is read on the device with Apple Vision; nothing is uploaded. To test, photograph any page with printed dates, or use the example family.
+
+NOTIFICATIONS: document reminders are local notifications. Optional push alerts for a new Visa Bulletin and official updates (only a push token and chosen topics are stored, no account). Permission is asked after the first document or case is added, with an explanation first.
+
+WIDGETS: long-press the Home Screen > + > Immigration Wallet > choose a size. The widget shows the next deadline for the person chosen in Edit Widget (data shared through an App Group; nothing leaves the device).
+
+WALLET CARD: Family > Wallet status cards > pick a person > preview > Add to Apple Wallet. A personal-reference card, clearly marked "Not an official document"; no passport, receipt or A-numbers; the server signs it in memory and stores nothing.
+
+Immigration Wallet is not affiliated with USCIS or any government agency. Every data screen links its official source; the disclaimer is on the first screen, in Settings > About and on each data screen. Not legal advice.
+
+Contact: immigrationwallet@gmail.com
+```
 
 ## Screenshots
 
-6.9" and 6.5" iPhone, 13" iPad (supportsTablet is on). Use the example family only — never real family data. Suggested order: Home, a person page, Cases + case page, Visa Bulletin / priority date, Can I travel?, Settings → About (privacy).
+Made from the web export with the example family (made-up data only), headline + one line on black with a pastel
+block and a simple drawn device frame (no Apple artwork). Files are outside the repo:
+
+| Folder | Size | App Store Connect slot |
+|---|---|---|
+| `/home/claude/team/launch/screenshots/iphone-6.9/` | 1320 x 2868 | iPhone 6.9" (also covers 6.7", 6.5", 6.3", 6.1" by scaling) |
+| `/home/claude/team/launch/screenshots/iphone-6.7/` | 1290 x 2796 | spare: use only if App Store Connect asks for 6.7" separately |
+| `/home/claude/team/launch/screenshots/ipad-13/` | 2064 x 2752 | iPad 13" (required: supportsTablet is true) |
+| `/home/claude/team/launch/screenshots/contact-sheet.png` | | all 24 on one page to check |
+
+Order (same on every device): 01 Your family at a glance · 02 Documents, read privately · 03 Alerts before dates ·
+04 Know where your case is · 05 Track your green card · 06 Safe to travel? · 07 Share with family, securely ·
+08 Ask people on your visa. The first three show in search results, so they carry the main promise.
+Scripts that made them: `/home/claude/team/launch/work/capture.mjs` (app screens) and `compose.mjs` (frames).
+
+To upload by API instead of by hand: copy `iphone-6.9/` and `ipad-13/` into `casedesk/app/store/screenshots/`,
+commit, push, then run the workflow **CaseDesk store listing upload** (see LAUNCH.md).
 
 ## Data to confirm before launch
 
@@ -153,7 +251,7 @@ The app uses HTTPS through iOS (exempt) **and** encrypts backups itself with AES
 ### Launch settings
 
 1. **Support email** — done: `immigrationwallet@gmail.com` in `casedesk/site/*.html`, `src/content/legal.ts` and the server (`MODERATION_EMAIL` in `deploy.conf`).
-2. **Host the pages**: `casedesk/site/privacy.html`, `support.html`, `style.css` must be reachable at the Privacy / Support URLs above (the API server doesn’t serve static files yet — add a Caddy `file_server` route or use GitHub Pages and update `SITE_BASE` in `src/content/legal.ts`). A `duckdns.org` domain works but a own domain looks more trustworthy to reviewers and users.
+2. **Host the pages** (Nov 20 check: the API server serves only `/support`, not `/privacy.html` or `/support.html`; GitHub Pages serves `casedesk/site/*` from `main`, so use the Pages URLs above in App Store Connect, and point `PRIVACY_URL` in `src/content/legal.ts` at the Pages copy in the next OTA update): `casedesk/site/privacy.html`, `support.html`, `style.css` must be reachable at the Privacy / Support URLs above (the API server doesn’t serve static files yet — add a Caddy `file_server` route or use GitHub Pages and update `SITE_BASE` in `src/content/legal.ts`). A `duckdns.org` domain works but a own domain looks more trustworthy to reviewers and users.
 3. **Encryption declaration** — see Export compliance (recommend `true` + mass-market exemption).
 4. **Copyright holder** name.
 5. **Home-screen name**: `app.json` `name` is now “Immigration Wallet”; the icon label changes only with the next native build (OTA can’t change it).
