@@ -215,7 +215,7 @@ label.fl{display:block;font-weight:700;font-size:14px;margin:16px 0 7px;color:va
     <h1 class="big">Forge</h1>
     <p class="sub">Claude Code and Codex on your GitHub repos, from your phone. Sign in with your My Inbox login.</p>
     <label class="fl">Username</label>
-    <input class="inp" id="lg-user" autocomplete="username" autocapitalize="none" autocorrect="off" placeholder="vijay">
+    <input class="inp" id="lg-user" autocomplete="username" autocapitalize="none" autocorrect="off" value="vijay">
     <label class="fl">Password</label>
     <input class="inp" id="lg-pass" type="password" autocomplete="current-password">
     <label class="fl">Server</label>
@@ -305,7 +305,7 @@ label.fl{display:block;font-weight:700;font-size:14px;margin:16px 0 7px;color:va
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 1;
+const APP_VERSION = 2;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -352,12 +352,16 @@ function show(v) {
 $('#nav').onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.id === 'nav-new') return openNew(); show(b.dataset.v); };
 
 // ---------- login ----------
-$('#lg-api').value = API;
+$('#lg-api').value = API; $('#lg-user').value = LS.get('user', 'vijay');
 $('#lg-go').onclick = async () => {
+  const u = $('#lg-user').value.trim(), pw = $('#lg-pass').value;
+  if (!u) return toast('Type your username (vijay)');
+  if (!pw) return toast('Paste your password');
+  LS.set('user', u);
   const b = $('#lg-go'); busy(b, true, 'Signing in…');
   try {
     let a = $('#lg-api').value.trim() || DEFAULT_API; if (!/^https?:\/\//.test(a)) a = 'https://' + a; API = a.replace(/\/+$/, ''); LS.set('api', API);
-    const j = await api('/login', { body: { username: $('#lg-user').value, password: $('#lg-pass').value } });
+    const j = await api('/login', { body: { username: u, password: pw } });
     TOKEN = j.token; LS.set('token', TOKEN); $('#lg-pass').value = '';
     await boot();
   } catch (e) { toast(e.message, 4000); } finally { busy(b, false); }
