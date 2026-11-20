@@ -6,8 +6,8 @@
 //   - date of birth (passport MRZ, I-94, visa): equal to the person's known date = strong, different =
 //     ruled out;
 //   - name: the printed / MRZ name against the name typed in the app and the legal name from the
-//     person's own passport — case, spacing, order, initials, joined or split parts (RADHA KRISHNAN /
-//     RADHAKRISHNAN), missing middle names and 1–2 letter typos (edit distance) all tolerated.
+//     person's own passport — case, spacing, order, initials, joined or split parts (RAMA CHANDRAN /
+//     RAMACHANDRAN), missing middle names and 1–2 letter typos (edit distance) all tolerated.
 // A part of a name that several family members share (a family name) never decides on its own, and a
 // document is filed only when one person clearly leads; otherwise the review list asks.
 import type { DocFields, Relation } from './model';
@@ -52,10 +52,10 @@ function partMatch(p: string, doc: string[]): TokMatch {
     if (d === p) { best = { w: 1, exact: true }; return; }
     const lim = allowed(Math.min(d.length, p.length));
     if (lim && editDistance(d, p, lim) <= lim && best.w < 0.85) best = { w: 0.85, exact: false };
-    else if (p.length >= 4 && d.startsWith(p) && best.w < 0.5) best = { w: 0.5, exact: false }; // a short form: Vijay for Vijayakannan
+    else if (p.length >= 4 && d.startsWith(p) && best.w < 0.5) best = { w: 0.5, exact: false }; // a short form: Ravi for Ravichandran
   };
   doc.forEach(consider);
-  for (let i = 0; i + 1 < doc.length; i++) consider(doc[i] + doc[i + 1]); // RADHA KRISHNAN typed as RADHAKRISHNAN
+  for (let i = 0; i + 1 < doc.length; i++) consider(doc[i] + doc[i + 1]); // RAMA CHANDRAN typed as RAMACHANDRAN
   return best;
 }
 
