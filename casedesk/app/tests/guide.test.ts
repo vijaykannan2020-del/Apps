@@ -14,12 +14,12 @@ test('guide: no person, no tour', () => {
   assert.deepEqual(guideStops({ ...full, person: undefined }), []);
 });
 
-test('guide: a work-visa family with documents and cases gets 10 stops; Share with family folds into the last card', () => {
+test('guide: a work-visa family with documents and cases gets 10 stops; the last stop says where the tour lives', () => {
   const s = guideStops(full);
   assert.equal(s.length, MAX_STOPS);
-  assert.deepEqual(s.map((x) => x.id), ['home', 'search', 'status', 'documents', 'wallet', 'cases', 'community', 'tools', 'widget', 'end']);
+  assert.deepEqual(s.map((x) => x.id), ['home', 'search', 'status', 'documents', 'wallet', 'cases', 'community', 'tools', 'widget', 'share']);
   assert.match(s.at(-1)!.text, /Settings → Help → Take the tour/);
-  assert.match(s.at(-1)!.text, /Share with family/);
+  assert.equal(s.at(-1)!.id, 'share', 'no separate closing card');
 });
 
 test('guide: never more than 10 and never fewer than 8 stops', () => {
@@ -38,7 +38,7 @@ test('guide: stops that do not apply are skipped', () => {
   assert.ok(ids({ ...full, cases: 0 }).includes('share'), 'room for its own Share stop when there are fewer stops');
   // always: Home, Search, the person's status card and documents, Community, Tools, the end
   for (const g of [full, { ...full, hasDocs: false, cases: 0, wallet: false, widgets: false, work: false, gc: false }]) {
-    for (const id of ['home', 'search', 'status', 'documents', 'community', 'tools', 'end'] as const) assert.ok(ids(g).includes(id), id);
+    for (const id of ['home', 'search', 'status', 'documents', 'community', 'tools', 'share'] as const) assert.ok(ids(g).includes(id), id);
   }
 });
 
@@ -71,7 +71,7 @@ test('guide: real navigation — person stops open the main person from the Fami
   assert.deepEqual(by('cases').route, { tab: 'cases' });
   assert.deepEqual(by('community').route, { tab: 'forum' });
   assert.deepEqual(by('tools').route, { tab: 'tools' });
-  for (const id of ['widget', 'end']) assert.deepEqual(by(id).route, { push: '/settings', via: 'index' });
+  for (const id of ['widget', 'share']) assert.deepEqual(by(id).route, { push: '/settings', via: 'index' });
   assert.equal(by('widget').art, 'widget');
   assert.equal(by('widget').target, undefined, 'the widget how-to is a centred card');
 });

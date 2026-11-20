@@ -11,6 +11,7 @@ export type GuideTab = 'index' | 'family' | 'cases' | 'forum' | 'tools';
 /** A tab, or a pushed page opened from a tab (`via`), like the user would. */
 export type GuideRoute = { tab: GuideTab } | { push: string; via: GuideTab };
 
+export const END_LINE = 'Take this tour again any time: Settings → Help → Take the tour.';
 export type GuideStopId = 'home' | 'search' | 'status' | 'documents' | 'wallet' | 'cases' | 'community' | 'tools' | 'widget' | 'share' | 'end';
 export type GuideStop = {
   id: GuideStopId;
@@ -77,13 +78,17 @@ export function guideStops(g: GuideInput): GuideStop[] {
     { id: 'tools', route: { tab: 'tools' }, target: 'tools:plan', title: 'Tools', text: tools.join(' ') },
     g.widgets && { id: 'widget', route: settings, near: 'settings:widgets', art: 'widget', title: 'Add the Home Screen widget', text: 'See days left without opening the app.' },
     { id: 'share', route: settings, target: 'settings:share', title: 'Share with family', text: 'Send documents to your spouse’s phone, encrypted, with a code you tell them.' },
-    { id: 'end', route: settings, target: 'settings:taketour', title: 'That’s the tour', text: 'Take it again any time: Settings → Help → Take the tour.' },
   ];
   let stops = all.filter((s): s is GuideStop => !!s);
   if (stops.length > MAX_STOPS) {
-    // keep it to about a minute: Share with family becomes one line on the last card
-    stops = stops.filter((s) => s.id !== 'share').map((s) => (s.id === 'end' ? { ...s, text: `${s.text} ${SHARE_LINE}` } : s));
+    // keep it to about a minute: Share with family becomes one line on the card before it
+    stops = stops.filter((s) => s.id !== 'share');
+    const i = stops.length - 1;
+    stops[i] = { ...stops[i], text: `${stops[i].text} ${SHARE_LINE}` };
   }
+  // v3.0 (owner): no separate closing card; the last stop says where to find the tour again
+  const last = stops.length - 1;
+  stops[last] = { ...stops[last], text: `${stops[last].text} ${END_LINE}` };
   return stops;
 }
 
