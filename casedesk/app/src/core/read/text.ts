@@ -168,6 +168,11 @@ function valueAfter(lines: string[], label: RegExp): string | undefined {
       if (/SURNAME|GIVEN|\bNAME/.test(v.toUpperCase())) break; // next name label: this field is blank
       if (NOT_NAME.test(v.toUpperCase())) continue;
       if (/^[A-Z][A-Z' -]{1,40}$/.test(v)) return v;
+      // OCR noise after the name on a visa foil or passport ("THARA DHIYANA “Rte"): the capitalised words first
+      // (short scraps with lower case or punctuation before it, "be, MAYA" or "ee _ RAVI", are OCR noise
+      // from the foil's background; an all-capitals short word such as LI or WU is kept as a name)
+      const pre = v.replace(/^(?:(?=\S*[^A-Z\s])\S{1,3}\s+){1,3}(?=[A-Z]{2})/, '').match(/^([A-Z][A-Z'-]+(?: [A-Z][A-Z'-]+)*)(?=\s|$)/)?.[1];
+      if (pre && pre.replace(/[^A-Z]/g, '').length >= 3 && pre.split(' ').every((w) => w.length >= 2) && !NOT_NAME.test(pre)) return pre;
     }
   }
   return undefined;

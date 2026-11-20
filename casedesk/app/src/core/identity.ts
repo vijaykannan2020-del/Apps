@@ -4,7 +4,6 @@
 // A document is flagged only when it does NOT match its own step's person and its passport number,
 // or its full name (2+ name parts in common), matches someone else.
 import type { DocFields, DocType } from './model';
-type DocLike2 = { id: string; ownerId: string; type: DocType; fields: DocFields };
 
 export type Identity = { id: string; passportNos: string[]; legalName?: string; displayName?: string };
 type DocLike = { type: DocType; fields: DocFields };
@@ -66,34 +65,6 @@ export function belongsElsewhere(f: DocFields | undefined, ownerId: string, peop
   }
   if (!f.name || isNamed(f.name, owner)) return undefined;
   return people.find((x) => x.id !== ownerId && isNamed(f.name!, x));
-}
-
-/**
- * v3.0 fix8 bulk upload: whose document is this, from what is printed on it — the passport number
- * first (also an old number printed on a newer passport), then the full name (one person only;
- * a shared family name alone never decides). Undefined when nothing matches clearly.
- */
-export function whoseDoc(f: DocFields | undefined, people: Identity[]): { id: string; by: 'passport number' | 'name' } | undefined {
-  if (!f) return undefined;
-  const nos = [f.passportNo, f.oldPassportNo].filter((x): x is string => !!x);
-  const byNo = people.find((x) => nos.some((n) => x.passportNos.includes(n)));
-  if (byNo) return { id: byNo.id, by: 'passport number' };
-  if (!f.name) return undefined;
-  const named = people.filter((x) => isNamed(f.name!, x));
-  return named.length === 1 ? { id: named[0].id, by: 'name' } : undefined;
-}
-
-/** Assign read documents to people, in order (a passport read first helps the documents after it). Pure. */
-export function assignAll(read: Pick<DocLike2, 'id' | 'type' | 'fields'>[], people: { id: string; name: string; isMain?: boolean; relation: string }[], saved: Pick<DocLike2, 'ownerId' | 'type' | 'fields'>[], known: Record<string, { passportNos?: string[]; legalName?: string }> = {}) {
-  const fallback = (people.find((p) => p.relation === 'self') ?? people.find((p) => p.isMain) ?? people[0])?.id;
-  const mine: Pick<DocLike2, 'ownerId' | 'type' | 'fields'>[] = [...saved];
-  const ids = (): Identity[] => people.map((p) => identityOf(p.id, mine.filter((d) => d.ownerId === p.id), { ...known[p.id], displayName: p.name }));
-  return read.map((d) => {
-    const who = whoseDoc(d.fields, ids());
-    const ownerId = who?.id ?? fallback;
-    mine.push({ ownerId, type: d.type, fields: d.fields });
-    return { id: d.id, ownerId, by: who?.by ?? ('none' as const) };
-  });
 }
 
 /** How the match was made (for the warning text). */

@@ -316,7 +316,9 @@ export type SetupProgress = {
   docsLater?: string[]; // document rows put off ("pid:step")
   at?: string; // ISO timestamp of the last change
   since?: string; // v3.0 fix8: when this setup began (documents saved before it show as Added earlier)
-  bulk?: { id: string; by: 'passport number' | 'name' | 'none' | 'moved' }[]; // v3.0 fix8: documents from the last Add several at once, for the review list
+  /** v3.0 fix8 / bulk2: documents from the last Add several at once, for the review list (core/match BulkEntry; `by` = older entries). */
+  bulk?: { id: string; ownerId?: string; by?: 'passport number' | 'name' | 'none' | 'moved'; state?: 'filed' | 'ask' | 'duplicate' | 'moved'; why?: ('passport number' | 'name' | 'date of birth')[]; name?: string; close?: string; dupOf?: string; rename?: { id: string; to: string } }[];
+  bulkPending?: Document[]; // bulk2: read documents waiting for Whose document is this? (saved once answered)
   bulkUnread?: number; // ...and how many of the picked files couldn't be read
 };
 

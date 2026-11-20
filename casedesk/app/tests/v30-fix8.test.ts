@@ -159,31 +159,10 @@ test('fix8 checklist: Enter or edit replaces Type; saved rows open the document 
   assert.match(src('src/core/onboarding.ts'), /since: now/);
 });
 
-// ---------- 8. add several documents at once ----------
-import { whoseDoc, assignAll } from '../src/core/identity';
-
-test('fix8 bulk: each document goes to the person named on it; a shared family name alone never decides', () => {
-  const people = [
-    { id: 'me', name: 'Arun Kumar', relation: 'self', isMain: true },
-    { id: 'sp', name: 'Priya Kumar', relation: 'spouse' },
-    { id: 'kid', name: 'Dia Kumar', relation: 'child' },
-  ];
-  const myPass = doc('x', T.passport('K1111111', 'KUMAR', 'ARUN'));
-  const herEad = doc('x', T.ead('C26', '01/01/2026', '12/31/2027')); // KUMAR PRIYA
-  const stranger = doc('x', T.passport('Q9999999', 'SMITH', 'JO'));
-  const r = assignAll([myPass, herEad, stranger], people, []);
-  assert.deepEqual(r.map((x) => [x.ownerId, x.by]), [['me', 'name'], ['sp', 'name'], ['me', 'none']], 'no match: filed under the person setting up, flagged for the review');
-  // a passport read first teaches the number: a later visa with only that number follows it
-  const visa = { id: 'v1', type: 'visa' as const, fields: { passportNo: 'K1111111', validTo: '2028-01-01' } };
-  assert.deepEqual(assignAll([myPass, visa], people, []).map((x) => [x.ownerId, x.by]), [['me', 'name'], ['me', 'passport number']]);
-  // saved documents count too (v2.9 identity check)
-  assert.equal(assignAll([visa], people, [{ ...myPass, ownerId: 'me' }])[0].by, 'passport number');
-  // family name only: no clear match
-  assert.equal(whoseDoc({ name: 'KUMAR' }, people.map((p) => ({ id: p.id, passportNos: [], displayName: p.name }))), undefined);
-});
+// ---------- 8. add several documents at once (matching: tests/bulk2.test.ts) ----------
 test('fix8 bulk: documents step offers it, explains auto-assign and Move, and pickers allow multiple selection', () => {
   const b = fnBody('src/screens/setup.tsx', 'BulkAdd');
-  for (const w of ['Add several documents at once', 'filed under the right person by the name on it', 'move it', 'Just added', 'Move', 'Done']) assert.ok(b.includes(w), w);
+  for (const w of ['Add several documents at once', 'filed under the right person by the name, passport number or date of birth on it', 'move it', 'Just added', 'Move', 'Done']) assert.ok(b.includes(w), w);
   assert.match(fnBody('src/screens/setup.tsx', 'DocsStep'), /<BulkAdd f=\{f\} \/>/);
   const files = src('src/native/files.ts');
   assert.match(files, /multiple: true/);

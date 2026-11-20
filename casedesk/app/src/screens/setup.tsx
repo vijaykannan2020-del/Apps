@@ -15,6 +15,8 @@ import { birthCountryGuess } from '../core/birth';
 import { fillsStep, stepMeta, type StepKey } from '../core/steps';
 import { FIELDS, checklistRow, docHasData, docTitle } from '../core/docs';
 import { importMany } from '../data/bulk';
+import { whyText } from '../core/match';
+import { deleteFile } from '../native/files';
 import { REMINDER_TYPES, TYPE_DEFAULT, typeDates, typeSetting, typesFor, type ReminderType } from '../core/reminders';
 import { widgetName } from '../core/widgets';
 import {
@@ -818,8 +820,13 @@ function BulkAdd({ f }: { f: FamilyState }) {
   const sheet = useSheet();
   const [busy, setBusy] = useState<string | null>(null);
   const setup = f.settings.setup ?? { step: 'docs' };
-  const review = (setup.bulk ?? []).map((b) => ({ ...b, d: f.docs.find((x) => x.id === b.id) })).filter((x) => !!x.d);
-  const saveBulk = (bulk: NonNullable<typeof setup.bulk> | undefined, unread?: number) => f.actions.updateSettings({ setup: { ...(f.settings.setup ?? { step: 'docs' }), bulk, bulkUnread: unread } });
+  type Entry = NonNullable<typeof setup.bulk>[number];
+  const pending = setup.bulkPending ?? [];
+  // a saved document, or one waiting for "Whose document is this?"
+  const review = (setup.bulk ?? []).map((b) => ({ b, d: f.docs.find((x) => x.id === b.id) ?? pending.find((x) => x.id === b.id) })).filter((x) => !!x.d || x.b.state === 'duplicate');
+  const saveSetup = (patch: Partial<NonNullable<typeof f.settings.setup>>) => f.actions.updateSettings({ setup: { ...(f.settings.setup ?? { step: 'docs' }), ...patch } });
+  const patchEntry = (id: string, patch: Partial<Entry>) => saveSetup({ bulk: (f.settings.setup?.bulk ?? []).map((x) => (x.id === id ? { ...x, ...patch } : x)) });
+  const name = (id?: string) => f.people.find((p) => p.id === id)?.name ?? '';
   const run = async (src: 'photos' | 'files') => {
     tap();
     if (busy) return;
@@ -827,32 +834,47 @@ function BulkAdd({ f }: { f: FamilyState }) {
     try {
       const r = await importMany(src, f, (n, of) => setBusy(n < of ? `Reading ${n + 1} of ${of}…` : 'Filing them…'));
       if (!r.picked) return;
-      await saveBulk([...r.added, ...(setup.bulk ?? []).filter((b) => !r.added.some((x) => x.id === b.id))], r.unread || undefined);
-      toast(r.added.length ? `${r.added.length} added · check who each one is for` : 'Couldn’t read those. Try Scan or Enter or edit.');
+      const prev = (f.settings.setup?.bulk ?? []).filter((b) => !r.added.some((x) => x.id === b.id));
+      await saveSetup({ bulk: [...r.added, ...prev], bulkUnread: r.unread || undefined, bulkPending: [...(f.settings.setup?.bulkPending ?? []), ...r.pending] });
+      const ask = r.added.filter((x) => x.state === 'ask').length;
+      toast(!r.added.length ? 'Couldn’t read those. Try Scan or Enter or edit.' : ask ? `${r.added.length - ask} filed · ${ask} to check` : `${r.added.length} filed · check the list`);
     } catch (e) { toast((e as Error).message || 'Couldn’t add those. Try again.'); } finally { setBusy(null); }
   };
-  const move = (docId: string) => {
-    const d = f.docs.find((x) => x.id === docId);
-    if (!d) return;
-    sheet.open(`Whose ${docTitle(d).toLowerCase()} is this?`, (
-      <View style={{ gap: 8 }}>
-        {f.people.filter((p) => p.id !== d.ownerId).map((p) => (
-          <Pressable key={p.id} onPress={async () => { sheet.close(); await f.actions.updateDoc(d.id, { ownerId: p.id }); await saveBulk((f.settings.setup?.bulk ?? []).map((b) => (b.id === d.id ? { ...b, by: 'moved' as const } : b)), f.settings.setup?.bulkUnread); toast(`Moved to ${p.name}`); }}
-            accessibilityRole="button" accessibilityLabel={`Move to ${p.name}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 12, borderRadius: radius.row, backgroundColor: t.card }}>
-            <Avatar name={p.name} size="sm" /><T style={[font.body, { fontWeight: '600', flex: 1 }]}>{p.name}</T>
-          </Pressable>
-        ))}
-      </View>
-    ));
+  /** File a document under a person: a saved one is moved, a waiting one is saved now. */
+  const fileUnder = async (docId: string, pid: string) => {
+    tap();
+    const waiting = (f.settings.setup?.bulkPending ?? []).find((x) => x.id === docId);
+    if (waiting) await f.actions.addDocs([{ ...waiting, ownerId: pid }]);
+    else await f.actions.updateDoc(docId, { ownerId: pid });
+    await saveSetup({
+      bulk: (f.settings.setup?.bulk ?? []).map((x) => (x.id === docId ? { ...x, state: 'moved' as const, ownerId: pid } : x)),
+      bulkPending: (f.settings.setup?.bulkPending ?? []).filter((x) => x.id !== docId),
+    });
+    toast(`Filed under ${name(pid)}`);
   };
-  const by = (b: string) => (b === 'passport number' ? 'Matched by passport number' : b === 'name' ? 'Matched by the name on it' : b === 'moved' ? 'Moved by you' : 'No name matched · check this one');
+  const dontAdd = async (docId: string) => {
+    tap();
+    const waiting = (f.settings.setup?.bulkPending ?? []).find((x) => x.id === docId);
+    for (const fl of waiting?.files ?? []) deleteFile(fl);
+    await saveSetup({ bulk: (f.settings.setup?.bulk ?? []).filter((x) => x.id !== docId), bulkPending: (f.settings.setup?.bulkPending ?? []).filter((x) => x.id !== docId) });
+  };
+  const choose = (docId: string, title: string, current?: string) => {
+    sheet.open(`Whose ${title.toLowerCase()} is this?`, <WhoseSheet f={f} current={current} onPick={(pid) => { sheet.close(); fileUnder(docId, pid).catch(() => {}); }} />);
+  };
+  const rename = async (pid: string, to: string, docId: string) => {
+    tap();
+    await f.actions.updatePerson(pid, { name: titleCaseName(to) });
+    await patchEntry(docId, { rename: undefined });
+    toast('Name updated');
+  };
+  const doneAll = () => { tap(); if (pending.length) { toast('Choose whose each document is first, or tap Don’t add'); return; } saveSetup({ bulk: undefined, bulkUnread: undefined }).catch(() => {}); };
   return (
     <Card style={{ marginTop: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: t.pastel.butter, alignItems: 'center', justifyContent: 'center' }}><Icon name="layers" size={19} color={t.ink} /></View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <T style={[font.callout, { fontWeight: '600' }]}>Add several documents at once</T>
-          <T tone="text2" style={font.foot}>Pick photos or PDFs for the whole family. Each one is read on this phone and filed under the right person by the name on it. If one lands under the wrong person, move it.</T>
+          <T tone="text2" style={font.foot}>Pick photos or PDFs for the whole family. Each one is read on this phone and filed under the right person by the name, passport number or date of birth on it. If one lands under the wrong person, move it.</T>
         </View>
       </View>
       {busy ? (
@@ -866,20 +888,45 @@ function BulkAdd({ f }: { f: FamilyState }) {
       {review.length || setup.bulkUnread ? (
         <Appear style={{ marginTop: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <T style={[font.headline]}>{`Just added · ${review.length}`}</T>
-            <Pressable onPress={() => { tap(); saveBulk(undefined).catch(() => {}); }} accessibilityRole="button" accessibilityLabel="Done checking" style={{ minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: 6 }}><T tone="accent" style={[font.sub, { fontWeight: '600' }]}>Done</T></Pressable>
+            <T style={[font.headline]}>{`Just added · ${review.filter((x) => x.b.state !== 'duplicate').length}`}</T>
+            <Pressable onPress={doneAll} accessibilityRole="button" accessibilityLabel="Done checking" style={{ minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: 6 }}><T tone="accent" style={[font.sub, { fontWeight: '600' }]}>Done</T></Pressable>
           </View>
-          {review.map(({ id, by: b, d }) => {
-            const owner = f.people.find((p) => p.id === d!.ownerId);
+          {review.map(({ b, d }) => {
+            const state = b.state ?? (b.by === 'moved' ? 'moved' : 'filed');
+            const why = b.why ?? (b.by === 'passport number' || b.by === 'name' ? [b.by] : []);
+            const read = b.name ?? d?.fields.name;
+            const title = d ? docTitle(d) : 'Document';
+            const owner = state === 'ask' || state === 'duplicate' ? undefined : f.people.find((p) => p.id === (d?.ownerId || b.ownerId));
+            const unsure = state === 'filed' && !why.length;
+            const line = state === 'duplicate' ? `Already added for ${name(b.dupOf) || 'your family'} · not added again`
+              : state === 'ask' ? 'Whose document is this?'
+              : state === 'moved' ? `Filed under: ${owner?.name ?? ''} · chosen by you`
+              : unsure ? `Filed under: ${owner?.name ?? ''} for now · no clear match, check it`
+              : `Filed under: ${owner?.name ?? ''} · ${whyText(why).replace('Matched by', 'matched by')}`;
             return (
-              <View key={id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: 1, borderTopColor: t.sep }}>
-                <Avatar name={owner?.name ?? '?'} size="sm" />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <T style={[font.callout, { fontWeight: '600' }]} numberOfLines={1}>{docTitle(d!)}</T>
-                  <T tone="text2" style={font.foot} numberOfLines={1}>{owner?.name ?? 'No one yet'}</T>
-                  <T tone={b === 'none' ? 'amber' : 'text3'} style={font.caption}>{by(b)}</T>
+              <View key={b.id} style={{ paddingVertical: 10, borderTopWidth: 1, borderTopColor: t.sep }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Avatar name={owner?.name ?? '?'} size="sm" />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <T style={[font.callout, { fontWeight: '600' }]} numberOfLines={1}>{title}</T>
+                    <T tone="text2" style={font.foot} numberOfLines={2}>{read ? `Name on document: ${read}` : 'No name read on it'}</T>
+                    <T tone={state === 'ask' || unsure ? 'amber' : 'text3'} style={font.caption}>{line}</T>
+                  </View>
+                  {state !== 'ask' && state !== 'duplicate' && f.people.length > 1 ? <Button size="sm" kind="ghost" title="Move" label={`Move ${title} to another person`} onPress={() => choose(b.id, title, owner?.id)} /> : null}
+                  {state === 'duplicate' ? <Pressable onPress={() => dontAdd(b.id)} accessibilityRole="button" accessibilityLabel="Remove from the list" style={{ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={16} color={t.text2} /></Pressable> : null}
                 </View>
-                {f.people.length > 1 ? <Button size="sm" kind="ghost" title="Move" label={`Move ${docTitle(d!)} to another person`} onPress={() => move(id)} /> : null}
+                {state === 'ask' ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    {[...f.people].sort((x, y) => Number(y.id === b.close) - Number(x.id === b.close)).map((p) => <ChipToggle key={p.id} role="button" size="sm" text={p.name} onPress={() => fileUnder(b.id, p.id)} />)}
+                    <ChipToggle role="button" size="sm" text="Add a new person" onPress={() => sheet.open('Add a new person', <NewPersonSheet f={f} suggested={read} onAdded={(pid) => { sheet.close(); fileUnder(b.id, pid).catch(() => {}); }} />)} />
+                    <ChipToggle role="button" size="sm" text="Don’t add" onPress={() => dontAdd(b.id)} />
+                  </View>
+                ) : null}
+                {b.rename && f.people.some((p) => p.id === b.rename!.id) ? (
+                  <Note tone="blue" style={{ marginTop: 8 }} actions={<><Button size="sm" kind="tint" title="Update name" onPress={() => rename(b.rename!.id, b.rename!.to, b.id)} /><Button size="sm" kind="ghost" title="Keep" onPress={() => patchEntry(b.id, { rename: undefined })} /></>}>
+                    {`Name on passport is ${titleCaseName(b.rename.to)} — update the name in the app? (now ${name(b.rename.id)})`}
+                  </Note>
+                ) : null}
               </View>
             );
           })}
@@ -887,6 +934,42 @@ function BulkAdd({ f }: { f: FamilyState }) {
         </Appear>
       ) : null}
     </Card>
+  );
+}
+const titleCaseName = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase()).replace(/\s+/g, ' ').trim();
+
+/** Whose document is this: every family member (the current one marked). */
+function WhoseSheet({ f, current, onPick }: { f: FamilyState; current?: string; onPick: (pid: string) => void }) {
+  const t = useTheme();
+  return (
+    <View style={{ gap: 8 }}>
+      {f.people.map((p) => (
+        <Pressable key={p.id} disabled={p.id === current} onPress={() => onPick(p.id)} accessibilityRole="button" accessibilityLabel={p.id === current ? `${p.name}, filed here now` : `File under ${p.name}`}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 12, borderRadius: radius.row, backgroundColor: t.card, opacity: p.id === current ? 0.5 : 1 }}>
+          <Avatar name={p.name} size="sm" /><T style={[font.body, { fontWeight: '600', flex: 1 }]}>{p.name}</T>
+          {p.id === current ? <T tone="text2" style={font.caption}>Filed here now</T> : null}
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+/** Add a new person from the review list (name from the document, relation), then file the document. */
+function NewPersonSheet({ f, suggested, onAdded }: { f: FamilyState; suggested?: string; onAdded: (pid: string) => void }) {
+  const [nm, setNm] = useState(suggested ? titleCaseName(suggested) : '');
+  const [rel, setRel] = useState<Relation>('child');
+  const add = async () => {
+    const id = newId('p');
+    const main = f.main?.status;
+    await f.actions.upsertPerson({ id, name: nm.trim(), relation: rel, status: suggestStatus(main, rel), facts: {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } });
+    onAdded(id);
+  };
+  return (
+    <View>
+      <Field label="Full name" value={nm} onChangeText={setNm} placeholder="First and last name" autoCapitalize="words" />
+      <Chips>{(['spouse', 'child', 'parent'] as Relation[]).map((r) => <ChipToggle key={r} text={r === 'spouse' ? 'Spouse' : r === 'child' ? 'Child' : 'Parent'} on={rel === r} onPress={() => setRel(r)} />)}</Chips>
+      <View style={{ flexDirection: 'row', marginTop: 16 }}><Button grow title="Add and file it here" disabled={!nm.trim()} onPress={() => { add().catch(() => {}); }} /></View>
+    </View>
   );
 }
 

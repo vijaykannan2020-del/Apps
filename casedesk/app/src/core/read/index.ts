@@ -26,6 +26,12 @@ export function classify(text: string): DocType | undefined {
   return readDocument(text).type;
 }
 
+/** The passport number when exactly one distinct letter + 7 digits token is on the page (Indian style). */
+function onlyPassportNo(U: string): string | undefined {
+  const all = [...new Set([...U.matchAll(/(?:^|[^A-Z0-9])([A-Z]\d{7})(?![A-Z0-9])/g)].map((m) => m[1]))];
+  return all.length === 1 ? all[0] : undefined;
+}
+
 export function readDocument(text: string): Reading {
   const T = (text || '').replace(/\r/g, '');
   const U = T.toUpperCase();
@@ -82,7 +88,9 @@ export function readDocument(text: string): Reading {
   if (type === 'passport' || type === 'visa' || type === 'i94' || type === 'ead' || !type) {
     const m = readMRZ(T);
     f.passportNo = m?.docNo ?? U.match(/(?:PASSPORT\s*(?:NO|NUMBER|#)|DOCUMENT\s*(?:NO|NUMBER))\.?\s*[:\-]?\s*\n?\s*([A-Z]?\d{7,9})\b/)?.[1]
-      ?? (type === 'passport' ? columnToken(U, /PASSPORT\s*NO\.?|PASSPORT\s*NUMBER/, /^[A-Z]{1,2}\d{6,8}$/) : undefined);
+      ?? (type === 'passport' || type === 'visa' ? columnToken(U, /PASSPORT\s*NO\.?|PASSPORT\s*NUMBER/, /^[A-Z]{1,2}\d{6,8}$/) : undefined)
+      // a noisy scan: the one passport-shaped number on a passport or visa page (annotations removed)
+      ?? (type === 'passport' || type === 'visa' ? onlyPassportNo(withoutAnnotations(U)) : undefined);
     if (f.oldPassportNo === f.passportNo) delete f.oldPassportNo;
     f.birthDate ||= m?.birth ?? dateAfter(T, /date of birth|birth date/i, dayFirst);
   }
