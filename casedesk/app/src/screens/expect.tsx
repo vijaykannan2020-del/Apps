@@ -1,7 +1,7 @@
 // "What to expect" card on each case: typical decision window with a small timeline chart, official USCIS rates,
 // premium clock, then anonymous "Cases like mine" (expectShare.tsx). Estimate only — says so, with dates and sources.
 import React, { useEffect } from 'react';
-import { View, useWindowDimensions } from 'react-native';
+import { View } from 'react-native';
 import Svg, { Rect, Line, Circle, Text as SvgText } from 'react-native-svg';
 import type { CaseView } from '../core/cases';
 import { CLASS_CHOICES, classLabel, decidedOf, describe, fmtDate, officeOf, outcomeOf, receivedOf, type ChartModel, type ExpectInput } from '../core/expect';
@@ -79,12 +79,13 @@ function HowLink() {
 /** Horizontal timeline in days from receipt: typical window (blue), app users' middle half (green), premium deadline, today. */
 export function ExpectChart({ m }: { m: ChartModel }) {
   const t = useTheme();
-  const { width } = useWindowDimensions();
-  const W = Math.min(width - 72, 520), H = 74, pad = 8;
+  // sized by the space the chart really has (the card), never the window
+  const [box, setBox] = React.useState(0);
+  const W = Math.max(120, Math.min(box || 280, 520)), H = 74, pad = 8;
   const x = (d: number) => pad + (Math.min(d, m.maxDays) / m.maxDays) * (W - pad * 2);
   const label = [m.window ? `Typical window ${Math.round(m.window[0] / 30.44)} to ${Math.round(m.window[1] / 30.44)} months` : '', m.community ? `app users ${Math.round(m.community[0] / 30.44)} to ${Math.round(m.community[1] / 30.44)} months` : '', m.todayDays != null ? `today ${Math.round(m.todayDays / 30.44)} months` : ''].filter(Boolean).join(', ');
   return (
-    <View accessible accessibilityRole="image" accessibilityLabel={label || 'Timeline'} style={{ marginTop: 12, marginBottom: 6 }}>
+    <View accessible accessibilityRole="image" accessibilityLabel={label || 'Timeline'} style={{ marginTop: 12, marginBottom: 6 }} onLayout={(e) => setBox(Math.floor(e.nativeEvent.layout.width))}>
       <Svg width={W} height={H}>
         <Line x1={x(0)} x2={x(m.maxDays)} y1={30} y2={30} stroke={t.sep} strokeWidth={2} strokeLinecap="round" />
         {m.window ? <Rect x={x(m.window[0])} y={22} width={Math.max(4, x(m.window[1]) - x(m.window[0]))} height={16} rx={8} fill={tint(t.accent, 0.5)} /> : null}

@@ -2,6 +2,7 @@
 // is the soft-grey equivalent. One brand palette; the user picks System / Light / Dark only.
 import React, { createContext, useContext } from 'react';
 import { AccessibilityInfo, Platform, useColorScheme, useWindowDimensions } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import type { Severity } from '../core/rules/types';
 import { DARK, LIGHT, TONE_PASTEL, onPastel, onOutline, themeFor, type ColourTheme, type PastelTone } from './tokens';
 export { DARK, LIGHT, PASTEL, INK, INK2, COLOUR_THEMES, contrast, m3Roles, onPastel, swatchOf, themeFor, TONE_PASTEL } from './tokens';
@@ -92,7 +93,11 @@ export const WEB_TEXT_SCALE: number = (() => {
 /** Layout for any phone, fold or iPad: content is centred with a readable max width. */
 export function useLayout() {
   const dims = useWindowDimensions();
-  const { width, height } = dims;
+  // v3.0 (owner): the usable width leaves out the left / right safe-area insets (the foldable's status
+  // column), so columns, charts and rings are sized for the space content really gets.
+  const insets = useContext(SafeAreaInsetsContext);
+  const width = dims.width - (insets?.left ?? 0) - (insets?.right ?? 0);
+  const { height } = dims;
   const fontScale = dims.fontScale * WEB_TEXT_SCALE;
   const wide = width >= 600;
   const twoCol = width >= 700; // unfolded fold / iPad / landscape: real two-column layouts
