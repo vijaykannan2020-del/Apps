@@ -95,7 +95,7 @@ export function SettingsScreen() {
         <TourTarget id="backup"><Group>
           <ICloudRows />
           <Row icon="share" title="Back up to a file" subtitle={`Files, Google Drive or AirDrop · last: ${lastBackup}`} onPress={() => sheet.open('Back up now', <BackupSheet />)} chevron={false} />
-          <Row icon="restore" title="Restore from backup" subtitle="From a .casedesk file" onPress={() => sheet.open('Restore from backup', <RestoreSheet />)} chevron={false} />
+          <Row icon="restore" title="Restore from backup" subtitle="From a backup file you saved" onPress={() => sheet.open('Restore from backup', <RestoreSheet />)} chevron={false} />
           <ImportSharedRow />
           <InviteRow />
         </Group></TourTarget>

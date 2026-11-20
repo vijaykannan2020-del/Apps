@@ -1,9 +1,10 @@
 // Profile: you, family, reminders, privacy & look, help, Data (Back up now / Restore / Delete all), About.
 import { reminderSummary, typesFor } from '../core/reminders';
 import React, { useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fmt } from '../core/dates';
+import { backupLabel } from '../core/backup';
 import { RULES_CHECKED } from '../core/rules/catalog';
 import { useFamily } from '../data/FamilyProvider';
 import { backUpNow, markBackedUp, openBackup, pickBackupFile, restore, type MergeReport, type RestorePreview } from '../data/backupIO';
@@ -109,7 +110,7 @@ export function RestoreSheet() {
 }
 
 /** Restore: choose file → password → preview → Replace (default) or Merge → exactly what was added / skipped. */
-export function RestorePanel({ onDone, onCancel, initial }: { onDone: () => void; onCancel: () => void; initial?: { text: string; name: string } }) {
+export function RestorePanel({ onDone, onCancel, initial, autoPick }: { onDone: () => void; onCancel: () => void; initial?: { text: string; name: string }; autoPick?: boolean }) {
   const f = useFamily(); const toast = useToast();
   const [file, setFile] = useState<{ text: string; name: string } | null>(initial ?? null);
   const [pw, setPw] = useState(''); const [busy, setBusy] = useState(false); const [pct, setPct] = useState(0);
@@ -119,6 +120,13 @@ export function RestorePanel({ onDone, onCancel, initial }: { onDone: () => void
   const fresh = !f.people.length && !f.docs.length;
   const tour = useSheetTour('restore');
   const choose = async () => { try { const x = await pickBackupFile(); if (x) setFile(x); } catch (e) { toast((e as Error).message); } };
+  // v3.0 fix8 (owner): the Restore screen opens the file picker straight away (Choose backup file
+  // stays for another try). Not on the web preview: browsers block a picker no one tapped for.
+  useEffect(() => {
+    if (!autoPick || initial || Platform.OS === 'web') return;
+    const h = setTimeout(choose, 450); // after the push animation, or iOS refuses to present it
+    return () => clearTimeout(h);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const apply = async (p: RestorePreview, m: 'replace' | 'merge') => {
     setBusy(true);
     try {
@@ -166,8 +174,8 @@ export function RestorePanel({ onDone, onCancel, initial }: { onDone: () => void
   );
   return (
     <TourScope tour={tour}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={{ flex: 1 }}><Why>{initial ? 'Type the backup password to open it.' : 'Choose a .casedesk file, then type its password. Nothing leaves this phone.'}</Why></View><TourButton /></View>
-      {initial ? <T style={[font.headline, { marginTop: 14 }]}>{initial.name}</T> : <TourTarget id="pick" style={{ marginTop: 14 }}><Button kind={file ? 'ghost' : 'tint'} icon="folder" title={file ? file.name : 'Choose backup file'} onPress={choose} /></TourTarget>}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><View style={{ flex: 1 }}><Why>{initial ? 'Type the backup password to open it.' : 'Choose the backup file you saved from Immigration Wallet, then type its password. Nothing leaves this phone.'}</Why></View><TourButton /></View>
+      {initial ? <T style={[font.headline, { marginTop: 14 }]}>{backupLabel(initial.name)}</T> : <TourTarget id="pick" style={{ marginTop: 14 }}><Button kind={file ? 'ghost' : 'tint'} icon="folder" title={file ? backupLabel(file.name) : 'Choose backup file'} onPress={choose} /></TourTarget>}
       {file ? <TourTarget id="password"><Field label="Password" value={pw} onChangeText={setPw} secure autoCapitalize="none" /></TourTarget> : null}
       {busy ? <Progress pct={pct} label="Opening with your password" /> : null}
       <SheetButtons><Button kind="ghost" title="Cancel" onPress={onCancel} /><Button grow title="Open" disabled={!file || !pw} busy={busy} onPress={open} /></SheetButtons>
@@ -179,7 +187,7 @@ export function RestoreScreen() {
   return (
     <Screen nav={{ back: 'Welcome', onBack: back, title: 'Restore' }}>
       <T a11y="header" style={font.title}>Restore from a backup</T>
-      <RestorePanel onDone={() => {}} onCancel={back} />
+      <RestorePanel autoPick onDone={() => {}} onCancel={back} />
     </Screen>
   );
 }

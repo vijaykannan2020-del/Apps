@@ -135,7 +135,7 @@ export const TOURS: Record<string, TourDef> = {
     { target: 'save', title: 'Save the file', text: 'Save it to Files, Google Drive or AirDrop it to your new phone.' },
   ] },
   restore: { help: 'backups', steps: [
-    { target: 'pick', title: 'Choose the file', text: 'Pick a .casedesk backup from Files or a cloud drive.' },
+    { target: 'pick', title: 'Choose the file', text: 'Pick the Immigration Wallet backup you saved, from Files or a cloud drive.' },
     { target: 'password', title: 'Type its password', text: 'Then choose to replace or merge with what’s on this phone.' },
   ] },
   'wallet-preview': { help: 'wallet-card', steps: [

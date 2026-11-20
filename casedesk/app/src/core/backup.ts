@@ -14,6 +14,22 @@ export function backupFileName(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `Immigration Wallet backup ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.casedesk`;
 }
+/** What the document picker is asked for. The web preview filters by extension; the installed
+ *  iOS / Android builds declare no backup file type, so they must list every file. */
+export const BACKUP_PICKER_TYPES = { web: ['.casedesk'], native: '*/*' } as const;
+
+/** A backup file's name as shown in the app: never the old app name or the internal extension.
+ *  iCloud backups (CaseDesk-2026-11-18-093000.casedesk) → "iCloud backup · Nov 18, 2026". */
+export function backupLabel(name: string): string {
+  const m = /^casedesk-(\d{4})-(\d{2})-(\d{2})-\d{4,6}\.casedesk$/i.exec(name.trim());
+  if (m) {
+    const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][+m[2] - 1] ?? m[2];
+    return `iCloud backup · ${mon} ${+m[3]}, ${m[1]}`;
+  }
+  const base = name.trim().replace(/\.casedesk$/i, '').replace(/^case\s*desk\b[\s_-]*/i, 'Immigration Wallet ').replace(/casedesk/gi, 'Immigration Wallet').trim();
+  return base || 'Immigration Wallet backup';
+}
+
 // scrypt cost chosen for phones running JavaScript without a JIT (Hermes): N = 2^13, r = 8, p = 1
 // (8 MB, about 2–4 s on a recent iPhone). Stored in each file's header, so it can be raised later
 // without breaking older backups.

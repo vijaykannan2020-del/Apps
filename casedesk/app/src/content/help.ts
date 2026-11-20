@@ -64,7 +64,7 @@ export const HELP: HelpTopic[] = [
     id: 'backups', title: 'Backups', sub: 'Keep everything safe when you change phones',
     body: [
       'iCloud backup (Settings → Backup & iCloud): turn it on once and set a password. Like WhatsApp, Immigration Wallet then backs up to your own iCloud every day and after changes, and keeps the last 3. Restore from iCloud on a new phone from the Welcome screen.',
-      'Settings → Back up to a file makes one password-protected .casedesk file with every person, document (images and PDFs) and case. Save it to Files, iCloud Drive or Google Drive, or AirDrop it to your new phone.',
+      'Settings → Back up to a file makes one password-protected backup file with every person, document (images and PDFs) and case. Save it to Files, iCloud Drive or Google Drive, or AirDrop it to your new phone.',
       'To restore, choose the file and type its password. On a new phone everything is restored; on a phone that already has data you can replace it or merge (you’ll see exactly what was added).',
       'Nobody can open the file without the password — and we can’t recover it, so keep it somewhere safe.',
     ],

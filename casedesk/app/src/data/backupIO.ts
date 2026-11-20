@@ -4,7 +4,7 @@
 import { Platform } from 'react-native';
 import type { Case, Document, Person, Settings } from '../core/model';
 import { DEFAULT_SETTINGS } from '../core/model';
-import { backupFileName, decryptBackup, encryptBackup, readHeader, type BackupPayload, type Progress } from '../core/backup';
+import { BACKUP_PICKER_TYPES, backupFileName, decryptBackup, encryptBackup, readHeader, type BackupPayload, type Progress } from '../core/backup';
 import { SCHEMA, newId, type Store } from './store';
 import { migrateFile } from '../core/files';
 import { matchPeople } from '../core/merge';
@@ -45,13 +45,16 @@ export async function markBackedUp(store: Store) {
 export async function pickBackupFile(): Promise<{ text: string; name: string } | null> {
   const DP = native.documentPicker();
   if (!DP?.getDocumentAsync) throw new Error('Files aren’t available in this build.');
-  const r = await DP.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true, multiple: false });
+    // Only backup files where the picker can filter: the web preview by extension. iOS and Android
+  // can't filter an extension the installed build hasn't declared, so they list all files and a
+  // wrong one gets a friendly error below.
+  const r = await DP.getDocumentAsync({ type: BACKUP_PICKER_TYPES[Platform.OS === 'web' ? 'web' : 'native'], copyToCacheDirectory: true, multiple: false });
   if (r.canceled || !r.assets?.[0]) return null;
   const a = r.assets[0];
   const text = a.file && typeof a.file.text === 'function' ? await a.file.text() : await readText(a.uri);
   if (!text) throw new Error('Couldn’t open that file');
   readHeader(text); // throws a friendly error if it isn't an Immigration Wallet backup
-  return { text, name: a.name ?? 'backup.casedesk' };
+  return { text, name: a.name ?? 'Immigration Wallet backup' };
 }
 
 export type RestorePreview = { payload: BackupPayload; people: number; docs: number; files: number; cases: number; exportedAt: string };
