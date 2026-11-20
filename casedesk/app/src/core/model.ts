@@ -303,6 +303,7 @@ export type Settings = {
   widgetHideLocked?: boolean; // v2.5: hide widget details while Face ID lock is on (default true)
   walletName?: 'full' | 'first' | 'initials'; // v2.5 Wallet status card: last name style picked
   setup?: SetupProgress; // v3.0 onboarding in progress (cleared when finished); setupDone stays the gate
+  guideSeen?: boolean; // v3.0 guided tour offered (setup Done), taken, or its Home card closed
 };
 
 /** v3.0 onboarding progress (kept in settings, no new storage key). */
