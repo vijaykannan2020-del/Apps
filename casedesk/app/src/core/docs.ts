@@ -1,5 +1,6 @@
 // How a document is shown: the fields read from it (editable), a one-line note, and which saved
 // documents are superseded by newer ones. Pure — screens only render what these return.
+import { nameScore } from './match';
 import { daysTo, fmt, isISO } from './dates';
 import { datesIn } from './read/text';
 import type { DocFields, DocType, Document } from './model';
@@ -150,12 +151,15 @@ export function supersededIds(rec: PersonRecord, docs: Document[]): Set<string> 
   const out = new Set<string>();
   // v2.9: a document only supersedes another one for the same person — when the names on both match
   // (a spouse's passport saved here by mistake leaves this person's own passport current).
-  const same = (a?: string, b?: string) => !a || !b || sameName(a, b);
+  // v3.0 (owner): renewed documents must replace the old ones; names on scans vary (order, middle
+  // names, a letter misread), so compare tolerantly.
+  const tolerant = (a: string, b: string) => sameName(a, b) || nameScore(a, b).score >= 0.85 || nameScore(b, a).score >= 0.85;
+  const same = (a?: string, b?: string) => !a || !b || tolerant(a, b);
   const latest = (t: DocType, key: (d: Document) => string | undefined) => {
     const list = mine.filter((d) => d.type === t);
     const own = t === 'passport' && rec.legalName ? list.filter((d) => same(d.fields.name, rec.legalName)) : list;
     const best = [...(own.length ? own : list)].sort((a, b) => (key(b) || '').localeCompare(key(a) || ''))[0];
-    for (const d of list) if (d !== best && same(d.fields.name, best?.fields.name)) out.add(d.id);
+    for (const d of list) if (d !== best && (same(d.fields.name, best?.fields.name))) out.add(d.id);
   };
   latest('passport', (d) => d.fields.validTo);
   latest('visa', (d) => d.fields.validTo);
