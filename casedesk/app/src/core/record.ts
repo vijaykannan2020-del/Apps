@@ -91,7 +91,7 @@ export const classLabel = (c?: string) => (c || '').toUpperCase().replace(/^([A-
 const PICKED: Partial<Record<StatusCategory, (r: Relation) => VisaType | undefined>> = {
   'H-1B': () => 'H-1B', 'L-1A': () => 'L-1A', 'L-1B': () => 'L-1B', TN: () => 'TN', 'F-1 OPT': () => 'F-1 OPT', 'STEM OPT': () => 'STEM OPT',
   'conditional-green-card': () => 'Conditional green card', 'citizenship-applicant': () => 'Green card', 'E-3': () => 'E-3', 'O-1': () => 'O-1', 'F-1': () => 'F-1', 'J-1': () => 'J-1',
-  'H-4': () => 'H-4', 'L-2': (r) => (r === 'spouse' ? 'L-2S' : 'L-2'), 'F-2': () => 'F-2', 'J-2': () => 'J-2',
+  'H-4': () => 'H-4', 'L-2': (r) => (r === 'spouse' ? 'L-2S' : 'L-2'), 'F-2': () => 'F-2', 'J-2': () => 'J-2', TD: () => 'TD',
   'green-card': () => 'Green card', citizen: () => 'US citizen', 'B-2': () => 'B-1/B-2',
 };
 

@@ -13,7 +13,7 @@ export type Relation = 'self' | 'spouse' | 'child' | 'parent' | 'other';
 export type StatusCategory =
   | 'H-1B' | 'L-1A' | 'L-1B' | 'L-1' | 'TN' | 'E-3' | 'O-1'
   | 'F-1' | 'F-1 OPT' | 'STEM OPT' | 'J-1'
-  | 'H-4' | 'L-2' | 'F-2' | 'J-2'
+  | 'H-4' | 'L-2' | 'F-2' | 'J-2' | 'TD'
   | 'green-card-applicant' | 'green-card' | 'conditional-green-card' | 'citizenship-applicant' | 'citizen'
   | 'B-2' | 'other' | 'unsure';
 
@@ -21,7 +21,7 @@ export type StatusCategory =
 export const STATUS_LABEL: Record<StatusCategory, string> = {
   'H-1B': 'H-1B', 'L-1A': 'L-1A', 'L-1B': 'L-1B', 'L-1': 'L-1', TN: 'TN', 'E-3': 'E-3', 'O-1': 'O-1',
   'F-1': 'F-1', 'F-1 OPT': 'F-1 OPT', 'STEM OPT': 'F-1 STEM OPT', 'J-1': 'J-1',
-  'H-4': 'H-4', 'L-2': 'L-2', 'F-2': 'F-2', 'J-2': 'J-2',
+  'H-4': 'H-4', 'L-2': 'L-2', 'F-2': 'F-2', 'J-2': 'J-2', TD: 'TD',
   'green-card-applicant': 'Green card applicant', 'green-card': 'Green card holder', 'conditional-green-card': 'Conditional green card',
   'citizenship-applicant': 'Citizenship applicant', citizen: 'US citizen', 'B-2': 'B-1/B-2 visitor', other: 'Something else', unsure: 'Not sure yet',
 };
@@ -34,7 +34,7 @@ export const STATUS_CHIP: Partial<Record<StatusCategory, string>> = {
 export const STATUS_GROUPS: { title: string; icon: string; items: StatusCategory[] }[] = [
   { title: 'Work visa', icon: 'briefcase', items: ['H-1B', 'L-1A', 'L-1B', 'TN', 'E-3', 'O-1'] },
   { title: 'Student', icon: 'school', items: ['F-1', 'F-1 OPT', 'STEM OPT'] },
-  { title: 'Dependent', icon: 'people', items: ['H-4', 'L-2', 'F-2'] },
+  { title: 'Dependent', icon: 'people', items: ['H-4', 'L-2', 'F-2', 'J-2', 'TD'] },
   { title: 'Green card', icon: 'card', items: ['green-card-applicant', 'green-card', 'conditional-green-card'] },
   { title: 'Citizenship', icon: 'flag', items: ['citizenship-applicant', 'citizen'] },
   { title: 'Visitor', icon: 'airplane', items: ['B-2'] },
@@ -46,7 +46,7 @@ export function dependentStatusFor(main?: StatusCategory, relation?: Relation): 
   const m: Partial<Record<StatusCategory, StatusCategory>> = {
     'H-1B': 'H-4', 'L-1A': 'L-2', 'L-1B': 'L-2', 'L-1': 'L-2', 'F-1': 'F-2', 'F-1 OPT': 'F-2', 'STEM OPT': 'F-2', 'J-1': 'J-2',
     'green-card': 'green-card', 'conditional-green-card': 'conditional-green-card', 'citizenship-applicant': 'green-card',
-    'green-card-applicant': 'green-card-applicant', 'B-2': 'B-2', TN: 'other', 'E-3': 'other', 'O-1': 'other',
+    'green-card-applicant': 'green-card-applicant', 'B-2': 'B-2', TN: 'TD', 'E-3': 'other', 'O-1': 'other',
   };
   return (main && m[main]) || 'unsure';
 }
@@ -117,6 +117,7 @@ export type PersonFacts = {
   gc?: GcFacts; // v2.9 green-card track (answers only the person can give; documents decide the rest)
   blanketL?: boolean; // v3.0 setup: L-1 on a blanket petition (I-129S) or an individual one (I-797). Documents decide once saved
   hasEad?: boolean; // v3.0 setup: H-4 / L-2 with a work permit (adds the EAD document)
+  trackOnly?: boolean; // v3.0 fix8: a principal added by a dependent to follow only (setup doesn't list their documents; add them anytime)
   lastEntry?: ISODate; // v3.0 setup: most recent entry to the US, typed (an I-94 shows its own; needed on the CBP I-94 site)
 };
 

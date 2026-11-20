@@ -12,16 +12,20 @@ import { dependentStatusFor, STATUS_LABEL } from './model';
 import type { PersonRecord } from './record';
 import { gcLocalStage, isOptionalStep, stepKeys, type StepKey } from './steps';
 
-export type SetupStep = 'welcome' | 'you' | 'where' | 'status' | 'details' | 'work' | 'gc' | 'family' | 'docs' | 'cases' | 'alerts' | 'protect' | 'done';
-export const SETUP_ORDER: SetupStep[] = ['welcome', 'you', 'where', 'status', 'details', 'work', 'gc', 'family', 'docs', 'cases', 'alerts', 'protect', 'done'];
+export type SetupStep = 'welcome' | 'you' | 'where' | 'status' | 'details' | 'principal' | 'work' | 'gc' | 'family' | 'docs' | 'cases' | 'alerts' | 'protect' | 'done';
+export const SETUP_ORDER: SetupStep[] = ['welcome', 'you', 'where', 'status', 'details', 'principal', 'work', 'gc', 'family', 'docs', 'cases', 'alerts', 'protect', 'done'];
 
 /** Steps that may be skipped ("Skip for now"). The rest need an answer (or have their own Not now). */
-export const OPTIONAL_STEPS: SetupStep[] = ['work', 'gc', 'family', 'docs', 'cases', 'protect'];
+export const OPTIONAL_STEPS: SetupStep[] = ['principal', 'work', 'gc', 'family', 'docs', 'cases', 'protect'];
 
 /** Work visas (and OPT, which is work on F-1): employer and work location are asked. */
 export const WORK_STATUSES: StatusCategory[] = ['H-1B', 'L-1A', 'L-1B', 'L-1', 'TN', 'E-3', 'O-1', 'F-1 OPT', 'STEM OPT'];
 /** Statuses where a green card process is common (dual intent and their dependents), plus applicants. */
 export const GC_STATUSES: StatusCategory[] = ['H-1B', 'L-1A', 'L-1B', 'L-1', 'TN', 'E-3', 'O-1', 'H-4', 'L-2', 'green-card-applicant'];
+/** v3.0 fix8: dependent statuses. Their status follows a principal (spouse or parent), so setup asks
+ *  about the principal first and makes children optional. */
+export const DEPENDENT_STATUSES: StatusCategory[] = ['H-4', 'L-2', 'F-2', 'J-2', 'TD'];
+export const isDependentStatus = (s?: StatusCategory) => !!s && DEPENDENT_STATUSES.includes(s);
 /** Statuses with a follow-up question: blanket L, OPT or STEM OPT, H-4 EAD. */
 export const DETAIL_STATUSES: StatusCategory[] = ['L-1A', 'L-1B', 'L-1', 'F-1', 'F-1 OPT', 'STEM OPT', 'H-4'];
 
@@ -38,6 +42,7 @@ export function applies(s: SetupStep, c: SetupCtx): boolean {
     case 'welcome': return !c.rerun;
     case 'where': return !c.locationFromDocs;
     case 'details': return !!st && DETAIL_STATUSES.includes(st);
+    case 'principal': return isDependentStatus(st);
     case 'work': return false; // v3.0 (owner): employer and work location are not asked in setup; edit them later on the person page
     case 'gc': return !!st && GC_STATUSES.includes(st);
     case 'alerts': return c.notif !== 'granted';
@@ -93,7 +98,9 @@ export const rerunProgress = (): NonNullable<Settings['setup']> => ({ step: 'you
 // ---- suggestions ----
 
 /** A dependent's principal, when YOU are the dependent (H-4 → your spouse is on H-1B). */
-const PRINCIPAL_FOR: Partial<Record<StatusCategory, StatusCategory>> = { 'H-4': 'H-1B', 'L-2': 'L-1', 'F-2': 'F-1', 'J-2': 'J-1' };
+const PRINCIPAL_FOR: Partial<Record<StatusCategory, StatusCategory>> = { 'H-4': 'H-1B', 'L-2': 'L-1', 'F-2': 'F-1', 'J-2': 'J-1', TD: 'TN' };
+/** The principal's status suggested when YOU are the dependent (H-4 → H-1B). */
+export const principalStatusFor = (mine?: StatusCategory): StatusCategory => (mine && PRINCIPAL_FOR[mine]) || 'unsure';
 
 /** Status suggested for a family member from yours (editable): L-2 (shown L-2S) for the spouse of an L-1, H-4 for H-1B… */
 export function suggestStatus(main: StatusCategory | undefined, relation: Relation): StatusCategory {

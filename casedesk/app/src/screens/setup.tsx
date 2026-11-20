@@ -18,7 +18,7 @@ import { REMINDER_TYPES, TYPE_DEFAULT, typeDates, typeSetting, typesFor, type Re
 import { widgetName } from '../core/widgets';
 import {
   GC_ANSWERS, OPTIONAL_STEPS, SETUP_ORDER, docChecklist, enteredAfterApproval, needsEntryDate, docProgress, familyStatusLabel, gcAnswerOf, gcFactsFor, nextDeadline, nextStep, prevStep, resumeStep, setupProgress, setupSteps,
-  suggestStatus, type GcAnswer, type SetupStep,
+  suggestStatus, isDependentStatus, principalStatusFor, type GcAnswer, type SetupStep,
 } from '../core/onboarding';
 import { useFamily, type FamilyState } from '../data/FamilyProvider';
 import { newId } from '../data/store';
@@ -41,6 +41,7 @@ import { useGuide } from './guide';
 import { ICloudPasswordSheet, useICloudSupport } from './icloud';
 
 // ---------- answers (what this setup collects before it is saved) ----------
+type PrincipalDraft = { id: string; name: string; relation: 'spouse' | 'parent'; status: StatusCategory; track: 'docs' | 'track'; touched?: boolean };
 type FamDraft = { id: string; name: string; relation: Relation; status: StatusCategory; touched?: boolean; saved?: boolean };
 type GcCat = NonNullable<GcFacts['category']>;
 type Answers = {
@@ -51,6 +52,7 @@ type Answers = {
   employer: string; place: string;
   gc?: GcAnswer; cat?: GcCat; pd?: string; workOn?: 'status' | 'ead';
   family: FamDraft[];
+  principal?: PrincipalDraft; // v3.0 fix8: when YOU are the dependent, the spouse or parent your status follows
 };
 
 const F1_GROUP: StatusCategory[] = ['F-1', 'F-1 OPT', 'STEM OPT'];
@@ -62,14 +64,16 @@ function prefill(f: FamilyState): Answers {
   const parts = (me?.name ?? '').trim().split(/\s+/).filter(Boolean);
   const fx = me?.facts ?? {};
   const st = me?.status && me.status !== 'unsure' ? me.status : undefined;
+  const pr = me?.facts.dependentOf ? f.people.find((p) => p.id === me.facts.dependentOf) : undefined;
   return {
+    principal: pr ? { id: pr.id, name: pr.name, relation: pr.relation === 'parent' ? 'parent' : 'spouse', status: pr.status ?? principalStatusFor(st), track: pr.facts.trackOnly ? 'track' : 'docs', touched: true } : undefined,
     first: parts[0] ?? '', last: parts.slice(1).join(' '), nameStyle: f.settings.widgetNames ?? 'initials', born: fx.birthCountry ?? birthCountryGuess(rec)?.code ?? '',
     where: rec?.locationKnown ? rec.location : fx.location, country: fx.country ?? rec?.country ?? 'India',
     status: st,
     blanket: fx.blanketL === true ? 'yes' : fx.blanketL === false ? 'no' : undefined, stu: st && F1_GROUP.includes(st) && me?.status ? st : undefined, h4ead: fx.hasEad,
     employer: fx.employer ?? rec?.employer ?? '', place: fx.workLocation ? placeText(fx.workLocation) : '',
     gc: gcAnswerOf(me), cat: fx.gc?.category, pd: fx.gc?.priorityDate, workOn: fx.gc?.workOn,
-    family: f.people.filter((p) => p.relation !== 'self').map((p) => ({ id: p.id, name: p.name, relation: p.relation, status: p.status ?? 'unsure', touched: true, saved: true })),
+    family: f.people.filter((p) => p.relation !== 'self' && p.id !== pr?.id).map((p) => ({ id: p.id, name: p.name, relation: p.relation, status: p.status ?? 'unsure', touched: true, saved: true })),
   };
 }
 
@@ -198,6 +202,7 @@ export function isValid(step: SetupStep, a: Answers): boolean {
       return true;
     }
     case 'gc': return !!a.gc;
+    case 'principal': return !!a.principal?.name.trim();
     default: return true;
   }
 }
@@ -229,7 +234,21 @@ async function saveStep(step: SetupStep, a: Answers, f: FamilyState) {
       if (changed) await A.setFacts(me.id, { location: a.where, country: a.where === 'Outside' ? a.country : undefined, locationOn: today() });
       return;
     }
-    case 'status': if (me && a.status && a.status !== me.status) await A.updatePerson(me.id, { status: a.status }); return;
+    case 'status': {
+      if (me && a.status && a.status !== me.status) await A.updatePerson(me.id, { status: a.status });
+      // no longer a dependent: their status stops following the principal picked before
+      if (me && a.status && !isDependentStatus(a.status) && me.facts.dependentOf) await A.setFacts(me.id, { dependentOf: undefined });
+      return;
+    }
+    case 'principal': {
+      const d = a.principal;
+      if (!me || !d || !d.name.trim()) return;
+      const old = f.people.find((p) => p.id === d.id);
+      const base: Pick<Person, 'facts' | 'createdAt' | 'reminders'> = old ?? { facts: {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } };
+      await A.savePeople([{ ...base, id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: { ...base.facts, trackOnly: d.track === 'track' ? true : undefined } } as Person]);
+      await A.setFacts(me.id, { dependentOf: d.id });
+      return;
+    }
     case 'details': {
       if (!me) return;
       const s = a.status;
@@ -257,11 +276,14 @@ async function saveStep(step: SetupStep, a: Answers, f: FamilyState) {
     }
     case 'family': {
       const list = a.family.filter((d) => d.name.trim());
+      const depPrincipal = me && isDependentStatus(a.status ?? me.status) && me.facts.dependentOf && f.people.some((p) => p.id === me.facts.dependentOf) ? me.facts.dependentOf : undefined;
       const people: Person[] = list.map((d) => {
         const old = f.people.find((p) => p.id === d.id);
         const base: Pick<Person, 'facts' | 'createdAt' | 'reminders'> = old ?? { facts: {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } };
         // v3.0 fix8 (owner): no date of birth in setup (documents show it; Edit details can add it later)
-        return { ...base, id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: { ...base.facts } } as Person;
+        // a child of a dependent who set the app up follows the same principal
+        const follows = d.relation === 'child' && depPrincipal && !base.facts.dependentOf ? { dependentOf: depPrincipal } : {};
+        return { ...base, id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: { ...base.facts, ...follows } } as Person;
       });
       if (people.length) await A.savePeople(people);
       return;
@@ -367,6 +389,7 @@ function renderStep(step: SetupStep, c: StepCtx): React.ReactNode {
     case 'where': return <WhereStep {...c} />;
     case 'status': return <StatusStep {...c} />;
     case 'details': return <DetailsStep {...c} />;
+    case 'principal': return <PrincipalStep {...c} />;
     case 'work': return <WorkStep {...c} />;
     case 'gc': return <GcStep {...c} />;
     case 'family': return <FamilyStep {...c} />;
@@ -518,6 +541,39 @@ function DetailsStep({ a, set }: StepCtx) {
   );
 }
 
+/** v3.0 fix8 (owner): someone on a dependent visa sets up — their status follows the principal, so
+ *  ask about the principal first (name, visa, add their documents or only track them). */
+function PrincipalStep({ a, set }: StepCtx) {
+  const [fresh] = useState(() => newId('p'));
+  const mine = a.status ? familyStatusLabel(a.status, a.principal?.relation === 'parent' ? 'child' : 'spouse') : 'dependent';
+  const d: PrincipalDraft = a.principal ?? { id: fresh, name: '', relation: 'spouse', status: principalStatusFor(a.status), track: 'docs' };
+  const upd = (patch: Partial<PrincipalDraft>) => set({ principal: { ...d, ...patch } });
+  const groups = useMemo(() => {
+    const g = statusGroups(true);
+    if (!g.some((x) => x.options.some((o) => o.value === 'L-1'))) g[0] = { ...g[0], options: [...g[0].options, { value: 'L-1' as StatusCategory, label: 'L-1 (A or B)' }] };
+    return g;
+  }, []);
+  return (
+    <View>
+      <H1>Who is your visa based on?</H1>
+      <Why>{`Your ${mine} status follows the main applicant’s visa, so we start with them.`}</Why>
+      <Label>The main applicant is your</Label>
+      <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }} accessibilityRole="radiogroup">
+        <View style={{ flex: 1 }}><ChoiceCard compact title="Spouse" selected={d.relation === 'spouse'} onPress={() => upd({ relation: 'spouse' })} /></View>
+        <View style={{ flex: 1 }}><ChoiceCard compact title="Parent" selected={d.relation === 'parent'} onPress={() => upd({ relation: 'parent' })} /></View>
+      </View>
+      <Field label="Their full name" value={d.name} onChangeText={(name) => upd({ name })} placeholder="First and last name" autoCapitalize="words" returnKeyType="done" />
+      <SelectField label={d.touched ? 'Their visa' : 'Their visa · suggested from yours'} value={d.status} onChange={(status) => upd({ status, touched: true })} groups={groups} />
+      <Label>Their documents</Label>
+      <View style={{ gap: 10, marginTop: 8 }} accessibilityRole="radiogroup">
+        <ChoiceCard icon="doc" tone="sky" title="Add their documents too" sub="Their approval and I-94 decide your dates · most accurate" selected={d.track === 'docs'} onPress={() => upd({ track: 'docs' })} />
+        <ChoiceCard icon="clock" tone="sage" title="Only track them" sub="Show them with you now · add their documents anytime" selected={d.track === 'track'} onPress={() => upd({ track: 'track' })} />
+      </View>
+      <Hint>Children come next, and are optional.</Hint>
+    </View>
+  );
+}
+
 /** v3.0 (owner): the on-this-phone promise is the first thing on the documents step, not small print. */
 function PhoneOnly() {
   return (
@@ -558,7 +614,7 @@ function GcStep({ a, set }: StepCtx) {
   const answers = applicant ? GC_ANSWERS.filter((x) => x.key !== 'none' && x.key !== 'approved') : GC_ANSWERS;
   return (
     <View>
-      <H1>{applicant ? 'How far is your green card?' : 'Has a green card process started?'}</H1>
+      <H1>{applicant ? 'How far is your green card?' : isDependentStatus(a.status) ? 'Has your family’s green card process started?' : 'Has a green card process started?'}</H1>
       <Why>Each stage has its own documents. The priority date and category come from the I-140 once you add it.</Why>
       <View style={{ gap: 10, marginTop: 20 }} accessibilityRole="radiogroup">
         {answers.map((x, i) => <ChoiceCard key={x.key} compact title={x.title} sub={x.sub} icon={['minus', 'doc', 'checkc', 'clock', 'card'][GC_ANSWERS.indexOf(x)] ?? 'doc'} tone={(['sky', 'butter', 'sage', 'mint', 'sage'] as PastelTone[])[i % 5]} selected={a.gc === x.key} onPress={() => set({ gc: x.key })} />)}
@@ -587,6 +643,9 @@ function GcStep({ a, set }: StepCtx) {
 function FamilyStep({ a, set, f }: StepCtx) {
   const t = useTheme();
   const main = a.status ?? f.main?.status;
+  // a dependent who set up: the principal is already added, so this step is about children (optional)
+  const dep = isDependentStatus(main) && !!a.principal?.name.trim();
+  const pFirst = a.principal?.name.trim().split(/\s+/)[0];
   const add = (relation: Relation) => { tap(); set({ family: [...a.family, { id: newId('p'), name: '', relation, status: suggestStatus(main, relation) }] }); };
   const upd = (i: number, d: FamDraft) => set({ family: a.family.map((x, j) => (j === i ? d : x)) });
   const groups = useMemo(() => {
@@ -596,8 +655,8 @@ function FamilyStep({ a, set, f }: StepCtx) {
   }, []);
   return (
     <View>
-      <H1>Who’s in your family?</H1>
-      <Why>Add your spouse and children on a visa or green card — even if they’re outside the US. Full names help match their documents.</Why>
+      <H1>{dep ? 'Any children?' : 'Who’s in your family?'}</H1>
+      <Why>{dep ? `Optional. Children on a dependent visa follow ${pFirst}’s visa too. Full names help match their documents.` : 'Add your spouse and children on a visa or green card — even if they’re outside the US. Full names help match their documents.'}</Why>
       <View style={{ gap: 12, marginTop: 18 }}>
         {a.family.map((d, i) => (
           <Appear key={d.id}>
@@ -619,11 +678,11 @@ function FamilyStep({ a, set, f }: StepCtx) {
         ))}
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 }}>
-        {!a.family.some((d) => d.relation === 'spouse') ? <Button kind="ghost" icon="plus" title="Spouse" onPress={() => add('spouse')} /> : null}
+        {!a.family.some((d) => d.relation === 'spouse') && !(dep && a.principal?.relation === 'spouse') ? <Button kind="ghost" icon="plus" title="Spouse" onPress={() => add('spouse')} /> : null}
         <Button kind="ghost" icon="plus" title="Child" onPress={() => add('child')} />
         <Button kind="ghost" icon="plus" title="Parent" onPress={() => add('parent')} />
       </View>
-      {!a.family.length ? <Hint center style={{ marginTop: 14 }}>Just you for now? Tap Skip — add family anytime from Home.</Hint> : null}
+      {!a.family.length ? <Hint center style={{ marginTop: 14 }}>{dep ? 'No children to add? Tap Skip — add them anytime from Home.' : 'Just you for now? Tap Skip — add family anytime from Home.'}</Hint> : null}
     </View>
   );
 }
@@ -639,7 +698,9 @@ function DocsStep({ f }: StepCtx) {
     const m = stepMeta(p, k, f.records[pid]);
     return f.docs.find((d) => d.ownerId === pid && fillsStep(m, d));
   };
-  const lists = f.people.map((p) => ({ p, ...docChecklist(p, f.records[p.id]) }));
+  // a principal added "only to track" (dependent setup) is not listed until their documents are wanted
+  const tracked = f.people.filter((p) => p.facts.trackOnly);
+  const lists = f.people.filter((p) => !p.facts.trackOnly).map((p) => ({ p, ...docChecklist(p, f.records[p.id]) }));
   const rows = lists.flatMap((l) => l.key.map((k) => ({ pid: l.p.id, k })));
   const prog = docProgress(rows, (pid, k) => !!has(pid, k));
   const setLater = (id: string, on: boolean) => {
@@ -718,6 +779,18 @@ function DocsStep({ f }: StepCtx) {
               </Pressable>
             )
           ) : null}
+        </Card>
+      ))}
+      {tracked.map((p) => (
+        <Card key={p.id} style={{ marginTop: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Avatar name={p.name} size="sm" />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <T style={font.headline} numberOfLines={1}>{p.name}</T>
+              <T tone="text2" style={font.foot}>{`${familyStatusLabel(p.status ?? 'unsure', p.relation)} · tracking only`}</T>
+            </View>
+            <Button size="sm" kind="tint" title="Add documents" label={`Add documents for ${p.name}`} onPress={() => { tap(); f.actions.setFacts(p.id, { trackOnly: undefined }).catch(() => {}); }} />
+          </View>
         </Card>
       ))}
       <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'center', alignItems: 'center', marginTop: 14 }}><Icon name="lock" size={13} color={t.text2} /><T tone="text2" style={font.caption}>Read on this phone. Your documents are never uploaded.</T></View>
@@ -912,7 +985,7 @@ function ProtectRow({ icon, tone, title, sub, right, first = true }: { icon: str
 function DoneStep({ f }: StepCtx) {
   const t = useTheme();
   const me = f.main;
-  const rows = f.people.flatMap((p) => docChecklist(p, f.records[p.id]).key.map((k) => ({ pid: p.id, k })));
+  const rows = f.people.filter((p) => !p.facts.trackOnly).flatMap((p) => docChecklist(p, f.records[p.id]).key.map((k) => ({ pid: p.id, k })));
   const prog = docProgress(rows, (pid, k) => { const p = f.people.find((x) => x.id === pid)!; const m = stepMeta(p, k, f.records[pid]); return f.docs.some((d) => d.ownerId === pid && fillsStep(m, d)); });
   const dates = f.people.flatMap((p) => { const d = typeDates(f.records[p.id]); return REMINDER_TYPES.filter((x) => x.key !== 'cases').map((x) => ({ name: p.name, what: x.title, date: d[x.key] })); });
   const nd = nextDeadline(dates, today());
@@ -966,7 +1039,7 @@ function SummaryLine({ icon, label, value, sub, extra }: { icon: string; label: 
 
 // ---------- wide screens: a live preview next to the step ----------
 const PREVIEW: Record<SetupStep, [string, PastelTone, string]> = {
-  welcome: ['shield', 'sage', ''], you: ['user', 'sky', 'Names are labels. Legal names come from passports.'], where: ['globe', 'sage', 'In the US you have an I-94. Outside, travel documents matter.'],
+  welcome: ['shield', 'sage', ''], principal: ['users', 'blush', 'A dependent’s dates follow the main applicant’s visa.'], you: ['user', 'sky', 'Names are labels. Legal names come from passports.'], where: ['globe', 'sage', 'In the US you have an I-94. Outside, travel documents matter.'],
   status: ['idcard', 'butter', 'Your status decides which documents and checks you see.'], details: ['list', 'butter', 'One detail that changes which documents apply.'],
   work: ['building', 'sky', 'H-1B work sites tie to a metro area.'], gc: ['card', 'mint', 'The family follows the main applicant’s PERM and I-140.'],
   family: ['users', 'blush', 'Dependents’ dates follow the main applicant.'], docs: ['doc', 'sky', 'Read on this phone. Never uploaded.'],
@@ -979,7 +1052,7 @@ function SetupPreview({ step, a }: { step: SetupStep; a: Answers }) {
   const name = [a.first.trim(), a.last.trim()].filter(Boolean).join(' ');
   const [icon, tone, line] = PREVIEW[step];
   const st = a.status ? STATUS_LABEL[a.status] : 'Status';
-  const rows = f.people.flatMap((p) => docChecklist(p, f.records[p.id]).key.map((k) => ({ pid: p.id, k })));
+  const rows = f.people.filter((p) => !p.facts.trackOnly).flatMap((p) => docChecklist(p, f.records[p.id]).key.map((k) => ({ pid: p.id, k })));
   const prog = docProgress(rows, (pid, k) => { const p = f.people.find((x) => x.id === pid)!; const m = stepMeta(p, k, f.records[pid]); return f.docs.some((d) => d.ownerId === pid && fillsStep(m, d)); });
   const fam = a.family.filter((d) => d.name.trim());
   return (

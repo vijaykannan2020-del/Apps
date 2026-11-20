@@ -175,7 +175,7 @@ export function statusFacts(me: Who, principal: Who | undefined, principalFacts:
   // ---- grace ----
   const jg = jobGrace(r, p);
   if (jg) out.graceUntil = jg;
-  else if (dependentOfPrincipal && principalFacts?.graceUntil && ['spouse', 'child'].includes(p.relation)) {
+  else if (dependentOfPrincipal && principalFacts?.graceUntil && (['spouse', 'child'].includes(p.relation) || (p.relation === 'self' && !!p.facts?.dependentOf))) {
     out.graceUntil = (v === 'F-2' || v === 'J-2') ? principalFacts.graceUntil : minDate(principalFacts.graceUntil, r.i94?.until);
   } else if (cap?.ended) out.graceUntil = cap.ended.on ? addDays(cap.ended.on, graceDays) : undefined;
   else if (!cap && (v === 'F-1 OPT' || v === 'STEM OPT' || v === 'F-1' || v === 'J-1') && out.statusUntil) out.graceUntil = addDays(out.statusUntil, graceDays);

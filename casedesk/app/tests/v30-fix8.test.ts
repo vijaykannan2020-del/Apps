@@ -67,3 +67,60 @@ test('fix8 entry date: asked only when an I-797A tear-off is the only I-94', () 
   assert.equal(enteredAfterApproval('2025-12-01', appr), false);
   assert.equal(enteredAfterApproval(undefined, appr), false);
 });
+
+// ---------- 4. dependent installer ----------
+import { setupSteps, setupProgress, nextStep, prevStep, applies, isDependentStatus, principalStatusFor, suggestStatus, DEPENDENT_STATUSES } from '../src/core/onboarding';
+import { evaluateFamily, principalFor, deriveRecord, type Person, type StatusCategory } from '../src/core';
+import { person } from './helpers';
+
+test('fix8 dependents: H-4 / L-2 / F-2 / J-2 / TD installers get the principal step right after their status questions', () => {
+  for (const s of ['H-4', 'L-2', 'F-2', 'J-2', 'TD'] as StatusCategory[]) {
+    const st = setupSteps({ status: s, notif: 'undetermined' });
+    assert.ok(st.includes('principal'), s);
+    assert.ok(st.indexOf('principal') > st.indexOf('status') && st.indexOf('principal') < st.indexOf('family'), `${s}: principal before family`);
+    assert.ok(isDependentStatus(s));
+  }
+  for (const s of ['H-1B', 'L-1A', 'F-1', 'green-card', 'citizen', 'other', undefined] as (StatusCategory | undefined)[]) assert.equal(applies('principal', { status: s }), false, String(s));
+  const h4 = setupSteps({ status: 'H-4', notif: 'undetermined' });
+  assert.equal(nextStep('details', h4), 'principal', 'after the H-4 EAD question');
+  assert.equal(nextStep('principal', h4), 'gc');
+  assert.equal(prevStep('gc', h4), 'principal');
+  const l2 = setupSteps({ status: 'L-2', notif: 'undetermined' });
+  assert.equal(nextStep('status', l2), 'principal', 'L-2: no details step, principal comes straight after the status');
+  assert.deepEqual(setupProgress('principal', l2), { at: 4, total: 10 }, 'the bar counts the principal step');
+  assert.deepEqual([...DEPENDENT_STATUSES], ['H-4', 'L-2', 'F-2', 'J-2', 'TD']);
+});
+test('fix8 dependents: principal visa suggested from yours, children follow your dependent status', () => {
+  assert.equal(principalStatusFor('H-4'), 'H-1B');
+  assert.equal(principalStatusFor('L-2'), 'L-1');
+  assert.equal(principalStatusFor('F-2'), 'F-1');
+  assert.equal(principalStatusFor('J-2'), 'J-1');
+  assert.equal(principalStatusFor('TD'), 'TN');
+  assert.equal(suggestStatus('H-4', 'child'), 'H-4');
+  assert.equal(suggestStatus('TN', 'spouse'), 'TD', 'a TN worker’s spouse is suggested TD');
+});
+test('fix8 dependents: the installer (self) is linked as dependent of the principal; the principal follows no one', () => {
+  const me: Person = person('me', 'self', { name: 'Mira Testdep', status: 'H-4', facts: { location: 'US', dependentOf: 'p1' } });
+  const sp: Person = person('p1', 'spouse', { name: 'Dev Testdep', status: 'H-1B', facts: { location: 'US', trackOnly: true } });
+  const kid: Person = person('k1', 'child', { name: 'Ana Testdep', status: 'H-4', facts: { location: 'US', dependentOf: 'p1' } });
+  const members = [me, sp, kid].map((p) => ({ person: p, rec: deriveRecord(p, []) }));
+  assert.equal(principalFor(members[0], members)?.person.id, 'p1', 'self on H-4 follows the spouse');
+  assert.equal(principalFor(members[1], members), undefined, 'the principal never follows their own dependent');
+  assert.equal(principalFor(members[2], members)?.person.id, 'p1');
+  const res = evaluateFamily({ members, docs: [], cases: [] } as never);
+  assert.equal(res.me.principalId, 'p1');
+  assert.equal(res.p1.principalId, undefined);
+  // an installer on a work visa is never a dependent, even with a stale link
+  const w = person('me', 'self', { status: 'H-1B', facts: { location: 'US' } });
+  assert.equal(principalFor({ person: w, rec: deriveRecord(w, []) }, members), undefined);
+});
+test('fix8 dependents: setup screen asks principal first, children optional, tracked principals are not in the checklist', () => {
+  const s = src('src/screens/setup.tsx');
+  const ps = fnBody('src/screens/setup.tsx', 'PrincipalStep');
+  for (const w of ['Who is your visa based on?', 'Spouse', 'Parent', 'Their full name', 'Add their documents too', 'Only track them']) assert.ok(ps.includes(w), w);
+  assert.match(fnBody('src/screens/setup.tsx', 'saveStep'), /setFacts\(me\.id, \{ dependentOf: d\.id \}\)/);
+  const fam = fnBody('src/screens/setup.tsx', 'FamilyStep');
+  assert.match(fam, /'Any children\?'/);
+  assert.match(fam, /Optional\. Children/);
+  assert.match(s, /filter\(\(p\) => !p\.facts\.trackOnly\)/);
+});

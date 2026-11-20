@@ -33,9 +33,13 @@ const OK_IDS = ['i94-ok', 'i94-filed', 'gc-ok', 'gca-ok'];
 /** Whose status a spouse / child follows (undefined = not a dependent). */
 export function principalFor(m: Member, members: Member[]): Member | undefined {
   const { person, rec } = m;
-  if (person.relation !== 'spouse' && person.relation !== 'child') return undefined;
+  // v3.0 fix8: the person who set the app up ("self") can be the dependent (H-4, L-2, F-2, J-2, TD):
+  // setup links them to the principal with dependentOf.
+  if (person.relation !== 'spouse' && person.relation !== 'child' && !(person.relation === 'self' && person.facts?.dependentOf)) return undefined;
   const others = members.filter((x) => x.person.id !== person.id);
   if (person.facts?.dependentOf) return others.find((x) => x.person.id === person.facts.dependentOf);
+  // a principal never follows someone who is linked as their dependent
+  if (others.some((x) => x.person.facts?.dependentOf === person.id)) return undefined;
   const main = others.find((x) => x.person.relation === 'self') ?? others.find((x) => x.person.isMain);
   if (!rec.visa) return main;
   if (!isDependentVisa(rec.visa)) return undefined;

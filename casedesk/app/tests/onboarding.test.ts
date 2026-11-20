@@ -53,8 +53,9 @@ test('onboarding: progress counts only the steps that apply (not welcome or done
   assert.deepEqual(setupProgress('gc', s), { at: 4, total: 9 });
   assert.deepEqual(setupProgress('welcome', s), { at: 0, total: 9 });
   assert.deepEqual(setupProgress('done', s), { at: 9, total: 9 });
-  const h4 = steps('H-4'); // details + gc, no work
-  assert.deepEqual(setupProgress('gc', h4), { at: 5, total: 10 });
+  const h4 = steps('H-4'); // details + principal (fix8) + gc, no work
+  assert.deepEqual(setupProgress('principal', h4), { at: 5, total: 11 });
+  assert.deepEqual(setupProgress('gc', h4), { at: 6, total: 11 });
   assert.equal(countedSteps(steps('green-card')).length, 8);
 });
 
@@ -72,7 +73,7 @@ test('onboarding: next / back / skip follow the order and never strand the user'
   assert.equal(nextStep('protect', s), 'done');
   assert.equal(nextStep('done', s), 'done');
   // skip = the same move as next, without saving; only optional steps offer it
-  assert.deepEqual([...OPTIONAL_STEPS].sort(), ['cases', 'docs', 'family', 'gc', 'protect', 'work']);
+  assert.deepEqual([...OPTIONAL_STEPS].sort(), ['cases', 'docs', 'family', 'gc', 'principal', 'protect', 'work']);
   for (const req of ['you', 'where', 'status', 'details'] as SetupStep[]) assert.ok(!OPTIONAL_STEPS.includes(req), `${req} needs an answer`);
 });
 
