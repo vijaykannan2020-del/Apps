@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
-const SERVER_VERSION = 10; // raise on every server change; shown in the app's Settings
+const SERVER_VERSION = 11; // raise on every server change; shown in the app's Settings
 const PORT = +(process.env.PORT || 8790);
 const SYNAPSE = process.env.SYNAPSE_URL || 'http://synapse:8008';
 const DATA = process.env.DATA_DIR || '/app/data';
@@ -581,6 +581,13 @@ const server = http.createServer(async (req, res) => {
     if (M === 'GET' && p === '/repos') {
       const list = await gh('/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member');
       return send(res, 200, list.map(r => ({ full: r.full_name, private: r.private, branch: r.default_branch, pushed: r.pushed_at, desc: r.description || '' })));
+    }
+    if (M === 'POST' && p === '/repos') {
+      const b = await body(req);
+      const name = String(b.name || '').trim().replace(/\s+/g, '-');
+      if (!/^[\w.-]{1,100}$/.test(name)) throw httpErr(400, 'Use letters, numbers, - or _ for the name.');
+      const r = await gh('/user/repos', { method: 'POST', body: { name, description: String(b.description || '').slice(0, 300), private: b.private !== false, auto_init: true } });
+      return send(res, 200, { full: r.full_name, private: r.private, branch: r.default_branch || 'main', pushed: r.pushed_at || new Date().toISOString(), desc: r.description || '' });
     }
     let m;
     if (M === 'GET' && (m = p.match(/^\/repos\/([\w.-]+\/[\w.-]+)\/branches$/))) {
