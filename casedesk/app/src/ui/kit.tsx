@@ -111,10 +111,10 @@ function Bar({ children, style, edge }: { children: React.ReactNode; style?: Vie
   const t = useTheme();
   const border = {};
   void edge;
-  if (BlurView && Platform.OS === 'ios') {
-    return <BlurView intensity={60} tint={t.dark ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'} style={[border, style]}>{children}</BlurView>;
-  }
-  return <View style={[{ backgroundColor: t.bar }, border, style]}>{children}</View>;
+  // v3.0 (owner): bars sit on the page colour like native iOS 26+ apps, so no lighter band runs across
+  // the top and bottom and under the foldable's status column; Android keeps its tonal app bar.
+  void BlurView;
+  return <View style={[{ backgroundColor: Platform.OS === 'android' ? t.bar : t.bg }, border, style]}>{children}</View>;
 }
 
 export type NavProps = { title?: string; back?: string; onBack?: () => void; right?: React.ReactNode; appBar?: 'android'; progress?: { label: string; right?: string; value: number } };
