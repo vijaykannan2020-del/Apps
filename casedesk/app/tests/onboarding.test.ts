@@ -18,15 +18,15 @@ const has = (s: SetupStep[], ...want: SetupStep[]) => want.every((w) => s.includ
 const lacks = (s: SetupStep[], ...no: SetupStep[]) => no.every((w) => !s.includes(w));
 
 test('onboarding: branching — work visas get details/work/gc as they apply', () => {
-  assert.deepEqual(steps('H-1B'), ['welcome', 'you', 'where', 'status', 'work', 'gc', 'family', 'docs', 'cases', 'alerts', 'protect', 'done']);
-  for (const s of ['L-1A', 'L-1B'] as StatusCategory[]) assert.ok(has(steps(s), 'details', 'work', 'gc'), `${s}: blanket question, work, green card`);
-  for (const s of ['TN', 'E-3', 'O-1'] as StatusCategory[]) { assert.ok(has(steps(s), 'work', 'gc'), s); assert.ok(lacks(steps(s), 'details'), s); }
+  assert.deepEqual(steps('H-1B'), ['welcome', 'you', 'where', 'status', 'gc', 'family', 'docs', 'cases', 'alerts', 'protect', 'done']);
+  for (const s of ['L-1A', 'L-1B'] as StatusCategory[]) assert.ok(has(steps(s), 'details', 'gc') && lacks(steps(s), 'work'), `${s}: blanket question, green card, no work step`);
+  for (const s of ['TN', 'E-3', 'O-1'] as StatusCategory[]) { assert.ok(has(steps(s), 'gc'), s); assert.ok(lacks(steps(s), 'details', 'work'), s); }
 });
 
 test('onboarding: branching — students, dependents, green card, citizens, visitors', () => {
   const f1 = steps('F-1');
   assert.ok(has(f1, 'details') && lacks(f1, 'work', 'gc'), 'F-1: OPT question only');
-  for (const s of ['F-1 OPT', 'STEM OPT'] as StatusCategory[]) { assert.ok(has(steps(s), 'details', 'work'), `${s}: work`); assert.ok(lacks(steps(s), 'gc'), `${s}: no green card step`); }
+  for (const s of ['F-1 OPT', 'STEM OPT'] as StatusCategory[]) { assert.ok(has(steps(s), 'details') && lacks(steps(s), 'work'), `${s}: no work step`); assert.ok(lacks(steps(s), 'gc'), `${s}: no green card step`); }
   const h4 = steps('H-4');
   assert.ok(has(h4, 'details', 'gc') && lacks(h4, 'work'), 'H-4: EAD question and green card, no employer');
   const l2 = steps('L-2');
@@ -48,11 +48,11 @@ test('onboarding: branching — situations (rerun, I-94 saved, alerts already al
 
 test('onboarding: progress counts only the steps that apply (not welcome or done)', () => {
   const s = steps('H-1B');
-  assert.equal(countedSteps(s).length, 10);
-  assert.deepEqual(setupProgress('you', s), { at: 1, total: 10 });
-  assert.deepEqual(setupProgress('work', s), { at: 4, total: 10 });
-  assert.deepEqual(setupProgress('welcome', s), { at: 0, total: 10 });
-  assert.deepEqual(setupProgress('done', s), { at: 10, total: 10 });
+  assert.equal(countedSteps(s).length, 9);
+  assert.deepEqual(setupProgress('you', s), { at: 1, total: 9 });
+  assert.deepEqual(setupProgress('gc', s), { at: 4, total: 9 });
+  assert.deepEqual(setupProgress('welcome', s), { at: 0, total: 9 });
+  assert.deepEqual(setupProgress('done', s), { at: 9, total: 9 });
   const h4 = steps('H-4'); // details + gc, no work
   assert.deepEqual(setupProgress('gc', h4), { at: 5, total: 10 });
   assert.equal(countedSteps(steps('green-card')).length, 8);
@@ -60,15 +60,15 @@ test('onboarding: progress counts only the steps that apply (not welcome or done
 
 test('onboarding: next / back / skip follow the order and never strand the user', () => {
   const s = steps('H-1B');
-  assert.equal(nextStep('status', s), 'work', 'details does not apply to H-1B');
+  assert.equal(nextStep('status', s), 'gc', 'details and work do not apply to H-1B');
   assert.equal(nextStep('gc', s), 'family');
-  assert.equal(prevStep('work', s), 'status');
+  assert.equal(prevStep('gc', s), 'status');
   assert.equal(prevStep('you', s), 'welcome');
   assert.equal(prevStep('you', steps('H-1B', { rerun: true })), undefined, 'rerun: Back on the first step closes');
   // the alerts step stops applying once permission is given: next still moves on to protect
   assert.equal(nextStep('alerts', steps('H-1B', { notif: 'granted' })), 'protect');
   // the status changed under a step (L-1A → H-1B while on details): next goes forward by the order
-  assert.equal(nextStep('details', s), 'work');
+  assert.equal(nextStep('details', s), 'gc');
   assert.equal(nextStep('protect', s), 'done');
   assert.equal(nextStep('done', s), 'done');
   // skip = the same move as next, without saving; only optional steps offer it
@@ -80,7 +80,7 @@ test('onboarding: resume where they left off', () => {
   const s = steps('H-1B');
   assert.equal(resumeStep(undefined, s, false), 'welcome', 'fresh start');
   assert.equal(resumeStep('docs', s, true), 'docs');
-  assert.equal(resumeStep('details', s, true), 'work', 'a step that no longer applies resumes at the next one');
+  assert.equal(resumeStep('details', s, true), 'gc', 'a step that no longer applies resumes at the next one');
   assert.equal(resumeStep('where', steps('H-1B', { locationFromDocs: true }), true), 'status');
   assert.equal(resumeStep('family', s, false), 'you', 'no person saved yet: back to the name');
   assert.equal(resumeStep('welcome', s, false), 'welcome');

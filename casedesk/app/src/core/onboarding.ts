@@ -38,7 +38,7 @@ export function applies(s: SetupStep, c: SetupCtx): boolean {
     case 'welcome': return !c.rerun;
     case 'where': return !c.locationFromDocs;
     case 'details': return !!st && DETAIL_STATUSES.includes(st);
-    case 'work': return !!st && WORK_STATUSES.includes(st);
+    case 'work': return false; // v3.0 (owner): employer and work location are not asked in setup; edit them later on the person page
     case 'gc': return !!st && GC_STATUSES.includes(st);
     case 'alerts': return c.notif !== 'granted';
     default: return true;
