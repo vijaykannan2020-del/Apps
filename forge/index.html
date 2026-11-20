@@ -56,7 +56,7 @@ label.fl{display:block;font-weight:500;font-size:12px;margin:16px 0 6px;color:va
 .btn:disabled{opacity:.4}
 .btn .spin{border-color:rgba(127,127,127,.35);border-top-color:currentColor}
 .row{display:flex;gap:8px;align-items:center}
-.hint{font-size:13px;color:var(--soft);margin-top:7px;line-height:1.45}
+.hint{font-size:13px;color:var(--soft);margin-top:7px;line-height:1.45;overflow-wrap:anywhere}
 .hint a,.md a{color:var(--blue);text-decoration:none}
 .hint code{font-family:var(--mono);font-size:12px;background:var(--raise);padding:1px 5px;border-radius:4px}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line2);border-top-color:var(--ink);border-radius:50%;animation:sp .7s linear infinite;flex:none}
@@ -269,12 +269,23 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 
   <div class="card set">
     <h3><span class="ag claude"><i></i>Claude Code</span> <span class="state" id="st-cl"></span></h3>
-    <div class="segs" id="cl-kind"><button data-k="key" class="on">API key</button><button data-k="sub">Subscription token</button></div>
-    <p class="hint" id="cl-hint"></p>
-    <input class="inp" id="in-cl" type="password" autocapitalize="none" autocorrect="off" style="margin-top:8px">
+    <div class="segs" id="cl-kind"><button data-k="sub" class="on">Claude plan (Pro / Max)</button><button data-k="key">API key</button></div>
+    <div id="cl-sub">
+      <p class="hint">Uses your Max plan. No extra cost.</p>
+      <div id="cl-login"></div>
+      <button class="btn go wide" id="cl-go" style="margin-top:10px">Sign in with Claude</button>
+      <details class="alt"><summary>Paste a token instead</summary>
+        <p class="hint">A token from <code>claude setup-token</code> (starts with sk-ant-oat).</p>
+        <input class="inp" id="in-clt" type="password" placeholder="sk-ant-oat…" autocapitalize="none" autocorrect="off" style="margin-top:8px">
+      </details>
+    </div>
+    <div id="cl-key" class="hidden">
+      <p class="hint">From <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com → API keys</a>. Billed per use, separate from your plan.</p>
+      <input class="inp" id="in-cl" type="password" placeholder="sk-ant-api…" autocapitalize="none" autocorrect="off" style="margin-top:8px">
+    </div>
     <label class="fl">Model (optional)</label>
     <input class="inp" id="in-clm" placeholder="Default (e.g. claude-opus-5-5)" autocapitalize="none" autocorrect="off">
-    <button class="btn go wide" id="sv-cl" style="margin-top:10px">Save</button>
+    <button class="btn ink wide" id="sv-cl" style="margin-top:10px">Save</button>
   </div>
 
   <div class="card set">
@@ -327,7 +338,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 4;
+const APP_VERSION = 5;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -673,7 +684,7 @@ $('#sc-more').onclick = () => {
 };
 
 // ---------- settings ----------
-let CL_KIND = 'key';
+let CL_KIND = 'sub';
 function st(el, ok, txt) { el.className = 'state ' + (ok ? 'ok' : 'no'); el.textContent = txt; }
 async function paintSettings() {
   $('#vers').textContent = `Version ${APP_VERSION}`;
@@ -683,21 +694,48 @@ async function paintSettings() {
   st($('#st-cl'), ME.claude, ME.claude || 'Not set');
   st($('#st-cx'), ME.codex, ME.codex ? 'Connected' : 'Not set');
   $('#in-clm').value = ME.claudeModel || ''; $('#in-cxm').value = ME.codexModel || '';
-  CL_KIND = ME.claude === 'Claude subscription' ? 'sub' : 'key'; paintCl();
+  CL_KIND = ME.claude === 'API key' ? 'key' : 'sub'; paintCl();
   $('#vers').textContent = `Version ${APP_VERSION} · ${ME.versions?.claude || ''} · ${ME.versions?.codex || ''}`;
   paintSetupNote();
 }
 function paintCl() {
   $$('#cl-kind button').forEach(b => b.classList.toggle('on', b.dataset.k === CL_KIND));
-  $('#cl-hint').innerHTML = CL_KIND === 'key' ? 'From <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com → API keys</a>. Pay per use.' : 'Uses your Claude Pro/Max plan. Make it once with <code>claude setup-token</code> on any computer (or ask me to run it with you), then paste it here.';
-  $('#in-cl').placeholder = CL_KIND === 'key' ? 'sk-ant-api…' : 'sk-ant-oat…';
+  $('#cl-sub').classList.toggle('hidden', CL_KIND !== 'sub'); $('#cl-key').classList.toggle('hidden', CL_KIND !== 'key');
+  $('#cl-go').textContent = ME?.claude === 'Claude subscription' ? 'Sign in again' : 'Sign in with Claude';
 }
 $('#cl-kind').onclick = e => { const b = e.target.closest('button'); if (b) { CL_KIND = b.dataset.k; paintCl(); } };
 async function saveSet(btn, body, msg) { busy(btn, true, 'Saving…'); try { await api('/settings', { body }); toast(msg || 'Saved'); await paintSettings(); } catch (e) { toast(e.message, 5000); } finally { busy(btn, false); } }
 $('#sv-gh').onclick = () => { const v = $('#in-gh').value.trim(); if (!v) return toast('Paste your token'); saveSet($('#sv-gh'), { githubToken: v }, 'GitHub connected').then(() => { $('#in-gh').value = ''; REPOS = null; }); };
 $('#rm-gh').onclick = () => saveSet($('#rm-gh'), { githubToken: '' }, 'GitHub disconnected').then(() => { REPOS = null; });
 $('#gh-go').onclick = () => deviceLogin($('#gh-go'), $('#gh-login'), '/github/login', 'GitHub connected', 'Open GitHub ↗', '1. Copy this code&nbsp; 2. Open GitHub and paste it&nbsp; 3. Tap Authorize').then(ok => { if (ok) REPOS = null; });
-$('#sv-cl').onclick = () => { const v = $('#in-cl').value.trim(); const b = { claudeModel: $('#in-clm').value }; if (v) b[CL_KIND === 'key' ? 'anthropicKey' : 'claudeOauthToken'] = v; saveSet($('#sv-cl'), b).then(() => $('#in-cl').value = ''); };
+$('#sv-cl').onclick = () => { const v = (CL_KIND === 'key' ? $('#in-cl') : $('#in-clt')).value.trim(); const b = { claudeModel: $('#in-clm').value }; if (v) b[CL_KIND === 'key' ? 'anthropicKey' : 'claudeOauthToken'] = v; saveSet($('#sv-cl'), b).then(() => { $('#in-cl').value = ''; $('#in-clt').value = ''; }); };
+$('#cl-go').onclick = async () => {
+  const b = $('#cl-go'), box = $('#cl-login'); busy(b, true, 'Starting…');
+  box.innerHTML = '<div class="working"><span class="spin"></span>Getting the Claude sign-in link…</div>';
+  try {
+    let j = await api('/claude/login', { method: 'POST' });
+    for (let n = 0; n < 15 && !j.url && !j.done; n++) { await new Promise(r => setTimeout(r, 1000)); j = await api('/claude/login'); }
+    if (!j.url) throw new Error(j.error || 'Could not get the sign-in link. Try again.');
+    box.innerHTML = `<p class="hint" style="margin-top:12px">1. Open the Claude page and sign in with your Max account&nbsp; 2. Tap <b>Authorize</b>&nbsp; 3. Copy the code it shows and paste it below.</p>
+      <a class="btn go wide" target="_blank" rel="noopener" href="${esc(j.url)}" style="margin-top:8px">Open Claude sign-in ↗</a>
+      <p class="hint">If it opens the Claude app instead: <button class="btn quiet" style="padding:4px 10px;font-size:13px" id="cl-copy">Copy link</button> and paste it into Safari's address bar.</p>
+      <label class="fl">Code from the Claude page</label>
+      <div class="row"><input class="inp" id="cl-code" placeholder="Paste code" autocapitalize="none" autocorrect="off"><button class="btn go" id="cl-send">Done</button></div>
+      <div id="cl-st"></div>`;
+    $('#cl-copy').onclick = () => navigator.clipboard?.writeText(j.url).then(() => toast('Link copied — paste it in Safari'));
+    busy(b, false);
+    $('#cl-send').onclick = async () => {
+      const sb = $('#cl-send'), code = $('#cl-code').value.trim(); if (!code) return toast('Paste the code first');
+      busy(sb, true); $('#cl-st').innerHTML = '<div class="working"><span class="spin"></span>Checking with Claude…</div>';
+      try {
+        let r = await api('/claude/code', { body: { code } });
+        for (let n = 0; n < 45 && !r.done; n++) { await new Promise(r2 => setTimeout(r2, 1000)); r = await api('/claude/login'); }
+        if (r.ok) { box.innerHTML = ''; toast('Claude connected with your plan'); paintSettings(); }
+        else { $('#cl-st').innerHTML = `<p class="hint" style="color:var(--red)">${esc(r.error || 'Still waiting… tap Done again in a moment.')}</p>${r.done ? '<p class="hint">Tap <b>Sign in with Claude</b> to get a fresh link.</p>' : ''}`; }
+      } catch (e) { toast(e.message, 5000); $('#cl-st').innerHTML = ''; } finally { busy(sb, false); }
+    };
+  } catch (e) { toast(e.message, 5000); box.innerHTML = ''; } finally { busy(b, false); }
+};
 $('#sv-cx').onclick = () => { const v = $('#in-cx').value.trim(); const b = { codexModel: $('#in-cxm').value }; if (v) b.openaiKey = v; saveSet($('#sv-cx'), b).then(() => $('#in-cx').value = ''); };
 $('#cx-out').onclick = async () => { try { await api('/codex/logout', { method: 'POST' }); toast('Codex signed out'); paintSettings(); } catch (e) { toast(e.message); } };
 $('#cx-go').onclick = () => deviceLogin($('#cx-go'), $('#cx-login'), '/codex/login', 'Codex connected', 'Open ChatGPT sign-in ↗', '1. Tap the code to copy it&nbsp; 2. Open the ChatGPT page and sign in&nbsp; 3. Paste the code. If ChatGPT says device codes are off: ChatGPT → Settings → Security → turn on device code sign-in for Codex, then try again.');

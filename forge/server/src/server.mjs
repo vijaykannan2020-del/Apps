@@ -42,7 +42,8 @@ function run(cmd, args, opts = {}) {
   });
 }
 function baseEnv(extra = {}) {
-  return { PATH: process.env.PATH, HOME, CODEX_HOME, LANG: 'C.UTF-8', TERM: 'dumb', NO_COLOR: '1', CI: '1', GIT_TERMINAL_PROMPT: '0', ...extra };
+  const pass = {}; for (const k of ['HTTPS_PROXY', 'HTTP_PROXY', 'NO_PROXY', 'https_proxy', 'http_proxy', 'no_proxy', 'NODE_EXTRA_CA_CERTS', 'SSL_CERT_FILE']) if (process.env[k]) pass[k] = process.env[k];
+  return { PATH: process.env.PATH, HOME, CODEX_HOME, LANG: 'C.UTF-8', TERM: 'dumb', NO_COLOR: '1', CI: '1', GIT_TERMINAL_PROMPT: '0', ...pass, ...extra };
 }
 // git with the GitHub token passed as a header for this one command (never written to disk)
 function gitArgs(args) {
@@ -364,6 +365,46 @@ function startCodexDeviceLogin() {
   codexLogin = st;
   return st;
 }
+// ---------- Claude subscription sign-in (Pro/Max): runs `claude setup-token` in a terminal on the server ----------
+let clLogin = null;
+function startClaudeLogin() {
+  if (clLogin && !clLogin.done) { try { clLogin.proc.kill('SIGKILL'); } catch {} }
+  const st = { raw: '', url: '', done: false, ok: false, error: '', sent: false };
+  // `script` gives the CLI the terminal it needs; a very wide terminal keeps the token on one line
+  const proc = spawn('script', ['-qfec', 'stty cols 2000 rows 60 2>/dev/null; exec claude setup-token', '/dev/null'], { env: baseEnv({ COLUMNS: '2000', LINES: '60', TERM: 'xterm-256color', BROWSER: 'true' }), stdio: ['pipe', 'pipe', 'pipe'] });
+  const eat = d => {
+    st.raw = (st.raw + d).slice(-200000);
+    if (!st.url) { const m = st.raw.match(/\x1b\]8;[^;\x07\x1b]*;(https:\/\/claude\.(?:com|ai)\/[^\x07\x1b\s]+)/) || st.raw.match(/(https:\/\/claude\.(?:com|ai)\/cai\/oauth\/authorize\?[^\x07\x1b\s]+)/); if (m) st.url = m[1]; }
+    const clean = st.raw.replace(/\x1b\[(\d*)C/g, (_, n) => ' '.repeat(+n || 1)).replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, '').replace(/\x1b\[[0-9;?>]*[A-Za-z~]/g, '').replace(/[\r\n]+/g, '\n');
+    const t = clean.match(/sk-ant-oat[0-9A-Za-z_\-]{20,}/);
+    if (t && !st.ok) {
+      setSecrets({ claudeOauthToken: t[0], anthropicKey: '' });
+      st.ok = true; st.done = true; try { proc.kill(); } catch {}
+    } else if (st.sent) {
+      const after = st.raw.slice(st.sentAt).replace(/\x1b\[(\d*)C/g, (_, n) => ' '.repeat(+n || 1)).replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, '').replace(/\x1b\[[0-9;?>]*[A-Za-z~]/g, '');
+      const e = after.match(/[^\n\r]*(OAuth error|invalid|expired|failed)[^\n\r]*/i);
+      if (e) { st.error = e[0].replace(/^[\s×✗✘*]+/, '').replace(/\s+/g, ' ').trim().slice(0, 240) || 'Claude did not accept that code.'; st.done = true; try { proc.kill(); } catch {} }
+    }
+  };
+  proc.stdout.on('data', eat); proc.stderr.on('data', eat);
+  proc.on('close', () => { st.done = true; if (!st.ok && !st.error) st.error = 'Sign-in did not finish. Tap Sign in with Claude again.'; });
+  proc.on('error', e => { st.done = true; st.error = 'Could not start the sign-in: ' + e.message; });
+  setTimeout(() => { if (!st.done) proc.kill('SIGKILL'); }, 15 * 60 * 1000);
+  st.proc = proc;
+  clLogin = st;
+  return st;
+}
+function sendClaudeCode(code) {
+  const st = clLogin;
+  if (!st || st.done) throw httpErr(400, 'Start the sign-in first.');
+  code = String(code || '').trim();
+  if (!code) throw httpErr(400, 'Paste the code from the Claude page.');
+  st.error = ''; st.sent = true; st.sentAt = st.raw.length;
+  st.proc.stdin.write(code);
+  setTimeout(() => { try { st.proc.stdin.write('\r'); } catch {} }, 300);
+}
+const clView = st => st && { url: st.url, done: st.done, ok: st.ok, error: st.error, sent: st.sent };
+
 // ---------- GitHub sign-in (device flow, GitHub CLI's public OAuth app — same flow as `gh auth login`) ----------
 const GH_CLIENT = process.env.GITHUB_CLIENT_ID || '178c6fc778ccc68e1d6a';
 let ghLogin = null;
@@ -474,6 +515,9 @@ const server = http.createServer(async (req, res) => {
       setSecrets(patch);
       return send(res, 200, await status());
     }
+    if (M === 'POST' && p === '/claude/login') return send(res, 200, clView(startClaudeLogin()));
+    if (M === 'GET' && p === '/claude/login') return send(res, 200, clView(clLogin) || {});
+    if (M === 'POST' && p === '/claude/code') { const b = await body(req); sendClaudeCode(b.code); return send(res, 200, clView(clLogin)); }
     if (M === 'POST' && p === '/github/login') return send(res, 200, ghView(await startGithubLogin()));
     if (M === 'GET' && p === '/github/login') return send(res, 200, ghView(ghLogin) || {});
     if (M === 'POST' && p === '/codex/login') return send(res, 200, loginView(startCodexDeviceLogin()));

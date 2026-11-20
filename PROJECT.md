@@ -152,6 +152,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-20, Claude: Forge Version 5: Sign in with Claude (Pro/Max plan) from the phone. Server runs `claude setup-token` under `script` (pty, 2000 cols), returns the authorize link, takes the code typed in the app, captures the sk-ant-oat token into secrets.json (`/claude/login`, `/claude/code`). ChatGPT sign-in link cleaned of terminal escape codes; Copy link fallback when the ChatGPT/Claude app grabs the link. Server passes proxy env vars through to agents if set.
+
 - 2026-11-20, Claude: Forge Version 3: near-black Cursor-style redesign (always dark, Inter + JetBrains Mono, editor tabs, Cursor-like composer box, compact tool rows, line-numbered file viewer). Connect GitHub with one tap (device flow using GitHub CLI's public OAuth app, scopes repo read:org workflow; server `/github/login`), token kept as fallback.
 
 - 2026-11-20, Claude: Added Forge (`forge/` app Version 1 + `forge/server`). Server runs Claude Code (`claude -p --output-format stream-json`, `--resume`) and Codex (`codex exec --json`, `exec resume`) per session in a cloned repo on branch `forge/<slug>-<id>`; app long-polls events, shows tool steps, diff, files; Commit & push / PR / squash-merge via the GitHub token. Codex supports ChatGPT device sign-in or API key; Claude supports API key or `claude setup-token` token. My Inbox changes: Caddyfile `handle /forge/*` → `forge-api:8790`; `auto-update.sh` installs forge/server once into /opt/forge and reloads Caddy whenever the Caddyfile changes (reload only, never restart). Tested with a mock Synapse and fake agent CLIs (both event formats) + Playwright light/dark; real agent flags checked against claude 2.1.329 and codex-cli 0.171.0. Not yet run on the real server.
