@@ -41,7 +41,7 @@ import { useGuide } from './guide';
 import { ICloudPasswordSheet, useICloudSupport } from './icloud';
 
 // ---------- answers (what this setup collects before it is saved) ----------
-type FamDraft = { id: string; name: string; relation: Relation; status: StatusCategory; dob?: string; touched?: boolean; saved?: boolean };
+type FamDraft = { id: string; name: string; relation: Relation; status: StatusCategory; touched?: boolean; saved?: boolean };
 type GcCat = NonNullable<GcFacts['category']>;
 type Answers = {
   first: string; last: string; nameStyle: 'initials' | 'first'; born: string;
@@ -69,7 +69,7 @@ function prefill(f: FamilyState): Answers {
     blanket: fx.blanketL === true ? 'yes' : fx.blanketL === false ? 'no' : undefined, stu: st && F1_GROUP.includes(st) && me?.status ? st : undefined, h4ead: fx.hasEad,
     employer: fx.employer ?? rec?.employer ?? '', place: fx.workLocation ? placeText(fx.workLocation) : '',
     gc: gcAnswerOf(me), cat: fx.gc?.category, pd: fx.gc?.priorityDate, workOn: fx.gc?.workOn,
-    family: f.people.filter((p) => p.relation !== 'self').map((p) => ({ id: p.id, name: p.name, relation: p.relation, status: p.status ?? 'unsure', dob: p.facts.birthDate, touched: true, saved: true })),
+    family: f.people.filter((p) => p.relation !== 'self').map((p) => ({ id: p.id, name: p.name, relation: p.relation, status: p.status ?? 'unsure', touched: true, saved: true })),
   };
 }
 
@@ -261,9 +261,8 @@ async function saveStep(step: SetupStep, a: Answers, f: FamilyState) {
       const people: Person[] = list.map((d) => {
         const old = f.people.find((p) => p.id === d.id);
         const base: Pick<Person, 'facts' | 'createdAt' | 'reminders'> = old ?? { facts: {}, createdAt: today(), reminders: { on: true, lead: f.settings.reminderLeadDays } };
-        // a typed date of birth is kept only where no document shows one
-        const docDob = f.records[d.id]?.birthDate && f.records[d.id]?.birthDate !== old?.facts.birthDate ? f.records[d.id]?.birthDate : undefined;
-        return { ...base, id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: { ...base.facts, birthDate: docDob ? base.facts.birthDate : d.dob } } as Person;
+        // v3.0 fix8 (owner): no date of birth in setup (documents show it; Edit details can add it later)
+        return { ...base, id: d.id, name: d.name.trim(), relation: d.relation, status: d.status, facts: { ...base.facts } } as Person;
       });
       if (people.length) await A.savePeople(people);
       return;
@@ -615,7 +614,6 @@ function FamilyStep({ a, set, f }: StepCtx) {
                 ) : null}
               </View>
               <Field label="Full name" value={d.name} onChangeText={(name) => upd(i, { ...d, name })} placeholder="First and last name" autoCapitalize="words" autoFocus={!d.saved && !d.name && Platform.OS !== 'web'} returnKeyType="done" />
-              <DateField label="Date of birth (optional)" value={d.dob} onChange={(dob) => upd(i, { ...d, dob })} />
               <SelectField label={d.touched ? 'Status' : `Status · suggested from yours`} value={d.status} onChange={(status) => upd(i, { ...d, status, touched: true })} groups={groups} />
               {d.status === 'L-2' && d.relation === 'spouse' ? <Hint>Shown as L-2S: the spouse’s I-94 itself allows work.</Hint> : null}
             </Card>
