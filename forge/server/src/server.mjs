@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
-const SERVER_VERSION = 6; // raise on every server change; shown in the app's Settings
+const SERVER_VERSION = 7; // raise on every server change; shown in the app's Settings
 const PORT = +(process.env.PORT || 8790);
 const SYNAPSE = process.env.SYNAPSE_URL || 'http://synapse:8008';
 const DATA = process.env.DATA_DIR || '/app/data';
@@ -164,7 +164,8 @@ function agentEnv(agent) {
 }
 const codexReady = () => fs.existsSync(path.join(CODEX_HOME, 'auth.json'));
 
-function startRun(s, text, agent, model) {
+function startRun(s, text, agent, model, mode) {
+  mode = mode === 'ask' ? 'ask' : 'agent';
   if (runs.has(s.id)) throw httpErr(409, 'Still working on the last message. Stop it first or wait.');
   if (!fs.existsSync(path.join(WORK_DIR, s.id))) throw httpErr(410, 'This session’s files are gone. Start a new session.');
   agent = agent === 'codex' ? 'codex' : agent === 'claude' ? 'claude' : s.agent;
@@ -175,18 +176,19 @@ function startRun(s, text, agent, model) {
   let cmd, args;
   if (agent === 'claude') {
     cmd = 'claude';
-    args = ['-p', text, '--output-format', 'stream-json', '--verbose', '--dangerously-skip-permissions', '--append-system-prompt', GUIDE];
+    args = ['-p', text, '--output-format', 'stream-json', '--verbose', '--append-system-prompt', mode === 'ask' ? GUIDE + ' ASK MODE: answer questions and explain; do not change any files.' : GUIDE];
+    args.push(...(mode === 'ask' ? ['--permission-mode', 'plan'] : ['--dangerously-skip-permissions']));
     if (model) args.push('--model', model);
     if (s.claudeSession) args.push('--resume', s.claudeSession);
   } else {
     cmd = 'codex';
-    const common = ['--json', '--dangerously-bypass-approvals-and-sandbox', '--skip-git-repo-check'];
+    const common = ['--json', '--skip-git-repo-check', ...(mode === 'ask' ? ['-c', 'sandbox_mode="read-only"', '-c', 'approval_policy="never"'] : ['--dangerously-bypass-approvals-and-sandbox'])];
     if (model) common.push('-m', model);
-    const prompt = s.codexThread ? text : `${GUIDE}\n\n${text}`;
+    const prompt = (s.codexThread ? '' : GUIDE + '\n\n') + (mode === 'ask' ? '(Ask mode: answer only, do not edit files.)\n' : '') + text;
     args = s.codexThread ? ['exec', 'resume', ...common, s.codexThread, prompt] : ['exec', ...common, '-C', cwd, prompt];
   }
   s.agent = agent; s.status = 'running';
-  push(s, { kind: 'user', text, agent });
+  push(s, { kind: 'user', text, agent, model: model || '', mode });
   const proc = spawn(cmd, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
   const r = { proc, agent, tools: new Map(), stopped: false };
   runs.set(s.id, r);
@@ -538,7 +540,7 @@ const server = http.createServer(async (req, res) => {
     if (M === 'POST' && p === '/sessions') {
       const b = await body(req);
       const s = await createSession(b);
-      if (b.prompt && String(b.prompt).trim()) { try { startRun(s, String(b.prompt).trim(), b.agent); } catch (e) { push(s, { kind: 'error', text: e.message }); } }
+      if (b.prompt && String(b.prompt).trim()) { try { startRun(s, String(b.prompt).trim(), b.agent, b.model, b.mode); } catch (e) { push(s, { kind: 'error', text: e.message }); } }
       return send(res, 200, summary(s));
     }
     if ((m = p.match(/^\/sessions\/([a-f0-9]+)(\/[a-z]+)?$/))) {
@@ -554,7 +556,7 @@ const server = http.createServer(async (req, res) => {
         }
         return send(res, 200, { status: s.status, events: ev, prUrl: s.prUrl || null });
       }
-      if (M === 'POST' && sub === '/message') { const b = await body(req); if (!String(b.text || '').trim()) throw httpErr(400, 'Type a message.'); startRun(s, String(b.text).trim(), b.agent, b.model); return send(res, 200, { ok: true }); }
+      if (M === 'POST' && sub === '/message') { const b = await body(req); if (!String(b.text || '').trim()) throw httpErr(400, 'Type a message.'); startRun(s, String(b.text).trim(), b.agent, b.model, b.mode); return send(res, 200, { ok: true }); }
       if (M === 'POST' && sub === '/stop') { const r = runs.get(s.id); if (r) { r.stopped = true; r.proc.kill('SIGTERM'); setTimeout(() => { try { r.proc.kill('SIGKILL'); } catch {} }, 4000); } return send(res, 200, { ok: true }); }
       if (M === 'GET' && sub === '/diff') return send(res, 200, await diffOf(s));
       if (M === 'GET' && sub === '/files') { const r = await run('git', ['ls-files', '-co', '--exclude-standard'], { cwd: path.join(WORK_DIR, s.id) }); return send(res, 200, r.out.split('\n').filter(Boolean).slice(0, 20000)); }

@@ -152,6 +152,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-20, Claude: Forge Version 8 (server 7): Cursor-style Projects → Chats (home = recent chats + projects; project page = composer + its chats; + Open project repo picker, recent first). Composer chips: agent, model (Claude Default/Opus 5.5/Sonnet 5.5/Haiku 5.5 or any name; Codex Default or any name), mode Agent/Ask (Ask = Claude `--permission-mode plan`, Codex read-only sandbox). Unfolded Duo / width ≥ 760: sidebar 360px + chat on the right. All http links open in real Safari (`x-safari-https://` in the Home Screen app) so sign-ins aren't lost.
+
 - 2026-11-20, Claude: Forge Version 5: Sign in with Claude (Pro/Max plan) from the phone. Server runs `claude setup-token` under `script` (pty, 2000 cols), returns the authorize link, takes the code typed in the app, captures the sk-ant-oat token into secrets.json (`/claude/login`, `/claude/code`). ChatGPT sign-in link cleaned of terminal escape codes; Copy link fallback when the ChatGPT/Claude app grabs the link. Server passes proxy env vars through to agents if set.
 
 - 2026-11-20, Claude: Forge Version 3: near-black Cursor-style redesign (always dark, Inter + JetBrains Mono, editor tabs, Cursor-like composer box, compact tool rows, line-numbered file viewer). Connect GitHub with one tap (device flow using GitHub CLI's public OAuth app, scopes repo read:org workflow; server `/github/login`), token kept as fallback.
