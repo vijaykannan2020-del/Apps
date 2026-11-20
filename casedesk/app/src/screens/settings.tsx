@@ -21,7 +21,8 @@ import { ICloudRows } from './icloud';
 import { HELP } from '../content/help';
 import { NotifyRows } from './notify';
 import { FamilyWalletRow, WidgetRows } from './wallet';
-import { ImportSharedRow, InviteRow } from './share';
+import { ImportSharedRow, InviteRow, ShareRow } from './share';
+import { useGuide } from './guide';
 
 export function SettingsScreen() {
   const f = useFamily();
@@ -30,6 +31,7 @@ export function SettingsScreen() {
   const theme = useThemeChoice();
   const os = listOS();
   const tour = useTour('settings');
+  const guide = useGuide();
   const params = useLocalSearchParams<{ backup?: string; open?: string }>();
   useEffect(() => { if (params.backup === '1') { router.setParams({ backup: undefined } as never); setTimeout(() => sheet.open('Back up now', <BackupSheet />), 350); } }, [params.backup, sheet]);
   // v2.9 search: open one sheet straight away (?open=restore | reminders | wipe | diag)
@@ -97,6 +99,7 @@ export function SettingsScreen() {
           <ImportSharedRow />
           <InviteRow />
         </Group></TourTarget>
+        <TourTarget id="share"><ShareRow /></TourTarget>
 
         <SectionHeader>Widgets &amp; Wallet</SectionHeader>
         <WidgetRows />
@@ -106,7 +109,7 @@ export function SettingsScreen() {
         <TourTarget id="helpsec"><Group>
           <Row icon="help" iconPastel="blush" title="Help topics" subtitle={`${HELP.length} short guides`} onPress={() => go('/help')} />
           <Row icon="list" iconPastel="blush" title="Run setup again" subtitle="Keeps your data and fills the gaps" onPress={async () => { await f.actions.updateSettings({ setup: rerunProgress() }); go('/setup', { mode: 'rerun' }); }} />
-          <Row icon="play" iconPastel="blush" title="How Immigration Wallet works" subtitle="A 4-screen tour" onPress={() => go('/tour')} />
+          <TourTarget id="taketour"><Row icon="play" iconPastel="blush" title="Take the tour" subtitle="A 1-minute walk through the app" onPress={guide.start} /></TourTarget>
           <Row icon="users" iconPastel="blush" title="Example family" subtitle="Look around with made-up data" chevron={false} onPress={() => sheet.open('Load the example family?', <Confirm body="Everything on this phone is replaced by a made-up H-1B family. Back up first if you need your data." action="Load example" onConfirm={() => { try { router.dismissAll(); } catch {} replace('/demo'); }} />)} />
           <Row icon="bulb" iconPastel="blush" title="Show tips on every screen" subtitle="Off: only the harder screens show tips; tap ? anywhere" trailing={<Switch value={!!f.settings.toursAll} label="Show tips on every screen" onValueChange={(on) => { f.actions.updateSettings({ toursAll: on, toursOff: false }); toast(on ? 'Tips show once on every screen' : 'Tips only on the harder screens'); }} />} />
           <Row icon="refresh" iconPastel="blush" title="Show all tips again" subtitle="Replays the tips on every screen once" chevron={false} onPress={async () => { await f.actions.updateSettings({ toursSeen: [], toursOff: false, toursAll: true, helpSeen: [] }); toast('Tips will show again on every screen'); tour.start(); }} />

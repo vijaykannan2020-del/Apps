@@ -88,6 +88,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
   const openAdd = () => sheet.open('Add or renew a document', <RenewSheet pid={p.id} />);
   const left = (
     <>
+      <TourTarget id="card">
       <TourTarget id="status">
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -108,6 +109,7 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
         <Chip text={locationChip(p, rec)} />
         {result ? <ReviewChip findings={result.findings} until={result.facts.statusUntil} worst={result.worst} name={p.name} /> : null}
       </View>
+      </TourTarget>
       <WalletCardRow pid={p.id} />
 
       <SectionHeader>Needs attention</SectionHeader>

@@ -52,7 +52,8 @@ export const APP_SCREENS: ScreenEntry[] = [
   // updates and help
   { id: 'news', section: 'Updates', title: 'Updates', sub: 'USCIS, DOS and DOL news for your visa types', path: '/news', keywords: ['news', 'headlines', 'policy', 'rule change'] },
   { id: 'help', section: 'Help', title: 'Help topics', sub: 'Short guides to every part of the app', path: '/help', keywords: ['how to', 'guide', 'faq'] },
-  { id: 'tour', section: 'Help', title: 'How Immigration Wallet works', sub: 'A short tour', path: '/tour', keywords: ['tour', 'intro', 'tutorial', 'walkthrough'] },
+  { id: 'guide', section: 'Help', title: 'Take the tour', sub: 'A 1-minute walk through the app', path: '/guide', keywords: ['tour', 'guided tour', 'show me around', 'tutorial', 'walkthrough', 'how to use'] },
+  { id: 'tour', section: 'Help', title: 'How Immigration Wallet works', sub: 'A 4-screen summary', path: '/tour', keywords: ['intro', 'summary', 'how it works'] },
   { id: 'about', section: 'Help', title: 'About and support', sub: 'Data sources, privacy, licences, version', path: '/about', keywords: ['about', 'support', 'contact', 'version', 'licences', 'data sources', 'feedback'] },
   // settings
   { id: 'settings', section: 'Settings', title: 'Settings', sub: 'Appearance, Face ID, reminders, backup', path: '/settings', keywords: ['preferences', 'options'] },

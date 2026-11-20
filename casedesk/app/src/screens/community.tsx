@@ -99,10 +99,12 @@ export function CommunityFeedScreen({ backTitle = 'Back', tabRoot }: { backTitle
   const header = (
     <View style={{ paddingBottom: 8 }}>
       {searchBar}
+      <TourTarget id="chips">
       <ChipRow style={{ marginTop: searching ? 4 : 2 }} lead={<TourTarget id="sort"><MenuButton title={sortLabel(sort, range)} label={`Sort: ${sortLabel(sort, range)}`} onPress={openSort} /></TourTarget>}>
         {fam.length ? <ChipToggle size="sm" role="checkbox" text="For my visa" on={scope === 'For my visa'} onPress={() => { setScope(scope === 'For my visa' ? 'All' : 'For my visa'); setTag(null); }} /> : null}
         {chips.map((g) => <ChipToggle size="sm" key={g} role="checkbox" text={g} on={tag === g} onPress={() => setTag(tag === g ? null : g)} />)}
       </ChipRow>
+      </TourTarget>
       {error ? <Note tone="amber" actions={<Button size="sm" kind="tint" title="Try again" onPress={load} />}>{error}</Note> : null}
     </View>
   );

@@ -47,7 +47,10 @@ export function HelpListScreen() {
       <Why>How Immigration Wallet works, step by step.</Why>
       <Group style={{ marginTop: 18 }}>{HELP.map((h) => <Row key={h.id} icon="help" title={h.title} subtitle={h.sub} onPress={() => go(`/help/${h.id}`)} />)}</Group>
       <SectionHeader>More</SectionHeader>
-      <Group><Row icon="play" title="How Immigration Wallet works" subtitle="A 4-screen tour" onPress={() => go('/tour')} /></Group>
+      <Group>
+        <Row icon="play" title="Take the tour" subtitle="A 1-minute walk through the app" onPress={() => go('/guide')} />
+        <Row icon="list" title="How Immigration Wallet works" subtitle="A 4-screen summary" onPress={() => go('/tour')} />
+      </Group>
       <Hint center style={{ marginTop: 18 }}>General information, not legal advice.</Hint>
     </Screen>
   );

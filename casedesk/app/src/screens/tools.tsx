@@ -28,6 +28,7 @@ const waitsDate = (u?: string | null) => { if (!u) return undefined; const m = u
 import { answerState, ANSWER_LABEL, quizSummary, type AnswerState, type QuizResult } from '../core/quiz';
 import { FamilyFilings, familyForms } from './filings';
 import { GcPlanBody } from './gc';
+import { WORK_VISAS } from '../core/guide';
 import { useProcessing } from '../data/processing';
 import { COUNTRIES } from './sheets';
 import { openUrl } from '../native/device';
@@ -62,7 +63,12 @@ export function ToolsTab() {
   const f = useFamily();
   const L = useLayout();
   const t = useTheme();
-  const groups = f.settings.hrTools ? [...TOOLS, HR] : TOOLS;
+  // v3.0: I lost my job sits with the plans for people on a work visa (the guided tour points here)
+  const me = f.main ?? f.people[0];
+  const work = !!me && WORK_VISAS.test(`${f.records[me.id]?.visa ?? ''} ${me.status ?? ''}`);
+  const plans: [string, ToolDef[]] = [TOOLS[0][0], [...TOOLS[0][1], ...(work ? [{ id: 'layoff', icon: 'case', title: 'I lost my job', sub: 'Last day in status and what to do' }] : [])]];
+  const base: [string, ToolDef[]][] = [plans, ...TOOLS.slice(1)];
+  const groups = f.settings.hrTools ? [...base, HR] : base;
   const tour = useTour('tools');
   return (
     <Screen tabRoot wide tour={tour}>
@@ -73,7 +79,7 @@ export function ToolsTab() {
           {/* pastel icon tiles in a grid: 2 across on phones (1 at very large text), 3–4 on wide screens */}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
             {list.map((x, i) => (
-              <IconTile key={x.id} tone={TILE_TONES[(i + gi) % TILE_TONES.length]} icon={x.icon} title={x.title} sub={x.sub} onPress={() => go(`/tools/${x.id}`)}
+              <IconTile key={x.id} tone={TILE_TONES[(i + gi) % TILE_TONES.length]} icon={x.icon} title={x.title} sub={x.sub} onPress={() => go(x.id === 'layoff' && me ? `/layoff/${me.id}` : `/tools/${x.id}`)}
                 style={{ flexBasis: L.fontScale > 1.5 ? '100%' : L.width >= 1000 ? '23%' : L.twoCol ? '31%' : '47%', flexGrow: 1, minWidth: 0 }} />
             ))}
             {/* keep the last row's tiles the same width as the rows above */}
