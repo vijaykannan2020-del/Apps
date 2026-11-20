@@ -512,6 +512,21 @@ function DetailsStep({ a, set }: StepCtx) {
   );
 }
 
+/** v3.0 (owner): the on-this-phone promise is the first thing on the documents step, not small print. */
+function PhoneOnly() {
+  return (
+    <Pastel tone="good" style={{ marginTop: 14 }} pad={16}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Icon name="lock" size={26} color="#1D2A24" />
+        <View style={{ flex: 1 }}>
+          <T style={[font.headline, { fontWeight: '700' }]}>Your documents stay on this phone</T>
+          <T style={[font.sub, { marginTop: 2 }]}>Read here, never uploaded. Not on our server, not shared unless you send them.</T>
+        </View>
+      </View>
+    </Pastel>
+  );
+}
+
 function WorkStep({ a, set, next }: StepCtx) {
   const placeRef = useRef<any>(null);
   const loc = parsePlace(a.place);
@@ -520,14 +535,13 @@ function WorkStep({ a, set, next }: StepCtx) {
     <View>
       <H1>Where do you work?</H1>
       <Why>{opt ? 'OPT employers and work addresses are reported in the SEVP portal.' : 'Moving to another metro area can need an amended petition first.'}</Why>
-      <Field label="Employer" value={a.employer} onChangeText={(employer) => set({ employer })} placeholder="e.g. Acme Tech Inc" autoCapitalize="words" returnKeyType="next" onSubmitEditing={() => placeRef.current?.focus()} />
       <Field label="Work location: city or ZIP" value={a.place} onChangeText={(place) => set({ place })} placeholder="e.g. Austin, TX or 75038" autoCapitalize="words" inputRef={placeRef} returnKeyType="next" onSubmitEditing={next} />
       {loc ? (
         <Appear style={{ marginTop: 10 }}>
           <Note tone={loc.metro ? 'green' : 'blue'}>{loc.metro ? `${placeText(loc) || `ZIP ${loc.zip}`} is in the ${loc.metro} metro.` : `We couldn’t tell the metro for ${placeText(loc) || loc.zip}. You can still save it.`}</Note>
         </Appear>
       ) : <Chips>{['Irving, TX', 'Austin, TX', 'Plano, TX', 'Chicago, IL'].map((c) => <ChipToggle key={c} role="button" size="sm" text={c} onPress={() => { tap(); set({ place: c }); }} />)}</Chips>}
-      <Hint>Your approval notice and LCA show these too. Count working from home.</Hint>
+      <Hint>Your approval notice shows the employer, so we don’t ask. Count working from home.</Hint>
     </View>
   );
 }
@@ -672,7 +686,8 @@ function DocsStep({ f }: StepCtx) {
   return (
     <View>
       <H1>Add your documents</H1>
-      <Why>Each one is read on this phone and never uploaded. Add what you have now — the rest anytime.</Why>
+      <PhoneOnly />
+      <Why>Add what you have now — the rest anytime.</Why>
       <Card style={{ marginTop: 18, paddingVertical: 14 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }} accessibilityLiveRegion="polite">
           <T style={font.headline}>{`${prog.added} of ${prog.total} added`}</T>
@@ -941,7 +956,7 @@ function SetupPreview({ step, a }: { step: SetupStep; a: Answers }) {
               <T style={font.foot}>{[st, a.where === 'Outside' ? `In ${a.country}` : a.where === 'US' ? 'In the US' : undefined].filter(Boolean).join(' · ')}</T>
             </View>
           </View>
-          {a.employer.trim() ? <T style={[font.foot, { marginTop: 12 }]} numberOfLines={1}>{`${a.employer.trim()}${a.place.trim() ? ` · ${a.place.trim()}` : ''}`}</T> : null}
+          {a.place.trim() ? <T style={[font.foot, { marginTop: 12 }]} numberOfLines={1}>{a.place.trim()}</T> : null}
           {fam.length ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
               {fam.map((d) => <View key={d.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.fill, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10 }}><T style={font.caption}>{`${d.name.split(' ')[0]} · ${familyStatusLabel(d.status, d.relation)}`}</T></View>)}
