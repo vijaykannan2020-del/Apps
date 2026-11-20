@@ -241,6 +241,7 @@ export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const kb = useKeyboardPad(!!keyboard);
+  const [dbg, setDbg] = useState<{ r?: { y: number; height: number }; f?: { y: number; height: number } }>({}); // temporary layout check
   const L = useLayout();
   // iOS tab roots: contentInsetAdjustmentBehavior=automatic already clears the tab bar (bottom, floating or
   // side rail), so they get no extra bottom gap; Android and web still pad for the bottom bar.
@@ -264,10 +265,15 @@ export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard
     </TourScroll>
   ) : <View style={[{ flex: 1 }, sides]}><View style={[{ flex: 1 }, inner]}>{children}</View></View>;
   const content = (
-    <View style={{ flex: 1, backgroundColor: t.bg }}>
+    <View style={{ flex: 1, backgroundColor: t.bg }} onLayout={(e) => setDbg((d) => ({ ...d, r: e.nativeEvent.layout }))}>
       {nav ? <NavBar {...nav} right={tour && tour.steps.length ? <View style={{ flexDirection: 'row', alignItems: 'center' }}><TourButton tour={tour} />{nav.right}</View> : nav.right} /> : null}
       {body}
-      {footer ? <Footer>{footer}</Footer> : null}
+      {footer ? <View onLayout={(e) => setDbg((d) => ({ ...d, f: e.nativeEvent.layout }))}><Footer>{footer}</Footer></View> : null}
+      {Platform.OS === 'ios' && footer ? (
+        <T style={{ position: 'absolute', bottom: 0, left: 8, fontSize: 10, lineHeight: 12, color: '#C0392B' }}>
+          {`layout check · win ${Math.round(Dimensions.get('window').height)} scr ${Math.round(Dimensions.get('screen').height)} · inset t${Math.round(insets.top)} b${Math.round(insets.bottom)} l${Math.round(insets.left)} r${Math.round(insets.right)} · root ${Math.round(dbg.r?.y ?? -1)}/${Math.round(dbg.r?.height ?? -1)} · footer ${Math.round(dbg.f?.y ?? -1)}/${Math.round(dbg.f?.height ?? -1)} · kb ${kb}`}
+        </T>
+      ) : null}
     </View>
   );
   const scoped = tour ? <TourScope tour={tour}>{content}</TourScope> : content;
