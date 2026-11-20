@@ -85,10 +85,20 @@ export function SettingsList({ children, os }: { children: React.ReactNode; os?:
 const flat = (children: React.ReactNode): React.ReactNode[] => React.Children.toArray(children).flatMap((c) => (React.isValidElement(c) && c.type === React.Fragment ? flat((c.props as { children?: React.ReactNode }).children) : [c])).filter(Boolean);
 
 export function LargeTitle({ title, right }: { title: string; right?: React.ReactNode }) {
+  // v3.0 (owner): a large title never breaks mid-word. When the title and its buttons don't fit on one
+  // line, the buttons move to a row above (right-aligned, like iOS) and the title gets the full width.
+  const L = useLayout();
+  const [box, setBox] = useState(0);
+  const [rw, setRw] = useState(0);
+  const size = (font.largeTitle as { fontSize?: number }).fontSize ?? 34;
+  const need = title.length * size * 0.62 * Math.min(L.fontScale, 2) + 12 + rw;
+  const stack = !!right && box > 0 && need > box;
+  const heading = <T a11y="header" numberOfLines={1} style={[font.largeTitle, { flexShrink: 1 }]}>{title}</T>;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <T a11y="header" style={[font.largeTitle, { flexShrink: 1 }]}>{title}</T>
-      {right}
+    <View onLayout={(e) => setBox(e.nativeEvent.layout.width)} style={{ flexDirection: stack ? 'column' : 'row', alignItems: stack ? 'stretch' : 'center', justifyContent: 'space-between', gap: stack ? 2 : 12 }}>
+      {stack ? null : heading}
+      {right ? <View onLayout={(e) => setRw(e.nativeEvent.layout.width)} style={{ alignSelf: stack ? 'flex-end' : undefined, flexShrink: 0 }}>{right}</View> : null}
+      {stack ? heading : null}
     </View>
   );
 }
