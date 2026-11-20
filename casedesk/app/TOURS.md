@@ -83,3 +83,22 @@ these (or seed `toursSeen`), otherwise the first tap on each screen dismisses it
 Owner rule: Community shows **one** first-visit tip — `communityFeed` has a single step. Every other
 community screen passes `{ auto: false }` to `useTour` / `useSheetTour`, so its tips appear only from
 the **?** button. `tests/community-v27.test.ts` checks both.
+
+## Guided tour (v3.0)
+
+A 1-minute walk through the app itself (owner: after setup, show where things are instead of a list of
+tools). Started from the setup Done step (**Show me around (about 1 minute)** / Go to Home), Settings → Help →
+**Take the tour** (route `/guide`, also in Help and Search), and a one-time Home card **Take a 1-minute tour**
+for people who finished setup earlier (`settings.guideSeen`).
+
+- Stops and words: `src/core/guide.ts` `guideStops()` (pure, `tests/guide.test.ts`). Home card · Search ·
+  main person's status card + Review · Documents · Add to Apple Wallet · Cases · Community · Tools · widget
+  how-to (drawn with views) · Share with family · end (Settings → Help → Take the tour). Stops that don't apply
+  are skipped (no documents → no Wallet stop, no cases, no widgets on Android, I lost my job only for work
+  visas); never more than 10 (Share then becomes a line on the last card).
+- UI: `src/screens/guide.tsx` `<Guide>` (wraps `<Tours>` in `app/_layout.tsx`). Each stop navigates for real
+  (tabs, or Family → person, Home → Settings), finds `"<tour id>:<TourTarget id>"` (every `<TourTarget>` also
+  registers globally, `guideTargetsFor` in `ui/tour.tsx`), scrolls it clear of the floating tab bar and rings
+  it; a missing element gives a centred card. Per-screen tips and the alert prompt wait while it runs.
+- To point a stop at something new: wrap it in `<TourTarget id="x">` inside a screen with `useTour('screen')`
+  and use `target: 'screen:x'`.
