@@ -209,7 +209,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
 .opt small{color:var(--pink);font-weight:700}
 .opt strong{display:block;font-size:18px;margin:2px 0 4px}
 .opt span{color:var(--soft);font-size:15px}
-#pCanvas{width:100%;height:auto;border-radius:12px;display:block;background:var(--line)}
+#pCanvas,.pextra{width:100%;height:auto;border-radius:12px;display:block;background:var(--line)}.pextra{margin-top:10px}
 .pres .res{background:var(--bg)}
 .mem{display:flex;justify-content:space-between;padding:8px 0;border-top:1.5px solid var(--bg)}
 .nav button{font-size:13px}
@@ -363,8 +363,8 @@ h1,h2,h3{letter-spacing:-.02em}
       <button class="btn go" id="pKeep" type="button" style="width:100%;margin-top:16px">Save review and mark as watched</button>
       <p class="note" id="pKeepNote"></p></div>
     <div class="panel"><h3>4. Your image</h3>
-      <div class="chips" id="pStyle" style="margin-bottom:12px"><button class="chip on" data-s="spot" type="button">Spotlight</button><button class="chip" data-s="split" type="button">Light</button><button class="chip" data-s="quote" type="button">Big quote</button></div>
-      <canvas id="pCanvas" width="1080" height="1350"></canvas>
+      <div class="chips" id="pStyle" style="margin-bottom:12px"><button class="chip on" data-s="spot" type="button">Spotlight</button><button class="chip" data-s="split" type="button">Light</button><button class="chip" data-s="quote" type="button">Big quote</button><button class="chip" data-s="full" type="button">Full review</button></div>
+      <canvas id="pCanvas" width="1080" height="1350"></canvas><div id="pMore"></div>
       <p class="note" id="pNote"></p>
       <div class="acts"><button class="btn quiet" id="pSave" type="button">Save image to my phone</button></div></div>
     <div class="panel"><h3>5. Post it</h3>
@@ -392,7 +392,7 @@ h1,h2,h3{letter-spacing:-.02em}
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 29</p>
+    <p class="note" style="text-align:center">Version 30</p>
   </section>
 </div>
 
@@ -448,7 +448,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=29;
+const APP_VERSION=30;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -664,7 +664,7 @@ let wPicks=[];
 
 /* ---- review post ---- */
 const post={film:null,rating:0,style:'spot',img:null,blob:null};
-const cv=$('#pCanvas'), cx=cv.getContext('2d');
+const cv=$('#pCanvas');let cx=cv.getContext('2d');
 $('#pHandle').value=ls('cb_handle')||'';
 function paintPStars(){const st=$('#pStars');st.innerHTML=[1,2,3,4,5].map(i=>`<div class="star" data-i="${i}">★<i style="width:${Math.max(0,Math.min(1,post.rating-(i-1)))*100}%">★</i></div>`).join('')+`<output>${fmtR(post.rating)}</output>`}
 $('#pStars').onclick=e=>{const s=e.target.closest('.star');if(!s)return;const r=s.getBoundingClientRect(),v=+s.dataset.i-((e.clientX-r.left)<r.width/2?.5:0);post.rating=post.rating===v?0:v;paintPStars();drawPost()};
@@ -745,9 +745,9 @@ function useOpt(i){const o=pOpts[i];if(!o)return;post.optStyle=o.style||'';$$('#
 $$('#pLang .chip').forEach(b=>b.onclick=()=>{post.lang=b.dataset.l;ls('cb_lang',post.lang);$$('#pLang .chip').forEach(x=>x.classList.toggle('on',x===b))});
 post.lang=ls('cb_lang')||'match';$$('#pLang .chip').forEach(x=>x.classList.toggle('on',x.dataset.l===post.lang));
 $('#pOpts').onclick=e=>{const b=e.target.closest('[data-o]');if(b)useOpt(+b.dataset.o)};
-function revNote(){const n=$('#pRev').value.trim().length;$('#pRevNote').textContent=n>420?'Long review: the image shows the start. The full review is saved in your book and used for Instagram, Facebook, Threads and WhatsApp.':''}
+function revNote(){const n=$('#pRev').value.trim().length;$('#pRevNote').textContent=n>420&&post.style!=='full'?'Long review. In step 4, pick Full review to show all of it, split across more images if needed.':''}
 ['pHead','pRev','pHandle'].forEach(id=>$('#'+id).oninput=()=>{revNote();if(id==='pHandle')ls('cb_handle',$('#pHandle').value.trim());clearTimeout(drawPost._t);drawPost._t=setTimeout(drawPost,200)});
-$$('#pStyle .chip').forEach(b=>b.onclick=()=>{post.style=b.dataset.s;$$('#pStyle .chip').forEach(x=>x.classList.toggle('on',x===b));drawPost()});
+$$('#pStyle .chip').forEach(b=>b.onclick=()=>{post.style=b.dataset.s;$$('#pStyle .chip').forEach(x=>x.classList.toggle('on',x===b));revNote();drawPost()});
 
 $('#pKeep').onclick=async()=>{
   const f=post.film;if(!f){toast('Pick the film first');return}
@@ -802,12 +802,42 @@ function starRow(x,y,size,on,off,align){
     if(f>0){cx.save();cx.beginPath();cx.rect(x0+i*w,y-4,w*f,size*1.4);cx.clip();cx.fillStyle=on;cx.fillText('★',x0+i*w,y);cx.restore()}}
   return x0+total;
 }
+function wrapPars(text,maxW){const out=[];String(text||'').split(/\n+/).map(t=>t.trim()).filter(Boolean).forEach((p,i)=>{if(i)out.push('');out.push(...lines(p,maxW))});return out}
+function fullBg(W,H){cx.fillStyle='#0E0F12';cx.fillRect(0,0,W,H);
+  if(post.img){const t=document.createElement('canvas');t.width=27;t.height=34;const tc=t.getContext('2d');const s=Math.max(27/post.img.width,34/post.img.height);tc.drawImage(post.img,(27-post.img.width*s)/2,(34-post.img.height*s)/2,post.img.width*s,post.img.height*s);
+    cx.imageSmoothingEnabled=true;cx.imageSmoothingQuality='high';cx.drawImage(t,0,0,W,H);cx.fillStyle='rgba(10,11,14,.86)';cx.fillRect(0,0,W,H)}}
+function drawFull(f,head,rev,handle){
+  const W=1080,H=1350,X=70,TW=940,BOT=1240,main=cx;
+  fullBg(W,H);posterAt(X,64,240,360,14,f.title);
+  let y=para(f.title,350,72,660,3,58,36,800,'#FFFFFF','left',1.06);
+  const m=[f.year,f.director].filter(Boolean).join(', ');if(m)y=para(m,350,y+8,660,2,28,22,400,'rgba(255,255,255,.7)','left');
+  if(post.rating){starRow(350,y+18,46,'#F2A31B','rgba(255,255,255,.22)');cx.font=FONT(700,30);cx.fillStyle='#FFFFFF';cx.textBaseline='top';cx.fillText(fmtR(post.rating)+' / 5',350,y+78)}
+  let y1=Math.max(y+130,460);if(head)y1=para(head,X,y1,TW,3,46,32,700,'#F5D48A','left',1.15)+18;
+  let size=38,ls=[],lh=0;const hgt=a=>a.reduce((s,l)=>s+(l===''?lh*.5:lh),0);
+  for(;size>=28;size-=2){cx.font=FONT(400,size);lh=size*1.4;ls=wrapPars(rev,TW);if(hgt(ls)<=BOT-y1)break}
+  if(size<28){size=30;cx.font=FONT(400,size);lh=size*1.4;ls=wrapPars(rev,TW)}
+  const pages=[];let cur=[],room=BOT-y1;
+  ls.forEach(l=>{const h=l===''?lh*.5:lh;if(h>room&&cur.length){pages.push(cur);cur=[];room=BOT-200;if(l==='')return}cur.push(l);room-=h});
+  if(cur.length||!pages.length)pages.push(cur);
+  const N=pages.length;
+  const body=(arr,y0)=>{cx.font=FONT(400,size);cx.fillStyle='rgba(255,255,255,.93)';cx.textAlign='left';cx.textBaseline='top';let yy=y0;arr.forEach(l=>{if(l==='')yy+=lh*.5;else{cx.fillText(l,X,yy);yy+=lh}})};
+  const foot=i=>{cx.fillStyle='rgba(255,255,255,.18)';cx.fillRect(X,1268,TW,2);cx.font=FONT(600,26);cx.fillStyle='rgba(255,255,255,.6)';cx.textBaseline='top';cx.textAlign='left';cx.fillText(handle||'My review',X,1286);
+    if(N>1){cx.textAlign='right';cx.fillText((i+1)+' / '+N+(i<N-1?'  Swipe for more':''),X+TW,1286)}};
+  body(pages[0],y1);foot(0);
+  const more=[];
+  for(let i=1;i<N;i++){const c=document.createElement('canvas');c.width=W;c.height=H;cx=c.getContext('2d');
+    fullBg(W,H);let hy=para(f.title,X,70,TW,1,44,30,800,'#FFFFFF','left',1.05);cx.font=FONT(500,26);cx.fillStyle='rgba(255,255,255,.6)';cx.textBaseline='top';cx.textAlign='left';cx.fillText('Review, continued',X,hy+10);
+    cx.fillStyle='rgba(255,255,255,.18)';cx.fillRect(X,170,TW,2);body(pages[i],200);foot(i);more.push(c)}
+  cx=main;return more;
+}
 function drawPost(){
   const W=1080,H=1350,f=post.film||{title:'Pick a film',year:'',director:''};
   const head=$('#pHead').value.trim(), rev=$('#pRev').value.trim(), handle=$('#pHandle').value.trim();
   const meta=[f.year,f.director?'Directed by '+f.director:''].filter(Boolean).join('   ');
   cx.setTransform(1,0,0,1,0,0);cx.clearRect(0,0,W,H);cx.textAlign='left';
-  if(post.style==='spot'){
+  let more=[];
+  if(post.style==='full'){more=drawFull(f,head,rev,handle)}
+  else if(post.style==='spot'){
     cx.fillStyle='#15171C';cx.fillRect(0,0,W,H);
     if(post.img){const t=document.createElement('canvas');t.width=27;t.height=34;const tc=t.getContext('2d');const s=Math.max(27/post.img.width,34/post.img.height);tc.drawImage(post.img,(27-post.img.width*s)/2,(34-post.img.height*s)/2,post.img.width*s,post.img.height*s);
       cx.imageSmoothingEnabled=true;cx.imageSmoothingQuality='high';cx.drawImage(t,0,0,W,H);cx.fillStyle='rgba(12,13,17,.74)';cx.fillRect(0,0,W,H)}
@@ -839,19 +869,23 @@ function drawPost(){
     if(post.rating)starRow(280,ty+14,44,'#F2A31B','rgba(255,255,255,.25)');
     cx.font=FONT(600,26);cx.fillStyle='rgba(255,255,255,.6)';cx.textAlign='right';cx.textBaseline='top';cx.fillText(handle||'My review',1010,1250);
   }
-  post.blob=null;
+  post.blob=null;post.more=[];const pm=$('#pMore');pm.innerHTML='';
+  more.forEach((c,i)=>{c.className='pextra';c.setAttribute('aria-label','Review image '+(i+2));pm.appendChild(c);try{c.toBlob(b=>{post.more[i]=b},'image/jpeg',.92)}catch(e){}});
   try{cv.toBlob(b=>{post.blob=b},'image/jpeg',.92);if(post.img)$('#pNote').textContent=''}
   catch(e){$('#pNote').textContent='This browser blocked saving the image with the poster. Take a screenshot of the picture instead.'}
 }
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(drawPost);
 $('#pCopy').onclick=async()=>{try{await navigator.clipboard.writeText($('#pT').value);toast('Text copied')}catch(e){toast('Copy did not work. Select the text and copy it.')}};
-$('#pSave').onclick=()=>{if(!post.blob){toast('The image is not ready yet');return}const a=document.createElement('a');a.href=URL.createObjectURL(post.blob);a.download=(norm((post.film||{}).title)||'review')+'-review.jpg';document.body.appendChild(a);a.click();a.remove();toast('Image saved to Files')};
+const postFiles=()=>{const nm=norm((post.film||{}).title)||'review';return [post.blob,...(post.more||[])].filter(Boolean).map((b,i,a)=>new File([b],nm+'-review'+(a.length>1?'-'+(i+1):'')+'.jpg',{type:'image/jpeg'}))};
+$('#pSave').onclick=async()=>{if(!post.blob){toast('The image is not ready yet');return}const fs=postFiles();
+  if(fs.length>1&&navigator.canShare&&navigator.canShare({files:fs})){try{await navigator.share({files:fs});return}catch(e){return}}
+  fs.forEach(fl=>{const a=document.createElement('a');a.href=URL.createObjectURL(fl);a.download=fl.name;document.body.appendChild(a);a.click();a.remove()});toast(fs.length>1?fs.length+' images saved to Files':'Image saved to Files')};
 $('#pShare').onclick=async()=>{
   if(!post.blob){toast('The image is not ready yet');return}
-  const file=new File([post.blob],(norm((post.film||{}).title)||'review')+'-review.jpg',{type:'image/jpeg'});
-  if(!(navigator.canShare&&navigator.canShare({files:[file]}))){toast('Sharing is not available here. Use Save image.');return}
+  const files=postFiles();
+  if(!(navigator.canShare&&navigator.canShare({files}))){toast('Sharing is not available here. Use Save image.');return}
   const cap=$('#pT').value;if(cap){try{navigator.clipboard.writeText(cap)}catch(e){}}
-  try{await navigator.share({files:[file]});if(cap)toast(PLAT[post.plat].n+' text copied, ready to paste.')}catch(e){}
+  try{await navigator.share({files});if(cap)toast(PLAT[post.plat].n+' text copied, ready to paste.')}catch(e){}
 };
 
 /* ---- search ---- */
