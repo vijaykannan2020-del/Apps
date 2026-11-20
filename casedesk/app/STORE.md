@@ -199,13 +199,13 @@ THINGS TO TRY
 
 SCANNING: the camera or a photo/PDF is read on the device with Apple Vision; nothing is uploaded. To test, photograph any page with printed dates, or use the example family.
 
-NOTIFICATIONS: document reminders are local notifications. Optional push alerts for a new Visa Bulletin and official updates (only a push token and chosen topics are stored, no account). Permission is asked after the first document or case is added, with an explanation first.
+NOTIFICATIONS: document reminders are local notifications. Optional push alerts for a new Visa Bulletin and official updates (only a push token and chosen topics are stored, no account). Permission is asked only after an explanation screen: the Get alerts step in setup, or after the first document or case is added if setup was skipped.
 
 WIDGETS: long-press the Home Screen > + > Immigration Wallet > choose a size. The widget shows the next deadline for the person chosen in Edit Widget (data shared through an App Group; nothing leaves the device).
 
-WALLET CARD: Family > Wallet status cards > pick a person > preview > Add to Apple Wallet. A personal-reference card, clearly marked "Not an official document"; no passport, receipt or A-numbers; the server signs it in memory and stores nothing.
+WALLET CARD (shown when the server's Wallet signing is on): Family > Wallet status cards > pick a person > preview > Add to Apple Wallet. A personal-reference card, clearly marked "Not an official document"; no passport, receipt or A-numbers; the server signs it in memory and stores nothing.
 
-Immigration Wallet is not affiliated with USCIS or any government agency. Every data screen links its official source; the disclaimer is on the first screen, in Settings > About and on each data screen. Not legal advice.
+Immigration Wallet is not affiliated with USCIS or any government agency. The disclaimer is on the first screen, in Settings > About and on Updates; every data screen ends with a source line (Source · as of date · Not legal advice) that opens the official source and the full disclaimer. Not legal advice.
 
 Contact: immigrationwallet@gmail.com
 ```
