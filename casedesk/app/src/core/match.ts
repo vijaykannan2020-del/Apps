@@ -69,7 +69,7 @@ export function nameScore(typed: string | undefined, onDoc: string | undefined, 
   const P = tokens(typed), D0 = tokens(onDoc);
   const none = { score: 0, distinct: false, exact: false, matched: [], given: false };
   if (!P.length || !D0.length) return none;
-  // a typed part may cover two document parts ("Radhakrishnan"), and vice versa
+  // a typed part may cover two document parts ("Ramachandran"), and vice versa
   const D = [...D0];
   const parts = P.flatMap((p, i) => (P[i + 1] && D0.includes(p + P[i + 1]) ? [] : [p]));
   let sum = 0, count = 0, exact = true, distinct = false;
@@ -84,7 +84,7 @@ export function nameScore(typed: string | undefined, onDoc: string | undefined, 
     sum += m.w;
     const first = partMatch(p, [D0[0]]).w;
     if (m.w >= 0.5) { matched.push(p); if (!m.exact) exact = false; if (!shared.has(p) && p.length >= 3 && m.w >= 0.85) distinct = true; }
-    // a short form of the given name ("Vijay" for "Vijayakannan") counts when nobody shares it
+    // a short form of the given name ("Ravi" for "Ravichandran") counts when nobody shares it
     if (first >= 0.5 && p.length >= 4 && !shared.has(p)) { given = true; if (first < 0.85) distinct = true; }
   }
   if (!count) return none;
