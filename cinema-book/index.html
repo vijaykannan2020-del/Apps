@@ -358,7 +358,7 @@ h1,h2,h3{letter-spacing:-.02em}
       <div id="pOpts"></div></div>
     <div class="panel"><h3>3. Edit the words</h3>
       <label class="fl" for="pHead" style="margin-top:0">Headline</label><input class="inp" id="pHead" maxlength="70">
-      <label class="fl" for="pRev">Review on the image</label><textarea class="inp" id="pRev" maxlength="420"></textarea>
+      <label class="fl" for="pRev">Review</label><textarea class="inp" id="pRev" rows="6" placeholder="Paste or type your review. Any length is fine."></textarea><p class="note" id="pRevNote" style="margin:6px 2px 0"></p>
       <label class="fl" for="pHandle">Your Instagram name (optional)</label><input class="inp" id="pHandle" placeholder="@yourname" autocapitalize="off" autocorrect="off">
       <button class="btn go" id="pKeep" type="button" style="width:100%;margin-top:16px">Save review and mark as watched</button>
       <p class="note" id="pKeepNote"></p></div>
@@ -392,7 +392,7 @@ h1,h2,h3{letter-spacing:-.02em}
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 28</p>
+    <p class="note" style="text-align:center">Version 29</p>
   </section>
 </div>
 
@@ -448,7 +448,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=28;
+const APP_VERSION=29;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -745,7 +745,8 @@ function useOpt(i){const o=pOpts[i];if(!o)return;post.optStyle=o.style||'';$$('#
 $$('#pLang .chip').forEach(b=>b.onclick=()=>{post.lang=b.dataset.l;ls('cb_lang',post.lang);$$('#pLang .chip').forEach(x=>x.classList.toggle('on',x===b))});
 post.lang=ls('cb_lang')||'match';$$('#pLang .chip').forEach(x=>x.classList.toggle('on',x.dataset.l===post.lang));
 $('#pOpts').onclick=e=>{const b=e.target.closest('[data-o]');if(b)useOpt(+b.dataset.o)};
-['pHead','pRev','pHandle'].forEach(id=>$('#'+id).oninput=()=>{if(id==='pHandle')ls('cb_handle',$('#pHandle').value.trim());clearTimeout(drawPost._t);drawPost._t=setTimeout(drawPost,200)});
+function revNote(){const n=$('#pRev').value.trim().length;$('#pRevNote').textContent=n>420?'Long review: the image shows the start. The full review is saved in your book and used for Instagram, Facebook, Threads and WhatsApp.':''}
+['pHead','pRev','pHandle'].forEach(id=>$('#'+id).oninput=()=>{revNote();if(id==='pHandle')ls('cb_handle',$('#pHandle').value.trim());clearTimeout(drawPost._t);drawPost._t=setTimeout(drawPost,200)});
 $$('#pStyle .chip').forEach(b=>b.onclick=()=>{post.style=b.dataset.s;$$('#pStyle .chip').forEach(x=>x.classList.toggle('on',x===b));drawPost()});
 
 $('#pKeep').onclick=async()=>{
@@ -771,7 +772,7 @@ function countT(){const P=PLAT[post.plat],t=$('#pT').value;let m='';
   if(P.thread){const a=pParts();if(a.length)m=`${a.length} posts in this thread. Longest is ${Math.max(...a.map(x=>x.length))} of ${P.max} characters.${a.some(x=>x.length>P.max)?' Shorten the long one.':''}`}
   else if(P.max&&t)m=`${t.length} of ${P.max} characters.${t.length>P.max?' Too long, shorten it.':''}`;
   $('#pTCount').textContent=m}
-function paintPlat(){if(!PLAT[post.plat])post.plat='ig';const P=PLAT[post.plat];$$('#pPlat .chip').forEach(b=>b.classList.toggle('on',b.dataset.p===post.plat));$('#pT').value=post.texts[post.plat]||'';
+function paintPlat(){if(!PLAT[post.plat])post.plat='ig';const P=PLAT[post.plat];$$('#pPlat .chip').forEach(b=>b.classList.toggle('on',b.dataset.p===post.plat));const rv=$('#pRev').value.trim();if(!post.texts[post.plat]&&rv&&['ig','fb','th','wa'].includes(post.plat)){const hd=$('#pHead').value.trim(),f=post.film;post.texts[post.plat]=[(f?f.title+(f.year?' ('+f.year+')':'')+'\n':'')+(hd?hd+'\n':''),rv].filter(Boolean).join('\n')}$('#pT').value=post.texts[post.plat]||'';revNote();
   $('#pOpenApp').classList.toggle('hidden',!P.open);$('#pOpenApp').textContent='Open '+P.n.replace(' thread','')+' with this text';countT()}
 $('#pPlat').onclick=e=>{const b=e.target.closest('[data-p]');if(!b)return;post.plat=b.dataset.p;ls('cb_plat',post.plat);paintPlat()};
 $('#pT').oninput=()=>{post.texts[post.plat]=$('#pT').value;countT()};
@@ -946,7 +947,7 @@ function openSheet(d,toForm){
      <label class="fl" for="fNotes">Notes</label><textarea class="inp" id="fNotes" placeholder="What did you think? Who was with you?"></textarea>
      <div class="acts">${e.status?'<button class="btn danger" id="fDel" type="button">Remove</button>':''}<button class="btn go" id="fSave" type="button">Save to my book</button></div>
    </div>
-   ${e.reviewText||e.reviewHead?`<div class="box"><h3>My review</h3>${e.reviewHead?`<strong>${esc(e.reviewHead)}</strong>`:''}<p style="margin:6px 0 0">${esc(e.reviewText||'')}</p><button class="link" id="shRev" type="button" style="margin-top:10px">Open in Post to edit or share</button></div>`:''}
+   ${e.reviewText||e.reviewHead?`<div class="box"><h3>My review</h3>${e.reviewHead?`<strong>${esc(e.reviewHead)}</strong>`:''}<p style="margin:6px 0 0;white-space:pre-line">${esc(e.reviewText||'')}</p><button class="link" id="shRev" type="button" style="margin-top:10px">Open in Post to edit or share</button></div>`:''}
    ${famLines.length?`<div class="box"><h3>Family ratings</h3>${famLines.join('')}</div>`:''}
    <div class="box"><h3>Where to watch in ${region==='IN'?'India':'the USA'}</h3>
      ${d.full?(watch||'<p class="note" style="margin:0">Not on any streaming service in this country right now.</p>'):(d.source==='wikidata'?'<p class="note" style="margin:0">No poster or streaming info for this title. Its details come from Wikidata.</p>':'<p class="note" style="margin:0">No streaming info for a title you added yourself.</p>')}

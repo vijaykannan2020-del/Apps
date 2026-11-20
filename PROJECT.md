@@ -118,8 +118,8 @@ the top right and cover part of the page.
 
 ## Current state
 
-- Real app (`cinema-book/`): Version 28.
-- Test copy (`cinema-book-test/`): Version 28 (same as the real app).
+- Real app (`cinema-book/`): Version 29.
+- Test copy (`cinema-book-test/`): Version 29 (same as the real app).
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
 - Segue (`segue/`): Version 42 (opt-in replay trial implemented; backend not connected). Spotify sign-in, automatic timed-lyric passage selection with
@@ -279,6 +279,8 @@ the top right and cover part of the page.
 - 2026-11-14, ChatGPT: Segue Version 33 places the wide Playing queue left and deck right, and adds a silent one-second cassette opening animation with no input/startup blocking and a reduced-motion skip. Spotify starts now carry current + up to 99 upcoming URIs; observed native Next in that submitted mix/output follows the selected song and seeks its saved AI passage without another Play. Paused selection stays silent; missing AI pauses while preparing; unrelated outputs/songs still detach. Browser SDK media actions refresh on state events, guard output ownership, include stop/skip-seek, and update metadata/position without clearing transient paused sessions. All 80 controller checks, 14 layout/theme cases and browser playback flows pass. Native queue snapshots/shuffle/history and iOS suspension/CarPlay limits are documented; real phone/CarPlay confirmation is pending. No Spotify playlist created; AI mappings retained.
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-19, Claude: Version 29 in test copy and real app. Post page review box (`#pRev`, now labelled "Review") has no length limit (was 420). The image still shows what fits, ending with "…"; a note says so. The full review is saved as `reviewText`, shown with line breaks on the title page, and fills empty Instagram, Facebook, Threads and WhatsApp texts (title, headline, review).
 
 - 2026-11-19, Claude: Version 28 in test copy and real app. Network failures (Safari shows "Load failed") now say which service could not be reached: TMDB in `tm()`, Gemini or Claude in `aiText()`.
 
