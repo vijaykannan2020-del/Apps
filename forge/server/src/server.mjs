@@ -412,7 +412,8 @@ const server = http.createServer(async (req, res) => {
       const { username, password } = await body(req);
       const r = await fetch(`${SYNAPSE}/_matrix/client/v3/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'm.login.password', identifier: { type: 'm.id.user', user: String(username || '').trim() }, password, initial_device_display_name: 'Forge' }) });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) return send(res, 401, { error: j.error || 'Wrong username or password' });
+      if (r.status === 429) { const sec = Math.ceil((j.retry_after_ms || 60000) / 1000); return send(res, 429, { error: `Too many sign-in tries. Wait ${sec > 90 ? Math.ceil(sec / 60) + ' minutes' : sec + ' seconds'}, then try once more.` }); }
+      if (!r.ok) return send(res, 401, { error: j.errcode === 'M_FORBIDDEN' ? 'Wrong username or password' : (j.error || 'Wrong username or password') });
       const user = await authUser({ headers: { authorization: `Bearer ${j.access_token}` } });
       if (!user) return send(res, 403, { error: 'Only the server owner can use Forge.' });
       return send(res, 200, { token: j.access_token, user });
