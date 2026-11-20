@@ -392,7 +392,7 @@ h1,h2,h3{letter-spacing:-.02em}
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 27</p>
+    <p class="note" style="text-align:center">Version 28</p>
   </section>
 </div>
 
@@ -448,7 +448,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=27;
+const APP_VERSION=28;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -509,7 +509,7 @@ async function tm(path,params){
   const u=new URL('https://api.themoviedb.org/3'+path);Object.entries(params||{}).forEach(([k,v])=>u.searchParams.set(k,v));
   const bearer=TOKEN.startsWith('eyJ');if(!bearer)u.searchParams.set('api_key',TOKEN);
   const ck=u.toString();if(cache[ck])return cache[ck];
-  const r=await fetch(ck,bearer?{headers:{Authorization:'Bearer '+TOKEN}}:{});
+  let r;try{r=await fetch(ck,bearer?{headers:{Authorization:'Bearer '+TOKEN}}:{})}catch(e){throw new Error('Could not reach the film database (TMDB). Check your internet, then try again.')}
   if(!r.ok)throw new Error(r.status===401?'The TMDB key was rejected. Check it in Settings.':'TMDB did not answer. Try again in a moment.');
   return cache[ck]=await r.json();
 }
@@ -698,6 +698,7 @@ $('#pRes').onclick=async e=>{const b=e.target.closest('[data-pp]');if(!b)return;
 
 /* AI rewrite */
 async function aiText(prompt){
+  const fetch=async(u,o)=>{try{return await window.fetch(u,o)}catch(e){throw new Error('Could not reach the AI service ('+(u.includes('anthropic')?'Claude':'Google Gemini')+'). Check your internet, then try again. If it keeps failing, type your review in the Review on the image box below.')}};
   if(!AIKEY)throw new Error('Add an AI key in Settings first. You can still type the words yourself below.');
   const why=async r=>{let m='';try{const j=await r.json();m=(j.error&&(j.error.message||j.error.type))||''}catch(e){}return m?' The service said: '+String(m).slice(0,160):''};
   if(AIKEY.startsWith('sk-ant')){

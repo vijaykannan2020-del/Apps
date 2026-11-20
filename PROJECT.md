@@ -118,8 +118,8 @@ the top right and cover part of the page.
 
 ## Current state
 
-- Real app (`cinema-book/`): Version 27.
-- Test copy (`cinema-book-test/`): Version 27 (same as the real app).
+- Real app (`cinema-book/`): Version 28.
+- Test copy (`cinema-book-test/`): Version 28 (same as the real app).
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
 - Segue (`segue/`): Version 42 (opt-in replay trial implemented; backend not connected). Spotify sign-in, automatic timed-lyric passage selection with
@@ -279,6 +279,8 @@ the top right and cover part of the page.
 - 2026-11-14, ChatGPT: Segue Version 33 places the wide Playing queue left and deck right, and adds a silent one-second cassette opening animation with no input/startup blocking and a reduced-motion skip. Spotify starts now carry current + up to 99 upcoming URIs; observed native Next in that submitted mix/output follows the selected song and seeks its saved AI passage without another Play. Paused selection stays silent; missing AI pauses while preparing; unrelated outputs/songs still detach. Browser SDK media actions refresh on state events, guard output ownership, include stop/skip-seek, and update metadata/position without clearing transient paused sessions. All 80 controller checks, 14 layout/theme cases and browser playback flows pass. Native queue snapshots/shuffle/history and iOS suspension/CarPlay limits are documented; real phone/CarPlay confirmation is pending. No Spotify playlist created; AI mappings retained.
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-19, Claude: Version 28 in test copy and real app. Network failures (Safari shows "Load failed") now say which service could not be reached: TMDB in `tm()`, Gemini or Claude in `aiText()`.
 
 - 2026-11-19, Claude: Version 27 in test copy and real app. The Post page code (`/* ---- review post ---- */` block: startPost, aiText, useOpt, PLAT, drawPost and all its button handlers) had been missing from the GitHub copies since Version 14, so no Post buttons worked; the Version 18 "Post title picker" only filled the picked card. Restored the full block from the last working copy and removed the Version 18 picker (the restored block has its own search). Check that this block exists after any redesign.
 
