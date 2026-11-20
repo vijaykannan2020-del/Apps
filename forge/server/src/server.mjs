@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
-const SERVER_VERSION = 12; // raise on every server change; shown in the app's Settings
+const SERVER_VERSION = 13; // raise on every server change; shown in the app's Settings
 const PORT = +(process.env.PORT || 8790);
 const SYNAPSE = process.env.SYNAPSE_URL || 'http://synapse:8008';
 const DATA = process.env.DATA_DIR || '/app/data';
@@ -268,10 +268,12 @@ function startRun(s, text, agent, model, mode, effort, images) {
     if (s.claudeSession) args.push('--resume', s.claudeSession);
   } else {
     cmd = 'codex';
-    const common = ['--json', '--skip-git-repo-check', ...(mode === 'ask' ? ['-c', 'sandbox_mode="read-only"', '-c', 'approval_policy="never"'] : ['--dangerously-bypass-approvals-and-sandbox'])];
+    // Codex's own read-only sandbox can't start inside this Docker container (every command came back
+    // failed in Ask mode), so it runs like Agent mode and Ask is enforced by the instruction below
+    const common = ['--json', '--skip-git-repo-check', '--dangerously-bypass-approvals-and-sandbox'];
     if (model) common.push('-m', model);
     if (/^[a-z]{2,12}$/.test(effort || '')) common.push('-c', `model_reasoning_effort="${effort}"`); else effort = '';
-    const prompt = (s.codexThread ? '' : GUIDE + where + '\n\n') + (mode === 'ask' ? '(Ask mode: answer only, do not edit files.)\n' : '') + text;
+    const prompt = (s.codexThread ? '' : GUIDE + where + '\n\n') + (mode === 'ask' ? '(ASK MODE: read files and run read-only commands to answer, but do not create, edit or delete any files and do not commit.)\n' : '') + text;
     const imgs = s.codexThread ? [] : shots.flatMap(f => ['-i', f]);
     args = s.codexThread ? ['exec', 'resume', ...common, s.codexThread, prompt] : ['exec', ...common, ...imgs, '-C', cwd, prompt];
   }
@@ -383,7 +385,9 @@ function onCodex(s, r, ev) {
     if (!e) { e = push(s, { kind: 'tool', agent: 'codex', name: 'command', label: 'Ran ' + String(it.command || '').replace(/^\/bin\/(ba)?sh -lc /, '').slice(0, 90), detail: String(it.command || ''), status: 'running' }); r.tools.set(it.id, e); }
     if (done || ev.type === 'item.updated') {
       if (it.aggregated_output) e.output = clip(it.aggregated_output);
-      if (done) e.status = it.exit_code === 0 || it.status === 'completed' ? 'ok' : 'failed';
+      // a search that finds nothing exits 1: that is an answer, not a failure
+      const search = /(^|[\s'"|;&(])(rg|grep|egrep|fgrep|git grep)\s/.test(String(it.command || ''));
+      if (done) e.status = it.exit_code === 0 || it.status === 'completed' || (search && it.exit_code === 1) ? 'ok' : 'failed';
       e.u = (e.u || 0) + 1; bump(s, e);
     }
     return;
