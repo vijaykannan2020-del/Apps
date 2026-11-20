@@ -144,7 +144,8 @@ function OnboardingBody() {
 
   const pr = setupProgress(step, steps);
   const optional = OPTIONAL_STEPS.includes(step);
-  const ctx: StepCtx = { a, set, f, next, toast };
+  const finishTo = async (path: string) => { await finish(); setTimeout(() => go(path), 50); };
+  const ctx: StepCtx = { a, set, f, next, toast, finishTo };
   const body = <StepFrame key={step} dir={dir} reduce={reduce}>{renderStep(step, ctx)}</StepFrame>;
   const footer = step === 'done'
     ? <Button title="Go to Home" onPress={finish} />
@@ -352,7 +353,7 @@ function ChoiceCard({ title, sub, icon, tone = 'sky', selected, onPress, compact
 const Label = ({ children }: { children: string }) => <T tone="text2" style={[font.caption, { marginTop: 20, marginLeft: 2, textTransform: 'uppercase', letterSpacing: 0.4 }]}>{children}</T>;
 
 // ---------- steps ----------
-type StepCtx = { a: Answers; set: (p: Partial<Answers>) => void; f: FamilyState; next: () => void; toast: (m: string) => void };
+type StepCtx = { a: Answers; set: (p: Partial<Answers>) => void; f: FamilyState; next: () => void; toast: (m: string) => void; finishTo?: (path: string) => void };
 
 function renderStep(step: SetupStep, c: StepCtx): React.ReactNode {
   switch (step) {
@@ -884,7 +885,7 @@ function ProtectRow({ icon, tone, title, sub, right, first = true }: { icon: str
   );
 }
 
-function DoneStep({ f }: StepCtx) {
+function DoneStep({ f, finishTo }: StepCtx) {
   const t = useTheme();
   const me = f.main;
   const rows = f.people.flatMap((p) => docChecklist(p, f.records[p.id]).key.map((k) => ({ pid: p.id, k })));
@@ -908,9 +909,55 @@ function DoneStep({ f }: StepCtx) {
           </View>
         </Pastel>
       </Animated.View>
+      <Toolkit f={f} onOpen={finishTo} />
       <Hint center style={{ marginTop: 14 }}>General information, not legal advice.</Hint>
     </View>
   );
+}
+
+/** v3.0 (owner): after setup, the main tools get real prominence, each with a plain explanation.
+ *  Tapping one finishes setup and opens it. Only tools that fit this family are listed. */
+function Toolkit({ f, onOpen }: { f: FamilyState; onOpen?: (path: string) => void }) {
+  const me = f.main;
+  const st = (me?.status ?? '') as string;
+  const work = /H-1B|L-1|TN|E-3|O-1|OPT/.test(st);
+  const gc = work || /H-4|L-2|green card applicant|I-485/i.test(st) || !!me?.facts?.gc;
+  const items: { icon: string; tone: 'sky' | 'sage' | 'butter' | 'blush' | 'mint'; title: string; body: string; path: string }[] = [
+    { icon: 'plane', tone: 'sky', title: 'Can I travel?', body: 'Pick dates and a country. It checks every person’s passport, visa stamp and I-94 and tells you what could stop re-entry.', path: '/tools/travel' },
+    { icon: 'clock', tone: 'mint', title: 'What to expect', body: 'For a pending case: the typical decision window from USCIS processing times and what other people saw.', path: '/(tabs)/cases' },
+    ...(gc ? [{ icon: 'map', tone: 'sage' as const, title: 'Green card planner', body: 'Your priority date against this month’s Visa Bulletin, the expected wait and when to gather documents.', path: '/tools/gcp' }] : []),
+    ...(work && me ? [{ icon: 'briefcase', tone: 'blush' as const, title: 'I lost my job', body: 'The last day in status for everyone in the family, the 60-day grace period and your options, step by step.', path: `/layoff/${me.id}` }] : []),
+    { icon: 'list', tone: 'butter', title: 'Visa Bulletin and processing times', body: 'This month’s dates by category and country, and how long USCIS is taking for each form.', path: '/tools/vb' },
+    { icon: 'send', tone: 'sky', title: 'Share with family', body: 'Send documents to your spouse’s phone, encrypted, with a code you tell them. Nothing goes to a server.', path: '/share' },
+    { icon: 'chat', tone: 'mint', title: 'Community', body: 'Ask people on the same visa about stamping, extensions and timelines. No receipt numbers, not legal advice.', path: '/(tabs)/forum' },
+    { icon: 'grid', tone: 'sage', title: 'Widgets and Wallet card', body: 'Put your status and days left on the Home Screen or Lock Screen. Long-press a widget, then Edit Widget.', path: '/settings' },
+  ];
+  return (
+    <View style={{ marginTop: 26 }}>
+      <T a11y="header" style={font.title2}>What you can do now</T>
+      <T tone="text2" style={[font.sub, { marginTop: 4, marginBottom: 12 }]}>Everything is also under Tools and in Search on Home.</T>
+      <View style={{ gap: 10 }}>
+        {items.map((x, i) => (
+          <Appear key={x.title} delay={120 + i * 60}>
+            <Pressable onPress={() => { tap(); onOpen?.(x.path); }} accessibilityRole="button" accessibilityLabel={`${x.title}. ${x.body}`}>
+              <Card style={{ flexDirection: 'row', gap: 14, alignItems: 'flex-start' }}>
+                <IconTileSmall icon={x.icon} tone={x.tone} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <T style={[font.headline, { fontWeight: '700' }]}>{x.title}</T>
+                  <T tone="text2" style={[font.sub, { marginTop: 3 }]}>{x.body}</T>
+                </View>
+                <Icon name="chevR" size={16} color="#8A8D93" />
+              </Card>
+            </Pressable>
+          </Appear>
+        ))}
+      </View>
+    </View>
+  );
+}
+function IconTileSmall({ icon, tone }: { icon: string; tone: 'sky' | 'sage' | 'butter' | 'blush' | 'mint' }) {
+  const t = useTheme();
+  return <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: t.pastel[tone], alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={20} color={t.ink} /></View>;
 }
 function SummaryLine({ icon, label, value, sub, extra }: { icon: string; label: string; value: string; sub?: string; extra?: React.ReactNode }) {
   const t = useTheme();
