@@ -122,6 +122,19 @@ export function docProgress(rows: { pid: string; k: StepKey }[], has: (pid: stri
   return { added: rows.filter((r) => has(r.pid, r.k)).length, total: rows.length };
 }
 
+// ---- entry date (v3.0 fix8) ----
+type DocLite = { type: string; fields: { i94Until?: string; noticeDate?: string; validFrom?: string } };
+/** The I-797A whose tear-off I-94 is this person's only I-94 record, or undefined. Then (and only
+ *  then) setup asks for the most recent entry: a trip abroad after the approval gives a new I-94
+ *  that the I-797A does not show. With an I-94 saved, its own entry date is used. */
+export function needsEntryDate<D extends DocLite>(docs: D[]): D | undefined {
+  if (docs.some((d) => d.type === 'i94' || d.type === 'travel-history')) return undefined;
+  return docs.filter((d) => d.type === 'approval' && d.fields.i94Until).sort((a, b) => (b.fields.noticeDate ?? '').localeCompare(a.fields.noticeDate ?? ''))[0];
+}
+/** The typed entry is after the I-797A was issued: its tear-off I-94 is no longer the current one. */
+export const enteredAfterApproval = (entry: string | undefined, approval: DocLite | undefined) =>
+  !!entry && !!approval && entry > (approval.fields.noticeDate ?? approval.fields.validFrom ?? '9999');
+
 // ---- green card ----
 export type GcAnswer = 'none' | 'perm' | 'i140' | 'i485' | 'approved';
 export const GC_ANSWERS: { key: GcAnswer; title: string; sub: string }[] = [

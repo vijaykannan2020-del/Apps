@@ -17,7 +17,7 @@ import { FIELDS, showField } from '../core/docs';
 import { REMINDER_TYPES, TYPE_DEFAULT, typeDates, typeSetting, typesFor, type ReminderType } from '../core/reminders';
 import { widgetName } from '../core/widgets';
 import {
-  GC_ANSWERS, OPTIONAL_STEPS, SETUP_ORDER, docChecklist, docProgress, familyStatusLabel, gcAnswerOf, gcFactsFor, nextDeadline, nextStep, prevStep, resumeStep, setupProgress, setupSteps,
+  GC_ANSWERS, OPTIONAL_STEPS, SETUP_ORDER, docChecklist, enteredAfterApproval, needsEntryDate, docProgress, familyStatusLabel, gcAnswerOf, gcFactsFor, nextDeadline, nextStep, prevStep, resumeStep, setupProgress, setupSteps,
   suggestStatus, type GcAnswer, type SetupStep,
 } from '../core/onboarding';
 import { useFamily, type FamilyState } from '../data/FamilyProvider';
@@ -45,7 +45,7 @@ type FamDraft = { id: string; name: string; relation: Relation; status: StatusCa
 type GcCat = NonNullable<GcFacts['category']>;
 type Answers = {
   first: string; last: string; nameStyle: 'initials' | 'first'; born: string;
-  where?: 'US' | 'Outside'; country: string; lastEntry?: string;
+  where?: 'US' | 'Outside'; country: string;
   status?: StatusCategory;
   blanket?: 'yes' | 'no' | 'unsure'; stu?: StatusCategory; h4ead?: boolean;
   employer: string; place: string;
@@ -64,7 +64,7 @@ function prefill(f: FamilyState): Answers {
   const st = me?.status && me.status !== 'unsure' ? me.status : undefined;
   return {
     first: parts[0] ?? '', last: parts.slice(1).join(' '), nameStyle: f.settings.widgetNames ?? 'initials', born: fx.birthCountry ?? birthCountryGuess(rec)?.code ?? '',
-    where: rec?.locationKnown ? rec.location : fx.location, country: fx.country ?? rec?.country ?? 'India', lastEntry: fx.lastEntry,
+    where: rec?.locationKnown ? rec.location : fx.location, country: fx.country ?? rec?.country ?? 'India',
     status: st,
     blanket: fx.blanketL === true ? 'yes' : fx.blanketL === false ? 'no' : undefined, stu: st && F1_GROUP.includes(st) && me?.status ? st : undefined, h4ead: fx.hasEad,
     employer: fx.employer ?? rec?.employer ?? '', place: fx.workLocation ? placeText(fx.workLocation) : '',
@@ -224,10 +224,9 @@ async function saveStep(step: SetupStep, a: Answers, f: FamilyState) {
       if (!me || !a.where) return;
       const before = rec?.locationKnown ? rec.location : me.facts.location;
       const changed = a.where !== before || (a.where === 'Outside' && a.country !== (me.facts.country ?? rec?.country));
-      await A.setFacts(me.id, {
-        ...(changed ? { location: a.where, country: a.where === 'Outside' ? a.country : undefined, locationOn: today() } : {}),
-        lastEntry: a.where === 'US' ? a.lastEntry : undefined,
-      });
+      // v3.0 fix8 (owner): no entry date here — the I-94 shows it. It is asked on the documents
+      // step only when an I-797A's tear-off is the only I-94 (see needsEntryDate).
+      if (changed) await A.setFacts(me.id, { location: a.where, country: a.where === 'Outside' ? a.country : undefined, locationOn: today() });
       return;
     }
     case 'status': if (me && a.status && a.status !== me.status) await A.updatePerson(me.id, { status: a.status }); return;
@@ -421,7 +420,6 @@ function WhereStep({ a, set }: StepCtx) {
         <ChoiceCard icon="home" tone="sage" title="In the US" sub="We’ll check your I-94 and stay dates" selected={a.where === 'US'} onPress={() => set({ where: 'US' })} />
         <ChoiceCard icon="airplane" tone="sky" title="Outside the US" sub="Travel documents only" selected={a.where === 'Outside'} onPress={() => set({ where: 'Outside' })} />
       </View>
-      {a.where === 'US' ? <Appear><DateField label="Most recent entry to the US (optional)" value={a.lastEntry} onChange={(lastEntry) => set({ lastEntry })} /><Hint>The CBP I-94 website asks for this date. Your I-94 shows it too.</Hint></Appear> : null}
       {a.where === 'Outside' ? <Appear><SelectField label="Country" value={a.country} onChange={(country) => set({ country })} options={COUNTRIES.map((x) => ({ value: x, label: x }))} /></Appear> : null}
     </View>
   );
@@ -712,6 +710,7 @@ function DocsStep({ f }: StepCtx) {
             </View>
           </View>
           {key.map((k) => row(p, k, true))}
+          <EntryDate p={p} f={f} />
           {rest.length ? (
             more[p.id] ? rest.map((k) => row(p, k, false)) : (
               <Pressable onPress={() => setMore({ ...more, [p.id]: true })} accessibilityRole="button" accessibilityLabel={`More documents for ${p.name}`} style={{ minHeight: MIN_TOUCH, justifyContent: 'center', borderTopWidth: 1, borderTopColor: t.sep }}>
@@ -723,6 +722,25 @@ function DocsStep({ f }: StepCtx) {
       ))}
       <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'center', alignItems: 'center', marginTop: 14 }}><Icon name="lock" size={13} color={t.text2} /><T tone="text2" style={font.caption}>Read on this phone. Your documents are never uploaded.</T></View>
     </View>
+  );
+}
+
+/** v3.0 fix8 (owner): the most recent entry is asked only when an I-797A's tear-off is the person's
+ *  only I-94 — right under their documents, so it shows as soon as that approval is saved. */
+function EntryDate({ p, f }: { p: Person; f: FamilyState }) {
+  const t = useTheme();
+  const appr = needsEntryDate(f.docs.filter((d) => d.ownerId === p.id));
+  if (!appr || f.records[p.id]?.location === 'Outside') return null;
+  const entry = p.facts.lastEntry;
+  return (
+    <Appear style={{ paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.sep }}>
+      <T style={[font.callout, { fontWeight: '600' }]}>Most recent entry to the US</T>
+      <T tone="text2" style={font.foot}>{`${p.relation === 'self' ? 'Your' : `${p.name.split(' ')[0]}’s`} I-797A has an I-94 at the bottom. A trip abroad after it was issued gives a new I-94 that the I-797A doesn’t show.`}</T>
+      <DateField label="Date of entry (optional)" value={entry} onChange={(lastEntry) => { f.actions.setFacts(p.id, { lastEntry }).catch(() => {}); }} />
+      {enteredAfterApproval(entry, appr)
+        ? <Note tone="amber">{`This entry is after the approval was issued, so the current I-94 is the one from ${fmt(entry!)}. Get it from the CBP I-94 website and add it as the I-94 record.`}</Note>
+        : <Hint>The CBP I-94 website asks for this date too.</Hint>}
+    </Appear>
   );
 }
 
