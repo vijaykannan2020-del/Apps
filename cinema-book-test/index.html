@@ -209,6 +209,7 @@ a.out{display:inline-block;color:var(--ink);font-weight:600;font-size:14px;margi
 .opt small{color:var(--pink);font-weight:700}
 .opt strong{display:block;font-size:18px;margin:2px 0 4px}
 .opt span{color:var(--soft);font-size:15px}
+.saveov{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.85);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(20px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))}.saveov-in{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:12px;color:#fff}.saveov img{width:100%;border-radius:12px;-webkit-touch-callout:default;user-select:auto}
 #pCanvas,.pextra{width:100%;height:auto;border-radius:12px;display:block;background:var(--line)}.pextra{margin-top:10px}
 .pres .res{background:var(--bg)}
 .mem{display:flex;justify-content:space-between;padding:8px 0;border-top:1.5px solid var(--bg)}
@@ -392,7 +393,7 @@ h1,h2,h3{letter-spacing:-.02em}
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 30</p>
+    <p class="note" style="text-align:center">Version 31</p>
   </section>
 </div>
 
@@ -448,7 +449,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=30;
+const APP_VERSION=31;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -746,7 +747,7 @@ $$('#pLang .chip').forEach(b=>b.onclick=()=>{post.lang=b.dataset.l;ls('cb_lang',
 post.lang=ls('cb_lang')||'match';$$('#pLang .chip').forEach(x=>x.classList.toggle('on',x.dataset.l===post.lang));
 $('#pOpts').onclick=e=>{const b=e.target.closest('[data-o]');if(b)useOpt(+b.dataset.o)};
 function revNote(){const n=$('#pRev').value.trim().length;$('#pRevNote').textContent=n>420&&post.style!=='full'?'Long review. In step 4, pick Full review to show all of it, split across more images if needed.':''}
-['pHead','pRev','pHandle'].forEach(id=>$('#'+id).oninput=()=>{revNote();if(id==='pHandle')ls('cb_handle',$('#pHandle').value.trim());clearTimeout(drawPost._t);drawPost._t=setTimeout(drawPost,200)});
+['pHead','pRev','pHandle'].forEach(id=>$('#'+id).oninput=()=>{revNote();if(id!=='pHandle'&&post.auto){Object.keys(post.auto).forEach(k=>delete post.texts[k]);post.auto={};clearTimeout(paintPlat._t);paintPlat._t=setTimeout(paintPlat,300)}if(id==='pHandle')ls('cb_handle',$('#pHandle').value.trim());clearTimeout(drawPost._t);drawPost._t=setTimeout(drawPost,200)});
 $$('#pStyle .chip').forEach(b=>b.onclick=()=>{post.style=b.dataset.s;$$('#pStyle .chip').forEach(x=>x.classList.toggle('on',x===b));revNote();drawPost()});
 
 $('#pKeep').onclick=async()=>{
@@ -765,17 +766,34 @@ $('#pKeep').onclick=async()=>{
 const enc=encodeURIComponent;
 const PLAT={ig:{n:'Instagram'},x:{n:'X',max:280,open:t=>'https://twitter.com/intent/tweet?text='+enc(t)},xthread:{n:'X thread',max:280,thread:true,open:t=>'https://twitter.com/intent/tweet?text='+enc(t)},
   fb:{n:'Facebook'},th:{n:'Threads',max:500,open:t=>'https://www.threads.net/intent/post?text='+enc(t)},wa:{n:'WhatsApp',open:t=>'https://wa.me/?text='+enc(t)}};
-post.plat=ls('cb_plat')||'ig';post.texts={};
+post.plat=ls('cb_plat')||'ig';post.texts={};post.auto={};
 $('#pPlat').innerHTML=Object.entries(PLAT).map(([k,v])=>`<button class="chip" data-p="${k}" type="button">${v.n}</button>`).join('');
 const pParts=()=>$('#pT').value.split(/\n\s*\n/).filter(x=>x.trim());
 function countT(){const P=PLAT[post.plat],t=$('#pT').value;let m='';
   if(P.thread){const a=pParts();if(a.length)m=`${a.length} posts in this thread. Longest is ${Math.max(...a.map(x=>x.length))} of ${P.max} characters.${a.some(x=>x.length>P.max)?' Shorten the long one.':''}`}
   else if(P.max&&t)m=`${t.length} of ${P.max} characters.${t.length>P.max?' Too long, shorten it.':''}`;
   $('#pTCount').textContent=m}
-function paintPlat(){if(!PLAT[post.plat])post.plat='ig';const P=PLAT[post.plat];$$('#pPlat .chip').forEach(b=>b.classList.toggle('on',b.dataset.p===post.plat));const rv=$('#pRev').value.trim();if(!post.texts[post.plat]&&rv&&['ig','fb','th','wa'].includes(post.plat)){const hd=$('#pHead').value.trim(),f=post.film;post.texts[post.plat]=[(f?f.title+(f.year?' ('+f.year+')':'')+'\n':'')+(hd?hd+'\n':''),rv].filter(Boolean).join('\n')}$('#pT').value=post.texts[post.plat]||'';revNote();
+
+/* Fill an empty platform text from the review typed on this page. X posts are split to fit. */
+function shortPost(text,max){if(text.length<=max)return text;const s=text.slice(0,max-1);const c=Math.max(s.lastIndexOf('. '),s.lastIndexOf('! '),s.lastIndexOf('? '));return (c>max*.5?s.slice(0,c+1):s.replace(/\s+\S*$/,''))+'…'}
+function splitPosts(text,max){const lim=max-8,out=[];let cur='';
+  (String(text).replace(/\s*\n+\s*/g,'\n').match(/(?:[^.!?\n]|[.!?](?=\d))+[.!?]*\s*|\n/g)||[]).forEach(raw=>{let s=raw.trim();if(!s)return;
+    while(s.length>lim){let cut=s.lastIndexOf(' ',lim);if(cut<40)cut=lim;if(cur){out.push(cur);cur=''}out.push(s.slice(0,cut).trim());s=s.slice(cut).trim()}
+    const t=cur?cur+' '+s:s;if(t.length>lim){out.push(cur);cur=s}else cur=t});
+  if(cur)out.push(cur);return out.map((p,i,a)=>a.length>1?(i+1)+'/'+a.length+' '+p:p)}
+function autoText(k){const rv=$('#pRev').value.trim();if(post.texts[k]||!rv)return;const hd=$('#pHead').value.trim(),f=post.film;
+  const top=f?f.title+(f.year?' ('+f.year+')':''):'',star=post.rating?' '+fmtR(post.rating)+'/5':'';
+  const full=[top+star,hd,rv].filter(Boolean).join('\n');
+  let t='';
+  if(k==='xthread')t=splitPosts([top+star+(hd?': '+hd:''),rv].filter(Boolean).join('\n'),280).join('\n\n');
+  else if(k==='x')t=shortPost([top+star+(hd?': '+hd:''),rv].filter(Boolean).join('\n'),280);
+  else if(k==='th')t=shortPost(full,500);
+  else t=full;
+  post.texts[k]=t;post.auto[k]=true}
+function paintPlat(){if(!PLAT[post.plat])post.plat='ig';const P=PLAT[post.plat];$$('#pPlat .chip').forEach(b=>b.classList.toggle('on',b.dataset.p===post.plat));autoText(post.plat);$('#pT').value=post.texts[post.plat]||'';revNote();
   $('#pOpenApp').classList.toggle('hidden',!P.open);$('#pOpenApp').textContent='Open '+P.n.replace(' thread','')+' with this text';countT()}
 $('#pPlat').onclick=e=>{const b=e.target.closest('[data-p]');if(!b)return;post.plat=b.dataset.p;ls('cb_plat',post.plat);paintPlat()};
-$('#pT').oninput=()=>{post.texts[post.plat]=$('#pT').value;countT()};
+$('#pT').oninput=()=>{post.texts[post.plat]=$('#pT').value;delete post.auto[post.plat];countT()};
 paintPlat();
 $('#pOpenApp').onclick=()=>{const P=PLAT[post.plat],t=$('#pT').value.trim();if(!t){toast('Write the text first');return}
   if(P.thread){const a=pParts();if(a.length>1){try{navigator.clipboard.writeText(a.slice(1).join('\n\n'))}catch(e){}toast('First post opens in X. The rest is copied for the replies.')}window.open(P.open(a[0]),'_blank');return}
@@ -878,8 +896,10 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(drawPost);
 $('#pCopy').onclick=async()=>{try{await navigator.clipboard.writeText($('#pT').value);toast('Text copied')}catch(e){toast('Copy did not work. Select the text and copy it.')}};
 const postFiles=()=>{const nm=norm((post.film||{}).title)||'review';return [post.blob,...(post.more||[])].filter(Boolean).map((b,i,a)=>new File([b],nm+'-review'+(a.length>1?'-'+(i+1):'')+'.jpg',{type:'image/jpeg'}))};
 $('#pSave').onclick=async()=>{if(!post.blob){toast('The image is not ready yet');return}const fs=postFiles();
-  if(fs.length>1&&navigator.canShare&&navigator.canShare({files:fs})){try{await navigator.share({files:fs});return}catch(e){return}}
-  fs.forEach(fl=>{const a=document.createElement('a');a.href=URL.createObjectURL(fl);a.download=fl.name;document.body.appendChild(a);a.click();a.remove()});toast(fs.length>1?fs.length+' images saved to Files':'Image saved to Files')};
+  if(navigator.canShare&&navigator.canShare({files:fs})){toast(fs.length>1?'Tap Save '+fs.length+' Images':'Tap Save Image');try{await navigator.share({files:fs})}catch(e){}return}
+  const urls=await Promise.all(fs.map(fl=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(fl)})));
+  const ov=document.createElement('div');ov.className='saveov';ov.innerHTML=`<div class="saveov-in"><p><strong>Press and hold each image, then tap Save to Photos.</strong></p>${urls.map((u,i)=>`<img src="${u}" alt="Review image ${i+1}">`).join('')}<button class="btn go" type="button">Done</button></div>`;
+  ov.querySelector('button').onclick=()=>ov.remove();document.body.appendChild(ov)};
 $('#pShare').onclick=async()=>{
   if(!post.blob){toast('The image is not ready yet');return}
   const files=postFiles();

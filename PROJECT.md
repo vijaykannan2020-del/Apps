@@ -118,8 +118,8 @@ the top right and cover part of the page.
 
 ## Current state
 
-- Real app (`cinema-book/`): Version 30.
-- Test copy (`cinema-book-test/`): Version 30 (same as the real app).
+- Real app (`cinema-book/`): Version 31.
+- Test copy (`cinema-book-test/`): Version 31 (same as the real app).
   search, season tracking, dark mode, pinned full-width bottom bar.
   Waiting for Vijay to confirm the bottom bar on his phone.
 - Segue (`segue/`): Version 42 (opt-in replay trial implemented; backend not connected). Spotify sign-in, automatic timed-lyric passage selection with
@@ -279,6 +279,8 @@ the top right and cover part of the page.
 - 2026-11-14, ChatGPT: Segue Version 33 places the wide Playing queue left and deck right, and adds a silent one-second cassette opening animation with no input/startup blocking and a reduced-motion skip. Spotify starts now carry current + up to 99 upcoming URIs; observed native Next in that submitted mix/output follows the selected song and seeks its saved AI passage without another Play. Paused selection stays silent; missing AI pauses while preparing; unrelated outputs/songs still detach. Browser SDK media actions refresh on state events, guard output ownership, include stop/skip-seek, and update metadata/position without clearing transient paused sessions. All 80 controller checks, 14 layout/theme cases and browser playback flows pass. Native queue snapshots/shuffle/history and iOS suspension/CarPlay limits are documented; real phone/CarPlay confirmation is pending. No Spotify playlist created; AI mappings retained.
 
 Newest first. Add one line per change: date, who, version, what.
+
+- 2026-11-20, Claude: Version 31 in test copy and real app. Save image now opens the iPhone share sheet (Save Image / Save N Images); the old blob download opened a broken viewer in the Home Screen app. Fallback shows the images to press and hold. Empty platform texts fill from the typed review via `autoText()`: X thread split into numbered posts under 280 (`splitPosts()`), X and Threads shortened at a sentence (`shortPost()`), others get the full review. Auto-filled texts refresh when the review changes; edited ones are kept.
 
 - 2026-11-20, Claude: Version 30 in test copy and real app. New "Full review" image style (`drawFull()`): poster, title, stars and headline on top, then the whole review at the largest size that fits (38px down to 28px); longer reviews continue on extra 1080x1350 images ("Review, continued", page numbers) shown under the main canvas in `#pMore`. `cx` is now `let` so extra pages can draw on their own canvas. Share and Save send all images together (Instagram carousel).
 
