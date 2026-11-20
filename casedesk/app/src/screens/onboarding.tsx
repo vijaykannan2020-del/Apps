@@ -1,6 +1,7 @@
 // First run (v3.0): the multi-step onboarding lives in setup.tsx. No login, ever.
 // The 4-screen tour is optional (Settings → How Immigration Wallet works).
 import React, { useRef, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Redirect, router } from 'expo-router';
 import { Button, Icon, T, font, useTheme, Footer } from '../ui';
@@ -24,10 +25,12 @@ export function Tour() {
   const [i, setI] = useState(0);
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
   const ref = useRef<any>(null);
+  const insets = useSafeAreaInsets();
   const done = () => (router.canGoBack() ? router.back() : replace('/(tabs)'));
   const next = () => { if (i >= SLIDES.length - 1) done(); else { ref.current?.scrollTo({ x: (i + 1) * (box?.w ?? width), animated: true }); setI(i + 1); } };
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
+      <View style={{ flex: 1, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
       <View style={{ flex: 1 }} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       {box ? (
         <ScrollView ref={ref} horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width: box.w, height: box.h }}
@@ -41,6 +44,7 @@ export function Tour() {
           ))}
         </ScrollView>
       ) : null}
+      </View>
       </View>
       <Footer column>
         <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'center' }} accessibilityElementsHidden>

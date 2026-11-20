@@ -159,19 +159,23 @@ function OnboardingBody() {
           {optional ? <Button kind="ghost" title="Skip for now" onPress={skipStep} /> : null}
           <Button grow title={step === 'docs' || step === 'cases' || step === 'family' || step === 'protect' ? 'Continue' : 'Next'} disabled={!valid} busy={busy} onPress={next} />
         </>;
+  // Full-bleed: background, header and footer reach every edge; the step column keeps clear of the
+  // left / right safe-area insets and is centred in the space between them.
   const scroll = (
     <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"
-      contentContainerStyle={{ paddingHorizontal: L.side, paddingTop: 18, paddingBottom: 32, alignSelf: 'center', width: '100%', maxWidth: L.twoCol ? 600 : L.maxWidth + 2 * L.side }}>
-      {body}
+      contentContainerStyle={L.twoCol ? undefined : { paddingLeft: insets.left, paddingRight: insets.right }} scrollIndicatorInsets={L.twoCol ? undefined : { left: insets.left, right: insets.right }}>
+      <View style={{ paddingHorizontal: L.side, paddingTop: 18, paddingBottom: 32, alignSelf: 'center', width: '100%', maxWidth: L.twoCol ? 600 : L.maxWidth + 2 * L.side }}>{body}</View>
     </ScrollView>
   );
   const content = (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingLeft: insets.left, paddingRight: insets.right }}>
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
       <SetupHeader at={pr.at} total={pr.total} onBack={back} backLabel={prevStep(step, steps) ? 'Back' : rerun ? 'Close' : 'Back'} done={step === 'done'} onLater={finishLater} />
       {L.twoCol ? (
-        <View style={{ flex: 1, flexDirection: 'row', alignSelf: 'center', width: '100%', maxWidth: L.wideMax + 2 * L.side }}>
-          <View style={{ flex: 1.15, minWidth: 0 }}>{scroll}</View>
-          <View style={{ flex: 1, minWidth: 0, paddingRight: L.side, paddingLeft: 8, paddingTop: 18 }}><SetupPreview step={step} a={a} /></View>
+        <View style={{ flex: 1, paddingLeft: insets.left, paddingRight: insets.right }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignSelf: 'center', width: '100%', maxWidth: L.wideMax + 2 * L.side }}>
+            <View style={{ flex: 1.15, minWidth: 0 }}>{scroll}</View>
+            <View style={{ flex: 1, minWidth: 0, paddingRight: L.side, paddingLeft: 8, paddingTop: 18 }}><SetupPreview step={step} a={a} /></View>
+          </View>
         </View>
       ) : scroll}
       <Footer>{footer}</Footer>
@@ -274,7 +278,7 @@ function SetupHeader({ at, total, onBack, backLabel, onLater, done }: { at: numb
   const insets = useSafeAreaInsets();
   const L = useLayout();
   return (
-    <View style={{ paddingTop: insets.top + 4, backgroundColor: t.bg }}>
+    <View style={{ paddingTop: insets.top + 4, paddingLeft: insets.left, paddingRight: insets.right, backgroundColor: t.bg }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 6, alignSelf: 'center', width: '100%', maxWidth: L.twoCol ? L.wideMax + 2 * L.side : L.maxWidth + 2 * L.side, minHeight: 48 }}>
         {!done ? (
           <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={backLabel} hitSlop={6} style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 }}>
@@ -1005,7 +1009,9 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
   const goTo = (k: number) => { if (!box) return; tap(); ref.current?.scrollTo({ x: k * box.w, animated: true }); setI(k); };
   const short = (box?.h ?? 600) < 330;
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
+      {/* full-bleed background; the slides and dots keep clear of the left / right insets (the footer handles its own) */}
+      <View style={{ flex: 1, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 12 }}>
         <View style={{ width: 28, height: 28, borderRadius: 9, backgroundColor: t.pastel.sage, alignItems: 'center', justifyContent: 'center' }}><Icon name="shield" size={16} color={t.ink} /></View>
         <T a11y="header" style={font.headline}>Immigration Wallet</T>
@@ -1030,6 +1036,7 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
             <View style={{ width: k === i ? 24 : 8, height: 8, borderRadius: 4, backgroundColor: k === i ? t.text : t.outline }} />
           </Pressable>
         ))}
+      </View>
       </View>
       <Footer column>
         <Button title="Get started" onPress={onStart} />

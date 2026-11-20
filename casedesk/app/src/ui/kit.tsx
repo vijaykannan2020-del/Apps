@@ -224,17 +224,26 @@ export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard
   // side rail), so they get no extra bottom gap; Android and web still pad for the bottom bar.
   const inner: ViewStyle = { paddingHorizontal: L.side, paddingTop: nav ? 20 : padTop ? insets.top + 14 : 0, paddingBottom: (footer ? 24 : 32) + (tabRoot ? (Platform.OS === 'ios' ? 0 : insets.bottom + 56) : footer ? 0 : insets.bottom), alignSelf: 'center', width: '100%', maxWidth: wide && L.twoCol ? L.wideMax + 2 * L.side : L.maxWidth + 2 * L.side };
   const split = !!panes && L.twoCol;
+  // Full-bleed (owner, v3.0 fix8): the background, bars and scroll areas reach every edge; only the
+  // content column keeps clear of the safe-area insets (top, bottom, left and right — e.g. the
+  // system status column on the right of a foldable), centred in what is left.
+  const sides: ViewStyle = { paddingLeft: insets.left, paddingRight: insets.right };
+  const indicator = { left: insets.left, right: insets.right };
   const paneInner = (left: boolean): ViewStyle => ({ ...inner, maxWidth: undefined, alignSelf: 'stretch', paddingLeft: left ? L.side : 10, paddingRight: left ? 10 : L.side });
   const body = split ? (
-    <View style={{ flex: 1, flexDirection: 'row', alignSelf: 'center', width: '100%', maxWidth: L.wideMax + 2 * L.side }}>
-      <TourScroll testID="pane-left" style={{ flex: paneRatio }} contentContainerStyle={paneInner(true)} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes!.left}</TourScroll>
-      <TourScroll testID="pane-right" style={{ flex: 1 }} contentContainerStyle={paneInner(false)} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes!.right}</TourScroll>
+    <View style={[{ flex: 1 }, sides]}>
+      <View style={{ flex: 1, flexDirection: 'row', alignSelf: 'center', width: '100%', maxWidth: L.wideMax + 2 * L.side }}>
+        <TourScroll testID="pane-left" style={{ flex: paneRatio }} contentContainerStyle={paneInner(true)} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes!.left}</TourScroll>
+        <TourScroll testID="pane-right" style={{ flex: 1 }} contentContainerStyle={paneInner(false)} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes!.right}</TourScroll>
+      </View>
     </View>
   ) : scroll ? (
-    <TourScroll style={{ flex: 1 }} contentContainerStyle={inner} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>{panes ? <>{panes.left}{panes.right}</> : children}</TourScroll>
-  ) : <View style={[{ flex: 1 }, inner]}>{children}</View>;
+    <TourScroll style={{ flex: 1 }} contentContainerStyle={sides} scrollIndicatorInsets={indicator} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentInsetAdjustmentBehavior={tabRoot ? 'automatic' : 'never'}>
+      <View style={inner}>{panes ? <>{panes.left}{panes.right}</> : children}</View>
+    </TourScroll>
+  ) : <View style={[{ flex: 1 }, sides]}><View style={[{ flex: 1 }, inner]}>{children}</View></View>;
   const content = (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingLeft: insets.left, paddingRight: insets.right }}>
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
       {nav ? <NavBar {...nav} right={tour && tour.steps.length ? <View style={{ flexDirection: 'row', alignItems: 'center' }}><TourButton tour={tour} />{nav.right}</View> : nav.right} /> : null}
       {body}
       {footer ? <Footer>{footer}</Footer> : null}
@@ -810,7 +819,7 @@ function SheetView({ onClose, title, children }: { onClose: () => void; title?: 
         <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: t.shade }]} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
       </Animated.View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ maxHeight: '92%', alignSelf: 'center', width: '100%', maxWidth: L.wide ? 560 : undefined }}>
-        <Animated.View accessibilityViewIsModal style={{ transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }], backgroundColor: t.dark ? '#141516' : t.bg, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, paddingTop: 10, paddingHorizontal: 18, paddingBottom: 18 + insets.bottom }}>
+        <Animated.View accessibilityViewIsModal style={{ transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }], backgroundColor: t.dark ? '#141516' : t.bg, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, paddingTop: 10, paddingLeft: 18 + insets.left, paddingRight: 18 + insets.right, paddingBottom: 18 + insets.bottom }}>
           <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: t.outline, alignSelf: 'center', marginBottom: 14 }} />
           <ScrollView keyboardShouldPersistTaps="handled" bounces={false}>
             {title ? <T a11y="header" style={font.title2}>{title}</T> : null}

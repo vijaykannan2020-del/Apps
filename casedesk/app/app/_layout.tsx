@@ -2,7 +2,7 @@ import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaInsetsContext, SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary, SheetProvider, ThemeProvider, ToastProvider, useTheme } from '../src/ui';
 import { FamilyProvider, useFamily } from '../src/data/FamilyProvider';
 import { AppLock } from '../src/screens/lock';
@@ -33,6 +33,17 @@ function Nav() {
     </>
   );
 }
+
+/** Web preview only: ?insets=top,right,bottom,left simulates safe-area insets (e.g. the status column
+ *  on the right of a foldable, or a landscape notch) so layouts can be checked without a device. */
+const WEB_INSETS = (() => {
+  if (Platform.OS !== 'web') return null;
+  try {
+    const m = /[?&]insets=([\d.]+),([\d.]+),([\d.]+),([\d.]+)/.exec((globalThis as any).location?.search ?? '');
+    return m ? { top: +m[1], right: +m[2], bottom: +m[3], left: +m[4] } : null;
+  } catch { return null; }
+})();
+const WebInsets = ({ children }: { children: React.ReactNode }) => (WEB_INSETS ? <SafeAreaInsetsContext.Provider value={WEB_INSETS}>{children}</SafeAreaInsetsContext.Provider> : <>{children}</>);
 
 export default function Root() {
   useEffect(() => {
@@ -65,6 +76,7 @@ export default function Root() {
   }, []);
   return (
     <SafeAreaProvider>
+      <WebInsets>
       <ErrorBoundary>
         <FamilyProvider>
           <Themed>
@@ -83,6 +95,7 @@ export default function Root() {
           </Themed>
         </FamilyProvider>
       </ErrorBoundary>
+      </WebInsets>
     </SafeAreaProvider>
   );
 }
