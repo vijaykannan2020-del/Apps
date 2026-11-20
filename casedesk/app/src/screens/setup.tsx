@@ -3,7 +3,7 @@
 // Which steps apply, resume and routing are pure (core/onboarding.ts). Documents reuse the document
 // flow screens in "quick" mode (one document, then back here). Tools stay as in-context tips later.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { GcFacts, Person, Relation, StatusCategory } from '../core/model';
@@ -35,6 +35,7 @@ import type { Source } from '../native/files';
 import {
   Appear, Avatar, Button, Card, ChipToggle, Chips, DateField, Field, Footer, H1, Hint, Icon, Meter, Note, Pastel, SelectField, Spinner, Switch, T, Why, font, radius,
   useLayout, useReduceMotion, useSheet, useTheme, useToast, MIN_TOUCH, type PastelTone,
+  useKeyboardPad,
 } from '../ui';
 import { DISCLAIMER_LINE } from '../content/legal';
 import { BirthCountryField, COUNTRIES, statusGroups } from './sheets';
@@ -89,6 +90,7 @@ export function Onboarding() {
 }
 
 function OnboardingBody() {
+  const kb = useKeyboardPad(true);
   const f = useFamily();
   const t = useTheme();
   const toast = useToast();
@@ -189,7 +191,7 @@ function OnboardingBody() {
       <Footer>{footer}</Footer>
     </View>
   );
-  return Platform.OS === 'ios' ? <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: t.bg }}>{content}</KeyboardAvoidingView> : content;
+  return Platform.OS === 'ios' ? <View style={{ flex: 1, backgroundColor: t.bg, paddingBottom: kb }}>{content}</View> : content;
 }
 
 // ---------- validity and saving (one place) ----------

@@ -4,7 +4,7 @@
 // screens (fold open, iPad, landscape).
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Animated, BackHandler, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch as RNSwitch,
+  ActivityIndicator, Animated, BackHandler, Dimensions, Keyboard, KeyboardAvoidingView, TextInput as RNTextInput, Modal, Platform, Pressable, ScrollView, Switch as RNSwitch,
   Text as RNText, TextInput, View, StyleSheet, type TextStyle, type ViewStyle, type KeyboardTypeOptions, type TextProps,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -204,10 +204,31 @@ export function Footer({ children, column }: { children: React.ReactNode; column
   const insets = useSafeAreaInsets();
   const L = useLayout();
   return (
-    <Bar edge="bottom" style={{ paddingBottom: 12 + insets.bottom, paddingTop: 12, paddingLeft: insets.left, paddingRight: insets.right }}>
+    <Bar edge="bottom" style={{ paddingBottom: Math.max(12, insets.bottom), paddingTop: 12, paddingLeft: insets.left, paddingRight: insets.right }}>
       <View style={{ flexDirection: column ? 'column' : 'row', flexWrap: column ? 'nowrap' : 'wrap', gap: 10, paddingHorizontal: L.side, alignSelf: 'center', width: '100%', maxWidth: L.maxWidth + 2 * L.side }}>{children}</View>
     </Bar>
   );
+}
+
+/**
+ * v3.0 (owner): bottom padding while the keyboard covers a text field. Replaces KeyboardAvoidingView,
+ * which on the foldable left a large empty band under the bottom buttons with no keyboard showing.
+ * Only a real keyboard over a focused field counts; the footer's own safe-area padding is subtracted.
+ */
+export function useKeyboardPad(on: boolean): number {
+  const [h, setH] = useState(0);
+  const insets = useSafeAreaInsets();
+  useEffect(() => {
+    if (!on || Platform.OS !== 'ios') return;
+    const change = Keyboard.addListener('keyboardWillChangeFrame', (e) => {
+      const focused = !!RNTextInput.State?.currentlyFocusedInput?.();
+      const overlap = Math.max(0, Dimensions.get('window').height - e.endCoordinates.screenY);
+      setH(focused && overlap > 120 ? Math.max(0, overlap - insets.bottom) : 0);
+    });
+    const hide = Keyboard.addListener('keyboardWillHide', () => setH(0));
+    return () => { change.remove(); hide.remove(); };
+  }, [on, insets.bottom]);
+  return h;
 }
 
 // ---------- screen ----------
@@ -219,6 +240,7 @@ export function Footer({ children, column }: { children: React.ReactNode; column
 export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard, padTop = true, wide, panes, paneRatio = 1, tour }: { nav?: NavProps; footer?: React.ReactNode; children?: React.ReactNode; scroll?: boolean; tabRoot?: boolean; keyboard?: boolean; padTop?: boolean; wide?: boolean; panes?: { left: React.ReactNode; right: React.ReactNode }; paneRatio?: number; tour?: Tour }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const kb = useKeyboardPad(!!keyboard);
   const L = useLayout();
   // iOS tab roots: contentInsetAdjustmentBehavior=automatic already clears the tab bar (bottom, floating or
   // side rail), so they get no extra bottom gap; Android and web still pad for the bottom bar.
@@ -249,7 +271,7 @@ export function Screen({ nav, footer, children, scroll = true, tabRoot, keyboard
     </View>
   );
   const scoped = tour ? <TourScope tour={tour}>{content}</TourScope> : content;
-  return keyboard && Platform.OS === 'ios' ? <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: t.bg }}>{scoped}</KeyboardAvoidingView> : scoped;
+  return keyboard && Platform.OS === 'ios' ? <View style={{ flex: 1, backgroundColor: t.bg, paddingBottom: kb }}>{scoped}</View> : scoped;
 }
 
 // ---------- surfaces ----------
