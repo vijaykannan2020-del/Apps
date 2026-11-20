@@ -106,7 +106,7 @@ export function JoinSheet({ onReady, onClose }: { onReady: () => void; onClose: 
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}><View style={{ flex: 1 }}><Why>Reading is open to everyone. To post, comment or vote, sign in — other people only see a made-up display name you can change. We never see or show your email.</Why></View><TourButton /></View>
       <Hint>{COMMUNITY_DISCLAIMER}</Hint>
       {support === null ? <View style={{ marginTop: 18 }}><Spinner /></View> : null}
-      {support === 'update' ? <Note tone="amber">Update the app from TestFlight to join the community. You can keep reading in this version.</Note> : null}
+      {support === 'update' ? <Note tone="amber">Update the app from the App Store to join the community. You can keep reading in this version.</Note> : null}
       {support === 'unsupported' && !showGoogle ? <Note tone="grey">Sign in with Apple isn’t available on this device. You can keep reading.</Note> : null}
       {support === 'ok' ? <TourTarget id="apple"><AppleButton busy={busy} onPress={async () => {
         setBusy(true); setError('');

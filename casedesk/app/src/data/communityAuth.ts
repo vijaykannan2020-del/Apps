@@ -31,7 +31,7 @@ export const makeNonce = () => {
 /** Returns false when the person cancelled. Throws with a readable message otherwise. */
 export async function signInWithApple(): Promise<boolean> {
   const A = appleModule();
-  if (!A?.signInAsync) throw new Error('Update the app from TestFlight to join the community.');
+  if (!A?.signInAsync) throw new Error('Update the app from the App Store to join the community.');
   const n = makeNonce();
   let cred: any;
   try {

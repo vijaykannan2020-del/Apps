@@ -26,7 +26,7 @@ export async function backUpToICloud(store: Store, password?: string, onProgress
   running = true;
   try {
     const sup = await iCloudSupport();
-    if (!sup.ok) throw new Error(sup.reason === 'old-build' ? 'Needs the latest app version from TestFlight' : 'not signed in');
+    if (!sup.ok) throw new Error(sup.reason === 'old-build' ? 'Needs the latest app version from the App Store' : 'not signed in');
     const pw = password ?? (await loadPassword());
     if (!pw) throw new Error('Type your backup password to back up to iCloud');
     const { payload } = await buildPayload(store);

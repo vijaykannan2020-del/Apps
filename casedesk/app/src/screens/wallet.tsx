@@ -160,7 +160,7 @@ export function WidgetRows() {
       <Row icon="lock" title="Hide details on widgets when Face ID lock is on" subtitle="Widgets then only say “Open Immigration Wallet”"
         trailing={<Switch value={widgetHideLocked(f.settings)} label="Hide details on widgets when Face ID lock is on" onValueChange={(on) => { f.actions.updateSettings({ widgetHideLocked: on }); toast(on ? 'Widget details hidden while locked' : 'Widgets show details'); }} />} />
       <Row icon="bulb" title="Choose what a widget shows" subtitle="Long-press a widget → Edit Widget to choose what it shows" onPress={() => go('/help/widgets')} />
-      <Row icon="help" title="Add a widget" subtitle={available ? 'Touch and hold the Home Screen → Edit → Add Widget → Immigration Wallet' : 'Needs the latest app version from TestFlight'} onPress={() => go('/help/widgets')} />
+      <Row icon="help" title="Add a widget" subtitle={available ? 'Touch and hold the Home Screen → Edit → Add Widget → Immigration Wallet' : 'Needs the latest app version from the App Store'} onPress={() => go('/help/widgets')} />
     </Group></TourTarget>
   );
 }

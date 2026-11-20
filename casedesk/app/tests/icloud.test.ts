@@ -38,7 +38,7 @@ test('older builds without the iCloud module: no crash, a clear message', async 
   assert.equal(ic.hasICloudModule(), false);
   const s = await ic.iCloudSupport();
   assert.deepEqual(s, { ok: false, reason: 'old-build' });
-  assert.equal(ic.supportText(s), 'Needs the latest app version from TestFlight');
+  assert.equal(ic.supportText(s), 'Needs the latest app version from the App Store');
   assert.deepEqual(await ic.listBackups(), []);
   await assert.rejects(ic.writeBackup('x', 'y'), /isn’t available/);
 });
@@ -63,7 +63,7 @@ test('friendly iCloud errors', async () => {
   assert.equal(f(new Error('not signed in')), 'Sign in to iCloud in iOS Settings');
   assert.equal(f({ code: 'ERR_AUTHENTICATION_FAILED', message: 'x' }), 'Sign in to iCloud in iOS Settings');
   assert.match(f({ message: 'The operation couldn’t be completed. (NSUbiquitousFileErrorDomain error 4353.)' }), /^Turn on iCloud Drive for Immigration Wallet/);
-  assert.equal(f(new Error('Needs the latest app version from TestFlight')), 'Needs the latest app version from TestFlight');
+  assert.equal(f(new Error('Needs the latest app version from the App Store')), 'Needs the latest app version from the App Store');
   assert.equal(f(undefined), 'Couldn’t back up to iCloud');
   // error 640 in another domain isn't "full"
   assert.doesNotMatch(f({ message: "NSPOSIXErrorDomain error 640" }), /full/);

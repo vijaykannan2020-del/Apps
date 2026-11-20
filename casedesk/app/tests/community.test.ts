@@ -126,7 +126,7 @@ test('Sign in with Apple: cancel returns false, missing module asks for the Test
   M._load = function (req: string, ...a: any[]) { if (req === 'expo-apple-authentication') throw new Error('Cannot find native module'); return prev.call(this, req, ...a); };
   try {
     assert.equal(await auth.appleSupport(), 'update');
-    await assert.rejects(auth.signInWithApple(), /Update the app from TestFlight to join the community/);
+    await assert.rejects(auth.signInWithApple(), /Update the app from the App Store to join the community/);
   } finally { M._load = prev; virtual['expo-apple-authentication'] = saved; }
 });
 

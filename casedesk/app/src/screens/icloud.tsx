@@ -71,7 +71,7 @@ export function ICloudPasswordSheet({ mode }: { mode: 'enable' | 'once' }) {
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}><TourTarget id="toggle" style={{ flex: 1 }}><Why>{mode === 'enable'
         ? 'Like WhatsApp: Immigration Wallet backs up to your iCloud every day and after you change something, and keeps the last 3 backups. The file is locked with this password — Apple can’t read it, and neither can we.'
         : 'One backup to your iCloud, locked with this password.'}</Why></TourTarget><TourButton /></View>
-      {mode === 'enable' && !keychain ? <Note tone="amber">This version can’t keep the password in the keychain, so backups can’t run on their own. Update from TestFlight for automatic backups.</Note> : null}
+      {mode === 'enable' && !keychain ? <Note tone="amber">This version can’t keep the password in the keychain, so backups can’t run on their own. Update the app from the App Store for automatic backups.</Note> : null}
       <TourTarget id="password"><Field label="Backup password" value={pw} onChangeText={setPw} secure placeholder="At least 8 characters" autoCapitalize="none" /></TourTarget>
       <Field label="Type it again" value={pw2} onChangeText={setPw2} secure autoCapitalize="none" />
       <Hint>{keychain ? 'Kept in this iPhone’s keychain for automatic backups. You’ll need it to restore on a new phone — we can’t recover it.' : 'You’ll need it to restore — we can’t recover it.'}</Hint>

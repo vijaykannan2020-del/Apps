@@ -387,7 +387,7 @@ export function GcInterviewScreen() {
           if (r === 'text' && pdf) toast('Shared as text');
         }} />
       </View>
-      {!pdf ? <Hint>PDF needs the next app version from TestFlight; this shares the checklist as text.</Hint> : null}
+      {!pdf ? <Hint>PDF needs a newer app version; this shares the checklist as text.</Hint> : null}
       <SectionHeader>Common questions</SectionHeader>
       <Group>{INTERVIEW_QUESTIONS.map((q) => <Row key={q.q} title={q.q} titleStyle={{ ...font.callout, fontWeight: '500' }} subtitle={q.tip} />)}</Group>
       <Note tone="blue">This is the green card (I-485) interview — the citizenship test is separate (Tools → Citizenship test).</Note>

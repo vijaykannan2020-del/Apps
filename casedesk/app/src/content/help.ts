@@ -115,7 +115,7 @@ export const HELP: HelpTopic[] = [
       'To add one: touch and hold an empty part of the Home Screen → Edit → Add Widget → Immigration Wallet → pick a size. For the Lock Screen: touch and hold the Lock Screen → Customize → Lock Screen → tap the widget area. Tapping a widget opens that person or case.',
       'Choose what each widget shows: long-press a widget → Edit Widget. Person: Whole family (the default) or one person. Show: Current status (the default) — in the US, valid until the latest I-94 date with days left; outside the US, the I-797 approval expiry, whether a valid visa stamp is in the passport, and days of status left. Or next deadline, passport, visa stamp, I-94, EAD, advance parole, green card stage, latest case update or priority date. If something isn’t saved for that person yet, the widget says “Not added yet — open the app”.',
       'Widgets show only a short summary — initials or first names (Settings → Widgets & Wallet), status labels and dates. Never passport, receipt or A-numbers. When Face ID lock is on, widgets hide everything and only say “Open Immigration Wallet” (you can change this in Settings → Widgets & Wallet).',
-      'Widgets update when you change something in the app and once a day. They are for your reference — not an official document, and not legal advice. Widgets need the latest app version from TestFlight and iOS 17 or later.',
+      'Widgets update when you change something in the app and once a day. They are for your reference — not an official document, and not legal advice. Widgets need iOS 17 or later and the latest app version.',
     ],
     steps: ['Home Screen → touch and hold → Edit → Add Widget → Immigration Wallet', 'Settings → Widgets & Wallet → Show names on widgets'],
   },
