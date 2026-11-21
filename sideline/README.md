@@ -11,3 +11,5 @@ Version: on every change raise the number in `version.json`, and in `index.html`
 Live TV / Cricket / Saved (Version 19+): built only from the user's add-ons (`live.js`). Live TV = every non-movie/series catalog; Cricket = cricket catalogs, a "Cricket" genre option, or items mentioning cricket/IPL/T20/ODI. The old built-in channels and public playlists are no longer shown or loaded (files kept in the repo).
 
 Browse by add-on (Version 20+, `discover.js`): Home has Add-on / Type / List / Genre pickers (Cinemeta's full manifest plus every enabled add-on's catalogs) with Load more paging via `skip`.
+
+Debrid account (Version 21+): Add-ons → "Your debrid account" stores one debrid key (`sideline-debrid`, device only) and writes `service=KEY` into every Torrentio-style source (Torrentio, KnightCrawler, any link with a debrid slot), including ones added later; Debridio uses it as provider key. Real-Debrid's API has no CORS, so plain magnets from other add-ons can't be resolved in the browser.

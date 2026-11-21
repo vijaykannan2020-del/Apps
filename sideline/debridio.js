@@ -27,31 +27,49 @@ $('#disconnectDebridio').onclick=()=>{const before=providers.length;providers.sp
 $('#providerList').addEventListener('click',()=>setTimeout(renderDebridioState,0));
 renderDebridioState();
 
-// Torrentio + debrid: rewrite the existing Torrentio source so its results come back as
-// direct HTTPS links (playable here) instead of magnets. Other Torrentio options are kept.
+// One debrid account for every source. The key is saved once on this device and written into
+// every source that takes a debrid key in its link (Torrentio-style "service=KEY" settings),
+// and Debridio uses it as its provider key. Real-Debrid's own API blocks browser requests,
+// so plain torrent results from other add-ons still need Webtor or the private server.
 const torrentioServices={realdebrid:'Real-Debrid',alldebrid:'AllDebrid',premiumize:'Premiumize',torbox:'TorBox',debridlink:'Debrid-Link',easydebrid:'EasyDebrid',offcloud:'Offcloud'};
-function isTorrentioSource(p){try{return /(^|\.)torrentio\.strem\.fun$/i.test(new URL(p.base).hostname)}catch{return false}}
-function torrentioOptions(p){const u=new URL(p.base),seg=decodeURIComponent(u.pathname.replace(/^\/+|\/+$/g,'').split('/').pop()||'');const opts=[];for(const part of seg.split('|')){const i=part.indexOf('=');if(i>0)opts.push([part.slice(0,i),part.slice(i+1)])}return {origin:u.origin,opts}}
+let debridAccount=read('sideline-debrid',null);if(!debridAccount||!(debridAccount.service in torrentioServices)||typeof debridAccount.key!=='string')debridAccount=null;
+function isTorrentioSource(p){try{return /(^|\.)torrentio\.strem\.fun$|knightcrawler|torrentio/i.test(new URL(p.base).hostname)}catch{return false}}
+function torrentioOptions(p){const u=new URL(p.base),parts=u.pathname.replace(/^\/+|\/+$/g,'').split('/'),seg=decodeURIComponent(parts.pop()||'');const opts=[];for(const part of seg.split('|')){const i=part.indexOf('=');if(i>0)opts.push([part.slice(0,i),part.slice(i+1)])}return {origin:u.origin+(parts.length?'/'+parts.join('/'):''),opts}}
+function takesDebridKey(p){if(isDebridioSource(p))return false;if(isTorrentioSource(p))return true;try{const {opts}=torrentioOptions(p);return opts.some(([k])=>k in torrentioServices||k==='debridoptions')}catch{return false}}
 function torrentioDebrid(p){const {opts}=torrentioOptions(p);const hit=opts.find(([k])=>k in torrentioServices||k==='putio');return hit?(torrentioServices[hit[0]]||'Put.io'):null}
-function renderTorrentioState(){const list=providers.filter(isTorrentioSource);$('#torrentioState').textContent=!list.length?'No Torrentio source yet. Connecting here adds one for you.':list.map(p=>{const d=torrentioDebrid(p);return d?'Torrentio is using '+d+' ✓ Results play here.':'Torrentio found, but without debrid: results are torrents and cannot play here.'}).join(' ')}
+function withDebrid(p,acct){const {origin,opts}=torrentioOptions(p);const kept=opts.filter(([k])=>!(k in torrentioServices)&&k!=='putio');const config=[...kept,...(acct?[[acct.service,acct.key]]:[])].map(([k,v])=>k+'='+v).join('|');return normalizeProvider(origin+'/'+(config?config+'/':'')+'manifest.json')}
+function sourceName(p){return p.manifest?.name||new URL(p.base).hostname}
+function renderTorrentioState(){const using=providers.filter(takesDebridKey).map(sourceName);const debridio=providers.some(isDebridioSource);
+ $('#torrentioState').textContent=debridAccount?torrentioServices[debridAccount.service]+' key saved ✓ Used by: '+([...using,...(debridio?['Debridio']:[])].join(', ')||'new sources you add (and Torrentio if you tick the box)'):'No debrid key saved yet.';
+ $('#forgetDebrid').classList.toggle('hidden',!debridAccount);
+ const shared=!!debridAccount;$('#debridioProvider').closest('label').classList.toggle('hidden',shared);$('#debridioProviderKey').closest('label').classList.toggle('hidden',shared);
+ $('#debridioShared').textContent=shared?'Uses your saved '+torrentioServices[debridAccount.service]+' key from "Your debrid account" above. You only need the Debridio key.':'';}
+// Quietly bring every compatible source in line with the saved key (no network calls).
+function applyDebridEverywhere(){if(!debridAccount)return 0;let changed=0;providers.forEach((p,i)=>{if(!takesDebridKey(p))return;const next=withDebrid(p,debridAccount);if(next.url!==p.url){providers[i]={...p,...next};changed++}});if(changed){persistProviders();searchGeneration++;streamGeneration++}return changed}
+async function probeTorrentio(p,service){try{const probe=await providerJSON(p.base+'/stream/movie/tt0111161.json'+(p.query||''),20000);const first=(probe.streams||[])[0];const text=first?[first.name,first.title,first.description].filter(x=>typeof x==='string').join(' '):'';if(/invalid|expired|error|access denied|not premium/i.test(text)&&/failed_access|error/i.test((first.url||'')+' '+text))throw new Error('The '+torrentioServices[service]+' key was rejected: '+text.replace(/\s+/g,' ').slice(0,140))}catch(err){if(err.message?.startsWith('The '))throw err}}
 $('#torrentioForm').onsubmit=async e=>{e.preventDefault();const status=$('#torrentioStatus'),button=$('#connectTorrentio'),service=$('#torrentioService').value,key=$('#torrentioKey').value.trim();
  if(!(service in torrentioServices)){status.textContent='Choose your debrid service.';return}
  if(!key||/[\s|\/]/.test(key)){status.textContent='Paste the API key from your debrid service (no spaces).';return}
- button.disabled=true;status.textContent='Checking your key with Torrentio…';
- try{const index=providers.findIndex(isTorrentioSource),old=index>=0?providers[index]:null;
-  const {origin,opts}=old?torrentioOptions(old):{origin:'https://torrentio.strem.fun',opts:[]};
-  const kept=opts.filter(([k])=>!(k in torrentioServices)&&k!=='putio'&&k!=='debridoptions');
-  const config=[...kept,[service,key]].map(([k,v])=>k+'='+v).join('|');
-  const p=normalizeProvider(origin+'/'+config+'/manifest.json');
-  const manifest=await providerJSON(p.url);if(typeof manifest.id!=='string'||!Array.isArray(manifest.resources))throw new Error('Torrentio returned an unexpected reply. Try again later.');manifest.catalogs=Array.isArray(manifest.catalogs)?manifest.catalogs:[];
-  // Torrentio reports a bad key as a fake stream; test with a well-known film.
-  try{const probe=await providerJSON(p.base+'/stream/movie/tt0111161.json'+(p.query||''),20000);const first=(probe.streams||[])[0];const text=first?[first.name,first.title,first.description].filter(x=>typeof x==='string').join(' '):'';if(/invalid|expired|error|access denied|not premium/i.test(text)&&/failed_access|error/i.test((first.url||'')+' '+text))throw new Error('Torrentio says the '+torrentioServices[service]+' key was rejected: '+text.replace(/\s+/g,' ').slice(0,140))}catch(err){if(err.message?.startsWith('Torrentio says'))throw err}
-  if(old)providers[index]={...p,manifest,enabled:true};else{if(providers.length>=8)throw new Error('Remove a source before adding Torrentio. Maximum: 8.');providers.push({...p,manifest,enabled:true})}
-  if($('#torrentioRemember').checked)$('#rememberProviders').checked=true;
-  persistProviders();renderProviders();renderTorrentioState();searchGeneration++;streamGeneration++;$('#torrentioKey').value='';
-  status.textContent=(old?'Your Torrentio source now uses ':'Torrentio added with ')+torrentioServices[service]+'. Open a movie and tap ▶ Play here (or ▶ Try here for MKV).'}
- catch(error){status.textContent=error.message?.startsWith('Torrentio')||error.message?.startsWith('Remove')?error.message:'Could not reach Torrentio. Check your internet and try again.'}
+ button.disabled=true;status.textContent='Checking your key…';
+ try{const acct={service,key};
+  // Check the key once through Torrentio (works for any Torrentio-style source).
+  const test=withDebrid({base:'https://torrentio.strem.fun'},acct);await probeTorrentio(test,service);
+  let index=providers.findIndex(p=>{try{return /(^|\.)torrentio\.strem\.fun$/i.test(new URL(p.base).hostname)}catch{return false}});
+  if(index<0&&$('#addTorrentio').checked){if(providers.length>=8)throw new Error('Remove a source before adding Torrentio. Maximum: 8.');const manifest=await providerJSON(test.url);manifest.catalogs=Array.isArray(manifest.catalogs)?manifest.catalogs:[];providers.push({...test,manifest,enabled:true})}
+  debridAccount=acct;
+  if($('#torrentioRemember').checked){save('sideline-debrid',acct);$('#rememberProviders').checked=true}
+  const changed=applyDebridEverywhere();persistProviders();renderProviders();renderTorrentioState();$('#torrentioKey').value='';
+  const using=providers.filter(takesDebridKey).map(sourceName);
+  status.textContent='Saved. '+torrentioServices[service]+' is now used by '+(using.length?using.join(', '):'new compatible sources you add')+(providers.some(isDebridioSource)?' (reconnect Debridio below to switch it to this key)':'')+'. Open a movie and tap ▶ Play here or Open in VLC.'}
+ catch(error){status.textContent=error.message?.startsWith('The ')||error.message?.startsWith('Remove')?error.message:'Could not check the key (Torrentio unreachable). Check your internet and try again.'}
  finally{button.disabled=false}};
-{const open=$('#manageProviders').onclick;$('#manageProviders').onclick=()=>{renderTorrentioState();open()}}
+$('#forgetDebrid').onclick=()=>{debridAccount=null;try{localStorage.removeItem(window.sidelineStorageKey?window.sidelineStorageKey('sideline-debrid'):'sideline-debrid')}catch{}
+ providers.forEach((p,i)=>{if(takesDebridKey(p)){const next=withDebrid(p,null);providers[i]={...p,...next}}});persistProviders();renderProviders();renderTorrentioState();searchGeneration++;streamGeneration++;$('#torrentioStatus').textContent='Key removed from this device and from your sources. Debridio keeps the key it was connected with until you disconnect it.'};
+// Debridio: fall back to the saved account for provider + provider key.
+{const submit=$('#debridioForm').onsubmit;$('#debridioForm').onsubmit=e=>{if(debridAccount){$('#debridioProvider').value=debridAccount.service;$('#debridioProviderKey').value=debridAccount.key}return submit(e)}}
+// Keep sources in line whenever the Add-ons panel opens or closes (covers sources added later).
+{const open=$('#manageProviders').onclick;$('#manageProviders').onclick=()=>{applyDebridEverywhere();renderProviders();renderTorrentioState();open()}}
+{const close=$('#closeProviders').onclick;$('#closeProviders').onclick=()=>{if(applyDebridEverywhere())renderProviders();close()}}
 $('#providerList').addEventListener('click',()=>setTimeout(renderTorrentioState,0));
-renderTorrentioState();
+$('#providerForm').addEventListener('submit',()=>setTimeout(()=>{if(applyDebridEverywhere()){renderProviders();$('#providerStatus').textContent+=' Your saved debrid key was added to it.'}renderTorrentioState()},2500));
+applyDebridEverywhere();renderTorrentioState();
