@@ -187,7 +187,7 @@ Thank you for reviewing Immigration Wallet.
 NO ACCOUNT NEEDED. Every feature works without an account. The only sign-in is Sign in with Apple (Google too where set up), and only to post in Community (reading Community is open). All family data is typed or scanned by the user and stays on the device.
 
 QUICKEST WAY TO SEE THE APP WITH DATA (no real documents needed):
-On the first screen tap "Look around with an example family" at the bottom. (Later: Settings > Example family > Load example.) This loads a made-up H-1B family (Arun, Meera, Leela) with documents, cases and reminders. Everything is fictional.
+On the first screen tap "Look around with an example family" at the bottom. (Later, with a family already added: Settings > tap the version line at the bottom 7 times to turn on developer tools > Help & tips > Example family.) This loads a made-up H-1B family (Arun, Meera, Leela) with documents, cases and reminders. Everything is fictional.
 
 THINGS TO TRY
 - Home: status, Needs attention, next deadline.
