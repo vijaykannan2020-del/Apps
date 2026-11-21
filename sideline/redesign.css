@@ -171,3 +171,12 @@ a.primary,a.secondary{text-decoration:none!important}
 .saved-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:18px 14px}.saved-grid .poster-card{flex:none}
 .save-title{margin:14px 0 0!important}
 @media(max-width:600px){.saved-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 10px}}
+/* Version 20: Browse by add-on */
+#discoverBar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 14px}
+#discoverBar .d-title{flex:1 1 100%;font-weight:700;font-size:13px;color:var(--accent2)}
+.d-field{display:flex;flex-direction:column;gap:4px;flex:1 1 150px;min-width:0;font-size:11px;color:var(--muted)}
+.d-field select{min-height:42px;padding:8px 12px;border-radius:999px!important;background:var(--bg2)!important;border:1px solid var(--line)!important;color:var(--text)!important;font-size:15px;width:100%}
+#dGo{min-height:42px;border-radius:999px;padding:0 22px;flex:0 0 auto}
+#dMore{display:flex;margin:20px auto 0;border-radius:999px;padding:0 30px}
+#dMore.hidden{display:none!important}
+@media(max-width:600px){.d-field{flex-basis:calc(50% - 5px)}#dGo{flex:1 1 100%}}

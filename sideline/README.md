@@ -9,3 +9,5 @@ Torrentio / Debridio: Movies → Sources. "Play Torrentio inside the app" adds a
 Version: on every change raise the number in `version.json`, and in `index.html` (`window.SIDELINE_VERSION`, `auth.js?v=`, the two "Version N" labels). Phones with an older copy see the newer `version.json` and reload themselves once.
 
 Live TV / Cricket / Saved (Version 19+): built only from the user's add-ons (`live.js`). Live TV = every non-movie/series catalog; Cricket = cricket catalogs, a "Cricket" genre option, or items mentioning cricket/IPL/T20/ODI. The old built-in channels and public playlists are no longer shown or loaded (files kept in the repo).
+
+Browse by add-on (Version 20+, `discover.js`): Home has Add-on / Type / List / Genre pickers (Cinemeta's full manifest plus every enabled add-on's catalogs) with Load more paging via `skip`.
