@@ -291,7 +291,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 #scr-empty{display:none}
 /* iPhone Duo unfolded / tablets: projects + chats on the left, the chat on the right */
 @media (min-width:760px){
-  body.authed .app{position:fixed;left:0;top:0;bottom:0;width:360px;border-right:1px solid var(--line);padding:calc(20px + env(safe-area-inset-top,0px)) 14px 100px;flex:none}
+  body.authed .app{overflow-x:hidden;position:fixed;left:0;top:0;bottom:0;width:360px;border-right:1px solid var(--line);padding:calc(20px + env(safe-area-inset-top,0px)) 14px 100px;flex:none}
   body.authed .nav{left:180px;width:330px}
   body.authed .screen{left:360px;width:auto;right:0;transform:none;transition:none}
   body.authed .screen:not(.open) #scr-empty{display:grid}
@@ -344,7 +344,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
     <textarea id="pmsg" rows="2" placeholder="Plan, build, fix anything in this repo…"></textarea>
     <div class="crow"><div class="chips" id="pchips"></div><button class="pic" data-for="pmsg" aria-label="Add photo"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg></button><button class="mic" data-for="pmsg" aria-label="Voice input"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button class="send" id="pj-go" aria-label="Start chat"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>
   </div>
-  <div class="row" style="margin-top:8px;gap:6px"><span class="hint" style="margin:0">Start from</span><select class="inp" id="pj-base" style="width:auto;flex:1;padding:6px 30px 6px 10px;font-size:14px;font-family:var(--mono)"><option value="">default branch</option></select></div>
+  <div class="row" style="margin-top:8px;gap:6px"><span class="hint" style="margin:0;white-space:nowrap;flex:none">Start from</span><select class="inp" id="pj-base" style="width:auto;flex:1;min-width:0;padding:6px 30px 6px 10px;font-size:14px;font-family:var(--mono)"><option value="">default branch</option></select></div>
   <div class="lh"><span>Chats</span></div>
   <div class="list" id="pchats"></div>
 </main>
@@ -450,7 +450,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 18;
+const APP_VERSION = 19;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -665,12 +665,23 @@ $('#veil').onclick = closeSheet;
   s.addEventListener('touchend', () => { if (y0 == null) return; s.style.transition = ''; s.style.transform = ''; if (dy > 110) closeSheet(); y0 = null; });
 })();
 
+// ---------- composer buttons work while the keyboard is open ----------
+// On iPhone the first tap outside the text box only closed the keyboard (and the layout jumped), so Send needed two taps.
+// Handling the touch ourselves keeps the keyboard up and runs the button straight away.
+document.addEventListener('touchend', e => {
+  const b = e.target.closest('.cbox button'); if (!b || b.disabled) return;
+  const t = e.changedTouches[0], r = b.getBoundingClientRect();
+  if (t.clientX < r.left - 8 || t.clientX > r.right + 8 || t.clientY < r.top - 8 || t.clientY > r.bottom + 8) return; // finger slid away
+  e.preventDefault(); b.click();
+}, { passive: false });
+
 // ---------- voice input (Safari speech recognition) ----------
 let REC = null;
-function stopMic() { if (REC) { try { REC.stop(); } catch {} } }
+// stopMic(): when sending — drop the listener so late voice results can't refill the box after it's cleared
+function stopMic() { if (!REC) return; const r = REC; REC = null; r.onresult = null; r.onend = null; r.onerror = null; try { r.abort(); } catch {} $$('.mic').forEach(x => x.classList.remove('on')); }
 document.addEventListener('click', e => {
   const m = e.target.closest('.mic'); if (!m) return;
-  if (REC) return stopMic();
+  if (REC) { try { REC.stop(); } catch {} return; } // tap mic again = finish (keeps the words)
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return toast('Voice input isn’t available here. Use the mic on your iPhone keyboard.', 4000);
   const ta = document.getElementById(m.dataset.for);
