@@ -180,3 +180,10 @@ a.primary,a.secondary{text-decoration:none!important}
 #dMore{display:flex;margin:20px auto 0;border-radius:999px;padding:0 30px}
 #dMore.hidden{display:none!important}
 @media(max-width:600px){.d-field{flex-basis:calc(50% - 5px)}#dGo{flex:1 1 100%}}
+
+/* Version 24: debrid status line */
+.debrid-status{margin:8px 0 0!important;font-size:12px!important;font-weight:600;padding:8px 10px;border-radius:10px;background:#ffffff0d;color:#d8d4ea!important}
+.debrid-status[data-state="ok"]{background:#1f7a4d33;color:#7ee2a8!important}
+.debrid-status[data-state="wait"]{background:#a2780033;color:#ffd479!important}
+.debrid-status[data-state="bad"]{background:#a8243633;color:#ff9aa8!important}
+.debrid-status[data-state="notice"]{background:#a2780033;color:#ffd479!important}.notice-btn{margin-top:8px!important;min-height:34px!important;padding:6px 12px!important;font-size:12px!important}.notice-video{width:100%;max-width:420px;margin-top:8px;border-radius:10px;background:#000}
