@@ -81,7 +81,7 @@ test('guide: every target is a <TourTarget> on its screen', () => {
     home: src('src/screens/home.tsx'), person: src('src/screens/person.tsx') + src('src/screens/wallet.tsx'), cases: src('src/screens/cases.tsx'),
     communityFeed: src('src/screens/community.tsx'), tools: src('src/screens/tools.tsx'), settings: src('src/screens/settings.tsx'),
   };
-  const tourIds: Record<string, RegExp> = { home: /useTour\('home'\)/, person: /useTour\('person'\)/, cases: /useTour\('cases'\)/, communityFeed: /useTour\('communityFeed'\)/, tools: /useTour\('tools'\)/, settings: /useTour\('settings'\)/ };
+  const tourIds: Record<string, RegExp> = { home: /useTour\('home'[,)]/, person: /useTour\('person'\)/, cases: /useTour\('cases'\)/, communityFeed: /useTour\('communityFeed'\)/, tools: /useTour\('tools'\)/, settings: /useTour\('settings'\)/ };
   const all = [...guideStops(full), ...guideStops({ ...full, cases: 0 })];
   for (const s of all) {
     if (!s.target) continue;
@@ -135,7 +135,9 @@ test('guide: setup Done offers the tour instead of a list of tools; Settings and
   assert.match(src('src/screens/help.tsx'), /go\('\/guide'\)/);
   assert.match(src('src/screens/tours.tsx'), /!guide\.active/, 'no per-screen tips during the guided tour');
   assert.match(src('src/screens/notify.tsx'), /guide\.active/, 'no alert prompt during the guided tour');
-  assert.match(src('src/screens/home.tsx'), /<GuideCard \/>/);
+  // owner, Nov 2026: no tips on Home — no tour card, no ? button, no auto tip (the tour is in Settings → Help & tips)
+  assert.doesNotMatch(src('src/screens/home.tsx'), /<GuideCard \/>|<TourButton \/>/);
+  assert.match(src('src/screens/home.tsx'), /useTour\('home', undefined, \{ auto: false \}\)/);
   // OTA: no new native module
   const guide = src('src/screens/guide.tsx');
   assert.doesNotMatch(guide, /requireNativeModule|NativeModules/);

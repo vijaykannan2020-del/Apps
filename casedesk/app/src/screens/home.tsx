@@ -24,7 +24,6 @@ import { ICloudAfterRestore } from './icloud';
 import { listNames, type AttentionItem } from '../core/rules/engine';
 import { familyTags, orderTags, updateAlerts } from '../core/updates';
 import { useNews, type NewsItem } from '../data/news';
-import { GuideCard } from './guide';
 import { SETUP_ORDER, setupProgress, setupSteps, showContinueCard, type SetupStep } from '../core/onboarding';
 
 export const UPDATES = [
@@ -45,7 +44,8 @@ export function Home() {
   const draft = useFlow();
   const news = useNews();
   const L = useLayout();
-  const tour = useTour('home');
+  // owner, Nov 2026: no tips on Home (no ? button, no auto tip, no tour card) — the tour lives in Settings → Help & tips
+  const tour = useTour('home', undefined, { auto: false });
   const { hero } = usePriority();
   const open = useOpenTarget();
   const unsaved = draft ? unsavedCount() : 0;
@@ -68,14 +68,13 @@ export function Home() {
 
   const topPart = (
     <>
-      <TourTarget id="search" style={{ marginBottom: 14 }}><HomeSearchBar /></TourTarget>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flex: 1, minWidth: 0 }}>
           <T a11y="header" numberOfLines={1} style={{ fontSize: 26, lineHeight: 32, fontWeight: '600', letterSpacing: -0.4 }}>{`Hi, ${me.name.trim().split(/\s+/)[0] || me.name}`}</T>
           <T tone="text2" style={[font.foot, { marginTop: 2 }]}>{subline}</T>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-          <TourButton />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <TourTarget id="search"><SearchButton /></TourTarget>
           <Pressable onPress={() => go('/settings')} accessibilityRole="button" accessibilityLabel="Settings and profile" hitSlop={4}><Avatar name={me.name} tone="sky" /></Pressable>
         </View>
       </View>
@@ -88,7 +87,6 @@ export function Home() {
       </TourTarget>
 
       <ContinueSetupCard />
-      <GuideCard />
 
       {draft && unsaved > 0 ? (
         <Pastel tone="warn" style={{ marginTop: 10 }}>
@@ -189,13 +187,13 @@ function CasesGlance() {
 }
 
 /** v2.9: search field at the top of Home (iOS style). Opens Search with the keyboard up. */
-function HomeSearchBar() {
+/** Search: a round button next to the profile picture (owner, Nov 2026 — no full-width search field on Home). */
+function SearchButton() {
   const t = useTheme();
   return (
-    <Pressable onPress={() => go('/search')} accessibilityRole="search" accessibilityLabel="Search people, documents, cases and tools"
-      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.dark ? t.card : t.card2, borderRadius: 12, paddingHorizontal: 12, minHeight: 44, opacity: pressed ? 0.75 : 1 })}>
-      <Icon name="search" size={17} color={t.text2} />
-      <T tone="text2" style={font.body}>Search</T>
+    <Pressable onPress={() => go('/search')} accessibilityRole="search" accessibilityLabel="Search people, documents, cases and tools" hitSlop={4}
+      style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: t.dark ? t.card : t.card2, opacity: pressed ? 0.75 : 1 })}>
+      <Icon name="search" size={19} color={t.text} />
     </Pressable>
   );
 }
