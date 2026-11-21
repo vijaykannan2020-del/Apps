@@ -450,7 +450,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 16;
+const APP_VERSION = 17;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -984,7 +984,7 @@ const usePart = ws => { const ses = ws.filter(w => /^5-hour/i.test(w.label)), wk
 async function loadUsage() {
   try { USAGE = await api('/usage'); } catch (e) { $('#use-box').innerHTML = `<p class="hint">${esc(/still updating/.test(e.message) ? 'Usage appears once your server has updated (a few minutes).' : e.message)}</p>`; return; }
   const u = USAGE, f = u.forge || {};
-  const part = (name, cls, x) => `<div style="margin-top:12px"><span class="ag ${cls}"><i></i>${name}${x?.plan ? ' · ' + esc(x.plan) : ''}</span>${!x ? '<p class="hint">Not connected.</p>' : x.error ? `<p class="hint">Couldn’t read limits: ${esc(x.error)}</p>` : x.note ? `<p class="hint">${esc(x.note)}</p>` : (x.windows || []).length ? usePart(x.windows) + (x.stale && x.at ? `<p class="hint">Last read ${esc((a => a === "now" ? "just now" : a + " ago")(ago(new Date(x.at).toISOString())))} — Claude limits how often this can be checked.</p>` : '') : '<p class="hint">No limits reported.</p>'}</div>`;
+  const part = (name, cls, x) => `<div style="margin-top:12px"><span class="ag ${cls}"><i></i>${name}${x?.plan ? ' · ' + esc(x.plan) : ''}</span>${!x ? '<p class="hint">Not connected.</p>' : x.error ? `<p class="hint">${/^Claude isn/.test(x.error) ? '' : 'Couldn’t read limits: '}${esc(x.error)}</p>${x.link ? `<a class="btn quiet" style="margin-top:8px;padding:6px 12px;font-size:14px" href="${esc(x.link)}" target="_blank" rel="noopener">See usage on claude.ai ↗</a>` : ''}` : x.note ? `<p class="hint">${esc(x.note)}</p>` : (x.windows || []).length ? usePart(x.windows) + (x.stale && x.at ? `<p class="hint">Last read ${esc((a => a === "now" ? "just now" : a + " ago")(ago(new Date(x.at).toISOString())))} — ${x.fromRuns ? 'from your last Claude chat in Forge' : 'Claude limits how often this can be checked'}.</p>` : '') : '<p class="hint">No limits reported.</p>'}</div>`;
   $('#use-box').innerHTML = part('Claude Code', 'claude', u.claude) + part('Codex', 'codex', u.codex) +
     `<p class="hint" style="margin-top:14px">Forge this week: ${f.claudeRuns || 0} Claude runs${f.claudeCost ? ` (≈$${f.claudeCost.toFixed(2)} API value)` : ''} · ${f.codexRuns || 0} Codex runs${f.codexTokens ? ` (${Math.round(f.codexTokens / 1000)}k tokens)` : ''}</p>`;
   paintUseLine();

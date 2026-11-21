@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
-const SERVER_VERSION = 15; // raise on every server change; shown in the app's Settings
+const SERVER_VERSION = 16; // raise on every server change; shown in the app's Settings
 const PORT = +(process.env.PORT || 8790);
 const SYNAPSE = process.env.SYNAPSE_URL || 'http://synapse:8008';
 const DATA = process.env.DATA_DIR || '/app/data';
@@ -310,6 +310,7 @@ function startRun(s, text, agent, model, mode, effort, images) {
 }
 
 function onClaude(s, r, ev) {
+  if (/rate_limit/.test(ev.type || '')) { noteClaudeLimit(ev.rate_limit_info || ev.rateLimitInfo || ev); return; }
   if (ev.type === 'system' && ev.subtype === 'init' && ev.session_id) { s.claudeSession = ev.session_id; return; }
   if (ev.type === 'assistant' && ev.message?.content) {
     for (const c of ev.message.content) {
@@ -538,20 +539,38 @@ function findWindows(o, out = [], key = '') {
 const CL_USE_FILE = path.join(DATA, 'claude-usage.json');
 let clUse = (() => { try { return JSON.parse(fs.readFileSync(CL_USE_FILE, 'utf8')); } catch { return null; } })();
 let clUseNext = 0;
+// limits Claude Code reports while it runs (rate_limit_event in stream-json) — a second source when the
+// usage endpoint keeps saying "too many requests"
+const clRun = {};
+function noteClaudeLimit(info) {
+  if (!info || typeof info !== 'object') return;
+  const type = String(info.rateLimitType || info.rate_limit_type || info.type || '');
+  let u = info.utilization ?? info.usedPercent ?? info.used_percent;
+  if (typeof u !== 'number' || !type) return;
+  if (u <= 1) u *= 100;
+  const reset = info.resetsAt ?? info.resets_at ?? null;
+  clRun[type] = { percent: Math.round(u), resetsAt: typeof reset === 'number' ? new Date(reset * (reset > 1e12 ? 1 : 1000)).toISOString() : reset, at: Date.now() };
+}
+const CL_NAMES = { five_hour: '5-hour limit', seven_day: 'Weekly limit (all models)', seven_day_opus: 'Weekly limit (Opus)', seven_day_sonnet: 'Weekly limit (Sonnet)' };
+const runWindows = () => Object.entries(clRun).filter(([, v]) => Date.now() - v.at < 6 * 3600e3).map(([k, v]) => ({ label: CL_NAMES[k] || k.replace(/_/g, ' '), percent: v.percent, resetsAt: v.resetsAt }));
 async function usage() {
   const sec = secrets();
   const out = { claude: null, codex: null, forge: null };
-  if (sec.claudeOauthToken && Date.now() < clUseNext && clUse?.windows) out.claude = { ...clUse, stale: Date.now() - clUse.at > 4 * 60 * 1000 };
+  if (sec.claudeOauthToken && Date.now() < clUseNext && (clUse?.windows || runWindows().length)) out.claude = clUse?.windows ? { ...clUse, stale: Date.now() - clUse.at > 4 * 60 * 1000 } : { kind: 'plan', windows: runWindows(), at: Math.max(...Object.values(clRun).map(v => v.at)), stale: true, fromRuns: true };
   else if (sec.claudeOauthToken) {
     try {
-      const r = await fetch('https://api.anthropic.com/api/oauth/usage', { headers: { Authorization: `Bearer ${sec.claudeOauthToken}`, 'anthropic-beta': 'oauth-2025-04-20', 'User-Agent': 'forge' } });
+      const ver = ((await versions()).claude.match(/\d+\.\d+\.\d+/) || ['0.0.0'])[0];
+      const r = await fetch('https://api.anthropic.com/api/oauth/usage', { headers: { Authorization: `Bearer ${sec.claudeOauthToken}`, 'anthropic-beta': 'oauth-2025-04-20', 'User-Agent': `claude-code/${ver}`, Accept: 'application/json' } });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
-        clUseNext = Date.now() + (r.status === 429 ? 10 : 2) * 60 * 1000;
-        out.claude = clUse?.windows ? { ...clUse, stale: true } : { kind: 'plan', error: r.status === 429 ? 'Claude is limiting how often usage can be read. It will show here in a few minutes.' : (j.error?.message || `Claude said ${r.status}`) };
+        const wait = Math.max(+(r.headers.get('retry-after') || 0) * 1000, (r.status === 429 ? 10 : 2) * 60 * 1000);
+        clUseNext = Date.now() + wait;
+        const rw = runWindows();
+        out.claude = clUse?.windows ? { ...clUse, stale: true }
+          : rw.length ? { kind: 'plan', windows: rw, at: Math.max(...Object.values(clRun).map(v => v.at)), stale: true, fromRuns: true }
+          : { kind: 'plan', link: 'https://claude.ai/settings/usage', error: r.status === 429 ? `Claude isn’t allowing usage checks right now (try again after ${new Date(Date.now() + wait).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: process.env.TZ || 'America/Chicago' })}). Your numbers also fill in after your next Claude chat in Forge.` : (j.error?.message || `Claude said ${r.status}`) };
       } else {
-        const names = { five_hour: '5-hour limit', seven_day: 'Weekly limit (all models)', seven_day_opus: 'Weekly limit (Opus)', seven_day_sonnet: 'Weekly limit (Sonnet)' };
-        const windows = Object.entries(j).filter(([, v]) => v && typeof v.utilization === 'number').map(([k, v]) => ({ label: names[k] || k.replace(/_/g, ' '), percent: Math.round(v.utilization), resetsAt: v.resets_at || null }));
+        const windows = Object.entries(j).filter(([, v]) => v && typeof v.utilization === 'number').map(([k, v]) => ({ label: CL_NAMES[k] || k.replace(/_/g, ' '), percent: Math.round(v.utilization), resetsAt: v.resets_at || null }));
         out.claude = clUse = { kind: 'plan', windows, at: Date.now() };
         clUseNext = Date.now() + 3 * 60 * 1000;
         try { fs.writeFileSync(CL_USE_FILE, JSON.stringify(clUse)); } catch {}
