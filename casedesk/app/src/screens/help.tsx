@@ -30,8 +30,10 @@ export function HelpCard({ tab }: { tab: keyof typeof TAB_HELP }) {
 }
 
 /** Small "?" button for complex screens; opens the matching help topic. */
+import { HIDE_TIP_BUTTONS } from '../ui/tour';
 export function HelpButton({ topic, label }: { topic: string; label?: string }) {
   const t = useTheme();
+  if (HIDE_TIP_BUTTONS) return null; // owner, Nov 2026: no "?" on individual screens
   return (
     <Pressable onPress={() => go(`/help/${topic}`)} accessibilityRole="button" accessibilityLabel={label ?? `Help: ${helpTopic(topic)?.title ?? 'help'}`} hitSlop={6}
       style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' }}>

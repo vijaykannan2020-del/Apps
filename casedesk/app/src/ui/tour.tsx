@@ -180,11 +180,14 @@ export function TourTarget({ id, children, style, tour }: { id: string; children
 }
 
 /** The "?" for a nav bar or large title: replays this screen's tour (the last tip links to help). */
+/** Off everywhere (owner, Nov 2026). Kept as a switch so the buttons can come back in one line. */
+export const HIDE_TIP_BUTTONS = true;
 export function TourButton({ tour, label }: { tour?: Tour | null; label?: string }) {
   const t = useTheme();
   const scope = useContext(ScopeCtx);
   const owner = tour ?? scope;
-  if (!owner || !owner.steps.length) return null;
+  // owner, Nov 2026: no "?" on individual screens — help lives in setup and Settings → Help & tips
+  if (HIDE_TIP_BUTTONS || !owner || !owner.steps.length) return null;
   return (
     <TourTarget id="help" tour={owner}>
       <Pressable onPress={owner.start} accessibilityRole="button" accessibilityLabel={label ?? 'Tips for this screen'} accessibilityHint="Shows what each part of this screen does" hitSlop={6}

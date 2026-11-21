@@ -4,7 +4,6 @@
 import type { TourStep } from '../core/tours';
 
 export type TourDef = { steps: TourStep[]; help?: string };
-const helpStep = (text = 'Tap ? any time to see these tips again and open the help topic.'): TourStep => ({ target: 'help', title: 'Help', text });
 
 export const TOURS: Record<string, TourDef> = {
   home: { help: 'overview', steps: [
@@ -15,23 +14,19 @@ export const TOURS: Record<string, TourDef> = {
   family: { help: 'family-docs', steps: [
     { target: 'list', title: 'One page per person', text: 'Tap someone to see their status, documents, cases and reminders.' },
     { target: 'add', title: 'Add family', text: 'Tap here to add your spouse, children or parents.' },
-    helpStep(),
   ] },
   person: { help: 'family-docs', steps: [
     { target: 'status', title: 'Status', text: 'How long this person can stay, worked out from their documents.' },
     { target: 'docs', title: 'Documents', text: 'Tap here to add a document — a photo or PDF is read on your phone.' },
     { target: 'filing', title: 'Next filing', text: 'This shows when to file next, the earliest date, and how long USCIS usually takes.' },
-    helpStep(),
   ] },
   'flow-step': { help: 'family-docs', steps: [
     { target: 'upload', title: 'Add the document', text: 'Take a photo or pick a PDF. The text is read on this phone — nothing is uploaded.' },
     { target: 'type', title: 'Skip for now', text: 'No copy handy? Skip it and add it later from the person’s page. If a document can’t be read, you can type the dates.' },
-    helpStep(),
   ] },
   document: { help: 'family-docs', steps: [
     { target: 'fields', title: 'What was read', text: 'Check the details read from the document and fix anything that looks wrong.' },
     { target: 'actions', title: 'Share or replace', text: 'Share a copy for your reference, or replace it with a newer one.' },
-    helpStep(),
   ] },
   review: { help: 'family-docs', steps: [
     { target: 'list', title: 'Check before saving', text: 'Everything you added, per person. Tap an item to change it.' },
@@ -44,13 +39,11 @@ export const TOURS: Record<string, TourDef> = {
   cases: { help: 'cases', steps: [
     { target: 'add', title: 'Add a case', text: 'Tap + to add a receipt number from an I-797C notice.' },
     { target: 'list', title: 'Pending first', text: 'Pending cases are at the top. Tap one to check its status on uscis.gov.' },
-    helpStep(),
   ] },
   case: { help: 'cases', steps: [
     { target: 'check', title: 'Check status', text: 'This copies the receipt number and opens uscis.gov in Safari. Paste it, tap Check Status, then copy the result.' },
     { target: 'paste', title: 'Paste it back', text: 'Come back and tap here — the status, date and history update from what you copied.' },
     { target: 'history', title: 'History', text: 'Every status you saved, newest first.' },
-    helpStep(),
   ] },
   'check-status': { help: 'cases', steps: [
     { target: 'paste', title: 'Paste the status', text: 'On uscis.gov, select the status and its explanation, tap Copy, then tap here.' },
@@ -63,27 +56,22 @@ export const TOURS: Record<string, TourDef> = {
   tools: { help: 'overview', steps: [
     { target: 'plan', title: 'Picked for your family', text: 'The Visa Bulletin, a trip check, your priority date, LCA / PERM status and more — the tools that fit your family’s visas.' },
     { target: 'lookup', title: 'Every other tool', text: 'Listed below under My plans, Look up and Learn — fees, wages, employer data, I-9 documents and guides, each with what it does.' },
-    helpStep(),
   ] },
   'tool-travel': { help: 'travel', steps: [
     { target: 'form', title: 'Your trip', text: 'Pick who is travelling and the dates.' },
     { target: 'result', title: 'The checks', text: 'Passport, visa stamp, pending cases and days outside the US — each with what to do.' },
-    helpStep(),
   ] },
   'tool-pd': { help: 'priority-date', steps: [
     { target: 'input', title: 'Your priority date', text: 'Enter the date on your I-140 approval and pick your category and country.' },
     { target: 'result', title: 'Current or not', text: 'Shows this month’s cut-off and whether you can file the I-485.' },
-    helpStep(),
   ] },
   'tool-vb': { help: 'priority-date', steps: [
     { target: 'picker', title: 'Which chart', text: 'Final Action (approval) or Dates for Filing (when you can file). Rows show India, China and all other countries.' },
     { target: 'source', title: 'Dated and sourced', text: 'The bulletin month, when it was fetched, and a link to travel.state.gov.' },
-    helpStep(),
   ] },
   'tool-proc': { help: 'processing', steps: [
     { target: 'form', title: 'Pick a form', text: 'Times are USCIS’s published 8-in-10 figures.' },
     { target: 'source', title: 'As of', text: 'Live when our server answers, otherwise a dated built-in copy.' },
-    helpStep(),
   ] },
   'tool-fees': { help: 'overview', steps: [
     { target: 'case', title: 'What you’re filing', text: 'Pick the filing and employer size — the total updates as you go.' },
@@ -107,12 +95,10 @@ export const TOURS: Record<string, TourDef> = {
   ] },
   tool: { help: 'overview', steps: [
     { target: 'body', title: 'This tool', text: 'Everything here is general information from official sources.' },
-    helpStep('Tap ? to see this again.'),
   ] },
   layoff: { help: 'layoff', steps: [
     { target: 'date', title: 'Last day of work', text: 'Enter it to see the last day in status for everyone who depends on the job.' },
     { target: 'options', title: 'Your options', text: 'A new employer files, a change of status, or leaving the US.' },
-    helpStep(),
   ] },
   'news-list': { help: 'overview', steps: [
     { target: 'kind', title: 'Official or news', text: 'Official updates come from USCIS, DHS, DOL and State; news is coverage and analysis.' },
