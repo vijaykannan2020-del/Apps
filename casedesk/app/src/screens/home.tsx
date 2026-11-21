@@ -102,33 +102,29 @@ export function Home() {
       <ICloudAfterRestore />
     </>
   );
+  // Family on Home is one row (owner, Nov 2026): every alert is already listed above, so the per-person
+  // status and warnings live only on the Family tab.
   const familyPart = (
     <>
-      <SectionHeader right={<LinkButton title="See all" onPress={() => router.navigate('/(tabs)/family' as never)} />}>Family</SectionHeader>
       <TourTarget id="family"><Group>
-        {f.people.map((p) => (
-          <Row key={p.id} avatar={p.name} onPress={() => go(`/person/${p.id}`)} pill={f.results[p.id]?.worst} chevron={false}
-            label={`${p.name}, ${statusLabel(p, f.records[p.id], f.results[p.id])}, ${untilText(p, f.records[p.id], f.results[p.id])}`}
-            title={p.name}
-            subtitle={(() => { const res = f.results[p.id]; const top = `${statusLabel(p, f.records[p.id], res)} · ${untilText(p, f.records[p.id], res).replace('Status valid until', 'until')}`; const why = res ? reasonLine(res.findings, res.facts.statusUntil) : undefined;
-              return why ? <><T tone="text2" style={font.foot}>{top}</T><T tone={res!.worst === 'act' ? 'red' : 'amber'} numberOfLines={1} style={[font.foot, { fontWeight: '600', marginTop: 1 }]}>{why}</T></> : top; })()} />
-        ))}
-        {onlyMe && !f.settings.familyCardDismissed ? (
+        {onlyMe ? (!f.settings.familyCardDismissed ? (
           <Row icon="plus" iconPastel="mint" title="Add your family" subtitle="Optional · spouse, children or parents" onPress={() => go('/family-setup')} chevron={false}
             trailing={<Pressable onPress={() => f.actions.updateSettings({ familyCardDismissed: true })} accessibilityRole="button" accessibilityLabel="Not now" hitSlop={6} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginRight: -8 }}><Icon name="x" size={15} color={t.text2} /></Pressable>} />
-        ) : null}
+        ) : null) : (
+          <Row icon="users" iconPastel="mint" title="Family" subtitle={`${f.people.length} people · status, dates and documents`} onPress={() => router.navigate('/(tabs)/family' as never)} />
+        )}
       </Group></TourTarget>
     </>
   );
   const attentionPart = att.length || locAsk.length || alerts.length ? (
     <TourTarget id="attention">
-      <SectionHeader right={total > 3 ? <LinkButton title={`All ${total}`} onPress={() => router.navigate('/(tabs)/family' as never)} /> : undefined}>{hero.kind === 'act' || hero.kind === 'review' ? 'Also needs you' : 'Needs you'}</SectionHeader>
+      <SectionHeader>{hero.kind === 'act' || hero.kind === 'review' ? 'Also needs you' : 'Needs you'}</SectionHeader>
       <Group>
         {locAsk.slice(0, 1).map((p) => (
           <Row key={`loc-${p.id}`} icon="pin" iconTone="amber" alignTop onPress={() => go(`/person/${p.id}`)} title={p.relation === 'self' ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`} subtitle={`${p.name} · people outside the US don’t have an I-94`} />
         ))}
-        {att.slice(0, locAsk.length ? 2 : 3).map((x) => <GroupedAttention key={x.personId + x.finding.id} x={x} />)}
-        {alerts.slice(0, 2).map((n) => <UpdateAlertRow key={n.id} n={n} />)}
+        {att.map((x) => <GroupedAttention key={x.personId + x.finding.id} x={x} />)}
+        {alerts.map((n) => <UpdateAlertRow key={n.id} n={n} />)}
       </Group>
     </TourTarget>
   ) : null;
