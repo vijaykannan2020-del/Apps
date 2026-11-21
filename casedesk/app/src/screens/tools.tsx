@@ -49,7 +49,6 @@ export const TOOLS: [string, ToolDef[]][] = [
     { id: 'waits', icon: 'globe', title: 'Visa appointment waits', sub: 'Wait times at consulates' },
     { id: 'lca', icon: 'search', title: 'LCA / PERM status', sub: 'Labor filings by case number' },
     { id: 'emp', icon: 'building', title: 'Employer H-1B data', sub: 'Approvals by employer' },
-    { id: 'news', icon: 'news', title: 'Updates', sub: 'USCIS and State Department news for your visas' },
   ]],
   ['Learn', [
     { id: 'guides', icon: 'book', title: 'Visa guides', sub: 'Plain-English guides with sources' },
@@ -70,8 +69,9 @@ export function pickTools(f: ReturnType<typeof useFamily>): string[] {
   const work = who.some((w) => WORK_VISAS.test(st(w)));
   const holder = who.some((w) => /green-card(?!-applicant)|conditional-green-card|citizenship-applicant/.test(w.person.status ?? ''));
   const gc = who.some((w) => /green-card-applicant/.test(w.person.status ?? '') || (() => { try { const t = gcTrackOf(w, who as never); return !!t && (t.stage !== 'not-started' || !!t.priorityDate); } catch { return false; } })());
-  const order = ['travel', work ? 'layoff' : '', gc ? 'pd' : '', 'proc', holder ? 'civics' : '', gc ? 'vb' : '', 'i9', 'fees'].filter(Boolean);
-  return [...new Set(order)].slice(0, 4);
+  // owner, Nov 20 2026: Priority date and I-9 documents are always up front
+  const order = ['travel', 'pd', 'i9', work ? 'layoff' : '', 'proc', holder ? 'civics' : '', gc ? 'vb' : '', 'fees'].filter(Boolean);
+  return [...new Set(order)].slice(0, 6);
 }
 
 export function ToolsTab() {

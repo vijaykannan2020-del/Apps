@@ -77,12 +77,20 @@ export function SettingsScreen() {
           <ColourRow />
         </Group>
 
-        <SectionHeader>Face ID &amp; reminders</SectionHeader>
+        {/* owner, Nov 20 2026: "shorten means not remove" — every setting is back, grouped tighter */}
+        <SectionHeader>Privacy &amp; Face ID</SectionHeader>
         <Group>
           <Row icon="face" iconPastel="sage" title="Face ID lock" subtitle="Also hides documents in the app switcher" trailing={<Switch value={!!f.settings.faceId} label="Face ID lock" onValueChange={faceId} />} />
-          <Row icon="bell" iconPastel="butter" title="Reminders" subtitle={leadText(f.settings.reminderLeadDays, ' · ')} onPress={() => sheet.open('Default reminders', <ReminderDefaults />)} />
+          <Row icon="shield" iconPastel="sage" title="Privacy" subtitle="Your documents stay on this phone" onPress={() => go('/help/privacy')} />
         </Group>
+
+        <SectionHeader>Notifications</SectionHeader>
         <NotifyRows />
+        <Group style={{ marginTop: os === 'ios' ? 12 : 0 }}>
+          <Row icon="bell" iconPastel="butter" title="Default reminders" subtitle={leadText(f.settings.reminderLeadDays, ' · ')} onPress={() => sheet.open('Default reminders', <ReminderDefaults />)} />
+          <Row icon="users" iconPastel="butter" title="Per person" subtitle="Reminders on or off for each person" onPress={() => go('/profile')} />
+          <Row icon="gear" iconPastel="mint" title="Open system settings" subtitle="Notifications, permissions and language for this app" chevron={false} onPress={() => { Linking.openSettings().catch(() => toast('Couldn’t open the system settings')); }} />
+        </Group>
 
         <SectionHeader>Backup &amp; sharing</SectionHeader>
         <TourTarget id="backup"><Group>
@@ -98,33 +106,27 @@ export function SettingsScreen() {
         <WidgetRows />
         <FamilyWalletRow />
 
-        <SectionHeader>Help &amp; about</SectionHeader>
+        <SectionHeader>Help</SectionHeader>
         <TourTarget id="helpsec"><Group>
           <Row icon="help" iconPastel="blush" title="Help" subtitle={`${HELP_MAIN.length} short guides and the tour`} onPress={() => go('/help')} />
           <TourTarget id="taketour"><Row icon="play" iconPastel="blush" title="Take the tour" subtitle="A 1-minute walk through the app" onPress={guide.start} /></TourTarget>
-          <Row icon="info" iconPastel="mint" title="About Immigration Wallet" value={`v${version}`} subtitle="Privacy, data sources, licences" onPress={() => go('/about')} />
+          <Row icon="list" iconPastel="blush" title="Run setup again" subtitle="Keeps your data and fills the gaps" onPress={async () => { await f.actions.updateSettings({ setup: rerunProgress() }); go('/setup', { mode: 'rerun' }); }} />
+          <Row icon="users" iconPastel="blush" title="Example family" subtitle="Look around with made-up data" chevron={false} onPress={() => sheet.open('Load the example family?', <Confirm body="Everything on this phone is replaced by a made-up H-1B family. Back up first if you need your data." action="Load example" onConfirm={() => { try { router.dismissAll(); } catch {} replace('/demo'); }} />)} />
+          <Row icon="bulb" iconPastel="blush" title="Show tips on every screen" subtitle="Off: only the harder screens show tips; tap ? anywhere" trailing={<Switch value={!!f.settings.toursAll} label="Show tips on every screen" onValueChange={(on) => { f.actions.updateSettings({ toursAll: on, toursOff: false }); toast(on ? 'Tips show once on every screen' : 'Tips only on the harder screens'); }} />} />
+          <Row icon="refresh" iconPastel="blush" title="Show all tips again" subtitle="Replays the tips on every screen once" chevron={false} onPress={async () => { await f.actions.updateSettings({ toursSeen: [], toursOff: false, toursAll: true, helpSeen: [] }); toast('Tips will show again on every screen'); tour.start(); }} />
         </Group></TourTarget>
+
+        <SectionHeader>About</SectionHeader>
+        <Group>
+          <Row icon="info" iconPastel="mint" title="About Immigration Wallet" value={`v${version}`} subtitle="Data sources, privacy, licences" onPress={() => go('/about')} />
+          <Row icon="hr" iconPastel="mint" title="Show HR tools" subtitle="Expiring documents across the family" trailing={<Switch value={!!f.settings.hrTools} label="Show HR tools" onValueChange={(on) => f.actions.updateSettings({ hrTools: on })} />} />
+          <Row icon="list" iconPastel="mint" title="Diagnostics" subtitle="Send this if something goes wrong" chevron={false} onPress={() => sheet.open('Diagnostics', <DiagSheet />)} />
+        </Group>
 
         <Group style={{ marginTop: 22 }}>
           <Row icon="trash" iconTone="red" title="Delete all data" titleTone="red" subtitle="Removes everything from this phone" chevron={false} onPress={() => sheet.open('Delete all data?', <WipeSheet />)} />
         </Group>
 
-        {/* v3.0 (owner): testing tools live in a hidden Developer section — tap the version 7 times */}
-        {f.settings.devTools ? (
-          <>
-            <SectionHeader>Developer</SectionHeader>
-            <Group>
-              <Row icon="list" iconPastel="blush" title="Run setup again" subtitle="Keeps your data and fills the gaps" onPress={async () => { await f.actions.updateSettings({ setup: rerunProgress() }); go('/setup', { mode: 'rerun' }); }} />
-              <Row icon="users" iconPastel="blush" title="Example family" subtitle="Look around with made-up data" chevron={false} onPress={() => sheet.open('Load the example family?', <Confirm body="Everything on this phone is replaced by a made-up H-1B family. Back up first if you need your data." action="Load example" onConfirm={() => { try { router.dismissAll(); } catch {} replace('/demo'); }} />)} />
-              <Row icon="bulb" iconPastel="blush" title="Show tips on every screen" subtitle="Off: tips show once, the first time" trailing={<Switch value={!!f.settings.toursAll} label="Show tips on every screen" onValueChange={(on) => { f.actions.updateSettings({ toursAll: on, toursOff: false }); toast(on ? 'Tips show once on every screen' : 'Tips only on the harder screens'); }} />} />
-              <Row icon="refresh" iconPastel="blush" title="Show all tips again" subtitle="Replays the tips on every screen once" chevron={false} onPress={async () => { await f.actions.updateSettings({ toursSeen: [], toursOff: false, toursAll: true, helpSeen: [] }); toast('Tips will show again on every screen'); tour.start(); }} />
-              <Row icon="hr" iconPastel="mint" title="Show HR tools" subtitle="Expiring documents across the family" trailing={<Switch value={!!f.settings.hrTools} label="Show HR tools" onValueChange={(on) => f.actions.updateSettings({ hrTools: on })} />} />
-              <Row icon="list" iconPastel="mint" title="Diagnostics" subtitle="Send this if something goes wrong" chevron={false} onPress={() => sheet.open('Diagnostics', <DiagSheet />)} />
-              <Row icon="gear" iconPastel="mint" title="Open system settings" subtitle="Notifications, permissions and language" chevron={false} onPress={() => { Linking.openSettings().catch(() => toast('Couldn’t open the system settings')); }} />
-              <Row icon="x" title="Hide developer tools" chevron={false} onPress={() => { f.actions.updateSettings({ devTools: false }); toast('Developer tools hidden'); }} />
-            </Group>
-          </>
-        ) : null}
         <VersionTap version={version} />
         <LegalFooter asOf={fmt(RULES_CHECKED)} />
       </SettingsList>

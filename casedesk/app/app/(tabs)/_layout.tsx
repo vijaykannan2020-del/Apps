@@ -1,4 +1,4 @@
-// Home · Family · Community · Tools (Cases is hidden: it opens from Home) (Settings is a pushed page from the avatar on Home).
+// Home · Family · Community · Updates · Tools (Cases is hidden: it opens from Home) (Settings is a pushed page from the avatar on Home).
 // The SYSTEM tab bar on both platforms (owner rule: latest platform conventions, no custom bar):
 //  · iOS 26 — the native UITabBar: Liquid Glass, SF Symbols (outline → fill when selected), minimises
 //    on scroll, Dynamic Type labels. Only the selection tint comes from the brand (sage).
@@ -33,6 +33,11 @@ export default function TabsLayout() {
       <NativeTabs.Trigger name="forum">
         <NativeTabs.Trigger.Icon sf={{ default: 'bubble.left.and.bubble.right', selected: 'bubble.left.and.bubble.right.fill' }} md="forum" />
         <NativeTabs.Trigger.Label>Community</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      {/* owner, Nov 20 2026: Official and News updates are a tab again, right after Community */}
+      <NativeTabs.Trigger name="updates">
+        <NativeTabs.Trigger.Icon sf={{ default: 'newspaper', selected: 'newspaper.fill' }} md="newspaper" />
+        <NativeTabs.Trigger.Label>Updates</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="tools">
         <NativeTabs.Trigger.Icon sf={{ default: 'square.grid.2x2', selected: 'square.grid.2x2.fill' }} md="apps" />

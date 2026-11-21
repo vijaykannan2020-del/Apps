@@ -3,8 +3,8 @@
 import { Tabs } from 'expo-router';
 import { Icon, m3Roles, useTheme } from '../../src/ui';
 
-const ICON: Record<string, string> = { index: 'home', family: 'users', cases: 'clock', forum: 'chat', tools: 'grid' };
-const LABEL: Record<string, string> = { index: 'Home', family: 'Family', cases: 'Cases', forum: 'Community', tools: 'Tools' };
+const ICON: Record<string, string> = { index: 'home', family: 'users', cases: 'clock', forum: 'chat', updates: 'news', tools: 'grid' };
+const LABEL: Record<string, string> = { index: 'Home', family: 'Family', cases: 'Cases', forum: 'Community', updates: 'Updates', tools: 'Tools' };
 
 export default function TabsWeb() {
   const t = useTheme();
@@ -24,6 +24,7 @@ export default function TabsWeb() {
       <Tabs.Screen name="family" />
       <Tabs.Screen name="cases" options={{ href: null }} />
       <Tabs.Screen name="forum" />
+      <Tabs.Screen name="updates" />
       <Tabs.Screen name="tools" />
     </Tabs>
   );

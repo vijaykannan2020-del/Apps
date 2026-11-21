@@ -6,7 +6,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { fmt } from '../core/dates';
 import { kindOf, newsById, useNews, type NewsItem } from '../data/news';
 import { openUrl } from '../native/device';
-import { Button, Card, ChipRow, ChipToggle, Group, Hint, Icon, LinkButton, Pill, Row, Screen, SectionHeader, Segmented, T, Tag, Why, font, useTheme, TourTarget, useTour } from '../ui';
+import { Button, Card, ChipRow, ChipToggle, Group, Hint, Icon, LinkButton, Pill, Row, Screen, SectionHeader, Segmented, T, Tag, Why, font, useTheme, TourTarget, useTour, LargeTitle, TourButton } from '../ui';
 import { asOfText, back, go } from './common';
 import { DISCLAIMER, DISCLAIMER_SHORT } from '../content/legal';
 import { useFamily } from '../data/FamilyProvider';
@@ -73,7 +73,8 @@ export function NewsAsOf({ live, updated, items }: { live: boolean; updated?: st
   );
 }
 
-export function NewsListScreen() {
+/** `tabRoot`: shown as the Updates tab (after Community) — large title, no back button. */
+export function NewsListScreen({ tabRoot }: { tabRoot?: boolean } = {}) {
   const params = useLocalSearchParams<{ kind?: string }>();
   const { items, live, updated } = useNews();
   const [kind, setKind] = useState(params.kind === 'news' ? KINDS[1] : KINDS[0]);
@@ -88,7 +89,8 @@ export function NewsListScreen() {
   const shown = tag === FAMILY ? forFamily(ofKind, fam) : ofKind.filter((n) => tag === 'All' || n.tags.includes(tag as never) || (tag === 'OPT' && n.tags.includes('STEM OPT' as never)));
   const tour = useTour('news-list');
   return (
-    <Screen tour={tour} nav={{ title: 'Updates', back: 'Home', onBack: back }}>
+    <Screen tour={tour} {...(tabRoot ? { tabRoot: true } : { nav: { title: 'Updates', back: 'Home', onBack: back } })}>
+      {tabRoot ? <LargeTitle title="Updates" right={<TourButton />} /> : null}
       {/* v2.9: no intro line — a compact segmented control and ONE scrolling chip row, so the list starts high */}
       <TourTarget id="kind"><Segmented compact options={KINDS} value={kind} onChange={(k) => { setKind(k); setTag(null); }} /></TourTarget>
       <TourTarget id="chips"><ChipRow style={{ marginTop: 6 }}>{tags.map((g) => <ChipToggle size="sm" key={g} text={g} on={tag === g} onPress={() => setTag(g)} />)}</ChipRow></TourTarget>

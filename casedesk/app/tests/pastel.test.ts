@@ -92,9 +92,10 @@ test('pastel: one brand palette — Appearance offers System, Light and Dark onl
   assert.doesNotMatch(tabs, /from 'expo-router'.*Tabs\b/, 'no custom JS tab bar on phones');
 });
 
-test('navigation (v3.0): four tabs — Home, Family, Community, Tools (Cases is hidden, opens from Home); Settings is a pushed page', () => {
+test('navigation: five tabs — Home, Family, Community, Updates, Tools (Cases is hidden, opens from Home); Settings is a pushed page', () => {
   const tabs = readFileSync(new URL('../app/(tabs)/_layout.tsx', import.meta.url), 'utf8');
-  assert.deepEqual([...tabs.matchAll(/Trigger name="([a-z]+)"/g)].map((m) => m[1]), ['index', 'family', 'cases', 'forum', 'tools']);
+  assert.deepEqual([...tabs.matchAll(/Trigger name="([a-z]+)"/g)].map((m) => m[1]), ['index', 'family', 'cases', 'forum', 'updates', 'tools']);
+  assert.match(readFileSync(new URL('../app/(tabs)/updates.tsx', import.meta.url), 'utf8'), /<NewsListScreen tabRoot \/>/);
   assert.match(tabs, /Trigger name="cases" hidden/, 'Cases is not a tab any more');
   assert.match(readFileSync(new URL('../app/cases.tsx', import.meta.url), 'utf8'), /<CasesTab pushed \/>/);
   assert.match(tabs, /bubble\.left\.and\.bubble\.right/);
@@ -108,10 +109,11 @@ test('navigation (v3.0): four tabs — Home, Family, Community, Tools (Cases is 
   const home = readFileSync(new URL('../src/screens/home.tsx', import.meta.url), 'utf8');
   assert.match(home, /go\('\/settings'\)/, 'the avatar opens Settings');
   const st = readFileSync(new URL('../src/screens/settings.tsx', import.meta.url), 'utf8');
-  for (const sec of ['Appearance', 'Face ID &amp; reminders', 'Backup &amp; sharing', 'Widgets &amp; Wallet', 'Help &amp; about', 'Developer']) assert.ok(st.includes(`<SectionHeader>${sec}</SectionHeader>`), sec);
-  assert.match(st, /f\.settings\.devTools \?/, 'testing tools only in the Developer section');
+  // owner, Nov 20 2026: "shorten means not remove" — every setting is visible again (no hidden Developer section)
+  for (const sec of ['Appearance', 'Privacy &amp; Face ID', 'Notifications', 'Backup &amp; sharing', 'Widgets &amp; Wallet', 'Help', 'About']) assert.ok(st.includes(`<SectionHeader>${sec}</SectionHeader>`), sec);
+  for (const row of ['Run setup again', 'Example family', 'Show tips on every screen', 'Show all tips again', 'Show HR tools', 'Diagnostics', 'Per person', 'Default reminders']) assert.ok(st.includes(`title="${row}"`), row);
   assert.match(st, /<SettingsList os=\{os\}>/);
-  assert.match(st, /Linking\.openSettings\(\)/, 'Open system settings row (Developer)');
+  assert.match(st, /Linking\.openSettings\(\)/, 'Open system settings row');
   assert.match(st, /go\('\/profile'\)/, 'Profile at the top');
   assert.match(st, /appBar: 'android'/, 'Material top app bar on Android');
   assert.doesNotMatch(readFileSync(new URL('../src/screens/profile.tsx', import.meta.url), 'utf8') + home, /\(tabs\)\/settings/);

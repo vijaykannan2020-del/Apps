@@ -75,6 +75,7 @@ export const APP_SCREENS: ScreenEntry[] = [
   { id: 's-tips', section: 'Settings', title: 'Tips on every screen', sub: 'Show or replay the tips', path: '/settings', keywords: ['tips', 'tutorial', 'hints', 'question mark'] },
   // community
   { id: 'c-feed', section: 'Community', title: 'Community', sub: 'Ask people on the same visa', path: '/(tabs)/forum', keywords: ['forum', 'feed', 'questions', 'posts'] },
+  { id: 'updates-tab', section: 'Updates', title: 'Updates', sub: 'Official and News updates for your visas', path: '/(tabs)/updates', keywords: ['news', 'official', 'uscis', 'state department', 'updates'] },
   { id: 'c-compose', section: 'Community', title: 'Write a post', sub: 'Ask a question or share a timeline', path: '/community/compose', keywords: ['new post', 'ask a question', 'compose', 'poll'] },
   { id: 'c-account', section: 'Community', title: 'Community profile', sub: 'Your name, sign in and answer alerts', path: '/community/account', keywords: ['profile', 'sign in', 'account', 'username'] },
   { id: 'c-saved', section: 'Community', title: 'Saved posts', sub: 'Posts you saved', path: '/community/saved', keywords: ['bookmarks', 'saved'] },
