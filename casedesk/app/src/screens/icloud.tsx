@@ -132,3 +132,67 @@ export function ICloudAfterRestore() {
     </Note>
   );
 }
+
+/** Settings → Backup (owner-approved preview, Nov 2026): one status, two big buttons, the two switches,
+ *  then the other ways (file backup, restore from a file, import a family member's share file). */
+export function backupSummary(settings: Parameters<typeof icloudSettings>[0] & { lastBackupAt?: string }): string {
+  const ic = icloudSettings(settings);
+  if (ic.on) return `iCloud · ${when(ic.lastAt)}`;
+  return settings.lastBackupAt ? `File · ${fmt(settings.lastBackupAt.slice(0, 10))}` : 'Not backed up yet';
+}
+export function BackupPage({ fileBackup, fileRestore, importShared }: { fileBackup: () => void; fileRestore: () => void; importShared: React.ReactNode }) {
+  const f = useFamily(); const sheet = useSheet(); const toast = useToast();
+  const sup = useICloudSupport();
+  const ic = icloudSettings(f.settings);
+  const [busy, setBusy] = useState(false);
+  const ok = !!sup?.ok;
+  const set = (patch: Partial<typeof ic>) => f.actions.updateSettings({ icloud: { ...ic, ...patch } });
+  const now = async () => {
+    if (!ok) { fileBackup(); return; }
+    if (!hasKeychain() || !ic.on) { sheet.open('Back up to iCloud', <ICloudPasswordSheet mode="once" />); return; }
+    setBusy(true); const r = await backUpToICloud(f.store); setBusy(false);
+    toast(r.ok ? 'Backed up to iCloud' : r.error ?? 'Couldn’t back up to iCloud');
+  };
+  const restore = () => {
+    if (!ok) { fileRestore(); return; }
+    sheet.open('Restore', (
+      <View>
+        <Group>
+          <Row icon="backup" title="From iCloud" subtitle="Your last 3 iCloud backups" onPress={() => sheet.open('Restore from iCloud', <ICloudRestore onDone={sheet.close} />)} />
+          <Row icon="restore" title="From a backup file" subtitle="A file you saved to Files, Drive or AirDrop" onPress={() => { sheet.close(); setTimeout(fileRestore, 300); }} />
+        </Group>
+        <SheetButtons><Button kind="ghost" title="Cancel" onPress={sheet.close} /></SheetButtons>
+      </View>
+    ));
+  };
+  const backedUp = ok && ic.on && !!ic.lastAt;
+  const status = !sup ? 'Checking iCloud…' : backedUp ? 'Backed up to iCloud' : ic.on ? 'iCloud backup is on' : f.settings.lastBackupAt ? 'Backed up to a file' : 'Not backed up yet';
+  const detail = !sup ? '' : !ok ? supportText(sup) : ic.on ? `${when(ic.lastAt)} · automatic, daily and after changes · last 3 kept${ic.lastError ? ` · last try failed: ${ic.lastError}` : ''}` : f.settings.lastBackupAt ? `${fmt(f.settings.lastBackupAt.slice(0, 10))} · turn on iCloud backup to keep it up to date` : 'Turn on iCloud backup, or back up to a file';
+  return (
+    <>
+      <Group>
+        <Row icon={backedUp || f.settings.lastBackupAt ? 'check' : 'backup'} iconTone={backedUp ? 'green' : undefined} title={status} subtitle={detail} chevron={false} />
+      </Group>
+      <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+        <Button grow title={busy ? 'Backing up…' : 'Back up now'} busy={busy} onPress={now} />
+        <Button grow kind="ghost" title="Restore" onPress={restore} />
+      </View>
+      {ok ? (
+        <Group style={{ marginTop: 16 }}>
+          <Row icon="backup" title="Automatic iCloud backup" subtitle={ic.on ? 'Daily and after changes · keeps the last 3' : 'Off'}
+            trailing={<Switch value={ic.on} label="Automatic iCloud backup" onValueChange={async (on) => {
+              if (on) { sheet.open('Turn on iCloud backup', <ICloudPasswordSheet mode="enable" />); return; }
+              await set({ on: false }); await forgetPassword(); toast('iCloud backup off');
+            }} />} />
+          {ic.on ? <Row icon="globe" title="Only on Wi-Fi" subtitle="Skip automatic backups on cellular" trailing={<Switch value={ic.wifiOnly} label="Only on Wi-Fi" onValueChange={(v) => set({ wifiOnly: v })} />} /> : null}
+        </Group>
+      ) : null}
+      <T tone="text2" style={[font.foot, { marginTop: 22, marginBottom: 6, marginLeft: 4 }]}>Other ways</T>
+      <Group>
+        <Row icon="share" title="Back up to a file" subtitle={`Files, Google Drive or AirDrop · last: ${f.settings.lastBackupAt ? fmt(f.settings.lastBackupAt.slice(0, 10)) : 'never'}`} onPress={fileBackup} chevron={false} />
+        <Row icon="restore" title="Restore from a file" subtitle="From a backup file you saved" onPress={fileRestore} chevron={false} />
+        {importShared}
+      </Group>
+    </>
+  );
+}

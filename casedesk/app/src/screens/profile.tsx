@@ -26,6 +26,7 @@ export const leadText = (lead: number[], sep = ', ') => (lead.length ? `${lead.j
 
 /** Profile (from the avatar on Home): you, your family, and alerts / reminders per person.
  *  Everything else moved to the Settings tab (v2.1). */
+import { GcProfileRow } from './gc';
 export function ProfileScreen() {
   const f = useFamily();
   const me = f.main;
@@ -44,16 +45,19 @@ export function ProfileScreen() {
           </View>
         </Card>
       ) : null}
-      <SectionHeader>Family</SectionHeader>
-      <Group>
-        {f.people.map((p) => <Row key={p.id} avatar={p.name} title={p.name} subtitle={`${relationLabel(p)} · ${statusLabel(p, f.records[p.id], f.results[p.id])}`} onPress={() => go(`/person/${p.id}`)} />)}
-        <Row icon="plus" title="Add family member" titleTone="accent" chevron={false} onPress={() => go('/add-member')} />
+      {/* owner-approved preview (Nov 2026): a few rows; the details live one tap inside */}
+      {me ? (
+        <Group style={{ marginTop: 16 }}>
+          <Row icon="user" iconPastel="sky" title="Personal details" subtitle="Name, birth date, country, passport, employer" onPress={() => go(`/person/${me.id}`)} />
+          <Row icon="doc" iconPastel="sky" title="My documents" subtitle={`${f.docs.filter((d) => d.ownerId === me.id).length} saved · passport, visa, I-94, I-797`} onPress={() => go(`/person/${me.id}`)} />
+          <GcProfileRow />
+        </Group>
+      ) : null}
+      <Group style={{ marginTop: 16 }}>
+        <Row icon="users" iconPastel="butter" title="Family" subtitle={f.people.filter((p) => p.id !== me?.id).map((p) => p.name.split(' ')[0]).join(', ') || 'Add your family'} onPress={() => router.navigate('/(tabs)/family' as never)} />
+        <Row icon="bell" iconPastel="butter" title="Reminders" subtitle="On or off for each person" onPress={() => go('/settings-page/notifications')} />
       </Group>
-      <SectionHeader>Alerts &amp; reminders</SectionHeader>
-      <Group>
-        {f.people.map((p) => { const r = p.reminders ?? { on: true, lead: f.settings.reminderLeadDays }; return <Row key={p.id} icon="bell" title={p.name} subtitle={reminderSummary(r, typesFor(f.records[p.id], f.caseList.some((c) => c.ownerId === p.id && c.keyDates.length > 0)))} onPress={() => go(`/reminders/${p.id}`)} />; })}
-      </Group>
-      <Group style={{ marginTop: 24 }}><Row icon="gear" title="Settings" subtitle="Appearance, Face ID, backups, help, about" onPress={() => go('/settings')} /></Group>
+      <Group style={{ marginTop: 16 }}><Row icon="gear" title="Settings" subtitle="Appearance, Face ID, backup, help, about" onPress={() => go('/settings')} /></Group>
     </Screen>
   );
 }

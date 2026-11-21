@@ -10,6 +10,7 @@ import { isPendingCase } from '../core/cases';
 import { needsAttention } from '../core/rules/engine';
 import { useFamily } from '../data/FamilyProvider';
 import { TourButton, TourTarget, useTour, useLayout, Appear, Avatar, Button, EmptyState, Group, HeroCard, Icon, LargeTitle, LinkButton, Pastel, Row, Screen, SectionHeader, StatTile, T, font, useSheet, useTheme, useToast } from '../ui';
+import { GcHomeCard } from './gc';
 import { AttentionRow, go, LegalFooter, needsLocation, statusLabel, untilText } from './common';
 import { heroLine } from '../core/priority';
 import { ORDER } from '../core/rules/types';
@@ -126,7 +127,7 @@ export function Home() {
       </Group>
     </TourTarget>
   ) : null;
-  const casesPart = <CasesGlance />;
+  const casesPart = <><GcHomeCard /><CasesGlance /></>;
   const foot = <LegalFooter asOf={fmt(RULES_CHECKED)} />;
   // Wide (≥ 700): two independent scroll areas — you, the hero and the family stay put on the left
   // while attention, cases and updates scroll on the right. Phones: one page.

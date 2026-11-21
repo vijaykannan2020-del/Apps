@@ -22,6 +22,7 @@ import {
 } from '../ui';
 import { back, DataFooter, go, LegalFooter, runFlow } from './common';
 import { openUrl } from '../native/device';
+import { WORK_VISAS } from '../core/guide';
 
 type Ctx = { f: FamilyState; p: Person; track?: GcTrack; members: { person: Person; rec: FamilyState['records'][string] }[] };
 function useGc(pid?: string): Ctx | undefined {
@@ -44,6 +45,49 @@ function pdLine(t: GcTrack): string {
   const b = t.bulletin;
   const cur = b ? (b.canApprove ? ' · final action current' : b.canFile ? ' · current for filing' : ' · not current yet') : '';
   return `${t.category ?? 'Category?'} · ${COUNTRY_LABEL[t.country]} · ${fmt(t.priorityDate)}${cur}`;
+}
+
+// ---------- Home: the green card card (owner, Nov 2026: most employees have a green card process) ----------
+/** On Home for the main person: their track (stage, priority date, current or not) — or, on a work visa with
+ *  nothing added yet, a prompt to add the priority date. Opens the tracker (/gc/<id>). */
+export function GcHomeCard() {
+  const f = useFamily();
+  const me = f.main;
+  const c = useGc(me?.id);
+  const sheet = useSheet();
+  if (!me || !c || !c.track) return null;
+  const t = c.track;
+  const work = WORK_VISAS.test(`${f.records[me.id]?.visa ?? ''} ${me.status ?? ''}`);
+  if (!t.started && !work) return null;
+  const steps = GC_STAGES.length;
+  const at = Math.min(steps, stageIndex(t.stage) + 1);
+  return (
+    <>
+      <SectionHeader>Green card</SectionHeader>
+      <Group>
+        {t.started ? (
+          <Row icon="card" iconPastel={STAGE_TONE[t.stage] === 'butter' ? 'butter' : STAGE_TONE[t.stage] === 'sage' ? 'sage' : 'sky'} alignTop
+            title={STAGE_LABEL[t.stage]} onPress={() => go(`/gc/${me.id}`)}
+            subtitle={<><T tone="text2" style={font.foot}>{`Step ${at} of ${steps} · ${pdLine(t)}`}</T>{t.next[0] ? <T tone="text2" style={[font.foot, { marginTop: 2 }]} numberOfLines={2}>{t.next[0]}</T> : null}</>}
+            trailing={t.bulletin && t.stage !== 'approved' ? <Pill severity={t.bulletin.canFile || t.bulletin.canApprove ? 'good' : 'info'} text={t.bulletin.canApprove ? 'Final' : t.bulletin.canFile ? 'Current' : 'Waiting'} /> : undefined} />
+        ) : (
+          <Row icon="card" iconPastel="mint" title="Track your green card" subtitle="Add your category and priority date to see when it’s current" onPress={() => sheet.open('Green card details', <GcDetails pid={me.id} start />)} />
+        )}
+      </Group>
+    </>
+  );
+}
+/** One row for the profile page: the main person's green card. */
+export function GcProfileRow() {
+  const f = useFamily();
+  const me = f.main;
+  const c = useGc(me?.id);
+  const sheet = useSheet();
+  if (!me || !c || !c.track) return null;
+  const t = c.track;
+  return t.started
+    ? <Row icon="card" iconPastel="mint" title="Green card" subtitle={`${STAGE_LABEL[t.stage]} · ${t.category ?? 'category?'}`} onPress={() => go(`/gc/${me.id}`)} />
+    : <Row icon="card" iconPastel="mint" title="Green card" subtitle="Not added yet · track your priority date" onPress={() => sheet.open('Green card details', <GcDetails pid={me.id} start />)} />;
 }
 
 // ---------- the GC section on the person page ----------

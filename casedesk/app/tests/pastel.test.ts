@@ -111,8 +111,10 @@ test('navigation: five tabs — Home, Family, Community, Updates, Tools (Cases o
   assert.match(home, /go\('\/settings'\)/, 'the avatar opens Settings');
   const st = readFileSync(new URL('../src/screens/settings.tsx', import.meta.url), 'utf8');
   // owner, Nov 20 2026: "shorten means not remove" — every setting is visible again (no hidden Developer section)
-  for (const sec of ['Appearance', 'Privacy &amp; Face ID', 'Notifications', 'Backup &amp; sharing', 'Widgets &amp; Wallet', 'Help', 'About']) assert.ok(st.includes(`<SectionHeader>${sec}</SectionHeader>`), sec);
-  for (const row of ['Run setup again', 'Example family', 'Show tips on every screen', 'Show all tips again', 'Show HR tools', 'Diagnostics', 'Per person', 'Default reminders']) assert.ok(st.includes(`title="${row}"`), row);
+  // owner-approved preview (Nov 2026): one short list of rows, each opening a page that holds the options
+  for (const page of ['appearance', 'privacy', 'notifications', 'backup', 'share', 'widgets', 'help', 'about']) { assert.ok(st.includes(`go('/settings-page/${page}')`), page); assert.ok(st.includes(`case '${page}'`), page); }
+  assert.match(readFileSync(new URL('../app/settings-page/[id].tsx', import.meta.url), 'utf8'), /SettingsPage as default/);
+  for (const row of ['Run setup again', 'Example family', 'Show tips on every screen', 'Show all tips again', 'Show HR tools', 'Diagnostics', 'Default reminders', 'Open system settings', 'Privacy']) assert.ok(st.includes(`title="${row}"`), row);
   assert.match(st, /<SettingsList os=\{os\}>/);
   assert.match(st, /Linking\.openSettings\(\)/, 'Open system settings row');
   assert.match(st, /go\('\/profile'\)/, 'Profile at the top');
