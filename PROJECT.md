@@ -152,6 +152,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-20, Claude: Forge Version 15 (server 14): Usage card at the top of Settings + one-line summary on Projects. Claude plan limits from api.anthropic.com/api/oauth/usage (5-hour / weekly; only with plan sign-in), Codex limits from `codex app-server` `account/rateLimits/read` (5-hour / weekly with reset times), plus Forge's own runs this week. Stat events now carry agent + cost/tokens.
+
 - 2026-11-20, Claude: Forge Version 12 (server 11): + New repository in Open project (name, description, private/public; created with a README via POST /user/repos auto_init so it can be cloned) and the repo list refreshes every time the picker opens.
 
 - 2026-11-20, Claude: Forge Version 11 (server 10): shared memory between agents. When a message goes to a different agent than the one(s) since its last turn, the server prepends a HANDOFF block (user messages, the other agent's replies, files/commands it touched, pushes/PRs; last 16k chars) to the prompt and shows 'Shared this chat’s history with …'. Each agent still resumes its own session for its own history.

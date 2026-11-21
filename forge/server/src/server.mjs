@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
-const SERVER_VERSION = 13; // raise on every server change; shown in the app's Settings
+const SERVER_VERSION = 14; // raise on every server change; shown in the app's Settings
 const PORT = +(process.env.PORT || 8790);
 const SYNAPSE = process.env.SYNAPSE_URL || 'http://synapse:8008';
 const DATA = process.env.DATA_DIR || '/app/data';
@@ -338,7 +338,7 @@ function onClaude(s, r, ev) {
     r.finished = true;
     if (ev.session_id) s.claudeSession = ev.session_id;
     if (ev.is_error) push(s, { kind: 'error', text: ev.result || ev.subtype || 'Claude Code reported an error.' });
-    push(s, { kind: 'stat', text: [ev.num_turns ? `${ev.num_turns} steps` : '', ev.duration_ms ? `${Math.round(ev.duration_ms / 1000)} s` : '', ev.total_cost_usd ? `$${ev.total_cost_usd.toFixed(2)}` : ''].filter(Boolean).join(' · ') });
+    push(s, { kind: 'stat', agent: 'claude', cost: ev.total_cost_usd || 0, text: [ev.num_turns ? `${ev.num_turns} steps` : '', ev.duration_ms ? `${Math.round(ev.duration_ms / 1000)} s` : '', ev.total_cost_usd ? `$${ev.total_cost_usd.toFixed(2)}` : ''].filter(Boolean).join(' · ') });
   }
 }
 function bump(s, e) { // an existing event changed (tool finished): keep its place, mark it as new for the app
@@ -375,7 +375,7 @@ function onCodex(s, r, ev) {
   if (ev.type === 'thread.started' && ev.thread_id) { s.codexThread = ev.thread_id; return; }
   if (ev.type === 'error') { if (!/^Reconnecting/.test(ev.message || '')) push(s, { kind: 'error', text: ev.message }); return; }
   if (ev.type === 'turn.failed') { r.finished = true; push(s, { kind: 'error', text: ev.error?.message || 'Codex turn failed.' }); return; }
-  if (ev.type === 'turn.completed') { r.finished = true; const u = ev.usage || {}; push(s, { kind: 'stat', text: u.input_tokens ? `${Math.round((u.input_tokens + (u.output_tokens || 0)) / 1000)}k tokens` : '' }); return; }
+  if (ev.type === 'turn.completed') { r.finished = true; const u = ev.usage || {}; push(s, { kind: 'stat', agent: 'codex', tokens: (u.input_tokens || 0) + (u.output_tokens || 0), text: u.input_tokens ? `${Math.round((u.input_tokens + (u.output_tokens || 0)) / 1000)}k tokens` : '' }); return; }
   const it = ev.item; if (!it) return;
   const started = ev.type === 'item.started', done = ev.type === 'item.completed';
   if (it.type === 'agent_message' && done && it.text?.trim()) return void push(s, { kind: 'text', text: it.text, agent: 'codex' });
@@ -502,6 +502,64 @@ function sendClaudeCode(code) {
   setTimeout(() => { try { st.proc.stdin.write('\r'); } catch {} }, 300);
 }
 const clView = st => st && { url: st.url, done: st.done, ok: st.ok, error: st.error, sent: st.sent };
+
+// ---------- one request to `codex app-server` (JSON-RPC over stdin/stdout) ----------
+function codexRpc(method, params = {}) {
+  return new Promise(resolve => {
+    const p = spawn('codex', ['app-server'], { env: baseEnv(), stdio: ['pipe', 'pipe', 'ignore'] });
+    let buf = '', done = false;
+    const finish = v => { if (done) return; done = true; try { p.kill(); } catch {} resolve(v); };
+    p.stdout.on('data', d => {
+      buf += d; let n;
+      while ((n = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, n); buf = buf.slice(n + 1);
+        let m; try { m = JSON.parse(line); } catch { continue; }
+        if (m.id === 1) { p.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'initialized' }) + '\n'); p.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method, params }) + '\n'); }
+        if (m.id === 2) finish(m.error ? { error: m.error.message } : { result: m.result });
+      }
+    });
+    p.on('error', e => finish({ error: e.message })); p.on('close', () => finish({ error: 'Codex closed' }));
+    p.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { clientInfo: { name: 'forge', version: String(SERVER_VERSION) } } }) + '\n');
+    setTimeout(() => finish({ error: 'Codex took too long' }), 20000);
+  });
+}
+
+// ---------- usage: plan limits from Claude and Codex, plus what Forge ran this week ----------
+const winLabel = mins => !mins ? 'Limit' : mins <= 360 ? `${Math.round(mins / 60)}-hour limit` : mins >= 10000 && mins <= 10200 ? 'Weekly limit' : mins >= 1400 && mins <= 1500 ? 'Daily limit' : `${Math.round(mins / 1440)}-day limit`;
+function findWindows(o, out = [], key = '') {
+  if (!o || typeof o !== 'object') return out;
+  const pct = o.usedPercent ?? o.used_percent;
+  if (typeof pct === 'number') out.push({ label: winLabel(o.windowDurationMins ?? o.window_minutes) + (key && !/primary|secondary/i.test(key) ? ` (${key})` : ''), percent: Math.round(pct), resetsAt: o.resetsAt ?? o.resets_at ?? null });
+  else for (const [k, v] of Object.entries(o)) findWindows(v, out, /primary|secondary|rateLimits/i.test(k) ? key : k);
+  return out;
+}
+async function usage() {
+  const sec = secrets();
+  const out = { claude: null, codex: null, forge: null };
+  if (sec.claudeOauthToken) {
+    try {
+      const r = await fetch('https://api.anthropic.com/api/oauth/usage', { headers: { Authorization: `Bearer ${sec.claudeOauthToken}`, 'anthropic-beta': 'oauth-2025-04-20', 'User-Agent': 'forge' } });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) out.claude = { kind: 'plan', error: j.error?.message || `Claude said ${r.status}` };
+      else {
+        const names = { five_hour: '5-hour limit', seven_day: 'Weekly limit (all models)', seven_day_opus: 'Weekly limit (Opus)', seven_day_sonnet: 'Weekly limit (Sonnet)' };
+        const windows = Object.entries(j).filter(([, v]) => v && typeof v.utilization === 'number').map(([k, v]) => ({ label: names[k] || k.replace(/_/g, ' '), percent: Math.round(v.utilization), resetsAt: v.resets_at || null }));
+        out.claude = { kind: 'plan', windows };
+      }
+    } catch (e) { out.claude = { kind: 'plan', error: e.message }; }
+  } else if (sec.anthropicKey) out.claude = { kind: 'key', note: 'API key: billed per use. See console.anthropic.com for your bill.' };
+  if (codexReady()) {
+    const r = await codexRpc('account/rateLimits/read');
+    out.codex = r.error ? { error: r.error } : { windows: findWindows(r.result), plan: r.result?.rateLimits?.planType || r.result?.planType || '' };
+  }
+  const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
+  const f = { claudeRuns: 0, codexRuns: 0, claudeCost: 0, codexTokens: 0 };
+  for (const s of sessions.values()) for (const e of s.events) if (e.kind === 'stat' && e.t >= weekAgo) {
+    if (e.agent === 'codex') { f.codexRuns++; f.codexTokens += e.tokens || 0; } else if (e.agent === 'claude' || e.cost != null) { f.claudeRuns++; f.claudeCost += e.cost || 0; }
+  }
+  out.forge = f;
+  return out;
+}
 
 // ---------- Codex model list (asks Codex itself, so it matches your ChatGPT plan) ----------
 let cxModels = null;
@@ -637,6 +695,7 @@ const server = http.createServer(async (req, res) => {
       setSecrets(patch);
       return send(res, 200, await status());
     }
+    if (M === 'GET' && p === '/usage') return send(res, 200, await usage());
     if (M === 'GET' && p === '/codex/models') return send(res, 200, await codexModels());
     if (M === 'POST' && p === '/claude/login') return send(res, 200, clView(startClaudeLogin()));
     if (M === 'GET' && p === '/claude/login') return send(res, 200, clView(clLogin) || {});

@@ -233,6 +233,13 @@ label.fl{display:block;font-weight:500;font-size:12px;margin:16px 0 6px;color:va
 .segs button{flex:1;border:0;background:transparent;padding:8px;font-weight:500;font-size:13px;color:var(--soft)}
 .segs button.on{background:var(--raise);color:var(--ink)}
 details.alt{margin-top:12px}
+.ubar{height:6px;border-radius:3px;background:var(--raise);overflow:hidden;margin:6px 0 2px}
+.ubar i{display:block;height:100%;border-radius:3px;background:var(--ink)}
+.ubar i.warn{background:var(--sun)}.ubar i.hot{background:var(--red)}
+.urow{margin-top:12px}.urow .uh{display:flex;justify-content:space-between;font-size:13px}.urow .uh b{font-weight:500}.urow .uh span{color:var(--soft);font-family:var(--mono);font-size:12px}
+.urow small{color:var(--dim);font-size:12px}
+.uline{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--soft);font-family:var(--mono);border:0;background:none;padding:0;text-align:left}
+.uline b{color:var(--ink);font-weight:500}
 details.alt summary{color:var(--soft);font-size:13px;cursor:pointer;list-style:none}
 details.alt summary::before{content:"› ";display:inline-block;transition:transform .15s}
 details.alt[open] summary::before{transform:rotate(90deg)}
@@ -317,6 +324,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <main class="app hidden" id="v-home">
   <h1 class="big">Forge</h1>
   <p class="sub" id="home-sub">Projects and chats</p>
+  <button class="uline" id="home-use" onclick="show('set')"></button>
   <div id="setup-note"></div>
   <div class="lh" id="rh"><span>Recent chats</span></div>
   <div class="list" id="recent"></div>
@@ -342,6 +350,11 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <main class="app hidden" id="v-set">
   <h1 class="big">Settings</h1>
   <p class="sub" id="set-user"></p>
+
+  <div class="card set">
+    <h3>Usage <button class="x" id="use-rf" style="margin-left:auto;padding:3px 10px;font-size:12px">Refresh</button></h3>
+    <div id="use-box"><div class="working"><span class="spin"></span>Checking your limits…</div></div>
+  </div>
 
   <div class="card set">
     <h3>Appearance</h3>
@@ -434,7 +447,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 14;
+const APP_VERSION = 15;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -513,6 +526,7 @@ $('#logout').onclick = () => signOut();
 async function boot() {
   if (!TOKEN) return show('login');
   show('home');
+  loadUsage();
   try { ME = await api('/me'); paintSetupNote(); if (ME.codex) loadCodexModels().then(() => { paintChips($('#pchips'), 'new'); paintChips($('#schips'), 'chat'); }); } catch (e) { toast(e.message, 4000); }
 }
 function paintSetupNote() {
@@ -949,10 +963,32 @@ $('#sc-more').onclick = () => {
   $('#del').onclick = () => confirmSheet('Delete this session?', 'The server copy and chat are removed. Pushed branches and PRs stay on GitHub.', 'Delete', async () => { await api(`/sessions/${CUR.id}`, { method: 'DELETE' }); closeSession(); loadSessions(); });
 };
 
+// ---------- usage ----------
+let USAGE = null;
+const inTime = t => { if (!t) return ''; const d = (typeof t === 'number' ? (t > 1e12 ? t : t * 1000) : Date.parse(t)) - Date.now(); if (!(d > 0)) return ''; const h = Math.floor(d / 36e5), m = Math.round((d % 36e5) / 6e4); return h >= 48 ? `resets in ${Math.round(h / 24)} days` : h ? `resets in ${h}h ${m}m` : `resets in ${m}m`; };
+const bar = w => `<div class="urow"><div class="uh"><b>${esc(w.label)}</b><span>${w.percent}% used</span></div><div class="ubar"><i class="${w.percent >= 90 ? 'hot' : w.percent >= 70 ? 'warn' : ''}" style="width:${Math.min(100, Math.max(2, w.percent))}%"></i></div><small>${esc(inTime(w.resetsAt))}</small></div>`;
+async function loadUsage() {
+  try { USAGE = await api('/usage'); } catch (e) { $('#use-box').innerHTML = `<p class="hint">${esc(/still updating/.test(e.message) ? 'Usage appears once your server has updated (a few minutes).' : e.message)}</p>`; return; }
+  const u = USAGE, f = u.forge || {};
+  const part = (name, cls, x) => `<div style="margin-top:12px"><span class="ag ${cls}"><i></i>${name}${x?.plan ? ' · ' + esc(x.plan) : ''}</span>${!x ? '<p class="hint">Not connected.</p>' : x.error ? `<p class="hint">Couldn’t read limits: ${esc(x.error)}</p>` : x.note ? `<p class="hint">${esc(x.note)}</p>` : (x.windows || []).length ? x.windows.map(bar).join('') : '<p class="hint">No limits reported.</p>'}</div>`;
+  $('#use-box').innerHTML = part('Claude Code', 'claude', u.claude) + part('Codex', 'codex', u.codex) +
+    `<p class="hint" style="margin-top:14px">Forge this week: ${f.claudeRuns || 0} Claude runs${f.claudeCost ? ` (≈$${f.claudeCost.toFixed(2)} API value)` : ''} · ${f.codexRuns || 0} Codex runs${f.codexTokens ? ` (${Math.round(f.codexTokens / 1000)}k tokens)` : ''}</p>`;
+  paintUseLine();
+}
+function paintUseLine() {
+  const u = USAGE; if (!u) return;
+  const top = x => x?.windows?.length ? Math.max(...x.windows.map(w => w.percent)) : null;
+  const c = top(u.claude), x = top(u.codex);
+  $('#home-use').innerHTML = [c != null ? `<span>Claude <b>${c}%</b></span>` : '', x != null ? `<span>Codex <b>${x}%</b></span>` : ''].join('') + (c != null || x != null ? '<span>used</span>' : '');
+}
+$('#use-rf').onclick = () => { $('#use-box').innerHTML = '<div class="working"><span class="spin"></span>Checking your limits…</div>'; loadUsage(); };
+setInterval(() => { if (!document.hidden && TOKEN) loadUsage(); }, 5 * 60 * 1000);
+
 // ---------- settings ----------
 let CL_KIND = 'sub';
 function st(el, ok, txt) { el.className = 'state ' + (ok ? 'ok' : 'no'); el.textContent = txt; }
 async function paintSettings() {
+  loadUsage();
   $('#vers').textContent = `Version ${APP_VERSION}`;
   try { ME = await api('/me'); } catch (e) { toast(e.message); return; }
   $('#set-user').textContent = `Signed in as ${ME.user}`;
