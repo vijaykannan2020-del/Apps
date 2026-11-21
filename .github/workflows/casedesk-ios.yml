@@ -3,7 +3,7 @@
 # limited by the EAS free plan's monthly iOS builds. Set repo variable CASEDESK_BUILD_ON_EAS=1 to use EAS's servers again.
 # Start it by changing casedesk/app/ios-build.txt (or Run workflow).
 # Two kinds of build (Nov 2026, launch): a TEST build listens to every phone update (channel main) — the
-# default; a STORE build (put the word store in ios-build.txt, or pick store when running it) listens
+# default; a STORE build (ios-build.txt starts with a number and the word store, e.g. 18 store, or pick store when running it) listens
 # only to releases approved with the CaseDesk release workflow (channel production). Submit the store
 # build to the App Store; testers keep the newest test build in TestFlight.
 # Secrets (shared with Inbox): EXPO_TOKEN, ASC_KEY_ID, ASC_ISSUER_ID, APPLE_TEAM_ID, ASC_KEY_P8.
@@ -88,7 +88,7 @@ jobs:
       - name: Test or store build?
         run: |
           KIND="${{ inputs.kind || 'auto' }}"
-          if [ "$KIND" = auto ]; then grep -qi store ios-build.txt && KIND=store || KIND=test; fi
+          if [ "$KIND" = auto ]; then head -n 1 ios-build.txt | grep -qiE '^[0-9]+ store' && KIND=store || KIND=test; fi
           PROFILE=$([ "$KIND" = store ] && echo store || echo production)
           echo "PROFILE=$PROFILE" >> "$GITHUB_ENV"
           echo "::notice::$KIND build (eas profile $PROFILE, update channel $([ "$KIND" = store ] && echo production || echo main))"

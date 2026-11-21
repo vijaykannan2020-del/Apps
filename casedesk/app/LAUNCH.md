@@ -10,9 +10,9 @@ Part 1 is the owner's morning checklist. Part 2 is the plan to reach people afte
 # Launch build and updates (Nov 20, 2026 — read this first)
 
 **Two kinds of iPhone build now.**
-- **Store build** (build **12**): the one to submit to the App Store. It only gets app updates you
+- **Store build** (build **13**): the one to submit to the App Store. It only gets app updates you
   release with the **CaseDesk release to App Store users** workflow. Settings shows `Version …` with no extra word.
-- **Test build** (build **13**, the newest in TestFlight): gets every update right away. Settings shows
+- **Test build** (build **14**, the newest in TestFlight): gets every update right away. Settings shows
   `Version … · test`. You and your wife test on this one.
 
 **After launch, every change goes like this:** Claude pushes → your test build updates → you check it →
@@ -73,7 +73,7 @@ if a page is cramped). The App Store Connect iPhone app can't upload screenshots
    - **Promotional Text**, **Description**, **Keywords**: copy from STORE.md (or from `store/listing.json`).
    - **Support URL**, **Marketing URL**: from STORE.md → App information.
    - **Version**: 1.0. **Copyright**: `2026 Your Full Legal Name`.
-   - **Build**: tap **+ Add Build** → pick the **store build (12)**, not the newest test build → Done. If it asks about encryption:
+   - **Build**: tap **+ Add Build** → pick the **store build (13)**, not the newest test build → Done. If it asks about encryption:
      the build already says “no non-exempt encryption” (`ITSAppUsesNonExemptEncryption` false), so normally no
      question appears. See Decisions → Encryption.
    - **App Review Information**: Sign-in required **off**. Contact: your name, phone, email.
