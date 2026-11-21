@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
-const SERVER_VERSION = 17; // raise on every server change; shown in the app's Settings
+const SERVER_VERSION = 18; // raise on every server change; shown in the app's Settings
 const PORT = +(process.env.PORT || 8790);
 const SYNAPSE = process.env.SYNAPSE_URL || 'http://synapse:8008';
 const DATA = process.env.DATA_DIR || '/app/data';
@@ -256,12 +256,13 @@ function startRun(s, text, agent, model, mode, effort, images) {
   const sec = secrets();
   const where = s.folder ? ` PROJECT FOLDER: work only inside ${s.folder}/ (your current folder) unless the user asks about other parts of the repository.` : '';
   const said = text; // what the user typed (shown in the chat)
+  const shipNote = s.autoship && mode === 'agent' ? ` AUTO-SEND IS ON: as soon as you finish this turn, Forge itself commits your changes and pushes them straight to the ${s.base} branch on GitHub (no pull request needed). So do not tell the user to tap commit/PR buttons or merge; tell them it is being sent to ${s.base} automatically.` : '';
   if (shots.length) text += `\n\n[The user attached ${shots.length} photo${shots.length > 1 ? 's' : ''} (screenshots from their phone). Open and look at ${shots.length > 1 ? 'each one' : 'it'} before answering:\n${shots.join('\n')}]`;
   model = model || (agent === 'claude' ? sec.claudeModel : sec.codexModel) || '';
   let cmd, args;
   if (agent === 'claude') {
     cmd = 'claude';
-    args = ['-p', text, '--output-format', 'stream-json', '--verbose', '--append-system-prompt', (mode === 'ask' ? GUIDE + ' ASK MODE: answer questions and explain; do not change any files.' : GUIDE) + where];
+    args = ['-p', text, '--output-format', 'stream-json', '--verbose', '--append-system-prompt', (mode === 'ask' ? GUIDE + ' ASK MODE: answer questions and explain; do not change any files.' : GUIDE) + where + shipNote];
     args.push(...(mode === 'ask' ? ['--permission-mode', 'plan'] : ['--dangerously-skip-permissions']));
     if (model) args.push('--model', model);
     if (['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) args.push('--effort', effort); else effort = '';
@@ -273,7 +274,7 @@ function startRun(s, text, agent, model, mode, effort, images) {
     const common = ['--json', '--skip-git-repo-check', '--dangerously-bypass-approvals-and-sandbox'];
     if (model) common.push('-m', model);
     if (/^[a-z]{2,12}$/.test(effort || '')) common.push('-c', `model_reasoning_effort="${effort}"`); else effort = '';
-    const prompt = (s.codexThread ? '' : GUIDE + where + '\n\n') + (mode === 'ask' ? '(ASK MODE: read files and run read-only commands to answer, but do not create, edit or delete any files and do not commit.)\n' : '') + text;
+    const prompt = (s.codexThread ? (shipNote ? shipNote.trim() + '\n\n' : '') : GUIDE + where + shipNote + '\n\n') + (mode === 'ask' ? '(ASK MODE: read files and run read-only commands to answer, but do not create, edit or delete any files and do not commit.)\n' : '') + text;
     const imgs = s.codexThread ? [] : shots.flatMap(f => ['-i', f]);
     args = s.codexThread ? ['exec', 'resume', ...common, s.codexThread, prompt] : ['exec', ...common, ...imgs, '-C', cwd, prompt];
   }
