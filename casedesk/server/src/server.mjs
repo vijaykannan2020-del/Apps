@@ -1,4 +1,6 @@
 // CaseDesk API — plain Node (no dependencies). Run: npm start
+// launch-reset first: it may clear data/ before the modules below load it (see the file)
+import './launch-reset.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import { caseStatus, uscisMode, redactPath } from './uscis.mjs';
