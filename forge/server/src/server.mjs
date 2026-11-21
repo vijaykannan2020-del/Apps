@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
-const SERVER_VERSION = 14; // raise on every server change; shown in the app's Settings
+const SERVER_VERSION = 15; // raise on every server change; shown in the app's Settings
 const PORT = +(process.env.PORT || 8790);
 const SYNAPSE = process.env.SYNAPSE_URL || 'http://synapse:8008';
 const DATA = process.env.DATA_DIR || '/app/data';
@@ -533,24 +533,36 @@ function findWindows(o, out = [], key = '') {
   else for (const [k, v] of Object.entries(o)) findWindows(v, out, /primary|secondary|rateLimits/i.test(k) ? key : k);
   return out;
 }
+// Claude's usage endpoint is strictly rate-limited: ask at most every 3 minutes, back off 10 minutes after
+// a 429, and keep showing the last good reading (saved on disk) with its time instead of an error
+const CL_USE_FILE = path.join(DATA, 'claude-usage.json');
+let clUse = (() => { try { return JSON.parse(fs.readFileSync(CL_USE_FILE, 'utf8')); } catch { return null; } })();
+let clUseNext = 0;
 async function usage() {
   const sec = secrets();
   const out = { claude: null, codex: null, forge: null };
-  if (sec.claudeOauthToken) {
+  if (sec.claudeOauthToken && Date.now() < clUseNext && clUse?.windows) out.claude = { ...clUse, stale: Date.now() - clUse.at > 4 * 60 * 1000 };
+  else if (sec.claudeOauthToken) {
     try {
       const r = await fetch('https://api.anthropic.com/api/oauth/usage', { headers: { Authorization: `Bearer ${sec.claudeOauthToken}`, 'anthropic-beta': 'oauth-2025-04-20', 'User-Agent': 'forge' } });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) out.claude = { kind: 'plan', error: j.error?.message || `Claude said ${r.status}` };
-      else {
+      if (!r.ok) {
+        clUseNext = Date.now() + (r.status === 429 ? 10 : 2) * 60 * 1000;
+        out.claude = clUse?.windows ? { ...clUse, stale: true } : { kind: 'plan', error: r.status === 429 ? 'Claude is limiting how often usage can be read. It will show here in a few minutes.' : (j.error?.message || `Claude said ${r.status}`) };
+      } else {
         const names = { five_hour: '5-hour limit', seven_day: 'Weekly limit (all models)', seven_day_opus: 'Weekly limit (Opus)', seven_day_sonnet: 'Weekly limit (Sonnet)' };
         const windows = Object.entries(j).filter(([, v]) => v && typeof v.utilization === 'number').map(([k, v]) => ({ label: names[k] || k.replace(/_/g, ' '), percent: Math.round(v.utilization), resetsAt: v.resets_at || null }));
-        out.claude = { kind: 'plan', windows };
+        out.claude = clUse = { kind: 'plan', windows, at: Date.now() };
+        clUseNext = Date.now() + 3 * 60 * 1000;
+        try { fs.writeFileSync(CL_USE_FILE, JSON.stringify(clUse)); } catch {}
       }
     } catch (e) { out.claude = { kind: 'plan', error: e.message }; }
   } else if (sec.anthropicKey) out.claude = { kind: 'key', note: 'API key: billed per use. See console.anthropic.com for your bill.' };
   if (codexReady()) {
     const r = await codexRpc('account/rateLimits/read');
-    out.codex = r.error ? { error: r.error } : { windows: findWindows(r.result), plan: r.result?.rateLimits?.planType || r.result?.planType || '' };
+    const seen = new Set();
+    const wins = r.error ? [] : findWindows(r.result).filter(w => { const k = w.label.replace(/ \(.*\)$/, '') + '|' + w.percent + '|' + w.resetsAt; if (seen.has(k)) return false; seen.add(k); return true; });
+    out.codex = r.error ? { error: r.error } : { windows: wins, plan: r.result?.rateLimits?.planType || r.result?.planType || '' };
   }
   const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
   const f = { claudeRuns: 0, codexRuns: 0, claudeCost: 0, codexTokens: 0 };

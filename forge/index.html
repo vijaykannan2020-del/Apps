@@ -233,11 +233,14 @@ label.fl{display:block;font-weight:500;font-size:12px;margin:16px 0 6px;color:va
 .segs button{flex:1;border:0;background:transparent;padding:8px;font-weight:500;font-size:13px;color:var(--soft)}
 .segs button.on{background:var(--raise);color:var(--ink)}
 details.alt{margin-top:12px}
-.ubar{height:6px;border-radius:3px;background:var(--raise);overflow:hidden;margin:6px 0 2px}
-.ubar i{display:block;height:100%;border-radius:3px;background:var(--ink)}
+.ubar{height:8px;border-radius:4px;background:rgba(47,111,235,.18);overflow:hidden;margin:8px 0 6px}
+.ubar i{display:block;height:100%;border-radius:4px;background:#3B76E1}
 .ubar i.warn{background:var(--sun)}.ubar i.hot{background:var(--red)}
-.urow{margin-top:12px}.urow .uh{display:flex;justify-content:space-between;font-size:13px}.urow .uh b{font-weight:500}.urow .uh span{color:var(--soft);font-family:var(--mono);font-size:12px}
-.urow small{color:var(--dim);font-size:12px}
+.ugrp{color:var(--soft);font-size:13px;margin:14px 0 2px}
+.ucard{background:var(--bg);border-radius:12px;padding:2px 14px 10px;margin-top:8px}
+.urow{padding-top:10px}.urow+.urow{border-top:1px solid var(--line);margin-top:4px}
+.urow .uh{display:flex;justify-content:space-between;align-items:baseline;font-size:16px}.urow .uh b{font-weight:400}.urow .uh span{color:var(--soft);font-size:14px}
+.urow small{color:var(--soft);font-size:13px}
 .uline{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--soft);font-family:var(--mono);border:0;background:none;padding:0;text-align:left}
 .uline b{color:var(--ink);font-weight:500}
 details.alt summary{color:var(--soft);font-size:13px;cursor:pointer;list-style:none}
@@ -447,7 +450,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 15;
+const APP_VERSION = 16;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -966,11 +969,22 @@ $('#sc-more').onclick = () => {
 // ---------- usage ----------
 let USAGE = null;
 const inTime = t => { if (!t) return ''; const d = (typeof t === 'number' ? (t > 1e12 ? t : t * 1000) : Date.parse(t)) - Date.now(); if (!(d > 0)) return ''; const h = Math.floor(d / 36e5), m = Math.round((d % 36e5) / 6e4); return h >= 48 ? `resets in ${Math.round(h / 24)} days` : h ? `resets in ${h}h ${m}m` : `resets in ${m}m`; };
-const bar = w => `<div class="urow"><div class="uh"><b>${esc(w.label)}</b><span>${w.percent}% used</span></div><div class="ubar"><i class="${w.percent >= 90 ? 'hot' : w.percent >= 70 ? 'warn' : ''}" style="width:${Math.min(100, Math.max(2, w.percent))}%"></i></div><small>${esc(inTime(w.resetsAt))}</small></div>`;
+// reset as a clock time, like Claude's own Usage page: "Resets at 8:50 PM" / "Resets Thu 11:00 AM"
+const resetAt = t => { if (!t) return ''; const ms = typeof t === 'number' ? (t > 1e12 ? t : t * 1000) : Date.parse(t); if (!(ms > Date.now())) return ''; const d = new Date(ms), now = new Date();
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (d.toDateString() === now.toDateString()) return `Resets at ${time}`;
+  return ms - Date.now() < 6 * 864e5 ? `Resets ${d.toLocaleDateString([], { weekday: 'short' })} ${time}` : `Resets ${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}`; };
+const niceLabel = l => { const m = String(l || '').replace(/\s*\((codex)\)$/i, '');
+  if (/^5-hour/i.test(m)) return 'Current session';
+  const w = /^Weekly limit(?: \((.+)\))?/i.exec(m); if (w) return w[1] ? w[1].replace(/^all models$/i, 'All models') : 'All models';
+  return m; };
+const bar = w => `<div class="urow"><div class="uh"><b>${esc(niceLabel(w.label))}</b><span>${w.percent}% used</span></div><div class="ubar"><i class="${w.percent >= 90 ? 'hot' : w.percent >= 70 ? 'warn' : ''}" style="width:${Math.min(100, Math.max(2, w.percent))}%"></i></div><small>${esc(resetAt(w.resetsAt) || inTime(w.resetsAt))}</small></div>`;
+const usePart = ws => { const ses = ws.filter(w => /^5-hour/i.test(w.label)), wk = ws.filter(w => /^weekly/i.test(w.label)), rest = ws.filter(w => !ses.includes(w) && !wk.includes(w));
+  return (ses.length ? `<div class="ucard">${ses.map(bar).join('')}</div>` : '') + (wk.length ? `<div class="ugrp">Weekly limits</div><div class="ucard">${wk.map(bar).join('')}</div>` : '') + (rest.length ? `<div class="ucard">${rest.map(bar).join('')}</div>` : ''); };
 async function loadUsage() {
   try { USAGE = await api('/usage'); } catch (e) { $('#use-box').innerHTML = `<p class="hint">${esc(/still updating/.test(e.message) ? 'Usage appears once your server has updated (a few minutes).' : e.message)}</p>`; return; }
   const u = USAGE, f = u.forge || {};
-  const part = (name, cls, x) => `<div style="margin-top:12px"><span class="ag ${cls}"><i></i>${name}${x?.plan ? ' · ' + esc(x.plan) : ''}</span>${!x ? '<p class="hint">Not connected.</p>' : x.error ? `<p class="hint">Couldn’t read limits: ${esc(x.error)}</p>` : x.note ? `<p class="hint">${esc(x.note)}</p>` : (x.windows || []).length ? x.windows.map(bar).join('') : '<p class="hint">No limits reported.</p>'}</div>`;
+  const part = (name, cls, x) => `<div style="margin-top:12px"><span class="ag ${cls}"><i></i>${name}${x?.plan ? ' · ' + esc(x.plan) : ''}</span>${!x ? '<p class="hint">Not connected.</p>' : x.error ? `<p class="hint">Couldn’t read limits: ${esc(x.error)}</p>` : x.note ? `<p class="hint">${esc(x.note)}</p>` : (x.windows || []).length ? usePart(x.windows) + (x.stale && x.at ? `<p class="hint">Last read ${esc((a => a === "now" ? "just now" : a + " ago")(ago(new Date(x.at).toISOString())))} — Claude limits how often this can be checked.</p>` : '') : '<p class="hint">No limits reported.</p>'}</div>`;
   $('#use-box').innerHTML = part('Claude Code', 'claude', u.claude) + part('Codex', 'codex', u.codex) +
     `<p class="hint" style="margin-top:14px">Forge this week: ${f.claudeRuns || 0} Claude runs${f.claudeCost ? ` (≈$${f.claudeCost.toFixed(2)} API value)` : ''} · ${f.codexRuns || 0} Codex runs${f.codexTokens ? ` (${Math.round(f.codexTokens / 1000)}k tokens)` : ''}</p>`;
   paintUseLine();
