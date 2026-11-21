@@ -152,6 +152,8 @@ the top right and cover part of the page.
 
 ## Change log
 
+- 2026-11-20, Claude: Forge Version 18 (server 17): optional Auto-send (composer chip 'Send: manual' / 'Auto-send ✓'). When on, after each finished Agent-mode turn the server commits, fetches the base branch, rebases onto it and pushes straight to it (like a merged PR); if the rebase conflicts it aborts and says to use Create pull request. Ask mode never sends.
+
 - 2026-11-20, Claude: Forge Version 15 (server 14): Usage card at the top of Settings + one-line summary on Projects. Claude plan limits from api.anthropic.com/api/oauth/usage (5-hour / weekly; only with plan sign-in), Codex limits from `codex app-server` `account/rateLimits/read` (5-hour / weekly with reset times), plus Forge's own runs this week. Stat events now carry agent + cost/tokens.
 
 - 2026-11-20, Claude: Forge Version 12 (server 11): + New repository in Open project (name, description, private/public; created with a README via POST /user/repos auto_init so it can be cloned) and the repo list refreshes every time the picker opens.

@@ -450,7 +450,7 @@ details.alt[open] summary::before{transform:rotate(90deg)}
 <button class="upd hidden" id="upd">New version ready · Tap to update</button>
 
 <script>
-const APP_VERSION = 17;
+const APP_VERSION = 18;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('forge-' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('forge-' + k, JSON.stringify(v)); } catch {} } };
@@ -603,7 +603,7 @@ $('#pj-go').onclick = async () => {
   const P = prefs(), b = $('#pj-go'); busy(b, true);
   try {
     const { repo, folder } = psplit(PROJ);
-    const s = await api('/sessions', { body: { repo, folder, images: PICS.pmsg.map(data => ({ data })), base: $('#pj-base').value, agent: P.agent, model: P.model[P.agent] || '', mode: P.mode, effort: P.effort[P.agent] || '', prompt } });
+    const s = await api('/sessions', { body: { repo, folder, images: PICS.pmsg.map(data => ({ data })), base: $('#pj-base').value, agent: P.agent, model: P.model[P.agent] || '', mode: P.mode, effort: P.effort[P.agent] || '', autoship: !!P.autoship, prompt } });
     $('#pmsg').value = ''; $('#pmsg').style.height = ''; PICS.pmsg = []; paintPics('pmsg');
     SESSIONS.unshift(s); paintProj(); openSession(s.id);
   } catch (e) { toast(e.message, 5000); } finally { busy(b, false); b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>'; }
@@ -626,13 +626,13 @@ function effortsFor(agent, P) {
   const m = codexModel(P.model.codex || '');
   return m?.efforts?.length ? [['', 'Default' + (m.defaultEffort ? ` (${EFF_NAME[m.defaultEffort] || m.defaultEffort})` : '')], ...m.efforts.map(e => [e.id, EFF_NAME[e.id] || e.id, e.description])] : EFFORTS.codex;
 }
-function prefs() { const p = LS.get('prefs', {}); return { agent: p.agent || 'claude', model: p.model || {}, mode: p.mode || 'agent', effort: p.effort || {} }; }
+function prefs() { const p = LS.get('prefs', {}); return { agent: p.agent || 'claude', model: p.model || {}, mode: p.mode || 'agent', effort: p.effort || {}, autoship: !!p.autoship }; }
 function setPrefs(patch) { LS.set('prefs', { ...prefs(), ...patch }); }
 const modelLabel = (agent, id) => agent === 'codex' ? (id ? (codexModel(id)?.name || id) : 'Default') : ((MODELS[agent].find(m => m[0] === id) || [id, id])[1] || 'Default');
 const chev = '<svg viewBox="0 0 10 10"><path d="M2 4l3 3 3-3"/></svg>';
 function paintChips(box, where) {
   const P = prefs();
-  box.innerHTML = `<button class="chip ${P.agent}" data-c="agent"><i></i>${P.agent === 'codex' ? 'Codex' : 'Claude'}${chev}</button><button class="chip" data-c="model">${esc(modelLabel(P.agent, P.model[P.agent] || ''))}${chev}</button><button class="chip" data-c="effort">${P.effort[P.agent] ? '⚡ ' + effortLabel(P.agent, P.effort[P.agent]) : 'Effort'}${chev}</button><button class="chip ${P.mode === 'ask' ? 'ask' : ''}" data-c="mode">${P.mode === 'ask' ? 'Ask' : 'Agent'}${chev}</button>`;
+  box.innerHTML = `<button class="chip ${P.agent}" data-c="agent"><i></i>${P.agent === 'codex' ? 'Codex' : 'Claude'}${chev}</button><button class="chip" data-c="model">${esc(modelLabel(P.agent, P.model[P.agent] || ''))}${chev}</button><button class="chip" data-c="effort">${P.effort[P.agent] ? '⚡ ' + effortLabel(P.agent, P.effort[P.agent]) : 'Effort'}${chev}</button><button class="chip ${P.mode === 'ask' ? 'ask' : ''}" data-c="mode">${P.mode === 'ask' ? 'Ask' : 'Agent'}${chev}</button><button class="chip ${P.autoship ? 'ask' : ''}" data-c="ship">${P.autoship ? 'Auto-send ✓' : 'Send: manual'}${chev}</button>`;
   box.onclick = e => { const c = e.target.closest('.chip'); if (!c) return; chipSheet(c.dataset.c, () => { paintChips($('#pchips'), 'new'); paintChips($('#schips'), 'chat'); if (where === 'chat' && c.dataset.c === 'agent' && CUR && prefs().agent !== CUR.agent) toast(`Next message goes to ${agName(prefs().agent)}. It gets this chat’s history automatically.`, 3600); }); };
 }
 function chipSheet(kind, done) {
@@ -641,13 +641,14 @@ function chipSheet(kind, done) {
   let html = '';
   if (kind === 'agent') html = `<div class="sh-top"><h2>Agent</h2></div>${opt('claude', '<span class="ag claude"><i></i></span> Claude Code', ME?.claude || 'not connected', P.agent === 'claude')}${opt('codex', '<span class="ag codex"><i></i></span> Codex', ME?.codex ? 'connected' : 'not connected', P.agent === 'codex')}`;
   if (kind === 'effort') { const cur = P.effort[P.agent] || ''; const hint = { '': 'agent decides', low: 'quick answers', medium: 'balanced', high: 'thinks harder', xhigh: 'very thorough, slower', max: 'deepest thinking, slowest', ultra: 'max + splits work into helpers' }; html = `<div class="sh-top"><h2>${agName(P.agent)} effort</h2></div>${effortsFor(P.agent, P).map(e => opt(e[0], e[1], hint[e[0]] || '', cur === e[0])).join('')}<p class="hint">More effort = better results on hard tasks, but slower and uses more of your plan.</p>`; }
+  if (kind === 'ship') html = `<div class="sh-top"><h2>When the agent finishes</h2></div>${opt('0', 'Manual', 'you tap Commit / PR / Merge in Changes', !P.autoship)}${opt('1', 'Auto-send to main', 'saves it to GitHub main by itself, like a merged PR', P.autoship)}<p class="hint">Auto-send is what I do when I work for you: every finished change goes live on main (and anything that deploys from main updates). Ask mode never sends anything.</p>`;
   if (kind === 'mode') html = `<div class="sh-top"><h2>Mode</h2></div>${opt('agent', 'Agent', 'edits files, runs commands', P.mode !== 'ask')}${opt('ask', 'Ask', 'read-only: explains, plans, no changes', P.mode === 'ask')}`;
   if (kind === 'model' && P.agent === 'codex' && !CX) { openSheet('<div class="sh-top"><h2>Codex model</h2></div><div class="working"><span class="spin"></span>Asking Codex which models your plan has…</div>'); loadCodexModels().then(l => { if (!l.length) toast(ME?.codex ? 'Could not load Codex models. Try again in a moment.' : 'Connect Codex in Settings first.', 4000); if ($('#sheet').classList.contains('open')) chipSheet(kind, done); }); return; }
   if (kind === 'model') { const cur = P.model[P.agent] || ''; const list = P.agent === 'codex' ? [['', 'Default', (codexModel('')?.name || 'Codex picks')], ...(CX || []).map(m => [m.id, m.name, m.description])] : MODELS[P.agent]; html = `<div class="sh-top"><h2>${agName(P.agent)} model</h2></div>${list.map(m => opt(m[0], m[1], m[2], cur === m[0])).join('')}${cur && !list.some(m => m[0] === cur) ? opt(cur, esc(cur), 'custom', true) : ''}<label class="fl">Other model name</label><div class="row"><input class="inp" id="mdl-c" placeholder="${P.agent === 'claude' ? 'e.g. claude-opus-5-5' : 'e.g. a model name from OpenAI'}" autocapitalize="none" autocorrect="off" style="font-family:var(--mono);font-size:14px"><button class="btn ink" id="mdl-ok">Use</button></div>`; }
   openSheet(html);
   $('#sheet').querySelectorAll('.opt').forEach(b => b.onclick = () => {
     const v = b.dataset.v;
-    if (kind === 'agent') setPrefs({ agent: v }); else if (kind === 'mode') setPrefs({ mode: v }); else if (kind === 'effort') setPrefs({ effort: { ...P.effort, [P.agent]: v } }); else { setPrefs({ model: { ...P.model, [P.agent]: v } }); const np = prefs(); const ok = effortsFor(np.agent, np).some(e => e[0] === (np.effort[np.agent] || '')); if (!ok) setPrefs({ effort: { ...np.effort, [np.agent]: '' } }); }
+    if (kind === 'agent') setPrefs({ agent: v }); else if (kind === 'ship') setPrefs({ autoship: v === '1' }); else if (kind === 'mode') setPrefs({ mode: v }); else if (kind === 'effort') setPrefs({ effort: { ...P.effort, [P.agent]: v } }); else { setPrefs({ model: { ...P.model, [P.agent]: v } }); const np = prefs(); const ok = effortsFor(np.agent, np).some(e => e[0] === (np.effort[np.agent] || '')); if (!ok) setPrefs({ effort: { ...np.effort, [np.agent]: '' } }); }
     closeSheet(); done();
   });
   const ok = $('#mdl-ok'); if (ok) ok.onclick = () => { const v = $('#mdl-c').value.trim(); if (!v) return; setPrefs({ model: { ...P.model, [P.agent]: v } }); closeSheet(); done(); };
@@ -899,7 +900,7 @@ $('#send').onclick = async () => {
   stopMic(); const text = ta.value.trim(); if (!text && !PICS.msg.length) return;
   const keep = text, pics = PICS.msg; ta.value = ''; ta.style.height = 'auto'; PICS.msg = []; paintPics('msg');
   const P = prefs(); CUR.status = 'running'; CUR.agent = P.agent; paintWorking(); scrollEnd();
-  try { await api(`/sessions/${CUR.id}/message`, { body: { text: keep, images: pics.map(data => ({ data })), agent: P.agent, model: P.model[P.agent] || '', mode: P.mode, effort: P.effort[P.agent] || '' } }); }
+  try { await api(`/sessions/${CUR.id}/message`, { body: { text: keep, images: pics.map(data => ({ data })), agent: P.agent, model: P.model[P.agent] || '', mode: P.mode, effort: P.effort[P.agent] || '', autoship: !!P.autoship } }); }
   catch (e) { ta.value = keep; PICS.msg = pics; paintPics('msg'); CUR.status = 'idle'; paintWorking(); toast(e.message, 4500); }
 };
 

@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 
-const SERVER_VERSION = 16; // raise on every server change; shown in the app's Settings
+const SERVER_VERSION = 17; // raise on every server change; shown in the app's Settings
 const PORT = +(process.env.PORT || 8790);
 const SYNAPSE = process.env.SYNAPSE_URL || 'http://synapse:8008';
 const DATA = process.env.DATA_DIR || '/app/data';
@@ -304,9 +304,39 @@ function startRun(s, text, agent, model, mode, effort, images) {
     if (r.stopped) push(s, { kind: 'status', text: 'Stopped.' });
     else if (code !== 0 && !r.finished) push(s, { kind: 'error', text: `${agent === 'claude' ? 'Claude Code' : 'Codex'} stopped (code ${code}). ${clip(errBuf.split('\n').filter(l => !/^\s*$/.test(l)).slice(-6).join('\n'), 1200)}` });
     s.status = 'idle';
+    const ship = s.autoship && mode === 'agent' && !r.stopped && (code === 0 || r.finished);
     push(s, { kind: 'done' });
     save(s);
+    if (ship) autoShip(s).catch(e => push(s, { kind: 'error', text: 'Auto-send failed: ' + e.message }));
   });
+}
+
+// Auto-send: commit, put the work on top of the latest main and push it straight to main (like a merged PR)
+async function autoShip(s) {
+  if (runs.has(s.id)) return;
+  const cwd = path.join(WORK_DIR, s.id);
+  if ((await run('git', ['status', '--porcelain'], { cwd })).out.trim()) {
+    await run('git', ['add', '-A'], { cwd });
+    const c = await run('git', ['commit', '-m', (lastUserText(s) || 'Changes from Forge').slice(0, 200)], { cwd });
+    if (c.code !== 0) throw new Error(clip(c.err || c.out, 300));
+  }
+  const f = await git(cwd, ['fetch', '--depth', '50', 'origin', s.base]);
+  if (f.code !== 0) throw new Error('could not reach GitHub: ' + clip(f.err.replace(/basic [A-Za-z0-9+/=]+/g, 'basic ***'), 300));
+  const ahead = +(await run('git', ['rev-list', '--count', 'FETCH_HEAD..HEAD'], { cwd })).out.trim() || 0;
+  if (!ahead) return; // nothing new to send
+  push(s, { kind: 'status', text: `Sending to ${s.base}…` });
+  const rb = await run('git', ['rebase', 'FETCH_HEAD'], { cwd });
+  if (rb.code !== 0) {
+    await run('git', ['rebase', '--abort'], { cwd });
+    throw new Error(`${s.base} on GitHub changed the same lines. Use Changes → Create pull request instead.`);
+  }
+  const p = await git(cwd, ['push', 'origin', `HEAD:refs/heads/${s.base}`]);
+  if (p.code !== 0) throw new Error(clip(p.err.replace(/basic [A-Za-z0-9+/=]+/g, 'basic ***'), 400));
+  const head = (await run('git', ['rev-parse', 'HEAD'], { cwd })).out.trim();
+  await run('git', ['update-ref', `refs/remotes/origin/${s.base}`, head], { cwd });
+  s.baseSha = head; s.pushed = true;
+  push(s, { kind: 'status', text: `Sent to ${s.base} ✓ (${ahead} commit${ahead > 1 ? 's' : ''}). GitHub is updating it now.`, url: `https://github.com/${s.repo}/commits/${s.base}` });
+  save(s);
 }
 
 function onClaude(s, r, ev) {
@@ -758,6 +788,7 @@ const server = http.createServer(async (req, res) => {
     if (M === 'POST' && p === '/sessions') {
       const b = await body(req);
       const s = await createSession(b);
+      s.autoship = !!b.autoship;
       if ((b.prompt && String(b.prompt).trim()) || (Array.isArray(b.images) && b.images.length)) { try { startRun(s, String(b.prompt || '').trim() || 'Look at the attached photo.', b.agent, b.model, b.mode, b.effort, b.images); } catch (e) { push(s, { kind: 'error', text: e.message }); } }
       return send(res, 200, summary(s));
     }
@@ -774,7 +805,7 @@ const server = http.createServer(async (req, res) => {
         }
         return send(res, 200, { status: s.status, events: ev, prUrl: s.prUrl || null });
       }
-      if (M === 'POST' && sub === '/message') { const b = await body(req); const pics = Array.isArray(b.images) && b.images.length; if (!String(b.text || '').trim() && !pics) throw httpErr(400, 'Type a message.'); startRun(s, String(b.text || '').trim() || 'Look at the attached photo.', b.agent, b.model, b.mode, b.effort, b.images); return send(res, 200, { ok: true }); }
+      if (M === 'POST' && sub === '/message') { const b = await body(req); s.autoship = !!b.autoship; const pics = Array.isArray(b.images) && b.images.length; if (!String(b.text || '').trim() && !pics) throw httpErr(400, 'Type a message.'); startRun(s, String(b.text || '').trim() || 'Look at the attached photo.', b.agent, b.model, b.mode, b.effort, b.images); return send(res, 200, { ok: true }); }
       if (M === 'POST' && sub === '/stop') { const r = runs.get(s.id); if (r) { r.stopped = true; r.proc.kill('SIGTERM'); setTimeout(() => { try { r.proc.kill('SIGKILL'); } catch {} }, 4000); } return send(res, 200, { ok: true }); }
       if (M === 'GET' && sub === '/diff') return send(res, 200, await diffOf(s));
       if (M === 'GET' && sub === '/files') { const r = await run('git', ['ls-files', '-co', '--exclude-standard'], { cwd: path.join(WORK_DIR, s.id) }); return send(res, 200, r.out.split('\n').filter(Boolean).slice(0, 20000)); }
