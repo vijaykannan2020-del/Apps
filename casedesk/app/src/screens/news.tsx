@@ -11,6 +11,7 @@ import { asOfText, back, go } from './common';
 import { DISCLAIMER, DISCLAIMER_SHORT } from '../content/legal';
 import { useFamily } from '../data/FamilyProvider';
 import { familyTags, forFamily, orderTags, topicOrder } from '../core/updates';
+import { useCommunityGate } from './communityAccount';
 
 const KINDS = ['Official', 'News & analysis'];
 const kindKey = (k: string) => (k === 'Official' ? 'official' : 'news');
@@ -105,6 +106,7 @@ export function NewsItemScreen() {
   const t = useTheme();
   const f = useFamily();
   const tour = useTour('news-item');
+  const gate = useCommunityGate();
   React.useEffect(() => { if (n && f.ready && !(f.settings.updatesDismissed ?? []).includes(n.id) && n.impact === 'high') f.actions.updateSettings({ updatesDismissed: [...(f.settings.updatesDismissed ?? []), n.id] }); }, [n?.id, f.ready]);
   if (!n) return <Screen nav={{ title: 'Update', back: 'Back', onBack: back }}><Why>This update is no longer in the feed.</Why></Screen>;
   return (
@@ -123,6 +125,8 @@ export function NewsItemScreen() {
       </Card></TourTarget>
       {n.sources?.length ? (<><SectionHeader>Also reported by</SectionHeader><Group>{n.sources.map((s) => <Row key={s.url} icon="globe" title={s.name} onPress={() => openUrl(s.url)} />)}</Group></>) : null}
       <TourTarget id="source"><Button block icon="compass" title="Open the source" onPress={() => openUrl(n.url)} /></TourTarget>
+      {/* v3.0: start a Community discussion about this update (title, summary, points and source pre-filled) */}
+      <View style={{ marginTop: 10 }}><Button block kind="tint" icon="chat" title="Discuss in Community" label="Start a Community discussion about this update" onPress={() => gate(() => go('/community/compose', { news: n.id }))} /></View>
       <Hint center style={{ marginTop: 12 }}>{`${n.agency} · ${when(n.date)}. Check the source before you act. ${DISCLAIMER}`}</Hint>
     </Screen>
   );

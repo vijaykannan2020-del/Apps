@@ -1,6 +1,7 @@
 // Official-source news feed: Federal Register API (USCIS, DHS, DOL-ETA) + optional RSS feeds.
-// Each item becomes a short "executive" card. If ANTHROPIC_API_KEY is set, Claude writes the
-// one-line summary and 2–3 "what it means" points; otherwise the official abstract is trimmed.
+// Each item becomes a short "executive" card: a 1–2 sentence summary and 3–5 short points (what
+// changes, who is affected, key dates). If ANTHROPIC_API_KEY is set, Claude writes them; otherwise
+// they are built from the official abstract and the Federal Register dates (briefFromAbstract).
 import fs from 'node:fs';
 import path from 'node:path';
 import { notifyNews } from './push.mjs';
@@ -38,7 +39,7 @@ const trim = (s = '', n = 220) => (s.length > n ? s.slice(0, s.lastIndexOf(' ', 
 async function fromFederalRegister() {
   const qs = new URLSearchParams({ per_page: '60', order: 'newest' });
   AGENCIES.forEach((a) => qs.append('conditions[agencies][]', a));
-  for (const f of ['title', 'abstract', 'publication_date', 'html_url', 'document_number', 'type', 'agencies', 'effective_on']) qs.append('fields[]', f);
+  for (const f of ['title', 'abstract', 'publication_date', 'html_url', 'document_number', 'type', 'agencies', 'effective_on', 'comments_close_on']) qs.append('fields[]', f);
   const r = await fetch(`https://www.federalregister.gov/api/v1/documents.json?${qs}`);
   if (!r.ok) throw new Error(`Federal Register ${r.status}`);
   const j = await r.json();
@@ -52,6 +53,7 @@ async function fromFederalRegister() {
       abstract: d.abstract || '',
       docType: d.type,
       effective: d.effective_on,
+      commentsClose: d.comments_close_on,
       tags: tagsFor(text),
       url: d.html_url,
     };
@@ -111,9 +113,38 @@ export function clusterStories(list, threshold = 0.6) {
   return groups;
 }
 
+// ---- Summary + points from the official text (no AI needed) ----
+const ABBR = /\b(U\.S|e\.g|i\.e|Sec|No|Nos|Inc|Dept|Mr|Ms|Dr|St|Jan|Feb|Mar|Apr|Aug|Sept?|Oct|Nov|Dec|C\.F\.R|Fed|Reg|al|approx|vs)\.$/i;
+export function sentences(text = '') {
+  const parts = String(text).replace(/\s+/g, ' ').trim().split(/(?<=[.!?])\s+(?=[A-Z0-9("“])/);
+  const out = [];
+  for (const p of parts) {
+    if (out.length && ABBR.test(out[out.length - 1])) out[out.length - 1] += ` ${p}`;
+    else if (p) out.push(p);
+  }
+  return out;
+}
+const longDate = (d) => { const t = new Date(`${d}T12:00:00Z`); return isNaN(+t) ? d : t.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }); };
+/** A 1–2 sentence summary and up to 5 short points: the rest of the abstract, then what kind of
+ *  document it is and its dates (effective date, comment deadline). */
+export function briefFromAbstract(item) {
+  const s = sentences(item.abstract || '');
+  let summary = s.shift() || item.title || '';
+  if (summary.length < 90 && s.length) summary += ` ${s.shift()}`;
+  const points = s.slice(0, 3).map((x) => trim(x, 200));
+  const type = String(item.docType || '');
+  if (/proposed/i.test(type)) points.push('Proposed rule: nothing changes yet. It can still change before a final rule.');
+  if (item.commentsClose) points.push(`Public comments are open until ${longDate(item.commentsClose)}.`);
+  if (item.effective) points.push(`${/proposed/i.test(type) ? 'Planned start' : 'Takes effect'}: ${longDate(item.effective)}.`);
+  else if (/^rule$/i.test(type)) points.push('Final rule. Check the source for the date it takes effect.');
+  return { summary: trim(summary, 320), points: points.slice(0, 5) };
+}
+
+const SUMMARY_V = 2; // bump to rebuild cached summaries (v2: longer summary, 3–5 points)
 async function summarize(item) {
-  if (summaries[item.id]) return summaries[item.id];
-  const fallback = { summary: trim(item.abstract || item.title, 180), points: [], impact: /final rule|interim final|fee/i.test(`${item.docType} ${item.title}`) ? 'high' : 'info' };
+  if (summaries[item.id]?.v === SUMMARY_V) return summaries[item.id];
+  const brief = briefFromAbstract(item);
+  const fallback = { v: SUMMARY_V, summary: brief.summary || trim(item.title, 320), points: brief.points, impact: /final rule|interim final|fee/i.test(`${item.docType} ${item.title}`) ? 'high' : 'info' };
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key || !item.abstract) return (summaries[item.id] = fallback);
   try {
@@ -122,17 +153,18 @@ async function summarize(item) {
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
         model: process.env.ANTHROPIC_MODEL || 'claude-haiku-5-5',
-        max_tokens: 400,
+        max_tokens: 700,
         messages: [{
           role: 'user',
-          content: `You write plain-English executive summaries of official US immigration notices for employees and HR teams. Use only facts in the notice. Reply with JSON only: {"summary": one sentence under 25 words, "points": 2-3 short bullets on who is affected and when, "impact": "high"|"medium"|"info"}.\n\nTitle: ${item.title}\nType: ${item.docType || 'notice'}\nEffective: ${item.effective || 'n/a'}\nAbstract: ${item.abstract}`,
+          content: `You write plain-English executive summaries of official US immigration notices for employees and HR teams. Use only facts in the notice. Reply with JSON only: {"summary": 1-2 sentences, under 45 words, saying what changes, "points": 3-5 short bullets (each under 25 words): what changes, who is affected, key dates, and what people may need to do, "impact": "high"|"medium"|"info"}.\n\nTitle: ${item.title}\nType: ${item.docType || 'notice'}\nEffective: ${item.effective || 'n/a'}\nComments close: ${item.commentsClose || 'n/a'}\nAbstract: ${item.abstract}`,
         }],
       }),
     });
     const j = await r.json();
     const text = j.content?.[0]?.text || '';
     const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
-    summaries[item.id] = { summary: parsed.summary || fallback.summary, points: (parsed.points || []).slice(0, 3), impact: ['high', 'medium', 'info'].includes(parsed.impact) ? parsed.impact : 'info' };
+    const pts = (Array.isArray(parsed.points) ? parsed.points : []).filter((x) => typeof x === 'string' && x.trim()).slice(0, 5);
+    summaries[item.id] = { v: SUMMARY_V, summary: parsed.summary || fallback.summary, points: pts.length >= 2 ? pts : fallback.points, impact: ['high', 'medium', 'info'].includes(parsed.impact) ? parsed.impact : 'info' };
   } catch {
     summaries[item.id] = fallback;
   }

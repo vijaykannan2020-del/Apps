@@ -387,6 +387,27 @@ export function composePrefill(p: { type?: string; tag?: string }, fam: string[]
   const tag = p.tag && ALL_TAGS.includes(p.tag) ? [p.tag] : [];
   return { type, tags: [...new Set([...tag, ...fam.slice(0, 1)])].slice(0, MAX_TAGS) };
 }
+/** Start a discussion from an Updates item: Discussion type, the update's title, its summary and
+ *  points quoted under a blank top (for the person's own question), the source link, and the update's
+ *  visa tags that exist in Community (I-9, Fees, Wages aren't Community tags). Pure. */
+export type NewsForPost = { title: string; summary: string; points?: string[]; tags: readonly string[]; url: string; agency: string };
+export const NEWS_POST_MARK = '— About this update —';
+export function newsPrefill(n: NewsForPost, when: string, fam: string[] = []): { type: PostType; title: string; body: string; tags: string[] } {
+  // titles can't hold links: "Regulations.gov" → "Regulations gov"
+  const clean = n.title.replace(/\bhttps?:\/\/\S+/gi, '').replace(/\b([a-z0-9-]+)\.(com|net|org|gov|io|in|co|us|info|biz|ly|me)\b/gi, '$1 $2').replace(/\s+/g, ' ').trim();
+  const max = LIMITS.title[1];
+  const title = clean.length > max ? `${clean.slice(0, clean.lastIndexOf(' ', max - 1) > 40 ? clean.lastIndexOf(' ', max - 1) : max - 1)}…` : clean;
+  const lines = [NEWS_POST_MARK, `${n.title} (${n.agency}, ${when})`, n.summary, ...(n.points ?? []).slice(0, 5).map((x) => `• ${x}`), `Source: ${n.url}`];
+  const body = `\n\n${lines.filter(Boolean).join('\n')}`.slice(0, LIMITS.body[1]);
+  const own = n.tags.filter((t) => ALL_TAGS.includes(t));
+  const tags = [...new Set(own.length ? own : fam.slice(0, 1))].slice(0, MAX_TAGS);
+  return { type: 'discussion', title, body, tags };
+}
+/** True while the person hasn't written anything of their own above the quoted update. */
+export function newsPostUntouched(body: string): boolean {
+  const i = body.indexOf(NEWS_POST_MARK);
+  return i >= 0 && body.slice(0, i).trim().length < 10;
+}
 /** "Hot", "New", "Top · Week", "Unanswered" for the sort menu button. */
 export function sortLabel(sort: SortId, range: TopRange): string {
   const s = SORTS.find((x) => x.id === sort)?.label ?? 'Hot';

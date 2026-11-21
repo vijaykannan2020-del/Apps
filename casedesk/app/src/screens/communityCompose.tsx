@@ -4,10 +4,12 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { COMMUNITY_DISCLAIMER, composePrefill, LIMITS, MAX_TAGS, OFFICES, POST_TYPES, STEPS, TAGS, draftProblem, orderedTags, privacyProblem, timelineProblem, timelineTitle, toggleTag, type PostType, type TimelineData, type TimelineStep } from '../core/community';
+import { COMMUNITY_DISCLAIMER, composePrefill, newsPrefill, newsPostUntouched, LIMITS, MAX_TAGS, OFFICES, POST_TYPES, STEPS, TAGS, draftProblem, orderedTags, privacyProblem, timelineProblem, timelineTitle, toggleTag, type PostType, type TimelineData, type TimelineStep } from '../core/community';
 import { createPost, editPost, getPost, type NewPost } from '../data/communityApi';
 import { Button, ChipToggle, Chips, DateField, Field, Hint, LinkButton, Note, Row, Group, Screen, SectionHeader, SelectField, Spinner, Switch, T, font, useSheet, useToast, TourTarget, useTour } from '../ui';
 import { back, replace } from './common';
+import { newsById } from '../data/news';
+import { fmt } from '../core/dates';
 import { useFamilyCommunityTags } from './community';
 import { maybeAskNotify } from './communityAccount';
 import { PollCard, TimelineCard } from './communityUi';
@@ -17,11 +19,13 @@ const blankSteps = (): TimelineStep[] => [{ label: 'Filed', date: '' }, { label:
 
 export function CommunityComposeScreen() {
   // type / tag: a Start a conversation prompt (v2.9) opens New post with these picked
-  const { id, type: pType, tag: pTag } = useLocalSearchParams<{ id?: string; type?: string; tag?: string }>();
+  // news: Discuss in Community from an update (v3.0) — Discussion type, title, the update quoted, its tags
+  const { id, type: pType, tag: pTag, news: pNews } = useLocalSearchParams<{ id?: string; type?: string; tag?: string; news?: string }>();
+  const fromNews = !id && pNews ? newsById(String(pNews)) : undefined;
   const fam = useFamilyCommunityTags();
   const sheet = useSheet();
   const toast = useToast();
-  const [type, setType] = useState<PostType>(() => (id ? 'question' : composePrefill({ type: pType, tag: pTag }, []).type));
+  const [type, setType] = useState<PostType>(() => (id ? 'question' : fromNews ? 'discussion' : composePrefill({ type: pType, tag: pTag }, []).type));
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -36,6 +40,12 @@ export function CommunityComposeScreen() {
   const tour = useTour('communityCompose', undefined, { auto: false });
 
   useEffect(() => {
+    if (!id && fromNews) {
+      let when = fromNews.date; try { when = fmt(fromNews.date); } catch {}
+      const p = newsPrefill(fromNews, when, fam);
+      setTitle(p.title); setBody(p.body); setTags(p.tags);
+      return;
+    }
     if (!id) { setTags(composePrefill({ type: pType, tag: pTag }, fam).tags); return; }
     getPost(String(id)).then((r) => {
       setType(r.post.type); setTitle(r.post.title); setBody(r.post.body); setTags(r.post.tags); setIsRepost(!!r.post.repost);
@@ -48,7 +58,7 @@ export function CommunityComposeScreen() {
   const cleanTl: TimelineData = { ...tl, steps };
   const pollOptions = options.map((o) => o.trim()).filter(Boolean);
   const draft = { type, title, body, tags, poll: pollOptions, timeline: cleanTl, repost: isRepost };
-  const problem = draftProblem(draft);
+  const problem = fromNews && newsPostUntouched(body) ? 'Write your question or thoughts at the top, above the update.' : draftProblem(draft);
   const privacy = privacyProblem([title, body, ...options].join('\n'));
   const all = orderedTags(fam);
   const shown = showAll ? all : [...new Set([...all.slice(0, 12), ...tags])];
@@ -80,6 +90,7 @@ export function CommunityComposeScreen() {
   const titleHint = type === 'question' ? 'H-1B extension: RFE answered 8 weeks ago — normal?' : type === 'poll' ? 'How long did your STEM OPT approval take?' : type === 'timeline' ? 'H-4 EAD renewal: filed Aug, approved Nov' : 'Premium processing is back for I-539 — worth it?';
   return (
     <Screen nav={nav} keyboard tour={tour} footer={<Button icon="check" title={id ? 'Save' : 'Post'} busy={busy} onPress={submit} />}>
+      {fromNews ? <Note tone="blue" style={{ marginTop: 0, marginBottom: 12 }}>{`Discussing the update “${fromNews.title}”. Write your question or thoughts at the top of Details — the update is quoted below it with its source link.`}</Note> : null}
       {!id ? (
         <TourTarget id="type">
           <Chips style={{ marginTop: 0 }}>{POST_TYPES.map((x) => <ChipToggle key={x.id} text={x.label} on={type === x.id} onPress={() => setType(x.id)} />)}</Chips>
