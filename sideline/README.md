@@ -7,3 +7,5 @@ Static HTML/JavaScript. No build step. Public Pages hosting has no built-in logi
 Torrentio / Debridio: Movies → Sources. "Play Torrentio inside the app" adds a debrid key to the Torrentio source (keeps its other options); the Debridio box connects Debridio. Enter the Debridio API key, debrid service and its key; the app builds the add-on link itself (stored only in the browser, never in the repo).
 
 Version: on every change raise the number in `version.json`, and in `index.html` (`window.SIDELINE_VERSION`, `auth.js?v=`, the two "Version N" labels). Phones with an older copy see the newer `version.json` and reload themselves once.
+
+Live TV / Cricket / Saved (Version 19+): built only from the user's add-ons (`live.js`). Live TV = every non-movie/series catalog; Cricket = cricket catalogs, a "Cricket" genre option, or items mentioning cricket/IPL/T20/ODI. The old built-in channels and public playlists are no longer shown or loaded (files kept in the repo).

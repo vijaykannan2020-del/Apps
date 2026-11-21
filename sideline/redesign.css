@@ -160,3 +160,14 @@ dialog::backdrop{background:#07060ccc}
  #streamResults .stream-actions{max-width:52%!important}
 }
 a.primary,a.secondary{text-decoration:none!important}
+/* Version 19: Live TV / Cricket / Saved come only from add-ons; old built-in channel list hidden */
+#livePanel>*:not(#liveBoard){display:none!important}
+#settings,#footerSetup,#connect,#previousChannel,#nextChannel{display:none!important}
+.live-head{margin:4px 0 18px}.live-head h2{font-size:clamp(24px,3vw,32px);margin:0 0 4px}.live-head p{margin:0;color:var(--muted);font-size:13px}
+.row-count{font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.row-skeleton.wide{flex-basis:240px;aspect-ratio:16/9}
+.live-empty{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px;text-align:center;max-width:520px;margin:30px auto}
+.live-empty h3{margin:0 0 8px;font-size:18px}.live-empty p{color:var(--muted);margin:0 0 16px;line-height:1.6}
+.saved-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:18px 14px}.saved-grid .poster-card{flex:none}
+.save-title{margin:14px 0 0!important}
+@media(max-width:600px){.saved-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 10px}}
