@@ -292,6 +292,8 @@ export type Settings = {
   familyCardDismissed?: boolean; // Home "Add your family" card dismissed
   hrTools?: boolean; // show "For HR" tools
   devTools?: boolean; // v3.0: Developer section in Settings (tap the version 7 times)
+  openDays?: string[]; // launch: the last few days the app was opened (for the rating prompt)
+  ratingAskedAt?: string; // launch: when the App Store rating prompt was shown
   helpSeen?: string[]; // first-time help cards dismissed (home, family, cases, tools, settings)
   updatesDismissed?: string[]; // update alerts dismissed or opened (news ids)
   icloudAsk?: boolean; // after a restore: ask "Turn on iCloud backup on this phone?"

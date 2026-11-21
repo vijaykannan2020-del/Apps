@@ -3,6 +3,7 @@
 // Track a USCIS case row). Tiles, the document chart, news and the community row moved off Home.
 import { reasonLine } from '../core/review';
 import React from 'react';
+import { noteOpenAndMaybeAsk } from '../data/rating';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { fmt, today } from '../core/dates';
@@ -38,6 +39,8 @@ const TONE_ICON = { act: 'alert', review: 'alert', deadline: 'clock', setup: 'do
 
 export function Home() {
   const f = useFamily();
+  // launch: count the days the app is opened; ask for an App Store rating once it has proven useful
+  React.useEffect(() => { if (!f.ready) return; const id = setTimeout(() => { noteOpenAndMaybeAsk(f, new Date().toISOString().slice(0, 10)); }, 2500); return () => clearTimeout(id); }, [f.ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const t = useTheme();
   const toast = useToast();
   const sheet = useSheet();

@@ -2,6 +2,10 @@
 # Since Nov 2026 it builds on GitHub's own Mac (eas build --local): free for this public repo and not
 # limited by the EAS free plan's monthly iOS builds. Set repo variable CASEDESK_BUILD_ON_EAS=1 to use EAS's servers again.
 # Start it by changing casedesk/app/ios-build.txt (or Run workflow).
+# Two kinds of build (Nov 2026, launch): a TEST build listens to every phone update (channel main) — the
+# default; a STORE build (put the word store in ios-build.txt, or pick store when running it) listens
+# only to releases approved with the CaseDesk release workflow (channel production). Submit the store
+# build to the App Store; testers keep the newest test build in TestFlight.
 # Secrets (shared with Inbox): EXPO_TOKEN, ASC_KEY_ID, ASC_ISSUER_ID, APPLE_TEAM_ID, ASC_KEY_P8.
 # Repo variable CASEDESK_ASC_APP_ID = the app's Apple ID from App Store Connect (needed for TestFlight upload).
 name: CaseDesk iPhone build
@@ -10,6 +14,12 @@ on:
     branches: [main]
     paths: ['casedesk/app/ios-build.txt', '.github/workflows/casedesk-ios.yml']
   workflow_dispatch:
+    inputs:
+      kind:
+        description: 'test (every update) or store (approved releases only)'
+        type: choice
+        options: [auto, test, store]
+        default: auto
 permissions:
   contents: write
 concurrency: { group: casedesk-ios, cancel-in-progress: false }
@@ -75,16 +85,23 @@ jobs:
             git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
             git add -f credentials/ios.enc && git commit -m "CaseDesk: save encrypted iPhone signing" && git stash -q && git pull --rebase -q && git push && git stash pop -q
           fi
+      - name: Test or store build?
+        run: |
+          KIND="${{ inputs.kind || 'auto' }}"
+          if [ "$KIND" = auto ]; then grep -qi store ios-build.txt && KIND=store || KIND=test; fi
+          PROFILE=$([ "$KIND" = store ] && echo store || echo production)
+          echo "PROFILE=$PROFILE" >> "$GITHUB_ENV"
+          echo "::notice::$KIND build (eas profile $PROFILE, update channel $([ "$KIND" = store ] && echo production || echo main))"
       - name: Build (on this Mac, 20–40 min)
         if: vars.CASEDESK_BUILD_ON_EAS != '1'
         run: |
-          npx -y eas-cli@latest build --platform ios --profile production --non-interactive --local --output "$GITHUB_WORKSPACE/build.ipa"
+          npx -y eas-cli@latest build --platform ios --profile "$PROFILE" --non-interactive --local --output "$GITHUB_WORKSPACE/build.ipa"
           ls -la "$GITHUB_WORKSPACE/build.ipa"
         env: { EAS_BUILD_NO_EXPO_GO_WARNING: 'true' }
       - name: Build on EAS (takes 15–40 min)
         if: vars.CASEDESK_BUILD_ON_EAS == '1'
         run: |
-          npx -y eas-cli@latest build --platform ios --profile production --non-interactive --wait --json > /tmp/build.json
+          npx -y eas-cli@latest build --platform ios --profile "$PROFILE" --non-interactive --wait --json > /tmp/build.json
           jq -r '.[0].id' /tmp/build.json > /tmp/build-id && echo "Build id: $(cat /tmp/build-id)"
         env: { EAS_BUILD_NO_EXPO_GO_WARNING: 'true' }
       - name: Show why the build failed

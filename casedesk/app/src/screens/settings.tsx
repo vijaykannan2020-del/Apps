@@ -2,7 +2,7 @@
 // gear in Profile) — no longer a tab. iOS: large title, inset grouped rows with icon tiles. Android:
 // Material 3 preference list under a top app bar with a back arrow. One <SettingsList> draws both.
 // Deep link: casedesk://settings (app/settings.tsx).
-import { RELEASE } from '../content/release';
+import { LANE, RELEASE } from '../content/release';
 import React, { useEffect } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -82,7 +82,7 @@ export function SettingsScreen() {
         </Group></TourTarget>
         <TourTarget id="helpsec" style={{ marginTop: 22 }}><Group>
           <TourTarget id="taketour"><Row icon="help" iconPastel="blush" title="Help &amp; tips" subtitle={`${HELP_MAIN.length} guides, the tour, run setup again`} onPress={() => go('/settings-page/help')} /></TourTarget>
-          <Row icon="info" iconPastel="mint" title="About" subtitle={`Version ${version} · diagnostics, HR tools, example family`} onPress={() => go('/settings-page/about')} />
+          <Row icon="info" iconPastel="mint" title="About" subtitle={`Version ${version} · diagnostics, HR tools`} onPress={() => go('/settings-page/about')} />
         </Group></TourTarget>
         <Group style={{ marginTop: 22 }}>
           <Row icon="trash" iconTone="red" title="Delete all data" titleTone="red" subtitle="Removes everything from this phone" chevron={false} onPress={() => sheet.open('Delete all data?', <WipeSheet />)} />
@@ -175,10 +175,16 @@ function SettingsPageBody({ id }: { id: string }) {
           <Row icon="help" iconPastel="blush" title="Help" subtitle={`${HELP_MAIN.length} short guides and the tour`} onPress={() => go('/help')} />
           <Row icon="play" iconPastel="blush" title="Take the tour" subtitle="A 1-minute walk through the app" onPress={guide.start} />
           <Row icon="list" iconPastel="blush" title="Run setup again" subtitle="Keeps your data and fills the gaps" onPress={async () => { await f.actions.updateSettings({ setup: rerunProgress() }); go('/setup', { mode: 'rerun' }); }} />
-          <Row icon="users" iconPastel="blush" title="Example family" subtitle="Look around with made-up data" chevron={false} onPress={() => sheet.open('Load the example family?', <Confirm body="Everything on this phone is replaced by a made-up H-1B family. Back up first if you need your data." action="Load example" onConfirm={() => { try { router.dismissAll(); } catch {} replace('/demo'); }} />)} />
-          <Row icon="bulb" iconPastel="blush" title="Show tips on every screen" subtitle="Off: only the harder screens show tips; tap ? anywhere" trailing={<Switch value={!!f.settings.toursAll} label="Show tips on every screen" onValueChange={(on) => { f.actions.updateSettings({ toursAll: on, toursOff: false }); toast(on ? 'Tips show once on every screen' : 'Tips only on the harder screens'); }} />} />
-          <Row icon="refresh" iconPastel="blush" title="Show all tips again" subtitle="Replays the tips on every screen once" chevron={false} onPress={async () => { await f.actions.updateSettings({ toursSeen: [], toursOff: false, toursAll: true, helpSeen: [] }); toast('Tips will show again on every screen'); tour.start(); }} />
         </Group>
+        {/* launch: testing tools only with developer tools on (Settings → tap the version 7 times) —
+            Example family replaces the whole family, so the public never sees it */}
+        {f.settings.devTools ? (
+          <Group style={{ marginTop: 22 }}>
+            <Row icon="users" iconPastel="blush" title="Example family" subtitle="Look around with made-up data" chevron={false} onPress={() => sheet.open('Load the example family?', <Confirm body="Everything on this phone is replaced by a made-up H-1B family. Back up first if you need your data." action="Load example" onConfirm={() => { try { router.dismissAll(); } catch {} replace('/demo'); }} />)} />
+            <Row icon="bulb" iconPastel="blush" title="Show tips on every screen" subtitle="Off: only the harder screens show tips; tap ? anywhere" trailing={<Switch value={!!f.settings.toursAll} label="Show tips on every screen" onValueChange={(on) => { f.actions.updateSettings({ toursAll: on, toursOff: false }); toast(on ? 'Tips show once on every screen' : 'Tips only on the harder screens'); }} />} />
+            <Row icon="refresh" iconPastel="blush" title="Show all tips again" subtitle="Replays the tips on every screen once" chevron={false} onPress={async () => { await f.actions.updateSettings({ toursSeen: [], toursOff: false, toursAll: true, helpSeen: [] }); toast('Tips will show again on every screen'); tour.start(); }} />
+          </Group>
+        ) : null}
 
       </>
     );
@@ -219,7 +225,7 @@ function VersionTap({ version }: { version: string }) {
   };
   return (
     <Pressable onPress={tap} accessibilityRole="button" accessibilityLabel={`Version ${version}`} style={{ alignSelf: 'center', paddingVertical: 12, paddingHorizontal: 20, marginTop: 10 }}>
-      <T tone="text3" style={font.caption}>{`Version ${version}`}</T>
+      <T tone="text3" style={font.caption}>{`Version ${version}${LANE === 'main' ? ' · test' : ''}`}</T>
     </Pressable>
   );
 }

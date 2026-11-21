@@ -17,6 +17,10 @@
         "buildType": "app-bundle"
       },
       "channel": "main"
+    },
+    "store": {
+      "extends": "production",
+      "channel": "production"
     }
   },
   "submit": {

@@ -1,0 +1,34 @@
+# Releases the newest phone update to App Store users (Nov 2026, launch).
+# Every push to main updates TEST builds (channel main) right away. The App Store build listens to the
+# production channel, which only changes when this workflow runs: it republishes the newest update on
+# main to production. Run it from the Actions tab (Run workflow) after testing on TestFlight.
+# To go back, run it with the group id of an older update (eas update:list shows them).
+name: CaseDesk release to App Store users
+on:
+  workflow_dispatch:
+    inputs:
+      group:
+        description: 'Leave empty for the newest update, or an update group id to release that one'
+        required: false
+        default: ''
+concurrency: { group: casedesk-release, cancel-in-progress: false }
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: casedesk/app } }
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npx -y eas-cli@latest init --non-interactive --force --id "$(jq -r '.expo.extra.eas.projectId' app.json)"
+      - name: Make sure the production channel exists
+        run: npx -y eas-cli@latest channel:create production --non-interactive || true
+      - name: Release
+        env: { GROUP: '${{ inputs.group }}' }
+        run: |
+          if [ -n "$GROUP" ]; then FROM="--group $GROUP"; else FROM="--branch main"; fi
+          npx -y eas-cli@latest update:republish $FROM --destination-channel production --platform ios \
+            --message "Released to App Store users $(date -u +%Y-%m-%d)" --non-interactive
+          echo "::notice::Released. App Store users get it the next time they open the app twice."
