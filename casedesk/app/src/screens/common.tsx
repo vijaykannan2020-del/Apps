@@ -62,7 +62,7 @@ export function ctaFor(f: Finding, p: Person, handlers: { askWhere: () => void; 
     case 'grace': case 'dep-grace': return { label: 'Open layoff plan', run: () => go(`/layoff/${p.id}`) };
     case 'stamping': return { label: 'Stamping checklist', run: () => go('/tools/travel', { pid: p.id }) };
     case 'i751-late': case 'i751-now': return { label: 'Add I-751 receipt', run: () => handlers.renew('receipt') };
-    default: return f.id.startsWith('rfe-') ? { label: 'Open cases', run: () => router.navigate('/(tabs)/cases' as never) } : undefined;
+    default: return f.id.startsWith('rfe-') ? { label: 'Open cases', run: () => router.navigate('/cases' as never) } : undefined;
   }
 }
 

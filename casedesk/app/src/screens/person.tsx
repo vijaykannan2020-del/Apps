@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Image, Pressable, Share, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { Document, Person } from '../core/model';
-import { isResident, isCitizen, STATUS_LABEL } from '../core/model';
+import { isResident, isCitizen, STATUS_LABEL, lowerFirst } from '../core/model';
 import { stepsFor, stepKeys } from '../core/steps';
 import { docBadges, docNote, docTitle, fieldRows, parseField, FIELDS, showField } from '../core/docs';
 import { addYears, addDays, daysBetween, daysTo, fmt, today, isISO } from '../core/dates';
@@ -35,6 +35,7 @@ import { leadText } from './profile';
 import { WalletCardRow } from './wallet';
 import { ShareRow } from './share';
 import { GcSection } from './gc';
+import { WORK_VISAS } from '../core/guide';
 
 export function PersonScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -163,7 +164,8 @@ export function PersonBody({ id, single }: { id: string; single?: boolean }) {
 
       <SectionHeader>Job &amp; travel</SectionHeader>
       <Group>
-        {!resident ? <Row icon="case" iconTone="red" onPress={() => go(`/layoff/${dependent && principal ? principal.id : p.id}`)} title={dependent && principal ? `If ${principal.name} loses the job` : you ? 'I lost my job' : 'Job ended'} subtitle="Last day in status for everyone, and what to do" /> : null}
+        {/* v3.0 (owner): the layoff plan only for work visas — the worker, or a dependent of one */}
+        {!resident && (work || (dependent && !!principal && WORK_VISAS.test(`${f.records[principal.id]?.visa ?? ''} ${principal.status ?? ''}`))) ? <Row icon="case" iconTone="red" onPress={() => go(`/layoff/${dependent && principal ? principal.id : p.id}`)} title={dependent && principal ? `If ${principal.name} loses the job` : you ? 'I lost my job' : 'Job ended'} subtitle="Last day in status for everyone, and what to do" /> : null}
         <Row icon="plane" onPress={() => go('/tools/travel', { pid: p.id })} title="Plan a trip" subtitle={`Can ${you ? 'I' : p.name} travel? Checks against these documents`} />
       </Group>
 
@@ -335,7 +337,7 @@ export function DocumentScreen() {
       ))}
       {elsewhere ? (
         <Note tone="amber" actions={<Button size="sm" kind="tint" title={`Move to ${elsewhere.name}`} onPress={async () => { await f.actions.updateDoc(d.id, { ownerId: elsewhere.id }); toast(`Moved to ${elsewhere.name}`); }} />}>
-          {`The name on this ${docTitle(d).toLowerCase()} matches ${elsewhere.name}, not ${p.name}. Move it if it is ${elsewhere.name}’s.`}
+          {`The name on this ${lowerFirst(docTitle(d))} matches ${elsewhere.name}, not ${p.name}. Move it if it is ${elsewhere.name}’s.`}
         </Note>
       ) : null}
       {note && !(note.tone === 'green' && /^(Valid until|Good for travel until|Approval valid until|Program ends)/.test(note.text)) ? <Note tone={note.tone}>{note.text}</Note> : null}
@@ -389,7 +391,7 @@ function DocEditMenu({ docId }: { docId: string }) {
   }
   return (
     <View style={{ marginTop: 10 }}>
-      <Why>{`Whose ${docTitle(d).toLowerCase()} is this?`}</Why>
+      <Why>{`Whose ${lowerFirst(docTitle(d))} is this?`}</Why>
       <Group style={{ marginTop: 12 }}>
         {others.map((p) => <Row key={p.id} avatar={p.name} title={p.name} subtitle={relationLabel(p)} onPress={() => move(p)} />)}
       </Group>

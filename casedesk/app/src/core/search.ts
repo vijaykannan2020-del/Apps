@@ -222,7 +222,7 @@ export const STATIC_ITEMS: SearchItem[] = [
   { id: 'pd', section: 'Tools', title: 'Priority date', sub: 'GC tracking: is your green card date current?', path: '/tools/pd', keywords: ['gc tracking', 'i-140', 'perm'] },
   { id: 'gcp', section: 'Tools', title: 'Green card planner', sub: 'GC steps from PERM and I-140 to I-485', path: '/tools/gcp', keywords: ['gc', 'i-485', 'perm', 'i-140'] },
   { id: 'proc', section: 'Tools', title: 'Processing times', sub: 'How long USCIS is taking, by form', path: '/tools/proc', keywords: ['i-129', 'i-485', 'i-765', 'i-131'] },
-  { id: 'cases', section: 'Cases', title: 'All cases', sub: 'Receipts and USCIS case status', path: '/(tabs)/cases', keywords: ['receipt', 'case status'] },
+  { id: 'cases', section: 'Cases', title: 'All cases', sub: 'Receipts and USCIS case status', path: '/cases', keywords: ['receipt', 'case status'] },
   { id: 'forum', section: 'Community', title: 'Community', sub: 'Ask people on the same visa', path: '/(tabs)/forum', keywords: ['forum', 'questions'] },
   { id: 'settings', section: 'Settings', title: 'Settings', sub: 'Face ID, backups, colour, notifications', path: '/settings', keywords: ['backup', 'icloud', 'face id', 'notifications'] },
 ];

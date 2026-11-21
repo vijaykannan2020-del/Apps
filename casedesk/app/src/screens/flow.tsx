@@ -6,7 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import type { Person } from '../core/model';
 import { stepMeta, type StepKey } from '../core/steps';
 import { fieldRows, docNote, parseField, showField, FIELDS, docHasData } from '../core/docs';
-import { DOC_LABEL } from '../core/model';
+import { DOC_LABEL, lowerFirst } from '../core/model';
 import { useFamily } from '../data/FamilyProvider';
 import {
   commit, discard, useDraftReady, editField, endFlow, flowEpoch, pendingMisfiles, startFlow, keepHere, moveTo, moveToStep, nextOf, personOf, progressOf, retake, setCountry, setWhere, skip, stepsOf, typeIn, upload, uploadOf, useFlow,
@@ -29,7 +29,7 @@ function useLeave() {
       const from = personOf(m.pid, f), to = personOf(m.to, f);
       sheet.open('Before you go', (
         <View>
-          <Why>{`The ${DOC_LABEL[m.doc.type].toLowerCase()} in ${from?.name ?? 'this'}’s step looks like ${to?.name ?? 'someone else'}’s. Where should it go?`}</Why>
+          <Why>{`The ${lowerFirst(DOC_LABEL[m.doc.type])} in ${from?.name ?? 'this'}’s step looks like ${to?.name ?? 'someone else'}’s. Where should it go?`}</Why>
           <View style={{ gap: 10, marginTop: 16 }}>
             <Button title={`Move to ${to?.name ?? 'them'}`} onPress={() => { sheet.close(); moveTo(m.pid, m.k, m.to); setTimeout(leave, 350); }} />
             <Button kind="ghost" title={`Keep for ${from?.name ?? 'this person'}`} onPress={() => { sheet.close(); keepHere(m.pid, m.k); setTimeout(leave, 350); }} />
@@ -153,7 +153,7 @@ export function StepScreen() {
         ) : null}
         {u.wrongStep && !other ? (
           <Note tone="amber" style={{ marginTop: 0, marginBottom: 6 }} actions={stepsOf(p.id, f).includes(u.wrongStep) || flow.only ? <Button size="sm" kind="tint" title={`Move to ${stepMeta(p, u.wrongStep, rec).title}`} onPress={() => { const to = moveToStep(p.id, k); if (to) { router.setParams({ k: to } as never); toast(`Moved to ${stepMeta(p, to, rec).title}`); } }} /> : undefined}>
-            {`This looks like a ${DOC_LABEL[d.type].toLowerCase()}, not a ${m.title.toLowerCase()}. It will be saved as a ${DOC_LABEL[d.type].toLowerCase()}.`}
+            {`This looks like a ${lowerFirst(DOC_LABEL[d.type])}, not a ${m.title.toLowerCase()}. It will be saved as a ${lowerFirst(DOC_LABEL[d.type])}.`}
           </Note>
         ) : null}
         {d.files?.[0]?.mime.startsWith('image/') ? <Image source={{ uri: fileUri(d.files[0]) }} accessibilityLabel="Document photo" style={{ width: '100%', aspectRatio: 1.5, borderRadius: 12, marginVertical: 6, backgroundColor: t.card2 }} resizeMode="contain" /> : null}
@@ -195,7 +195,7 @@ export function ReviewScreen() {
   if (!flow) return <Screen nav={{ title: 'Review' }}><Why>Nothing to review.</Why><Button block title="Go to Home" onPress={home} /></Screen>;
   const save = async () => {
     const m = pendingMisfiles()[0];
-    if (m) { toast(`Answer “whose is it?” for ${personOf(m.pid, f)?.name ?? 'this'}’s ${DOC_LABEL[m.doc.type].toLowerCase()} first`); go('/flow/step', { pid: m.pid, k: m.k }); return; }
+    if (m) { toast(`Answer “whose is it?” for ${personOf(m.pid, f)?.name ?? 'this'}’s ${lowerFirst(DOC_LABEL[m.doc.type])} first`); go('/flow/step', { pid: m.pid, k: m.k }); return; }
     const mode = flow.mode, ret = flow.returnTo;
     const { saved } = await commit(f);
     if (mode === 'family') { router.dismissAll(); router.replace('/(tabs)' as never); setTimeout(() => go('/flow/summary'), 60); return; }

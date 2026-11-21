@@ -34,7 +34,8 @@ export function CaseRow({ c, who = true, onPick, on }: { c: CaseView; who?: bool
   );
 }
 
-export function CasesTab() {
+/** v3.0 (owner): Cases is no longer a tab. Open it from Home (Cases · See all) as a pushed page. */
+export function CasesTab({ pushed = false }: { pushed?: boolean } = {}) {
   const f = useFamily();
   const sheet = useSheet();
   const L = useLayout();
@@ -52,7 +53,7 @@ export function CasesTab() {
   React.useEffect(() => { if (addParam === '1') { router.setParams({ add: undefined } as never); setTimeout(add, 350); } }, [addParam]); // eslint-disable-line react-hooks/exhaustive-deps
   const tour = useTour('cases');
   return (
-    <Screen tabRoot wide paneRatio={0.9} tour={tour} panes={{ left: <>
+    <Screen tabRoot={!pushed} nav={pushed ? { back: 'Back', onBack: back } : undefined} wide paneRatio={0.9} tour={tour} panes={{ left: <>
       <LargeTitle title="Cases" right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><TourButton /><TourTarget id="add"><IconButton icon="plus" label="Add a case" onPress={add} /></TourTarget></View>} />
       {f.caseList.length ? (
         <TourTarget id="list">

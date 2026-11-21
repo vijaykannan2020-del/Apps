@@ -11,7 +11,7 @@ export default function OpenCase() {
   useEffect(() => {
     if (!f.ready) return;
     const c = f.caseList.find((x) => caseKey(x) === key);
-    router.replace((c ? `/case/${encodeURIComponent(c.id)}` : '/(tabs)/cases') as never);
+    router.replace((c ? `/case/${encodeURIComponent(c.id)}` : '/cases') as never);
   }, [f.ready, f.caseList, key]);
   return null;
 }

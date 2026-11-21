@@ -142,7 +142,7 @@ test('coverage: every route in app/ is reachable from search (or listed with a r
   const src = readFileSync(new URL('../src/screens/tools.tsx', import.meta.url), 'utf8');
   const toolIds = [...src.slice(src.indexOf('export const TOOLS'), src.indexOf('const TILE_TONES')).matchAll(/\{ id: '([a-z0-9-]+)'/g)].map((m) => m[1]);
   assert.ok(toolIds.length >= 10);
-  for (const id of toolIds) assert.ok(APP_SCREENS.some((s) => s.path === `/tools/${id}`), `tool ${id}`);
+  for (const id of toolIds) assert.ok(APP_SCREENS.some((s) => s.path === (id === 'news' ? '/news' : `/tools/${id}`)), `tool ${id}`);
   // the settings rows the owner listed
   for (const t of ['Appearance', 'Colour', 'Reminders', 'Back up to a file', 'iCloud backup', 'Face ID lock', 'Import shared documents', 'Share with family', 'Delete all data', 'About and support', 'Privacy']) assert.ok(index.some((i) => i.title === t), t);
 });

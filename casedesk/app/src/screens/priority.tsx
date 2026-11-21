@@ -56,7 +56,7 @@ export function useOpenTarget() {
   return (x: Target) => {
     if (x.to === 'person' && x.id) go(`/person/${x.id}`);
     else if (x.to === 'case' && x.id) go(`/case/${encodeURIComponent(x.id)}`);
-    else if (x.to === 'cases') router.navigate('/(tabs)/cases' as never);
+    else if (x.to === 'cases') router.navigate('/cases' as never);
     else if (x.to === 'backup') go('/settings', { backup: '1' });
     else if (x.to === 'docs') {
       const pids = f.people.filter((p) => (f.missing[p.id]?.length ?? 0) > 0).map((p) => p.id);

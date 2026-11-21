@@ -12,7 +12,7 @@ export const APP_SCREENS: ScreenEntry[] = [
   // tabs
   { id: 'home', section: 'Screens', title: 'Home', sub: 'What needs attention, family and cases', path: '/(tabs)', keywords: ['start', 'main', 'dashboard'] },
   { id: 'family', section: 'Screens', title: 'Family', sub: 'Everyone, their status and valid until', path: '/(tabs)/family', keywords: ['people', 'spouse', 'children', 'members'] },
-  { id: 'cases', section: 'Screens', title: 'Cases', sub: 'USCIS receipts and case status', path: '/(tabs)/cases', keywords: ['receipt', 'case status', 'uscis', 'biometrics', 'rfe', 'interview notice', 'key dates', 'approved', 'pending'] },
+  { id: 'cases', section: 'Screens', title: 'Cases', sub: 'USCIS receipts and case status', path: '/cases', keywords: ['receipt', 'case status', 'uscis', 'biometrics', 'rfe', 'interview notice', 'key dates', 'approved', 'pending'] },
   { id: 'tools', section: 'Screens', title: 'Tools', sub: 'Travel, Visa Bulletin, processing times and more', path: '/(tabs)/tools', keywords: ['calculators', 'look up'] },
   // family and people
   { id: 'add-member', section: 'Screens', title: 'Add family member', sub: 'Spouse, child or parent', path: '/add-member', keywords: ['add spouse', 'add child', 'add person', 'new person'] },
@@ -25,10 +25,10 @@ export const APP_SCREENS: ScreenEntry[] = [
   { id: 'h1b-limit', section: 'Screens', title: 'H-1B 6-year limit', sub: 'Day counter and recapture on the person page', path: '/person/:pid', who: 'H-1B', keywords: ['6 year', 'six year', 'max out', 'time used', 'day counter', 'recapture', 'ac21 extension'] },
   { id: 'trips', section: 'Screens', title: 'Days outside the US', sub: 'Trips and the day counters', path: '/person/:pid', who: 'main', keywords: ['trips', 'days abroad', 'travel history', 'continuous residence', 'physical presence'] },
   // cases
-  { id: 'add-case', section: 'Cases', title: 'Add a case', sub: 'Type a receipt number from an I-797C', path: '/(tabs)/cases', params: { add: '1' }, keywords: ['new case', 'receipt number', 'track case', 'i-797c'] },
-  { id: 'check-status', section: 'Cases', title: 'Check case status', sub: 'Open uscis.gov, paste the result back', path: '/(tabs)/cases', to: 'pending-case', keywords: ['case status', 'uscis status', 'update case', 'check status'] },
-  { id: 'expect', section: 'Cases', title: 'What to expect', sub: 'Typical decision window for a case', path: '/(tabs)/cases', to: 'pending-case', keywords: ['estimate', 'when will', 'decision date', 'how long', 'premium processing'] },
-  { id: 'like-mine', section: 'Cases', title: 'Cases like mine', sub: 'Anonymous timelines from other users', path: '/(tabs)/cases', to: 'pending-case', keywords: ['similar cases', 'other people', 'timelines', 'tracker'] },
+  { id: 'add-case', section: 'Cases', title: 'Add a case', sub: 'Type a receipt number from an I-797C', path: '/cases', params: { add: '1' }, keywords: ['new case', 'receipt number', 'track case', 'i-797c'] },
+  { id: 'check-status', section: 'Cases', title: 'Check case status', sub: 'Open uscis.gov, paste the result back', path: '/cases', to: 'pending-case', keywords: ['case status', 'uscis status', 'update case', 'check status'] },
+  { id: 'expect', section: 'Cases', title: 'What to expect', sub: 'Typical decision window for a case', path: '/cases', to: 'pending-case', keywords: ['estimate', 'when will', 'decision date', 'how long', 'premium processing'] },
+  { id: 'like-mine', section: 'Cases', title: 'Cases like mine', sub: 'Anonymous timelines from other users', path: '/cases', to: 'pending-case', keywords: ['similar cases', 'other people', 'timelines', 'tracker'] },
   // tools (every entry of the Tools tab)
   { id: 't-travel', section: 'Tools', title: 'Can I travel?', sub: 'Check a trip against everyone’s documents', path: '/tools/travel', keywords: ['travel', 'trip', 'reentry', 'visa stamp', 'advance parole'] },
   { id: 't-pd', section: 'Tools', title: 'Priority date', sub: 'GC tracking: is your green card date current?', path: '/tools/pd', keywords: ['gc tracking', 'priority date', 'current', 'i-140', 'perm'] },
@@ -85,6 +85,7 @@ export const APP_SCREENS: ScreenEntry[] = [
 
 /** Routes that are never a search destination, and why (checked by tests/search.test.ts). */
 export const NOT_SEARCHABLE: Record<string, string> = {
+  '/(tabs)/cases': 'v3.0: hidden tab; Cases opens as the /cases page',
   '/_layout': 'layout', '/(tabs)/_layout': 'layout', '/(tabs)/_layout.web': 'layout', '/+not-found': 'error page', '/+native-intent': 'link handler',
   '/index': 'start redirect', '/demo': 'replaces all data with the example family', '/welcome': 'first run only', '/about-you': 'first run only', '/setup': 'onboarding, from Home (Continue setup) or Settings (Run setup again)',
   '/flow/step': 'inside a running document flow', '/flow/review': 'inside a running document flow', '/flow/summary': 'inside a running document flow',

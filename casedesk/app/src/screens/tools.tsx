@@ -28,6 +28,7 @@ const waitsDate = (u?: string | null) => { if (!u) return undefined; const m = u
 import { answerState, ANSWER_LABEL, quizSummary, type AnswerState, type QuizResult } from '../core/quiz';
 import { FamilyFilings, familyForms } from './filings';
 import { GcPlanBody } from './gc';
+import { gcTrackOf } from '../core/gc';
 import { WORK_VISAS } from '../core/guide';
 import { useProcessing } from '../data/processing';
 import { COUNTRIES } from './sheets';
@@ -48,6 +49,7 @@ export const TOOLS: [string, ToolDef[]][] = [
     { id: 'waits', icon: 'globe', title: 'Visa appointment waits', sub: 'Wait times at consulates' },
     { id: 'lca', icon: 'search', title: 'LCA / PERM status', sub: 'Labor filings by case number' },
     { id: 'emp', icon: 'building', title: 'Employer H-1B data', sub: 'Approvals by employer' },
+    { id: 'news', icon: 'news', title: 'Updates', sub: 'USCIS and State Department news for your visas' },
   ]],
   ['Learn', [
     { id: 'guides', icon: 'book', title: 'Visa guides', sub: 'Plain-English guides with sources' },
@@ -59,34 +61,65 @@ export const TOOLS: [string, ToolDef[]][] = [
 const TILE_TONES = ['sky', 'sage', 'butter', 'blush', 'mint'] as const;
 const HR: [string, ToolDef[]] = ['For HR', [{ id: 'hr', icon: 'hr', title: 'Expiring documents', sub: 'Every date coming up across the family' }]];
 
+/** v3.0 (owner, approved preview): the 4 tools that fit this family's visas first; every other tool
+ *  sits behind All tools. Green card tools show up front only for families with a green card process,
+ *  the citizenship test only for green card holders, I lost my job only for work visas. */
+export function pickTools(f: ReturnType<typeof useFamily>): string[] {
+  const who = f.people.map((p) => ({ person: p, rec: f.records[p.id] })).filter((w) => !!w.rec);
+  const st = (w: typeof who[number]) => `${w.person.status ?? ''} ${w.rec?.visa ?? ''}`;
+  const work = who.some((w) => WORK_VISAS.test(st(w)));
+  const holder = who.some((w) => /green-card(?!-applicant)|conditional-green-card|citizenship-applicant/.test(w.person.status ?? ''));
+  const gc = who.some((w) => /green-card-applicant/.test(w.person.status ?? '') || (() => { try { const t = gcTrackOf(w, who as never); return !!t && (t.stage !== 'not-started' || !!t.priorityDate); } catch { return false; } })());
+  const order = ['travel', work ? 'layoff' : '', gc ? 'pd' : '', 'proc', holder ? 'civics' : '', gc ? 'vb' : '', 'i9', 'fees'].filter(Boolean);
+  return [...new Set(order)].slice(0, 4);
+}
+
 export function ToolsTab() {
   const f = useFamily();
   const L = useLayout();
   const t = useTheme();
-  // v3.0: I lost my job sits with the plans for people on a work visa (the guided tour points here)
   const me = f.main ?? f.people[0];
   const work = !!me && WORK_VISAS.test(`${f.records[me.id]?.visa ?? ''} ${me.status ?? ''}`);
-  const plans: [string, ToolDef[]] = [TOOLS[0][0], [...TOOLS[0][1], ...(work ? [{ id: 'layoff', icon: 'case', title: 'I lost my job', sub: 'Last day in status and what to do' }] : [])]];
+  const layoff: ToolDef = { id: 'layoff', icon: 'case', title: 'I lost my job', sub: 'Last day in status and what to do' };
+  const plans: [string, ToolDef[]] = [TOOLS[0][0], [...TOOLS[0][1], ...(work ? [layoff] : [])]];
   const base: [string, ToolDef[]][] = [plans, ...TOOLS.slice(1)];
   const groups = f.settings.hrTools ? [...base, HR] : base;
+  const byId: Record<string, ToolDef> = Object.fromEntries([...groups.flatMap(([, l]) => l), layoff].map((x) => [x.id, x]));
+  const picks = pickTools(f).map((id) => byId[id]).filter(Boolean);
+  const [all, setAll] = useState(false);
+  const total = groups.reduce((n, [, l]) => n + l.length, 0);
   const tour = useTour('tools');
+  const basis = L.fontScale > 1.5 ? '100%' : L.width >= 1000 ? '23%' : L.twoCol ? '31%' : '47%';
+  const cols = L.width >= 1000 ? 4 : L.twoCol ? 3 : 2;
+  const openTool = (x: ToolDef) => go(x.id === 'layoff' && me ? `/layoff/${me.id}` : x.id === 'news' ? '/news' : `/tools/${x.id}`);
+  const grid = (list: ToolDef[], gi: number) => (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+      {list.map((x, i) => (
+        <IconTile key={x.id} tone={TILE_TONES[(i + gi) % TILE_TONES.length]} icon={x.icon} title={x.title} sub={x.sub} onPress={() => openTool(x)}
+          style={{ flexBasis: basis, flexGrow: 1, minWidth: 0 }} />
+      ))}
+      {/* keep the last row's tiles the same width as the rows above */}
+      {L.fontScale > 1.5 ? null : Array.from({ length: cols - 1 }).map((_, k) => <View key={`pad${k}`} style={{ flexBasis: basis, flexGrow: 1, height: 0 }} />)}
+    </View>
+  );
+  const fam = [...new Set(f.people.map((p) => p.status).filter((x): x is NonNullable<typeof x> => !!x && !/citizen/.test(x)).map((x) => x.replace(/^green-card-applicant$/, 'green card').replace(/^(conditional-)?green-card$/, 'green card')))].slice(0, 3);
   return (
     <Screen tabRoot wide tour={tour}>
       <LargeTitle title="Tools" right={<TourButton />} />
-      {groups.map(([g, list], gi) => (
-        <TourTarget key={g} id={g === 'My plans' ? 'plan' : g === 'Look up' ? 'lookup' : `g-${g}`}>
-          <SectionHeader>{g}</SectionHeader>
-          {/* pastel icon tiles in a grid: 2 across on phones (1 at very large text), 3–4 on wide screens */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            {list.map((x, i) => (
-              <IconTile key={x.id} tone={TILE_TONES[(i + gi) % TILE_TONES.length]} icon={x.icon} title={x.title} sub={x.sub} onPress={() => go(x.id === 'layoff' && me ? `/layoff/${me.id}` : `/tools/${x.id}`)}
-                style={{ flexBasis: L.fontScale > 1.5 ? '100%' : L.width >= 1000 ? '23%' : L.twoCol ? '31%' : '47%', flexGrow: 1, minWidth: 0 }} />
-            ))}
-            {/* keep the last row's tiles the same width as the rows above */}
-            {L.fontScale > 1.5 ? null : Array.from({ length: (L.width >= 1000 ? 4 : L.twoCol ? 3 : 2) - 1 }).map((_, k) => <View key={`pad${k}`} style={{ flexBasis: L.width >= 1000 ? '23%' : L.twoCol ? '31%' : '47%', flexGrow: 1, height: 0 }} />)}
-          </View>
-        </TourTarget>
-      ))}
+      <TourTarget id="plan">
+        <SectionHeader>{fam.length ? `For your family · ${fam.join(', ')}` : 'For you'}</SectionHeader>
+        {grid(picks, 0)}
+      </TourTarget>
+      <TourTarget id="lookup" style={{ marginTop: 18 }}>
+        <Group>
+          <Row icon="grid" title="All tools" subtitle={all ? undefined : `${total - picks.length} more · look up, plan and learn`} chevron={false}
+            trailing={<View style={{ transform: [{ rotate: all ? '180deg' : '0deg' }] }}><Icon name="chevD" size={16} color={t.text2} /></View>} onPress={() => setAll(!all)} label={all ? 'Hide all tools' : 'Show all tools'} />
+        </Group>
+      </TourTarget>
+      {all ? groups.map(([g, list], gi) => {
+        const rest = list.filter((x) => !picks.some((p) => p.id === x.id));
+        return rest.length ? <View key={g}><SectionHeader>{g}</SectionHeader>{grid(rest, gi + 1)}</View> : null;
+      }) : null}
     </Screen>
   );
 }

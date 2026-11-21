@@ -1,5 +1,6 @@
-// Home tab (v2.7 pastel): greeting, the hero = the family's single most urgent item, two tiles = the
-// next two most useful facts (core/priority.ts), family rows, what else needs attention, cases, updates.
+// Home tab. v3.0 (owner, approved preview): Home answers one question, "Am I OK?" — the hero (the
+// family's most urgent item or All good), what else needs you, one row per person, then cases (or a
+// Track a USCIS case row). Tiles, the document chart, news and the community row moved off Home.
 import { reasonLine } from '../core/review';
 import React from 'react';
 import { Pressable, View } from 'react-native';
@@ -44,7 +45,7 @@ export function Home() {
   const news = useNews();
   const L = useLayout();
   const tour = useTour('home');
-  const { hero, tiles } = usePriority();
+  const { hero } = usePriority();
   const open = useOpenTarget();
   const unsaved = draft ? unsavedCount() : 0;
   if (!f.people.length || !me) {
@@ -82,9 +83,6 @@ export function Home() {
         <Appear>
           <HeroCard tone={meaningBlock(hero.tone, true)} icon={TONE_ICON[hero.kind]} label={hero.label} chip={hero.chip} big={hero.big} line={heroLine(hero)} progress={hero.progress}
             onPress={() => open(hero.target)} a11y={`${hero.label}. ${hero.big}. ${heroLine(hero)}`} />
-        </Appear>
-        <Appear delay={60} style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-          {tiles.map((x) => <StatTile key={x.key} tone={meaningBlock(x.tone)} icon={x.icon} label={x.label} big={x.big} sub={x.sub} onPress={() => open(x.target)} />)}
         </Appear>
       </TourTarget>
 
@@ -124,7 +122,7 @@ export function Home() {
   );
   const attentionPart = att.length || locAsk.length || alerts.length ? (
     <TourTarget id="attention">
-      <SectionHeader right={total > 3 ? <LinkButton title={`All ${total}`} onPress={() => router.navigate('/(tabs)/family' as never)} /> : undefined}>{hero.kind === 'act' || hero.kind === 'review' ? 'Also needs attention' : 'Needs attention'}</SectionHeader>
+      <SectionHeader right={total > 3 ? <LinkButton title={`All ${total}`} onPress={() => router.navigate('/(tabs)/family' as never)} /> : undefined}>{hero.kind === 'act' || hero.kind === 'review' ? 'Also needs you' : 'Needs you'}</SectionHeader>
       <Group>
         {locAsk.slice(0, 1).map((p) => (
           <Row key={`loc-${p.id}`} icon="pin" iconTone="amber" alignTop onPress={() => go(`/person/${p.id}`)} title={p.relation === 'self' ? 'Are you in the US right now?' : `Is ${p.name} in the US right now?`} subtitle={`${p.name} · people outside the US don’t have an I-94`} />
@@ -135,29 +133,18 @@ export function Home() {
     </TourTarget>
   ) : null;
   const casesPart = <CasesGlance />;
-  const famTags = familyTags(f.people, f.records);
-  const communityPart = (
-    <>
-      <SectionHeader>Community</SectionHeader>
-      <Group>
-        <Row icon="chat" iconPastel="blush" title="Ask the community" subtitle={famTags.length ? `People with ${famTags.slice(0, 3).join(', ')}` : 'People with the same visa'} onPress={() => router.navigate('/(tabs)/forum' as never)} />
-      </Group>
-    </>
-  );
   const foot = <LegalFooter asOf={fmt(RULES_CHECKED)} />;
   // Wide (≥ 700): two independent scroll areas — you, the hero and the family stay put on the left
   // while attention, cases and updates scroll on the right. Phones: one page.
   if (L.twoCol) {
-    return <Screen tabRoot wide panes={{ left: <>{topPart}{familyPart}<StatusView title="Family documents" card /></>, right: <>{attentionPart}{casesPart}<TourTarget id="updates"><HomeUpdates /></TourTarget>{communityPart}{foot}</> }} tour={tour} />;
+    return <Screen tabRoot wide panes={{ left: <>{topPart}{attentionPart}</>, right: <>{familyPart}{casesPart}{foot}</> }} tour={tour} />;
   }
   return (
     <Screen tabRoot tour={tour}>
       {topPart}
-      {familyPart}
       {attentionPart}
+      {familyPart}
       {casesPart}
-      <TourTarget id="updates"><HomeUpdates /></TourTarget>
-      {communityPart}
       {foot}
     </Screen>
   );
@@ -193,10 +180,14 @@ function UpdateAlertRow({ n }: { n: NewsItem }) {
 function CasesGlance() {
   const f = useFamily();
   const list = [...f.caseList].sort((a, b) => Number(isPendingCase(b)) - Number(isPendingCase(a)) || (b.updated || '').localeCompare(a.updated || '')).slice(0, 2);
-  if (!list.length) return null;
+  if (!list.length) return (
+    <TourTarget id="cases"><Group style={{ marginTop: 22 }}>
+      <Row icon="clock" iconPastel="sky" title="Track a USCIS case" subtitle="Add a receipt number when you have one" onPress={() => go('/cases?add=1')} />
+    </Group></TourTarget>
+  );
   return (
     <>
-      <SectionHeader right={<LinkButton title="See all" onPress={() => router.navigate('/(tabs)/cases' as never)} />}>Cases</SectionHeader>
+      <SectionHeader right={<LinkButton title="See all" onPress={() => router.navigate('/cases' as never)} />}>Cases</SectionHeader>
       <Group>{list.map((c) => <CaseRow key={c.id} c={c} />)}</Group>
     </>
   );

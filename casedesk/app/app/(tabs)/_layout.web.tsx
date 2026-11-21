@@ -22,7 +22,7 @@ export default function TabsWeb() {
     })}>
       <Tabs.Screen name="index" />
       <Tabs.Screen name="family" />
-      <Tabs.Screen name="cases" />
+      <Tabs.Screen name="cases" options={{ href: null }} />
       <Tabs.Screen name="forum" />
       <Tabs.Screen name="tools" />
     </Tabs>

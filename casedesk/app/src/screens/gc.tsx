@@ -52,6 +52,9 @@ export function GcSection({ pid }: { pid: string }) {
   const sheet = useSheet();
   if (!c || !c.track) return null;
   const { p, track: t } = c;
+  // v3.0 (owner): only what fits — no green card section for a dependent until a green card process
+  // exists; the main person keeps the Track a green card row (Tools → All tools has the planner too)
+  if (!t.started && p.relation !== 'self') return null;
   const wb = workBasis({ person: p, rec: c.f.records[p.id] });
   return (
     <>

@@ -2,7 +2,7 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { HELP, TAB_HELP, helpTopic } from '../content/help';
+import { HELP, HELP_MAIN, TAB_HELP, helpTopic } from '../content/help';
 import { useFamily } from '../data/FamilyProvider';
 import { Card, Group, Hint, Icon, LinkButton, Row, Screen, SectionHeader, T, Why, font, useTheme, tint, MIN_TOUCH } from '../ui';
 import { back, go } from './common';
@@ -40,12 +40,28 @@ export function HelpButton({ topic, label }: { topic: string; label?: string }) 
   );
 }
 
+/** The tool guides, folded away under one row. */
+function MoreGuides() {
+  const [open, setOpen] = React.useState(false);
+  const t = useTheme();
+  const rest = HELP.filter((h) => !HELP_MAIN.includes(h.id));
+  if (!rest.length) return null;
+  return (
+    <Group style={{ marginTop: 12 }}>
+      <Row icon="book" title="More guides" subtitle={open ? undefined : `${rest.length} guides for the tools`} chevron={false} onPress={() => setOpen(!open)} label={open ? 'Hide more guides' : 'Show more guides'}
+        trailing={<View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}><Icon name="chevD" size={16} color={t.text2} /></View>} />
+      {open ? rest.map((h) => <Row key={h.id} icon="help" title={h.title} subtitle={h.sub} onPress={() => go(`/help/${h.id}`)} />) : null}
+    </Group>
+  );
+}
+
 export function HelpListScreen() {
   return (
     <Screen nav={{ back: 'Settings', onBack: back, title: 'Help' }}>
       <T a11y="header" style={font.title}>Help</T>
       <Why>How Immigration Wallet works, step by step.</Why>
-      <Group style={{ marginTop: 18 }}>{HELP.map((h) => <Row key={h.id} icon="help" title={h.title} subtitle={h.sub} onPress={() => go(`/help/${h.id}`)} />)}</Group>
+      <Group style={{ marginTop: 18 }}>{HELP.filter((h) => HELP_MAIN.includes(h.id)).map((h) => <Row key={h.id} icon="help" title={h.title} subtitle={h.sub} onPress={() => go(`/help/${h.id}`)} />)}</Group>
+      <MoreGuides />
       <SectionHeader>More</SectionHeader>
       <Group>
         <Row icon="play" title="Take the tour" subtitle="A 1-minute walk through the app" onPress={() => go('/guide')} />

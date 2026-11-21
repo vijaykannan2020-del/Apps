@@ -22,7 +22,7 @@ const GuideCtx = createContext<Ctx>({ start: () => {}, active: false });
 export const useGuide = () => useContext(GuideCtx);
 
 const TAB_PATH: Record<GuideTab, string> = { index: '/', family: '/family', cases: '/cases', forum: '/forum', tools: '/tools' };
-const TAB_HREF: Record<GuideTab, string> = { index: '/(tabs)', family: '/(tabs)/family', cases: '/(tabs)/cases', forum: '/(tabs)/forum', tools: '/(tabs)/tools' };
+const TAB_HREF: Record<GuideTab, string> = { index: '/(tabs)', family: '/(tabs)/family', cases: '/cases', forum: '/(tabs)/forum', tools: '/(tabs)/tools' };
 const inTabs = (path: string) => Object.values(TAB_PATH).includes(path);
 const toTabs = (path: string) => { if (!inTabs(path)) { try { if (router.canDismiss()) router.dismissAll(); } catch {} } };
 

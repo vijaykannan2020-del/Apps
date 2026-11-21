@@ -156,3 +156,7 @@ export const TAB_HELP: Record<string, { text: string; topic: string }> = {
   tools: { text: 'Plan a trip, check your priority date and processing times, and look up wages, fees and guides.', topic: 'overview' },
   settings: { text: 'Appearance, Face ID, reminders, backups and help. Your data stays on this phone.', topic: 'privacy' },
 };
+
+/** v3.0 (owner): the Help list shows these 8; the tool guides sit under More guides (and open from each
+ *  tool's ? button). */
+export const HELP_MAIN = ['overview', 'family-docs', 'statuses', 'cases', 'backups', 'privacy', 'widgets', 'community'];

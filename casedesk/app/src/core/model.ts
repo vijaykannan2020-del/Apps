@@ -156,22 +156,23 @@ export type DocType =
   | 'travel-history' | 'lca' | 'perm' | 'medical' | 'other';
 
 /** User-facing names. (These exact strings are also used by the QA test families.) */
+// v3.0 (owner): plain words first, the form name in brackets
 export const DOC_LABEL: Record<DocType, string> = {
   passport: 'Passport',
   visa: 'Visa stamp',
-  i94: 'I-94',
-  approval: 'Approval (I-797A/B)',
-  receipt: 'Receipt (I-797C)',
+  i94: 'Entry record (I-94)',
+  approval: 'Approval notice (I-797)',
+  receipt: 'Receipt notice (I-797C)',
   notice: 'USCIS notice',
   i129s: 'I-129S (blanket L)',
-  ead: 'EAD card',
-  i20: 'I-20',
-  ds2019: 'DS-2019',
+  ead: 'Work permit (EAD)',
+  i20: 'Student form (I-20)',
+  ds2019: 'Exchange visitor form (DS-2019)',
   'green-card': 'Green card (I-551)',
-  'advance-parole': 'Advance Parole',
+  'advance-parole': 'Travel permit (Advance Parole)',
   'reentry-permit': 'Re-entry permit',
   naturalization: 'Naturalization certificate',
-  'travel-history': 'I-94 travel history',
+  'travel-history': 'Travel history (I-94)',
   lca: 'LCA',
   perm: 'PERM labor certification',
   medical: 'Medical exam (I-693)',
@@ -290,6 +291,7 @@ export type Settings = {
   backupReminderSnoozed?: string; // ISO date until which the Home reminder is hidden
   familyCardDismissed?: boolean; // Home "Add your family" card dismissed
   hrTools?: boolean; // show "For HR" tools
+  devTools?: boolean; // v3.0: Developer section in Settings (tap the version 7 times)
   helpSeen?: string[]; // first-time help cards dismissed (home, family, cases, tools, settings)
   updatesDismissed?: string[]; // update alerts dismissed or opened (news ids)
   icloudAsk?: boolean; // after a restore: ask "Turn on iCloud backup on this phone?"
@@ -326,3 +328,6 @@ export type SetupProgress = {
 export const DEFAULT_SETTINGS: Settings = { reminderLeadDays: [180, 90, 30, 7] };
 
 export const RELATION_LABEL: Record<Relation, string> = { self: 'You', spouse: 'Spouse', child: 'Child', parent: 'Parent', other: 'Family' };
+
+/** 'Work permit (EAD)' → 'work permit (EAD)': lower-case only the first letter, so form names keep their case. */
+export const lowerFirst = (x: string) => (/^[A-Z][a-z]/.test(x) ? x[0].toLowerCase() + x.slice(1) : x);

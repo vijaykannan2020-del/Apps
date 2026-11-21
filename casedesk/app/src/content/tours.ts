@@ -8,9 +8,9 @@ const helpStep = (text = 'Tap ? any time to see these tips again and open the he
 
 export const TOURS: Record<string, TourDef> = {
   home: { help: 'overview', steps: [
-    { target: 'hero', title: 'Most urgent first', text: 'The big card is the one thing that matters most right now. The two below are the next most useful. Tap any of them.' },
+    { target: 'hero', title: 'Am I OK?', text: 'The big card answers that: the one thing that matters most, or All good. Anything else that needs you is listed just below.' },
     { target: 'family', title: 'Your family', text: 'Each person’s status and how long they can stay. Tap a name for their page.' },
-    { target: 'updates', title: 'Updates', text: 'Updates for your family’s visa types first, then everything else — filter by topic right here.' },
+    { target: 'cases', title: 'USCIS cases', text: 'Add a receipt number to follow a case. Your cases show here once you have one.' },
     helpStep(),
   ] },
   family: { help: 'family-docs', steps: [
@@ -63,8 +63,8 @@ export const TOURS: Record<string, TourDef> = {
     { target: 'who', title: 'Whose case', text: 'Pick the person the case is for, then save.' },
   ] },
   tools: { help: 'overview', steps: [
-    { target: 'plan', title: 'Plan ahead', text: 'Check a trip, your priority date and how long USCIS is taking.' },
-    { target: 'lookup', title: 'Look up', text: 'Fees, wages, the Visa Bulletin and employer data — each with its official source.' },
+    { target: 'plan', title: 'Picked for your family', text: 'The tools that fit your family’s visas — a trip check, how long USCIS is taking and more.' },
+    { target: 'lookup', title: 'All tools', text: 'Everything else: fees, wages, the Visa Bulletin, employer data and guides, each with its official source.' },
     helpStep(),
   ] },
   'tool-travel': { help: 'travel', steps: [

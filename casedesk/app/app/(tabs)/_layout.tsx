@@ -1,4 +1,4 @@
-// Home · Family · Cases · Community · Tools (Settings is a pushed page from the avatar on Home).
+// Home · Family · Community · Tools (Cases is hidden: it opens from Home) (Settings is a pushed page from the avatar on Home).
 // The SYSTEM tab bar on both platforms (owner rule: latest platform conventions, no custom bar):
 //  · iOS 26 — the native UITabBar: Liquid Glass, SF Symbols (outline → fill when selected), minimises
 //    on scroll, Dynamic Type labels. Only the selection tint comes from the brand (sage).
@@ -25,7 +25,8 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Icon sf={{ default: 'person.2', selected: 'person.2.fill' }} md="group" />
         <NativeTabs.Trigger.Label>Family</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="cases">
+      {/* v3.0 (owner): four tabs. Cases opens from Home as a pushed page (app/cases.tsx). */}
+      <NativeTabs.Trigger name="cases" hidden>
         <NativeTabs.Trigger.Icon sf={{ default: 'tray.full', selected: 'tray.full.fill' }} md="inbox" />
         <NativeTabs.Trigger.Label>Cases</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
