@@ -25,11 +25,8 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Icon sf={{ default: 'person.2', selected: 'person.2.fill' }} md="group" />
         <NativeTabs.Trigger.Label>Family</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      {/* v3.0 (owner): four tabs. Cases opens from Home as a pushed page (app/cases.tsx). */}
-      <NativeTabs.Trigger name="cases" hidden>
-        <NativeTabs.Trigger.Icon sf={{ default: 'tray.full', selected: 'tray.full.fill' }} md="inbox" />
-        <NativeTabs.Trigger.Label>Cases</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
+      {/* Cases is not a tab: it opens from Home as a pushed page (app/cases.tsx). A hidden tab also named
+          cases made /cases open the hidden tab instead of the page, so case tracking didn't load. */}
       <NativeTabs.Trigger name="forum">
         <NativeTabs.Trigger.Icon sf={{ default: 'bubble.left.and.bubble.right', selected: 'bubble.left.and.bubble.right.fill' }} md="forum" />
         <NativeTabs.Trigger.Label>Community</NativeTabs.Trigger.Label>

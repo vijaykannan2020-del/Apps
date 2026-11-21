@@ -92,11 +92,12 @@ test('pastel: one brand palette — Appearance offers System, Light and Dark onl
   assert.doesNotMatch(tabs, /from 'expo-router'.*Tabs\b/, 'no custom JS tab bar on phones');
 });
 
-test('navigation: five tabs — Home, Family, Community, Updates, Tools (Cases is hidden, opens from Home); Settings is a pushed page', () => {
+test('navigation: five tabs — Home, Family, Community, Updates, Tools (Cases opens from Home as a page, not a tab); Settings is a pushed page', () => {
   const tabs = readFileSync(new URL('../app/(tabs)/_layout.tsx', import.meta.url), 'utf8');
-  assert.deepEqual([...tabs.matchAll(/Trigger name="([a-z]+)"/g)].map((m) => m[1]), ['index', 'family', 'cases', 'forum', 'updates', 'tools']);
+  assert.deepEqual([...tabs.matchAll(/Trigger name="([a-z]+)"/g)].map((m) => m[1]), ['index', 'family', 'forum', 'updates', 'tools']);
   assert.match(readFileSync(new URL('../app/(tabs)/updates.tsx', import.meta.url), 'utf8'), /<NewsListScreen tabRoot \/>/);
-  assert.match(tabs, /Trigger name="cases" hidden/, 'Cases is not a tab any more');
+  assert.doesNotMatch(tabs, /Trigger name="cases"/, 'Cases is not a tab (a hidden tab stole the /cases route)');
+  assert.throws(() => readFileSync(new URL('../app/(tabs)/cases.tsx', import.meta.url)), 'only app/cases.tsx owns /cases');
   assert.match(readFileSync(new URL('../app/cases.tsx', import.meta.url), 'utf8'), /<CasesTab pushed \/>/);
   assert.match(tabs, /bubble\.left\.and\.bubble\.right/);
   assert.match(tabs, /md="forum"/);

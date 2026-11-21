@@ -86,7 +86,6 @@ export const APP_SCREENS: ScreenEntry[] = [
 
 /** Routes that are never a search destination, and why (checked by tests/search.test.ts). */
 export const NOT_SEARCHABLE: Record<string, string> = {
-  '/(tabs)/cases': 'v3.0: hidden tab; Cases opens as the /cases page',
   '/_layout': 'layout', '/(tabs)/_layout': 'layout', '/(tabs)/_layout.web': 'layout', '/+not-found': 'error page', '/+native-intent': 'link handler',
   '/index': 'start redirect', '/demo': 'replaces all data with the example family', '/welcome': 'first run only', '/about-you': 'first run only', '/setup': 'onboarding, from Home (Continue setup) or Settings (Run setup again)',
   '/flow/step': 'inside a running document flow', '/flow/review': 'inside a running document flow', '/flow/summary': 'inside a running document flow',

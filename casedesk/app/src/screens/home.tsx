@@ -102,17 +102,15 @@ export function Home() {
       <ICloudAfterRestore />
     </>
   );
-  // Family on Home is one row (owner, Nov 2026): every alert is already listed above, so the per-person
-  // status and warnings live only on the Family tab.
+  // Family is not on Home (owner, Nov 2026): it has its own tab and every alert is listed above.
+  // Only people on their own see an Add your family row.
   const familyPart = (
     <>
       <TourTarget id="family"><Group>
         {onlyMe ? (!f.settings.familyCardDismissed ? (
           <Row icon="plus" iconPastel="mint" title="Add your family" subtitle="Optional · spouse, children or parents" onPress={() => go('/family-setup')} chevron={false}
             trailing={<Pressable onPress={() => f.actions.updateSettings({ familyCardDismissed: true })} accessibilityRole="button" accessibilityLabel="Not now" hitSlop={6} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginRight: -8 }}><Icon name="x" size={15} color={t.text2} /></Pressable>} />
-        ) : null) : (
-          <Row icon="users" iconPastel="mint" title="Family" subtitle={`${f.people.length} people · status, dates and documents`} onPress={() => router.navigate('/(tabs)/family' as never)} />
-        )}
+        ) : null) : null}
       </Group></TourTarget>
     </>
   );
