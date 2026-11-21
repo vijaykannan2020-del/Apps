@@ -2,6 +2,8 @@
 (function(){
 'use strict';
 const q=s=>document.querySelector(s);
+// Update check: if the site has a newer version than this page, reload once with a fresh copy.
+(async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const latest=Number((await r.json()).version);const mine=Number(window.SIDELINE_VERSION||0);if(latest>mine&&sessionStorage.getItem('sideline-reloaded-for')!==String(latest)){sessionStorage.setItem('sideline-reloaded-for',String(latest));location.replace(location.pathname+'?v='+latest+location.hash)}}catch{}})();
 const gate=q('#authGate'),form=q('#sidelineLogin'),message=q('#authMessage'),submit=q('#authSubmit');
 let auth,db,booted=false,activeUid=null,generation=0;
 const status=(text,error=false)=>{message.textContent=text;message.classList.toggle('auth-error',error)};
@@ -19,7 +21,7 @@ function scopeStorage(uid){
   }
  }catch{}
 }
-function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src+'?v=16';script.onload=resolve;script.onerror=()=>reject(new Error('app-load'));document.body.appendChild(script)})}
+function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src+'?v='+(window.SIDELINE_VERSION||0);script.onload=resolve;script.onerror=()=>reject(new Error('app-load'));document.body.appendChild(script)})}
 form.onsubmit=async e=>{
  e.preventDefault();if(!auth)return;submit.disabled=true;status('Signing in…');
  try{await auth.signInWithEmailAndPassword(q('#authEmail').value.trim(),q('#authPassword').value);q('#authPassword').value=''}
