@@ -69,20 +69,21 @@ export function SettingsScreen() {
           </Group>
         ) : null}
 
-        {/* owner-approved preview (Nov 2026): one short list; every option is one tap inside these rows */}
-        <Group>
+        {/* owner-approved preview (Nov 2026): one short list; every option is one tap inside these rows.
+            Groups without a section title need their own gap, or their rounded corners touch. */}
+        <Group style={{ marginTop: 22 }}>
           <Row icon={theme.value === 'light' ? 'sun' : 'moon'} iconPastel="butter" title="Appearance" subtitle={`${theme.value[0].toUpperCase() + theme.value.slice(1)} · colours`} onPress={() => go('/settings-page/appearance')} />
           <Row icon="face" iconPastel="sage" title="Face ID &amp; privacy" subtitle={`Face ID ${f.settings.faceId ? 'on' : 'off'} · documents stay on this phone`} onPress={() => go('/settings-page/privacy')} />
           <Row icon="bell" iconPastel="butter" title="Notifications &amp; reminders" subtitle={`${leadText(f.settings.reminderLeadDays, ', ')} · per person`} onPress={() => go('/settings-page/notifications')} />
         </Group>
-        <TourTarget id="backup"><Group>
+        <TourTarget id="backup" style={{ marginTop: 22 }}><Group>
           <Row icon="backup" iconPastel="sky" title="Backup" subtitle={backupSummary(f.settings)} onPress={() => go('/settings-page/backup')} />
           <TourTarget id="share"><Row icon="share" iconPastel="sky" title="Share with family" subtitle="Send documents or invite your spouse" onPress={() => go('/settings-page/share')} /></TourTarget>
           <Row icon="grid" iconPastel="sky" title="Widgets &amp; Wallet" subtitle="Home Screen widgets and Wallet passes" onPress={() => go('/settings-page/widgets')} />
         </Group></TourTarget>
-        <TourTarget id="helpsec"><Group>
+        <TourTarget id="helpsec" style={{ marginTop: 22 }}><Group>
           <TourTarget id="taketour"><Row icon="help" iconPastel="blush" title="Help &amp; tips" subtitle={`${HELP_MAIN.length} guides, the tour, run setup again`} onPress={() => go('/settings-page/help')} /></TourTarget>
-          <Row icon="info" iconPastel="mint" title="About" value={`v${version}`} subtitle="Diagnostics, HR tools, example family" onPress={() => go('/settings-page/about')} />
+          <Row icon="info" iconPastel="mint" title="About" subtitle={`Version ${version} · diagnostics, HR tools, example family`} onPress={() => go('/settings-page/about')} />
         </Group></TourTarget>
         <Group style={{ marginTop: 22 }}>
           <Row icon="trash" iconTone="red" title="Delete all data" titleTone="red" subtitle="Removes everything from this phone" chevron={false} onPress={() => sheet.open('Delete all data?', <WipeSheet />)} />
