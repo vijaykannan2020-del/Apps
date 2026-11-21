@@ -3,7 +3,7 @@
 // Which steps apply, resume and routing are pure (core/onboarding.ts). Documents reuse the document
 // flow screens in "quick" mode (one document, then back here). Tools stay as in-context tips later.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { GcFacts, Person, Relation, StatusCategory } from '../core/model';
@@ -38,7 +38,7 @@ import {
   useKeyboardPad,
 } from '../ui';
 import { DISCLAIMER_LINE } from '../content/legal';
-import { BirthCountryField, COUNTRIES, statusGroups } from './sheets';
+import { BirthCountryField, COUNTRIES, Confirm, statusGroups } from './sheets';
 import { go, home } from './common';
 import { usePermission } from './notify';
 import { useGuide } from './guide';
@@ -860,6 +860,15 @@ function BulkAdd({ f }: { f: FamilyState }) {
     for (const fl of waiting?.files ?? []) deleteFile(fl);
     await saveSetup({ bulk: (f.settings.setup?.bulk ?? []).filter((x) => x.id !== docId), bulkPending: (f.settings.setup?.bulkPending ?? []).filter((x) => x.id !== docId) });
   };
+  /** Wrong document uploaded: remove it from this phone and from the list. */
+  const remove = (docId: string, title: string) => {
+    tap();
+    sheet.open(`Delete ${title}?`, <Confirm body="It’s removed from this phone. This can’t be undone." action="Delete" onConfirm={async () => {
+      if (f.docs.some((x) => x.id === docId)) await f.actions.deleteDoc(docId);
+      await dontAdd(docId);
+      toast(`Deleted ${title}`);
+    }} />);
+  };
   const choose = (docId: string, title: string, current?: string) => {
     sheet.open(`Whose ${title.toLowerCase()} is this?`, <WhoseSheet f={f} current={current} onPick={(pid) => { sheet.close(); fileUnder(docId, pid).catch(() => {}); }} />);
   };
@@ -876,7 +885,7 @@ function BulkAdd({ f }: { f: FamilyState }) {
         <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: t.pastel.butter, alignItems: 'center', justifyContent: 'center' }}><Icon name="layers" size={19} color={t.ink} /></View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <T style={[font.callout, { fontWeight: '600' }]}>Add several documents at once</T>
-          <T tone="text2" style={font.foot}>Pick photos or PDFs for the whole family. Each one is read on this phone and filed under the right person by the name, passport number or date of birth on it. If one lands under the wrong person, move it.</T>
+          <T tone="text2" style={font.foot}>Pick photos or PDFs for the whole family. Each one is read on this phone and filed under the right person by the name, passport number or date of birth on it. If one lands under the wrong person, tap it to move it. Picked a wrong file? Delete it.</T>
         </View>
       </View>
       {busy ? (
@@ -900,6 +909,7 @@ function BulkAdd({ f }: { f: FamilyState }) {
             const title = d ? docTitle(d) : 'Document';
             const owner = state === 'ask' || state === 'duplicate' ? undefined : f.people.find((p) => p.id === (d?.ownerId || b.ownerId));
             const unsure = state === 'filed' && !why.length;
+            const canMove = state !== 'ask' && state !== 'duplicate' && f.people.length > 1;
             const line = state === 'duplicate' ? `Already added for ${name(b.dupOf) || 'your family'} · not added again`
               : state === 'ask' ? 'Whose document is this?'
               : state === 'moved' ? `Filed under: ${owner?.name ?? ''} · chosen by you`
@@ -908,13 +918,23 @@ function BulkAdd({ f }: { f: FamilyState }) {
             return (
               <View key={b.id} style={{ paddingVertical: 10, borderTopWidth: 1, borderTopColor: t.sep }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Avatar name={owner?.name ?? '?'} size="sm" />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <T style={[font.callout, { fontWeight: '600' }]} numberOfLines={1}>{title}</T>
-                    <T tone="text2" style={font.foot} numberOfLines={2}>{read ? `Name on document: ${read}` : 'No name read on it'}</T>
-                    <T tone={state === 'ask' || unsure ? 'amber' : 'text3'} style={font.caption}>{line}</T>
-                  </View>
-                  {state !== 'ask' && state !== 'duplicate' && f.people.length > 1 ? <Button size="sm" kind="ghost" title="Move" label={`Move ${title} to another person`} onPress={() => choose(b.id, title, owner?.id)} /> : null}
+                  {/* the row opens "Whose … is this?" so a matched document can still be moved; the Move button shows only when the match is unsure */}
+                  <Pressable disabled={!canMove} onPress={() => choose(b.id, title, owner?.id)} accessibilityRole={canMove ? 'button' : undefined} accessibilityHint={canMove ? 'Opens who to file it under' : undefined}
+                    style={({ pressed }) => ({ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10, opacity: pressed ? 0.7 : 1 })}>
+                    <Avatar name={owner?.name ?? '?'} size="sm" />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <T style={[font.callout, { fontWeight: '600' }]} numberOfLines={1}>{title}</T>
+                      <T tone="text2" style={font.foot} numberOfLines={2}>{read ? `Name on document: ${read}` : 'No name read on it'}</T>
+                      <T tone={state === 'ask' || unsure ? 'amber' : 'text3'} style={font.caption}>{line}</T>
+                    </View>
+                  </Pressable>
+                  {canMove && unsure ? <Button size="sm" kind="ghost" title="Move" label={`Move ${title} to another person`} onPress={() => choose(b.id, title, owner?.id)} /> : null}
+                  {state !== 'duplicate' ? (
+                    <Pressable onPress={() => remove(b.id, title)} accessibilityRole="button" accessibilityLabel={`Delete ${title}`} hitSlop={4}
+                      style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 20, flexShrink: 0, backgroundColor: t.pastel.urgent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.85 : 1 })}>
+                      <Icon name="trash" size={17} color={t.ink} weight="semibold" />
+                    </Pressable>
+                  ) : null}
                   {state === 'duplicate' ? <Pressable onPress={() => dontAdd(b.id)} accessibilityRole="button" accessibilityLabel="Remove from the list" style={{ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={16} color={t.text2} /></Pressable> : null}
                 </View>
                 {state === 'ask' ? (
@@ -1270,11 +1290,15 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const [i, setI] = useState(0);
-  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  const win = useWindowDimensions();
+  const [measured, setMeasured] = useState<{ w: number; h: number } | null>(null);
+  // The slides draw straight away from the window size; the real measurement only refines it.
+  // (Waiting for onLayout left the middle blank when it was missed or came back 0 at launch.)
+  const box = measured ?? { w: Math.max(1, win.width - insets.left - insets.right), h: Math.max(1, win.height * 0.5) };
   const ref = useRef<any>(null);
-  const goTo = (k: number) => { if (!box) return; tap(); ref.current?.scrollTo({ x: k * box.w, animated: true }); setI(k); };
-  const short = (box?.h ?? 600) < 330;
-  const tiny = (box?.h ?? 600) < 230; // phone in landscape: the title only, so nothing is cut off
+  const goTo = (k: number) => { tap(); ref.current?.scrollTo({ x: k * box.w, animated: true }); setI(k); };
+  const short = box.h < 330;
+  const tiny = box.h < 230; // phone in landscape: the title only, so nothing is cut off
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       {/* full-bleed background; the slides and dots keep clear of the left / right insets (the footer handles its own) */}
@@ -1283,8 +1307,8 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
         <View style={{ width: 28, height: 28, borderRadius: 9, backgroundColor: t.pastel.sage, alignItems: 'center', justifyContent: 'center' }}><Icon name="shield" size={16} color={t.ink} /></View>
         <T a11y="header" style={font.headline}>Immigration Wallet</T>
       </View>
-      <View style={{ flex: 1 }} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-        {box ? (
+      <View style={{ flex: 1 }} onLayout={(e) => { const { width: w, height: h } = e.nativeEvent.layout; if (w > 0 && h > 0) setMeasured({ w, h }); }}>
+        {(
           <ScrollView ref={ref} horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={{ width: box.w, height: box.h }}
             onMomentumScrollEnd={(e) => setI(Math.round(e.nativeEvent.contentOffset.x / box.w))} onScroll={Platform.OS === 'web' ? (e) => setI(Math.round(e.nativeEvent.contentOffset.x / box.w)) : undefined} scrollEventThrottle={64}>
             {SLIDES.map(([icon, tone, title, sub], k) => (
@@ -1295,7 +1319,7 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
               </View>
             ))}
           </ScrollView>
-        ) : null}
+        )}
       </View>
       <View style={{ flexDirection: 'row', gap: 4, justifyContent: 'center', paddingVertical: 6 }}>
         {SLIDES.map((s, k) => (
