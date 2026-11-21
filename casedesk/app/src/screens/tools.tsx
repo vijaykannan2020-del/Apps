@@ -33,6 +33,7 @@ import { WORK_VISAS } from '../core/guide';
 import { useProcessing } from '../data/processing';
 import { COUNTRIES } from './sheets';
 import { openUrl } from '../native/device';
+import { SearchButton, WithSearch } from './searchButton';
 
 type ToolDef = { id: string; icon: string; title: string; sub: string };
 export const TOOLS: [string, ToolDef[]][] = [
@@ -104,7 +105,7 @@ export function ToolsTab() {
   const fam = [...new Set(f.people.map((p) => p.status).filter((x): x is NonNullable<typeof x> => !!x && !/citizen/.test(x)).map((x) => x.replace(/^green-card-applicant$/, 'green card').replace(/^(conditional-)?green-card$/, 'green card')))].slice(0, 3);
   return (
     <Screen tabRoot wide tour={tour}>
-      <LargeTitle title="Tools" right={<TourButton />} />
+      <LargeTitle title="Tools" right={<WithSearch><TourButton /></WithSearch>} />
       <TourTarget id="plan">
         <SectionHeader>{fam.length ? `For your family · ${fam.join(', ')}` : 'For you'}</SectionHeader>
         {grid(picks, 0)}

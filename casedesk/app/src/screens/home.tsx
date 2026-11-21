@@ -25,6 +25,7 @@ import { listNames, type AttentionItem } from '../core/rules/engine';
 import { familyTags, orderTags, updateAlerts } from '../core/updates';
 import { useNews, type NewsItem } from '../data/news';
 import { SETUP_ORDER, setupProgress, setupSteps, showContinueCard, type SetupStep } from '../core/onboarding';
+import { SearchButton, WithSearch } from './searchButton';
 
 export const UPDATES = [
   { tag: 'EAD', t: 'EAD renewals filed on or after Oct 30, 2025 don’t get an automatic extension', src: 'uscis.gov', url: 'https://www.uscis.gov/i-765', body: 'If a work permit renewal is pending when the card ends, work has to stop until the new card arrives. Plan renewals up to 180 days early.' },
@@ -187,16 +188,6 @@ function CasesGlance() {
 }
 
 /** v2.9: search field at the top of Home (iOS style). Opens Search with the keyboard up. */
-/** Search: a round button next to the profile picture (owner, Nov 2026 — no full-width search field on Home). */
-function SearchButton() {
-  const t = useTheme();
-  return (
-    <Pressable onPress={() => go('/search')} accessibilityRole="search" accessibilityLabel="Search people, documents, cases and tools" hitSlop={4}
-      style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: t.dark ? t.card : t.card2, opacity: pressed ? 0.75 : 1 })}>
-      <Icon name="search" size={19} color={t.text} />
-    </Pressable>
-  );
-}
 
 /** v3.0: setup was put off with Finish later — pick up where it stopped, or close the card. */
 function ContinueSetupCard() {

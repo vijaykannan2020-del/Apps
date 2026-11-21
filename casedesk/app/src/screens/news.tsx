@@ -12,6 +12,7 @@ import { DISCLAIMER, DISCLAIMER_SHORT } from '../content/legal';
 import { useFamily } from '../data/FamilyProvider';
 import { familyTags, forFamily, orderTags, topicOrder } from '../core/updates';
 import { useCommunityGate } from './communityAccount';
+import { SearchButton, WithSearch } from './searchButton';
 
 const KINDS = ['Official', 'News & analysis'];
 const kindKey = (k: string) => (k === 'Official' ? 'official' : 'news');
@@ -90,7 +91,7 @@ export function NewsListScreen({ tabRoot }: { tabRoot?: boolean } = {}) {
   const tour = useTour('news-list');
   return (
     <Screen tour={tour} {...(tabRoot ? { tabRoot: true } : { nav: { title: 'Updates', back: 'Home', onBack: back } })}>
-      {tabRoot ? <LargeTitle title="Updates" right={<TourButton />} /> : null}
+      {tabRoot ? <LargeTitle title="Updates" right={<WithSearch><TourButton /></WithSearch>} /> : null}
       {/* v2.9: no intro line — a compact segmented control and ONE scrolling chip row, so the list starts high */}
       <TourTarget id="kind"><Segmented compact options={KINDS} value={kind} onChange={(k) => { setKind(k); setTag(null); }} /></TourTarget>
       <TourTarget id="chips"><ChipRow style={{ marginTop: 6 }}>{tags.map((g) => <ChipToggle size="sm" key={g} text={g} on={tag === g} onPress={() => setTag(g)} />)}</ChipRow></TourTarget>

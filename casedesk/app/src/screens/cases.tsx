@@ -12,6 +12,7 @@ import { SOURCES } from '../content/legal';
 import { AddCase, AddKeyDate, CheckStatus, Confirm, startCaseCheck } from './sheets';
 import { copy } from '../native/device';
 import { ExpectCard } from './expect';
+import { SearchButton, WithSearch } from './searchButton';
 
 const inDays = (n: number) => (n < 0 ? `${-n} day${n === -1 ? '' : 's'} ago` : n === 0 ? 'today' : n === 1 ? 'tomorrow' : `in ${n} days`);
 
@@ -54,7 +55,7 @@ export function CasesTab({ pushed = false }: { pushed?: boolean } = {}) {
   const tour = useTour('cases');
   return (
     <Screen tabRoot={!pushed} nav={pushed ? { back: 'Back', onBack: back } : undefined} wide paneRatio={0.9} tour={tour} panes={{ left: <>
-      <LargeTitle title="Cases" right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><TourButton /><TourTarget id="add"><IconButton icon="plus" label="Add a case" onPress={add} /></TourTarget></View>} />
+      <LargeTitle title="Cases" right={<WithSearch><TourButton /><TourTarget id="add"><IconButton icon="plus" label="Add a case" onPress={add} /></TourTarget></WithSearch>} />
       {f.caseList.length ? (
         <TourTarget id="list">
           {pend.length ? <T tone="text2" a11y="header" style={[font.sub, { marginTop: 14, fontWeight: '600' }]}>{`Pending · ${pend.length}`}</T> : null}

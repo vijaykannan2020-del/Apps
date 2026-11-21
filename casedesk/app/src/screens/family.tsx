@@ -17,6 +17,7 @@ import { PersonBody } from './person';
 import { ShareRow } from './share';
 import { StatusView } from './priority';
 import { Columns, LinkButton, useLayout, TourButton, TourTarget, useTour } from '../ui';
+import { SearchButton, WithSearch } from './searchButton';
 
 export function FamilyTab() {
   const f = useFamily();
@@ -27,7 +28,7 @@ export function FamilyTab() {
   const tour = useTour('family');
   return (
     <Screen tabRoot wide paneRatio={0.8} tour={tour} panes={{ left: <>
-      <LargeTitle title="Family" right={<TourButton />} />
+      <LargeTitle title="Family" right={<WithSearch><TourButton /></WithSearch>} />
       <T tone="text2" style={[font.sub, { marginTop: 2 }]}>{`${f.people.length} ${f.people.length === 1 ? 'person' : 'people'} · saved only on this phone`}</T>
       {f.people.length ? (
         <TourTarget id="list"><Stack style={{ marginTop: 20 }}>
