@@ -11,7 +11,7 @@ export type GuideTab = 'index' | 'family' | 'cases' | 'forum' | 'tools';
 /** A tab, or a pushed page opened from a tab (`via`), like the user would. */
 export type GuideRoute = { tab: GuideTab } | { push: string; via: GuideTab };
 
-export const END_LINE = 'Take this tour again any time: Settings → Help → Take the tour.';
+export const END_LINE = 'Take this tour again any time: Settings → Help & tips → Take the tour.';
 export type GuideStopId = 'home' | 'search' | 'status' | 'documents' | 'wallet' | 'cases' | 'community' | 'tools' | 'widget' | 'share' | 'end';
 export type GuideStop = {
   id: GuideStopId;
@@ -60,13 +60,13 @@ export function guideStops(g: GuideInput): GuideStop[] {
   const whose = p.self ? 'Your' : `${first}’s`;
   const person: GuideRoute = { push: `/person/${p.id}`, via: 'family' };
   const settings: GuideRoute = { push: '/settings', via: 'index' };
-  const tools = ['Can I travel? checks a trip against everyone’s documents.'];
+  const tools = ['Visa Bulletin shows this month’s dates. Can I travel? checks a trip against everyone’s documents.'];
   if (g.gc) tools.push('Green card planner shows the expected wait.');
   if (g.work) tools.push('I lost my job shows the last day in status and what to do.');
 
   const all: (GuideStop | false)[] = [
     { id: 'home', route: { tab: 'index' }, target: 'home:hero', title: 'What needs attention', text: 'This card is the one thing that matters most right now, with the days left. Tap it for what to do.' },
-    { id: 'search', route: { tab: 'index' }, target: 'home:search', title: 'Find anything', text: 'Search people, documents, cases and tools from here.' },
+    { id: 'search', route: { tab: 'index' }, target: 'home:search', title: 'Find anything', text: 'Search people, documents, cases, tools and settings. The same button is on Family, Updates, Tools and Cases.' },
     { id: 'status', route: person, target: 'person:card', title: `${whose} status card`,
       text: g.hasDocs
         ? `How long ${p.self ? 'you' : first} can stay, worked out from the documents.${g.review ? ' Tap Review under it to see why.' : ''}`
@@ -76,7 +76,7 @@ export function guideStops(g: GuideInput): GuideStop[] {
     g.cases > 0 && { id: 'cases', route: { tab: 'cases' }, target: 'cases:list', title: 'Check a case', text: 'Open a case and tap Copy number & open uscis.gov. Paste it in Safari, copy what USCIS says and paste it back. What to expect shows the usual next steps.' },
     { id: 'community', route: { tab: 'forum' }, target: 'communityFeed:chips', title: 'Ask the community', text: 'Ask people on the same visa about stamping, extensions and timelines. Read the pinned rules first.' },
     { id: 'tools', route: { tab: 'tools' }, target: 'tools:plan', title: 'Tools', text: tools.join(' ') },
-    g.widgets && { id: 'widget', route: settings, near: 'settings:widgets', art: 'widget', title: 'Add the Home Screen widget', text: 'See days left without opening the app.' },
+    g.widgets && { id: 'widget', route: settings, art: 'widget', title: 'Add the Home Screen widget', text: 'See days left without opening the app.' },
     { id: 'share', route: settings, target: 'settings:share', title: 'Share with family', text: 'Send documents to your spouse’s phone, encrypted, with a code you tell them.' },
   ];
   let stops = all.filter((s): s is GuideStop => !!s);

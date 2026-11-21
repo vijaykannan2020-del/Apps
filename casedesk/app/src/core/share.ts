@@ -101,7 +101,7 @@ export function isShareFile(text: string): boolean { return text.startsWith(SHAR
 
 /** Plain header (before the code is typed): only dates. Not trusted until the file opens. */
 export function readShareHeader(text: string): { createdAt: string; expiresAt: string } {
-  if (!isShareFile(text) && text.startsWith('CASEDESK-BACKUP')) throw new Error('This is a backup file, not a share. Use Settings → Restore from backup.');
+  if (!isShareFile(text) && text.startsWith('CASEDESK-BACKUP')) throw new Error('This is a backup file, not a share. Use Settings → Backup → Restore.');
   const { header } = splitSealed(text, SHARE_MAGIC, NOT_OURS);
   return { createdAt: String(header.createdAt ?? ''), expiresAt: String(header.expiresAt ?? '') };
 }

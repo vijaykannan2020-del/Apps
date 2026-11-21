@@ -9,14 +9,12 @@ const helpStep = (text = 'Tap ? any time to see these tips again and open the he
 export const TOURS: Record<string, TourDef> = {
   home: { help: 'overview', steps: [
     { target: 'hero', title: 'Am I OK?', text: 'The big card answers that: the one thing that matters most, or All good. Anything else that needs you is listed just below.' },
-    { target: 'family', title: 'Your family', text: 'Each person’s status and how long they can stay. Tap a name for their page.' },
-    { target: 'cases', title: 'USCIS cases', text: 'Add a receipt number to follow a case. Your cases show here once you have one.' },
-    helpStep(),
+    { target: 'search', title: 'Search', text: 'Find any person, document, case, tool or setting. The same button is on Family, Updates, Tools and Cases.' },
+    { target: 'cases', title: 'Green card and cases', text: 'Your green card shows here once you add your priority date. Add a receipt number to follow a USCIS case.' },
   ] },
   family: { help: 'family-docs', steps: [
     { target: 'list', title: 'One page per person', text: 'Tap someone to see their status, documents, cases and reminders.' },
     { target: 'add', title: 'Add family', text: 'Tap here to add your spouse, children or parents.' },
-    { target: 'wallet', title: 'Wallet status cards', text: 'Add a reference card for anyone to Apple Wallet. It’s a reminder, not an official document.' },
     helpStep(),
   ] },
   person: { help: 'family-docs', steps: [
@@ -63,8 +61,8 @@ export const TOURS: Record<string, TourDef> = {
     { target: 'who', title: 'Whose case', text: 'Pick the person the case is for, then save.' },
   ] },
   tools: { help: 'overview', steps: [
-    { target: 'plan', title: 'Picked for your family', text: 'The tools that fit your family’s visas — a trip check, how long USCIS is taking and more.' },
-    { target: 'lookup', title: 'All tools', text: 'Everything else: fees, wages, the Visa Bulletin, employer data and guides, each with its official source.' },
+    { target: 'plan', title: 'Picked for your family', text: 'The Visa Bulletin, a trip check, your priority date, LCA / PERM status and more — the tools that fit your family’s visas.' },
+    { target: 'lookup', title: 'Every other tool', text: 'Listed below under My plans, Look up and Learn — fees, wages, employer data, I-9 documents and guides, each with what it does.' },
     helpStep(),
   ] },
   'tool-travel': { help: 'travel', steps: [
@@ -125,10 +123,9 @@ export const TOURS: Record<string, TourDef> = {
     { target: 'source', title: 'Read the source', text: 'Always check the official source before you act.' },
   ] },
   settings: { help: 'privacy', steps: [
-    { target: 'widgets', title: 'Widgets', text: 'Choose initials or first names on Home Screen widgets, and hide details while Face ID lock is on.' },
-    { target: 'notify', title: 'Notifications', text: 'See whether alerts are on. “Open system settings” has permissions and language.' },
-    { target: 'backup', title: 'Backups', text: 'Your data is only on this phone — back it up to iCloud or a file.' },
-    { target: 'helpsec', title: 'Help', text: 'Help topics, the example family and “Show all tips again”.' },
+    { target: 'backup', title: 'Backup', text: 'Your data is only on this phone. Backup shows when you last backed up, with Back up now and Restore.' },
+    { target: 'share', title: 'Share with family', text: 'Send documents to your spouse’s phone, encrypted, or invite them to the app.' },
+    { target: 'helpsec', title: 'Help & tips, About', text: 'Help & tips has the guides, the tour and Run setup again. About has diagnostics, HR tools and the example family.' },
   ] },
   backup: { help: 'backups', steps: [
     { target: 'password', title: 'Pick a password', text: 'The backup file is locked with it. We can’t recover it if you forget.' },

@@ -18,7 +18,7 @@ test('guide: a work-visa family with documents and cases gets 10 stops; the last
   const s = guideStops(full);
   assert.equal(s.length, MAX_STOPS);
   assert.deepEqual(s.map((x) => x.id), ['home', 'search', 'status', 'documents', 'wallet', 'cases', 'community', 'tools', 'widget', 'share']);
-  assert.match(s.at(-1)!.text, /Settings → Help → Take the tour/);
+  assert.match(s.at(-1)!.text, /Settings → Help & tips → Take the tour/);
   assert.equal(s.at(-1)!.id, 'share', 'no separate closing card');
 });
 

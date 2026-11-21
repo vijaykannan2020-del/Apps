@@ -8,11 +8,13 @@ export const HELP: HelpTopic[] = [
     id: 'overview', title: 'What Immigration Wallet covers', sub: 'Everything the app does, in one page',
     body: [
       'Immigration Wallet keeps your family’s US immigration papers in one place, on this phone, and tells you what needs attention.',
-      'Home: everyone’s status at a glance, what needs attention first, your cases and the latest updates for your visa types.',
+      'The tabs: Home, Family, Community, Updates and Tools. The round search button at the top of Home, Family, Updates and Tools finds anything.',
+      'Home: what needs attention first, everything else that needs you, your green card and your USCIS cases.',
       'Family: one page per person — their status, documents, cases, reminders, job and travel plans, and their next filing with the earliest date and typical processing time.',
-      'Cases: every USCIS receipt by person. Check the status on uscis.gov in Safari and paste the result back.',
-      'Tools: Can I travel?, priority date and Visa Bulletin, processing times, green card planner, prevailing wage, fees, consulate waits, LCA/PERM status, employer H-1B data, visa guides, the H-1B lottery, the citizenship test and I-9 documents.',
-      'Settings: appearance, Face ID, reminders, backup & restore, help and the app’s sources.',
+      'Cases (from Home): every USCIS receipt by person. Check the status on uscis.gov in Safari and paste the result back.',
+      'Updates: official news (USCIS, DHS, DOL, State) and news coverage, filtered to your family’s visa types.',
+      'Tools: the Visa Bulletin, Can I travel?, priority date, LCA / PERM status, processing times, green card planner, prevailing wage, fees, consulate waits, employer H-1B data, visa guides, the H-1B lottery, the citizenship test and I-9 documents.',
+      'Settings (your picture on Home): Appearance, Face ID & privacy, Notifications & reminders, Backup, Share with family, Help & tips and About.',
     ],
   },
   {
@@ -63,8 +65,8 @@ export const HELP: HelpTopic[] = [
   {
     id: 'backups', title: 'Backups', sub: 'Keep everything safe when you change phones',
     body: [
-      'iCloud backup (Settings → Backup & iCloud): turn it on once and set a password. Like WhatsApp, Immigration Wallet then backs up to your own iCloud every day and after changes, and keeps the last 3. Restore from iCloud on a new phone from the Welcome screen.',
-      'Settings → Back up to a file makes one password-protected backup file with every person, document (images and PDFs) and case. Save it to Files, iCloud Drive or Google Drive, or AirDrop it to your new phone.',
+      'iCloud backup (Settings → Backup): turn it on once and set a password. Like WhatsApp, Immigration Wallet then backs up to your own iCloud every day and after changes, and keeps the last 3. Restore from iCloud on a new phone from the Welcome screen.',
+      'Settings → Backup → Back up to a file makes one password-protected backup file with every person, document (images and PDFs) and case. Save it to Files, iCloud Drive or Google Drive, or AirDrop it to your new phone.',
       'To restore, choose the file and type its password. On a new phone everything is restored; on a phone that already has data you can replace it or merge (you’ll see exactly what was added).',
       'Nobody can open the file without the password — and we can’t recover it, so keep it somewhere safe.',
     ],
@@ -114,10 +116,10 @@ export const HELP: HelpTopic[] = [
       'Immigration Wallet has two widgets. One date (small, and on the Lock Screen) shows one thing for one person or the family, coloured by how close it is: blush within 30 days, butter within 90, sage after that. Family status (medium and large) lists up to 4 people with their current status; pick one person to see their dates in detail.',
       'To add one: touch and hold an empty part of the Home Screen → Edit → Add Widget → Immigration Wallet → pick a size. For the Lock Screen: touch and hold the Lock Screen → Customize → Lock Screen → tap the widget area. Tapping a widget opens that person or case.',
       'Choose what each widget shows: long-press a widget → Edit Widget. Person: Whole family (the default) or one person. Show: Current status (the default) — in the US, valid until the latest I-94 date with days left; outside the US, the I-797 approval expiry, whether a valid visa stamp is in the passport, and days of status left. Or next deadline, passport, visa stamp, I-94, EAD, advance parole, green card stage, latest case update or priority date. If something isn’t saved for that person yet, the widget says “Not added yet — open the app”.',
-      'Widgets show only a short summary — initials or first names (Settings → Widgets & Wallet), status labels and dates. Never passport, receipt or A-numbers. When Face ID lock is on, widgets hide everything and only say “Open Immigration Wallet” (you can change this in Settings → Widgets & Wallet).',
+      'Widgets show only a short summary — initials or first names (Settings → Face ID & privacy), status labels and dates. Never passport, receipt or A-numbers. When Face ID lock is on, widgets hide everything and only say “Open Immigration Wallet” (you can change this in Settings → Face ID & privacy).',
       'Widgets update when you change something in the app and once a day. They are for your reference — not an official document, and not legal advice. Widgets need iOS 17 or later and the latest app version.',
     ],
-    steps: ['Home Screen → touch and hold → Edit → Add Widget → Immigration Wallet', 'Settings → Widgets & Wallet → Show names on widgets'],
+    steps: ['Home Screen → touch and hold → Edit → Add Widget → Immigration Wallet', 'Settings → Face ID & privacy → Names on widgets'],
   },
   {
     id: 'wallet-card', title: 'Wallet card', sub: 'A status reminder card in Apple Wallet',
@@ -127,7 +129,7 @@ export const HELP: HelpTopic[] = [
       'No passport, receipt or A-numbers ever go on the card. To make it, the card fields are sent once to our server, which signs the pass so Wallet accepts it, and stores nothing.',
       'The card doesn’t change by itself. After you add a new document, open the person and tap Add to Apple Wallet again — the new card replaces the old one. To remove it, open it in Wallet → ••• → Remove Pass.',
     ],
-    steps: ['A person’s page → Add to Apple Wallet → check the preview → Add', 'Family → Wallet status cards → pick a person'],
+    steps: ['A person’s page → Add to Apple Wallet → check the preview → Add', 'Settings → Face ID & privacy → Wallet status cards → pick a person'],
   },
   {
     id: 'community', title: 'How the community works', sub: 'Posts, threads and votes with people on the same visa',
@@ -150,10 +152,11 @@ export const helpTopic = (id?: string) => HELP.find((h) => h.id === id);
 
 /** First-time card at the top of each tab. */
 export const TAB_HELP: Record<string, { text: string; topic: string }> = {
-  home: { text: 'Everyone’s status, what needs attention first, your cases and updates for your visa types — all from the documents on this phone.', topic: 'overview' },
+  home: { text: 'What needs attention first, your green card and your cases — all from the documents on this phone.', topic: 'overview' },
+  updates: { text: 'Official updates and news for your family’s visa types.', topic: 'overview' },
   family: { text: 'One page per person: status, documents, cases, reminders and the next filing with its earliest date and typical processing time.', topic: 'family-docs' },
   cases: { text: 'Every USCIS receipt by person. Check status on uscis.gov in Safari, then paste what it says back here.', topic: 'cases' },
-  tools: { text: 'Plan a trip, check your priority date and processing times, and look up wages, fees and guides.', topic: 'overview' },
+  tools: { text: 'The Visa Bulletin, a trip check, your priority date, LCA / PERM status and processing times — then every other tool with what it does.', topic: 'overview' },
   settings: { text: 'Appearance, Face ID, reminders, backups and help. Your data stays on this phone.', topic: 'privacy' },
 };
 

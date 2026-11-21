@@ -161,8 +161,9 @@ test('wallet: no passport, receipt or A-numbers ever on the card — the builder
 test('v2.5: tours and help topics for widgets and the Wallet card; target + modules wired', () => {
   assert.ok(TOURS['wallet-preview'] && TOURS['wallet-preview'].help === 'wallet-card');
   assert.ok(helpTopic('widgets') && helpTopic('wallet-card'));
-  assert.ok(TOURS.family.steps.some((s) => s.target === 'wallet'));
-  assert.ok(TOURS.settings.steps.some((s) => s.target === 'widgets'));
+  // owner, Nov 2026: the Wallet row left the Family list and Widgets left the Settings list; tips must not point at them
+  assert.ok(!TOURS.family.steps.some((s) => s.target === 'wallet'));
+  assert.ok(!TOURS.settings.steps.some((s) => s.target === 'widgets'));
   assert.ok(helpTopic('wallet-card')!.body.join(' ').includes('NOT an official document'));
   const app = JSON.parse(readFileSync(path.join(__dirname, '../app.json'), 'utf8')).expo;
   assert.deepEqual(app.ios.entitlements['com.apple.security.application-groups'], ['group.com.vijaykannan.casedesk']);
