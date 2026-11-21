@@ -24,6 +24,9 @@ jobs:
           cat src/content/release.json
       - run: npx -y eas-cli@latest init --non-interactive --force --id "$(jq -r '.expo.extra.eas.projectId' app.json)"
       - name: Publish update
-        run: npx -y eas-cli@latest update --channel main --message "${{ github.event.head_commit.message || 'manual' }}" --non-interactive
+        env:
+          # passed as an env var: a quote or apostrophe in the commit message used to break this step
+          MSG: ${{ github.event.head_commit.message || 'manual' }}
+        run: npx -y eas-cli@latest update --channel main --message "$(printf '%s' "$MSG" | head -n 1 | cut -c1-200)" --non-interactive
       - name: Expo Go link
         run: echo "::notice::Open in Expo Go → exp://u.expo.dev/$(jq -r '.expo.extra.eas.projectId' app.json)?channel-name=main&runtime-version=exposdk:58.0.0"
