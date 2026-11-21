@@ -320,6 +320,7 @@ export type SetupProgress = {
   bulk?: { id: string; ownerId?: string; by?: 'passport number' | 'name' | 'none' | 'moved'; state?: 'filed' | 'ask' | 'duplicate' | 'moved'; why?: ('passport number' | 'name' | 'date of birth')[]; name?: string; close?: string; dupOf?: string; rename?: { id: string; to: string } }[];
   bulkPending?: Document[]; // bulk2: read documents waiting for Whose document is this? (saved once answered)
   bulkUnread?: number; // ...and how many of the picked files couldn't be read
+  bulkNoText?: number; // ...of those, how many had no readable text at all (the rest had text but aren't a known document)
 };
 
 export const DEFAULT_SETTINGS: Settings = { reminderLeadDays: [180, 90, 30, 7] };

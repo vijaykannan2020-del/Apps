@@ -837,9 +837,9 @@ function BulkAdd({ f }: { f: FamilyState }) {
       const r = await importMany(src, f, (n, of) => setBusy(n < of ? `Reading ${n + 1} of ${of}…` : 'Filing them…'));
       if (!r.picked) return;
       const prev = (f.settings.setup?.bulk ?? []).filter((b) => !r.added.some((x) => x.id === b.id));
-      await saveSetup({ bulk: [...r.added, ...prev], bulkUnread: r.unread || undefined, bulkPending: [...(f.settings.setup?.bulkPending ?? []), ...r.pending] });
+      await saveSetup({ bulk: [...r.added, ...prev], bulkUnread: r.unread || undefined, bulkNoText: r.noText || undefined, bulkPending: [...(f.settings.setup?.bulkPending ?? []), ...r.pending] });
       const ask = r.added.filter((x) => x.state === 'ask').length;
-      toast(!r.added.length ? 'Couldn’t read those. Try Scan or Enter or edit.' : ask ? `${r.added.length - ask} filed · ${ask} to check` : `${r.added.length} filed · check the list`);
+      toast(!r.added.length ? notAddedText(r.unread, r.noText) : ask ? `${r.added.length - ask} filed · ${ask} to check` : `${r.added.length} filed · check the list`);
     } catch (e) { toast((e as Error).message || 'Couldn’t add those. Try again.'); } finally { setBusy(null); }
   };
   /** File a document under a person: a saved one is moved, a waiting one is saved now. */
@@ -878,7 +878,7 @@ function BulkAdd({ f }: { f: FamilyState }) {
     await patchEntry(docId, { rename: undefined });
     toast('Name updated');
   };
-  const doneAll = () => { tap(); if (pending.length) { toast('Choose whose each document is first, or tap Don’t add'); return; } saveSetup({ bulk: undefined, bulkUnread: undefined }).catch(() => {}); };
+  const doneAll = () => { tap(); if (pending.length) { toast('Choose whose each document is first, or tap Don’t add'); return; } saveSetup({ bulk: undefined, bulkUnread: undefined, bulkNoText: undefined }).catch(() => {}); };
   return (
     <Card style={{ marginTop: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -899,7 +899,7 @@ function BulkAdd({ f }: { f: FamilyState }) {
       {review.length || setup.bulkUnread ? (
         <Appear style={{ marginTop: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <T style={[font.headline]}>{`Just added · ${review.filter((x) => x.b.state !== 'duplicate').length}`}</T>
+            <T style={[font.headline]}>{review.length ? `Just added · ${review.filter((x) => x.b.state !== 'duplicate').length}` : 'Nothing added'}</T>
             <Pressable onPress={doneAll} accessibilityRole="button" accessibilityLabel="Done checking" style={{ minHeight: MIN_TOUCH, justifyContent: 'center', paddingHorizontal: 6 }}><T tone="accent" style={[font.sub, { fontWeight: '600' }]}>Done</T></Pressable>
           </View>
           {review.map(({ b, d }) => {
@@ -952,11 +952,26 @@ function BulkAdd({ f }: { f: FamilyState }) {
               </View>
             );
           })}
-          {setup.bulkUnread ? <Hint>{`${setup.bulkUnread} couldn’t be read. Add ${setup.bulkUnread === 1 ? 'it' : 'them'} one by one with Scan or Enter or edit.`}</Hint> : null}
+          {setup.bulkUnread ? <Hint>{notAddedText(setup.bulkUnread, setup.bulkNoText ?? 0, true)}</Hint> : null}
         </Appear>
       ) : null}
     </Card>
   );
+}
+/** Why picked files weren't added: no text at all (blurry, dark, not a document) vs. text that isn't a document the app knows. */
+export function notAddedText(unread: number, noText: number, long = false): string {
+  const notDoc = Math.max(0, unread - noText);
+  const one = (n: number, a: string, b: string) => (n === 1 ? a : b);
+  if (unread === 1) {
+    const head = noText ? 'No text found in that file. Nothing was added.' : 'That doesn’t look like an immigration document. Nothing was added.';
+    return long ? `${head} ${noText ? 'For a real document, try a clearer, flatter photo, or ' : 'If it is one, '}add it with Scan or Enter or edit.` : head;
+  }
+  const parts: string[] = [];
+  if (notDoc) parts.push(`${notDoc} ${one(notDoc, 'doesn’t look like an immigration document', 'don’t look like immigration documents')}`);
+  if (noText) parts.push(`${noText} had no text the phone could read`);
+  const head = `${parts.join(' · ')}. Nothing was added for ${one(unread, 'it', 'them')}.`;
+  if (!long) return head;
+  return `${head} ${noText ? 'For a real document, try a clearer, flatter photo, or ' : 'If it is one, '}add it with Scan or Enter or edit.`;
 }
 const titleCaseName = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase()).replace(/\s+/g, ' ').trim();
 
