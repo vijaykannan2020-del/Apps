@@ -196,7 +196,7 @@ function snippet(p: Prepared, qWords: string[]): string | undefined {
 }
 
 export type SearchGroup = { section: SearchSection; items: SearchItem[] };
-/** Results grouped by section (People first), best match first, at most `per` per section. */
+/** Results grouped by section — the section holding the best match first — best match first, at most `per` per section. */
 export function search(items: SearchItem[], q: string, per = 5): SearchGroup[] {
   const nq = norm(q);
   if (!nq) return [];
@@ -210,10 +210,16 @@ export function search(items: SearchItem[], q: string, per = 5): SearchGroup[] {
   // one entry per destination and title
   const seen = new Set<string>();
   const uniq = hits.sort((a, b) => b.s - a.s).filter((h) => { const k = `${h.p.it.section}|${h.p.it.title}|${h.p.it.path}|${JSON.stringify(h.p.it.params ?? {})}`; if (seen.has(k)) return false; seen.add(k); return true; });
+  // owner, Nov 20 2026: the section with the closest match comes first (typing "Visa Bulletin" shows the
+  // Visa Bulletin tool above visa stamps); SECTION_ORDER only breaks ties
+  const best = (section: SearchSection) => uniq.find((h) => h.p.it.section === section)?.s ?? 0;
   return SECTION_ORDER.map((section) => ({
     section,
+    top: best(section),
     items: uniq.filter((h) => h.p.it.section === section).slice(0, per).map((h) => { const sn = snippet(h.p, qWords); return sn ? { ...h.p.it, sub: sn } : h.p.it; }),
-  })).filter((g) => g.items.length);
+  })).filter((g) => g.items.length)
+    .sort((a, b) => b.top - a.top || SECTION_ORDER.indexOf(a.section) - SECTION_ORDER.indexOf(b.section))
+    .map(({ section, items }) => ({ section, items }));
 }
 
 /** Fixed entries kept for older callers: the GC and processing tools, cases and community. */

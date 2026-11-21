@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import {
   addRecent, buildSearchIndex, caseViews, deriveRecord, editDistance, evaluateFamily, search, searchNorm, setToday, type SearchItem,
 } from '../src/core';
+import { STATIC_ITEMS } from '../src/core/search';
 import { APP_SCREENS, NOT_SEARCHABLE } from '../src/content/searchScreens';
 import { STARTER_NEWS } from '../src/content/news';
 import { HELP } from '../src/content/help';
@@ -159,4 +160,11 @@ test('the search code never touches the network', () => {
     const s = readFileSync(new URL(f, import.meta.url), 'utf8');
     assert.ok(!/fetch\(|getJSON|postJSON|XMLHttpRequest|\/api\//.test(s), f);
   }
+});
+
+test('ranking: the section with the closest match comes first (owner, Nov 2026: "Visa Bulletin" above visa stamps)', () => {
+  const items = [...STATIC_ITEMS, { id: 'doc-visa', section: 'Documents' as const, title: 'Visa stamp', sub: 'ends Jun 18, 2027', path: '/document/x' }];
+  const g = search(items, 'Visa Bulletin');
+  assert.equal(g[0].section, 'Tools');
+  assert.equal(g[0].items[0].title, 'Visa Bulletin');
 });
