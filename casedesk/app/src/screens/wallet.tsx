@@ -147,6 +147,21 @@ export function CardPreview({ card }: { card: PassCard }) {
 }
 
 /** Settings → Widgets: names and the Face ID rule. Shown on every build (the setting is harmless before v2.5). */
+/** Just the two widget switches (names, hide when locked) — for Settings → Face ID & privacy. */
+export function WidgetPrivacyRows() {
+  const f = useFamily();
+  const toast = useToast();
+  const names = widgetNames(f.settings);
+  return (
+    <Group>
+      <Row icon="grid" title="Names on widgets">
+        <Segmented options={['Initials', 'First names']} value={names === 'first' ? 'First names' : 'Initials'} onChange={(v) => f.actions.updateSettings({ widgetNames: v === 'First names' ? 'first' : 'initials' })} />
+      </Row>
+      <Row icon="lock" title="Hide widget details when locked" subtitle="With Face ID lock on, widgets only say “Open Immigration Wallet”"
+        trailing={<Switch value={widgetHideLocked(f.settings)} label="Hide widget details when locked" onValueChange={(on) => { f.actions.updateSettings({ widgetHideLocked: on }); toast(on ? 'Widget details hidden while locked' : 'Widgets show details'); }} />} />
+    </Group>
+  );
+}
 export function WidgetRows() {
   const f = useFamily();
   const toast = useToast();

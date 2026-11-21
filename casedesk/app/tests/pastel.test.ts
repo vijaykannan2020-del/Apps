@@ -112,7 +112,7 @@ test('navigation: five tabs — Home, Family, Community, Updates, Tools (Cases o
   const st = readFileSync(new URL('../src/screens/settings.tsx', import.meta.url), 'utf8');
   // owner, Nov 20 2026: "shorten means not remove" — every setting is visible again (no hidden Developer section)
   // owner-approved preview (Nov 2026): one short list of rows, each opening a page that holds the options
-  for (const page of ['appearance', 'privacy', 'notifications', 'backup', 'share', 'widgets', 'help', 'about']) { assert.ok(st.includes(`go('/settings-page/${page}')`), page); assert.ok(st.includes(`case '${page}'`), page); }
+  for (const page of ['appearance', 'privacy', 'notifications', 'backup', 'share', 'help', 'about']) { assert.ok(st.includes(`go('/settings-page/${page}')`), page); assert.ok(st.includes(`case '${page}'`), page); }
   assert.match(readFileSync(new URL('../app/settings-page/[id].tsx', import.meta.url), 'utf8'), /SettingsPage as default/);
   for (const row of ['Run setup again', 'Example family', 'Show tips on every screen', 'Show all tips again', 'Show HR tools', 'Diagnostics', 'Default reminders', 'Open system settings', 'Privacy']) assert.ok(st.includes(`title="${row}"`), row);
   assert.match(st, /<SettingsList os=\{os\}>/);

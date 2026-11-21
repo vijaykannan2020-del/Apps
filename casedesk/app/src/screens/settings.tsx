@@ -20,7 +20,7 @@ import { BackupSheet, DiagSheet, RestoreSheet, WipeSheet, leadText } from './pro
 import { BackupPage, backupSummary } from './icloud';
 import { HELP_MAIN } from '../content/help';
 import { NotifyRows } from './notify';
-import { FamilyWalletRow, WidgetRows } from './wallet';
+import { FamilyWalletRow, WidgetPrivacyRows, WidgetRows } from './wallet';
 import { ImportSharedRow, InviteRow, ShareRow } from './share';
 import { useGuide } from './guide';
 
@@ -79,7 +79,6 @@ export function SettingsScreen() {
         <TourTarget id="backup" style={{ marginTop: 22 }}><Group>
           <Row icon="backup" iconPastel="sky" title="Backup" subtitle={backupSummary(f.settings)} onPress={() => go('/settings-page/backup')} />
           <TourTarget id="share"><Row icon="share" iconPastel="sky" title="Share with family" subtitle="Send documents or invite your spouse" onPress={() => go('/settings-page/share')} /></TourTarget>
-          <Row icon="grid" iconPastel="sky" title="Widgets &amp; Wallet" subtitle="Home Screen widgets and Wallet passes" onPress={() => go('/settings-page/widgets')} />
         </Group></TourTarget>
         <TourTarget id="helpsec" style={{ marginTop: 22 }}><Group>
           <TourTarget id="taketour"><Row icon="help" iconPastel="blush" title="Help &amp; tips" subtitle={`${HELP_MAIN.length} guides, the tour, run setup again`} onPress={() => go('/settings-page/help')} /></TourTarget>
@@ -143,7 +142,10 @@ function SettingsPageBody({ id }: { id: string }) {
           <Row icon="face" iconPastel="sage" title="Face ID lock" subtitle="Also hides documents in the app switcher" trailing={<Switch value={!!f.settings.faceId} label="Face ID lock" onValueChange={faceId} />} />
           <Row icon="shield" iconPastel="sage" title="Privacy" subtitle="Your documents stay on this phone" onPress={() => go('/help/privacy')} />
         </Group>
-
+        <SectionHeader>Widgets</SectionHeader>
+        <WidgetPrivacyRows />
+        {/* how to add a widget or a Wallet card is shown once at the end of setup (owner, Nov 2026) */}
+        <FamilyWalletRow />
       </>
     );
     case 'notifications': return (

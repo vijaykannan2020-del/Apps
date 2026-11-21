@@ -69,8 +69,8 @@ export function pickTools(f: ReturnType<typeof useFamily>): string[] {
   const work = who.some((w) => WORK_VISAS.test(st(w)));
   const holder = who.some((w) => /green-card(?!-applicant)|conditional-green-card|citizenship-applicant/.test(w.person.status ?? ''));
   const gc = who.some((w) => /green-card-applicant/.test(w.person.status ?? '') || (() => { try { const t = gcTrackOf(w, who as never); return !!t && (t.stage !== 'not-started' || !!t.priorityDate); } catch { return false; } })());
-  // owner, Nov 20 2026: Priority date and I-9 documents are always up front
-  const order = ['travel', 'pd', 'i9', work ? 'layoff' : '', 'proc', holder ? 'civics' : '', gc ? 'vb' : '', 'fees'].filter(Boolean);
+    // owner, Nov 20 2026: Visa Bulletin first, then LCA / PERM status; I-9 documents and Fees sit in the lists below
+  const order = ['vb', 'travel', 'pd', 'lca', work ? 'layoff' : '', 'proc', holder ? 'civics' : ''].filter(Boolean);
   return [...new Set(order)].slice(0, 6);
 }
 
@@ -86,7 +86,6 @@ export function ToolsTab() {
   const groups = f.settings.hrTools ? [...base, HR] : base;
   const byId: Record<string, ToolDef> = Object.fromEntries([...groups.flatMap(([, l]) => l), layoff].map((x) => [x.id, x]));
   const picks = pickTools(f).map((id) => byId[id]).filter(Boolean);
-  const [all, setAll] = useState(false);
   const total = groups.reduce((n, [, l]) => n + l.length, 0);
   const tour = useTour('tools');
   const basis = L.fontScale > 1.5 ? '100%' : L.width >= 1000 ? '23%' : L.twoCol ? '31%' : '47%';
@@ -110,16 +109,18 @@ export function ToolsTab() {
         <SectionHeader>{fam.length ? `For your family · ${fam.join(', ')}` : 'For you'}</SectionHeader>
         {grid(picks, 0)}
       </TourTarget>
-      <TourTarget id="lookup" style={{ marginTop: 18 }}>
-        <Group>
-          <Row icon="grid" title="All tools" subtitle={all ? undefined : `${total - picks.length} more · look up, plan and learn`} chevron={false}
-            trailing={<View style={{ transform: [{ rotate: all ? '180deg' : '0deg' }] }}><Icon name="chevD" size={16} color={t.text2} /></View>} onPress={() => setAll(!all)} label={all ? 'Hide all tools' : 'Show all tools'} />
-        </Group>
+      {/* owner, Nov 20 2026: no "All tools" fold — every other tool is listed with what it does, as compact rows */}
+      <TourTarget id="lookup">
+        {groups.map(([g, list], gi) => {
+          const rest = list.filter((x) => !picks.some((p) => p.id === x.id));
+          return rest.length ? (
+            <View key={g}>
+              <SectionHeader>{g}</SectionHeader>
+              <Group>{rest.map((x, i) => <Row key={x.id} icon={x.icon} iconPastel={TILE_TONES[(i + gi + 1) % TILE_TONES.length]} title={x.title} subtitle={x.sub} onPress={() => openTool(x)} />)}</Group>
+            </View>
+          ) : null;
+        })}
       </TourTarget>
-      {all ? groups.map(([g, list], gi) => {
-        const rest = list.filter((x) => !picks.some((p) => p.id === x.id));
-        return rest.length ? <View key={g}><SectionHeader>{g}</SectionHeader>{grid(rest, gi + 1)}</View> : null;
-      }) : null}
     </Screen>
   );
 }

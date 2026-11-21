@@ -69,7 +69,7 @@ export const APP_SCREENS: ScreenEntry[] = [
   { id: 's-invite', section: 'Settings', title: 'Invite family', sub: 'Send the app link, no documents', path: '/settings-page/share', keywords: ['invite', 'install', 'app link', 'download', 'spouse'] },
   { id: 's-import', section: 'Settings', title: 'Import shared documents', sub: 'Open a package your family sent', path: '/share-import', keywords: ['import', 'shared package', 'receive', 'code'] },
   { id: 's-share', section: 'Settings', title: 'Share with family', sub: 'Send documents to your spouse’s phone, encrypted', path: '/share', keywords: ['share', 'share with spouse', 'airdrop', 'send documents'] },
-  { id: 's-widgets', section: 'Settings', title: 'Widgets and Wallet card', sub: 'Home Screen widgets and the Apple Wallet status card', path: '/settings-page/widgets', keywords: ['widget', 'wallet', 'apple wallet', 'pass'] },
+  { id: 's-widgets', section: 'Settings', title: 'Widgets and Wallet card', sub: 'Home Screen widgets and the Apple Wallet status card', path: '/settings-page/privacy', keywords: ['widget', 'wallet', 'apple wallet', 'pass'] },
   { id: 's-wipe', section: 'Settings', title: 'Delete all data', sub: 'Removes everything from this phone', path: '/settings', params: { open: 'wipe' }, keywords: ['delete', 'erase', 'wipe', 'remove everything', 'reset'] },
   { id: 's-diag', section: 'Settings', title: 'Diagnostics', sub: 'Send this if something goes wrong', path: '/settings', params: { open: 'diag' }, keywords: ['bug', 'problem', 'log', 'support'] },
   { id: 's-tips', section: 'Settings', title: 'Tips on every screen', sub: 'Show or replay the tips', path: '/settings-page/help', keywords: ['tips', 'tutorial', 'hints', 'question mark'] },

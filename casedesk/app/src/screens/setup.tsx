@@ -35,7 +35,7 @@ import type { Source } from '../native/files';
 import {
   Appear, Avatar, Button, Card, ChipToggle, Chips, DateField, Field, Footer, H1, Hint, Icon, Meter, Note, Pastel, SelectField, Spinner, Switch, T, Why, font, radius,
   useLayout, useReduceMotion, useSheet, useTheme, useToast, MIN_TOUCH, type PastelTone,
-  useKeyboardPad,
+  useKeyboardPad, Group, Row,
 } from '../ui';
 import { DISCLAIMER_LINE } from '../content/legal';
 import { BirthCountryField, COUNTRIES, Confirm, statusGroups } from './sheets';
@@ -1194,6 +1194,7 @@ function ProtectRow({ icon, tone, title, sub, right, first = true }: { icon: str
   );
 }
 
+import { FamilyWalletRow } from './wallet';
 function DoneStep({ f }: StepCtx) {
   const t = useTheme();
   const me = f.main;
@@ -1218,6 +1219,12 @@ function DoneStep({ f }: StepCtx) {
           </View>
         </Pastel>
       </Animated.View>
+      {/* owner, Nov 20 2026: widgets and the Wallet card are offered here once, not as a Settings page of how-to text */}
+      <T tone="text2" style={[font.foot, { marginTop: 22, marginBottom: 6, marginLeft: 4 }]}>Keep it in sight</T>
+      <Group>
+        <Row icon="grid" iconPastel="sky" title="Add the Home Screen widget" subtitle="Your next date at a glance · touch and hold the Home Screen → Edit → Add Widget" onPress={() => go('/help/widgets')} />
+      </Group>
+      <FamilyWalletRow />
       <View style={{ marginTop: 22, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
         <IconTileSmall icon="play" tone="sky" />
         <View style={{ flex: 1, minWidth: 0 }}>
