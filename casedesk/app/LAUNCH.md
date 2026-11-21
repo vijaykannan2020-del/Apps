@@ -7,6 +7,34 @@ Part 1 is the owner's morning checklist. Part 2 is the plan to reach people afte
 
 ---
 
+# Launch build and updates (Nov 20, 2026 — read this first)
+
+**Two kinds of iPhone build now.**
+- **Store build** (build **12**): the one to submit to the App Store. It only gets app updates you
+  release with the **CaseDesk release to App Store users** workflow. Settings shows `Version …` with no extra word.
+- **Test build** (build **13**, the newest in TestFlight): gets every update right away. Settings shows
+  `Version … · test`. You and your wife test on this one.
+
+**After launch, every change goes like this:** Claude pushes → your test build updates → you check it →
+you say “release” → Claude runs the release workflow (or you: GitHub → Actions → *CaseDesk release to App
+Store users* → Run workflow) → App Store users get it the next time they open the app twice.
+
+**Launch day, in order:**
+1. Claude sets `LAUNCH_RESET=launch-<date>` in `casedesk/server/deploy.conf` and pushes. The server moves
+   all test Community posts, accounts, shared timelines and notification sign-ups into a backup folder and
+   starts clean with only the Welcome post. Nothing on anyone’s phone changes (documents never leave phones).
+2. Claude runs the release workflow once, so the store build gets the newest update.
+3. You tap **Release this version** in App Store Connect.
+
+**Testing items** (Example family, tip switches) only show with developer tools on: Settings → tap the
+version line at the bottom 7 times. On an empty phone the first screen still offers *Look around with an
+example family* — that is the path in the review notes for Apple.
+
+**Screenshots** are now in the repo: `store/screenshots/iphone-6.9` and `store/screenshots/ipad-13`
+(made from the current app with the made-up example family).
+
+---
+
 # Part 1. Morning checklist (about 30 minutes, in this order)
 
 Use the **App Store Connect** website in Safari (appstoreconnect.apple.com, tap **aA → Request Desktop Website**
@@ -39,13 +67,13 @@ if a page is cramped). The App Store Connect iPhone app can't upload screenshots
      **Other Data**. For each: App Functionality; Linked: yes (Other Data: no); Tracking: no. Publish.
      (Full table in STORE.md → App Privacy.)
 6. **iOS App → 1.0 Prepare for Submission** (the version page):
-   - **Screenshots**: iPhone 6.9" Display → drag in the 8 files from `iphone-6.9` in order 01…08.
+   - **Screenshots**: iPhone 6.9" Display → drag in the 8 files from `store/screenshots/iphone-6.9` in order 01…08.
      iPad 13" Display → the 8 files from `ipad-13`. (Or skip and tell Claude “upload the screenshots by API”;
      see “Upload by API” below.) 6.7" files are only a spare.
    - **Promotional Text**, **Description**, **Keywords**: copy from STORE.md (or from `store/listing.json`).
    - **Support URL**, **Marketing URL**: from STORE.md → App information.
    - **Version**: 1.0. **Copyright**: `2026 Your Full Legal Name`.
-   - **Build**: tap **+ Add Build** → pick the newest TestFlight build → Done. If it asks about encryption:
+   - **Build**: tap **+ Add Build** → pick the **store build (12)**, not the newest test build → Done. If it asks about encryption:
      the build already says “no non-exempt encryption” (`ITSAppUsesNonExemptEncryption` false), so normally no
      question appears. See Decisions → Encryption.
    - **App Review Information**: Sign-in required **off**. Contact: your name, phone, email.
