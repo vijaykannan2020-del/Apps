@@ -22,3 +22,4 @@
 - v49: Deck — typing gives the card the whole screen (header/tabs/buttons hide, keyboard-avoiding); search bar on Home (opens Everything else with search focused); a card opened into its chat stays until Done/Later.
 - v50: Duo All chats fix — solid rows (swipe buttons no longer show through), list clipped below switch, no duplicate title
 - v51: Home card scrolls through all new messages; links and Instagram posts tappable on the card
+- v52: card shows Instagram reels/posts as a clean label + Open in Instagram button

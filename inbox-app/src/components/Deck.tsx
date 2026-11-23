@@ -49,8 +49,10 @@ const IG_RE = /https?:\/\/(?:www\.)?instagram\.com\/[^\s<>()\]]+/;
 /** One message on the card: links are tappable; Instagram posts/reels get an "Open in Instagram" button. */
 function Line({ ev, t, fs, onOpen }: { ev: MEvent; t: Theme; fs: number; onOpen: () => void }) {
   const c = ev.content || {};
-  const text = bodyPreview(ev);
   const ig = reelLink(c) || (IG_RE.exec(c.body || '') || [])[0] || null;
+  // Instagram reels/posts: a clean label + button instead of a raw link (nothing is downloaded from Instagram)
+  const rest = ig ? bodyPreview(ev).replace(/https?:\/\/\S+/g, '').replace(/^(📷|🎥|🎬)\s*/, '').replace(/^(Photo|Video|Reel)$/, '').trim() : '';
+  const text = ig ? (/\/(reel|reels)\//.test(ig) ? '🎬 Instagram reel' : '📷 Instagram post') + (rest ? ' · ' + rest : '') : bodyPreview(ev);
   const parts = text.split(URL_RE);
   return (
     <Pressable onPress={onOpen}>
