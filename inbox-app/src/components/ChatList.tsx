@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { S, Room, MEvent, Net, NETS, visibleRooms, roomName, preview, fmtTime, isUnread, isGroup, isPinned, isArchived, netOf,
   lastMine, setTag, setMarkedUnread, markRead, setMuted, setReminder, dueReminders, searchMessages, bodyPreview, memberName,
   startWhatsAppChat, others , callSummary } from '@/lib/matrix';
-import { useTheme, useStore, Theme } from '@/lib/theme';
+import { useTheme, useStore, Theme, FONT_TITLE } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { AppSwitcher, SWITCHER_SPACE } from '@/components/AppSwitcher';
 import { ConnDots, ConnBanner } from '@/components/ConnStatus';
@@ -51,7 +51,7 @@ const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact, edge 
         </View>
       )}>
       <Pressable onPress={() => open(r.id)} onLongPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); onMore(r); }}
-        style={({ pressed }) => [styles.row, { backgroundColor: selected || pressed ? (t.dark ? '#2C2C2E' : '#E5E5EA') : t.bg }]}>
+        style={({ pressed }) => [styles.row, { backgroundColor: selected || pressed ? t.fill : t.bg }]}>
         <Avatar room={r} size={compact ? 42 : undefined} />
         <View style={[styles.meta, { borderBottomColor: t.line }, compact && { minHeight: 64, paddingRight: 10 }, edge > 0 && { paddingRight: 16 + edge }]}>
           <View style={styles.l1}>
@@ -253,10 +253,10 @@ export function ChatList({ tab, onTab, embedded = false, onClose }: { tab: Tab; 
 
 const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 6 },
-  title: { fontSize: 34, fontWeight: '800', letterSpacing: -0.6 },
-  search: { marginHorizontal: 16, marginTop: 10, height: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  title: { fontSize: 32, fontFamily: FONT_TITLE, letterSpacing: -0.6 },
+  search: { marginHorizontal: 16, marginTop: 10, height: 46, borderRadius: 16, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
   kinds: { gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
-  chip: { paddingHorizontal: 16, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  chip: { paddingHorizontal: 14, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   section: { fontSize: 13, fontWeight: '600', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 4 },
   row: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16, gap: 12 },
   meta: { flex: 1, paddingVertical: 12, paddingRight: 16, borderBottomWidth: StyleSheet.hairlineWidth, minHeight: 76 },
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   l2: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
   prev: { flex: 1, fontSize: 15, lineHeight: 20 },
   tick: { fontSize: 13, fontWeight: '600' },
-  badge: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
+  badge: { minWidth: 22, height: 22, borderRadius: 8, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
   badgeTxt: { fontSize: 13, fontWeight: '700' },
   archIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   status: { textAlign: 'center', fontSize: 13, paddingBottom: 6 },
@@ -275,6 +275,6 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row' },
   act: { width: 78, alignItems: 'center', justifyContent: 'center', gap: 4 },
   actTxt: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  numInput: { height: 50, borderRadius: 12, paddingHorizontal: 14, fontSize: 17, marginBottom: 10 },
-  bigBtn: { height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  numInput: { height: 50, borderRadius: 16, paddingHorizontal: 14, fontSize: 17, marginBottom: 10 },
+  bigBtn: { height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
 });

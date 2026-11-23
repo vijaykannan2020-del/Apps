@@ -1,3 +1,4 @@
+import { FONT_TITLE } from '@/lib/theme';
 import { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
   bg: { flex: 1, backgroundColor: '#0B0B12' },
   center: { alignItems: 'center' },
   top: { position: 'absolute', left: 20, right: 90 },
-  name: { color: '#fff', fontSize: 30, fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 8 },
+  name: { color: '#fff', fontSize: 34, fontFamily: FONT_TITLE, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 8 },
   status: { color: 'rgba(255,255,255,0.85)', fontSize: 17, marginTop: 4, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 6 },
   diag: { color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 6, fontFamily: 'Menlo', textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 4 },
   pip: { position: 'absolute', left: 16, width: 110, height: 160, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', backgroundColor: '#222' },

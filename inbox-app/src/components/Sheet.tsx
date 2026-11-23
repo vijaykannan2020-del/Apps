@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   grab: { alignItems: 'center', paddingTop: 8, paddingBottom: 10 },
   handle: { width: 38, height: 5, borderRadius: 3, opacity: 0.5 },
   title: { marginTop: 10, fontSize: 14, fontWeight: '600', paddingHorizontal: 20 },
-  group: { borderRadius: 14, overflow: 'hidden', marginBottom: 10 },
+  group: { borderRadius: 20, overflow: 'hidden', marginBottom: 10 },
   item: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
   itemTxt: { fontSize: 17 },
 });

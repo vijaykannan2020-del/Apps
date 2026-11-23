@@ -17,14 +17,14 @@ import { S, Room, MEvent, NETS, roomName, netOf, botNetOf, isGroup, memberName, 
   loadOlder, react, mdPlain, captionOf, stripReply, bodyPreview, hueFor, redact, editMessage, forward, isStarred, toggleStar,
   visibleRooms, setDraft, sendTyping, scheduleSend, sendVoice, linkPreview, reelLink, igMediaId, igOpenUrl, isUnread, sendRich, roomMembers, setupChips , isPrivateRoom, callSummary, others, presenceText } from '@/lib/matrix';
 import { DropZone, DroppedFile } from '@/components/DropZone';
-import { useTheme, useStore, Theme } from '@/lib/theme';
+import { useTheme, useStore, Theme, FONT_TITLE } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
 import { VideoBubble, VoiceBubble } from '@/components/Media';
 import { quickTimes, fmtWhen, EMOJI_ALL } from '@/lib/time';
 import { PhotoViewer } from '@/components/PhotoViewer';
 
-type Item = { key: string; kind: 'day'; label: string } | { key: string; kind: 'unread' } | { key: string; kind: 'msg'; ev: MEvent; first: boolean; last: boolean; recent: boolean };
+type Item = { key: string; kind: 'day'; label: string; num: number } | { key: string; kind: 'unread' } | { key: string; kind: 'msg'; ev: MEvent; first: boolean; last: boolean; recent: boolean };
 const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const URL_RE = /(https?:\/\/[^\s<>()\]]+)/g;
 
@@ -54,6 +54,8 @@ function IgLinkCard({ link, text, c, thread, fg, mine, t, fs }: { link: string; 
   );
 }
 
+// Ticks read as words in the new look
+const TICK_WORD: Record<string, string> = { '◷': 'Sending', '✓': 'Sent', '✓✓·': 'Delivered', '✓✓': 'Read', '!': 'Not delivered' };
 function tickFor(r: Room, ev: MEvent): string {
   if ([...r.readBy.values()].some(id => { const x = r.idx.get(id); return x && x.origin_server_ts >= ev.origin_server_ts; })) return '✓✓';
   const m = r.mss.get(ev.event_id);
@@ -193,7 +195,8 @@ const Bubble = memo(function Bubble({ r, ev, first, last, recent, t, onLong, onR
           {group && !mine && first && <Text style={[styles.who, { color: hueFor(ev.sender) }]}>{memberName(r, ev.sender)}</Text>}
           <Pressable onLongPress={() => onLong(ev)} delayLongPress={300}
             style={[bare ? styles.media : styles.bubble, !bare && { backgroundColor: bg },
-              !bare && mine && last && { borderBottomRightRadius: 6 }, !bare && !mine && last && { borderBottomLeftRadius: 6 },
+              !bare && mine && { borderWidth: StyleSheet.hairlineWidth, borderColor: t.bubbleOutBorder },
+              !bare && mine && first && { borderTopRightRadius: 4 }, !bare && !mine && first && { borderTopLeftRadius: 4 },
               ev.pending && { opacity: 0.6 }, ev.failed && { borderWidth: 1, borderColor: t.red }]}>
             {quoted && (
               <View style={[styles.quote, { borderLeftColor: hueFor(quoted.sender), backgroundColor: mine ? (t.dark ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.14)') : t.fill }]}>
@@ -202,14 +205,14 @@ const Bubble = memo(function Bubble({ r, ev, first, last, recent, t, onLong, onR
               </View>
             )}
             {body}
-            {!bare && <Text style={[styles.time, { color: mine ? (t.dark ? 'rgba(0,0,0,.45)' : 'rgba(255,255,255,.6)') : t.soft }]}>
-              {meta}{tick ? ' ' : ''}{tick ? <Text style={{ color: tick === '✓✓' ? t.blue : tick === '!' ? t.red : undefined, fontWeight: tick === '!' ? '800' : undefined }}>{tick === '✓✓·' ? '✓✓' : tick}</Text> : null}</Text>}
+            {!bare && <Text style={[styles.time, { color: t.soft }]}>
+              {meta}{tick ? ' · ' : ''}{tick ? <Text style={{ color: tick === '✓✓' ? t.accent : tick === '!' ? t.red : undefined, fontWeight: tick === '!' || tick === '✓✓' ? '700' : undefined }}>{TICK_WORD[tick]}</Text> : null}</Text>}
           </Pressable>
-          {bare && <Text style={[styles.time, { color: t.soft, marginHorizontal: 6 }]}>{meta}{tick ? ' ' + (tick === '✓✓·' ? '✓✓' : tick) : ''}</Text>}
+          {bare && <Text style={[styles.time, { color: t.soft, marginHorizontal: 6 }]}>{meta}{tick ? ' · ' + TICK_WORD[tick] : ''}</Text>}
           {reactList.length > 0 && (
             <View style={[styles.reacts, { alignSelf: mine ? 'flex-end' : 'flex-start' }]}>
               {reactList.map(([k, s]) => (
-                <Pressable key={k} onPress={() => react(r, ev, k)} style={[styles.react, { backgroundColor: t.surface, borderColor: s.has(S.userId!) ? t.blue : t.line }]}>
+                <Pressable key={k} onPress={() => react(r, ev, k)} style={[styles.react, { backgroundColor: t.surface, borderColor: s.has(S.userId!) ? t.accent : t.line }]}>
                   <Text style={{ fontSize: 14, color: t.ink }}>{k}{s.size > 1 ? ' ' + s.size : ''}</Text>
                 </Pressable>
               ))}
@@ -264,7 +267,7 @@ export function ChatView({ id, onBack, embedded, nativeActions }: { id: string; 
     const unreadIdx = unreadAtOpen.current > 0 ? Math.max(0, evs.length - unreadAtOpen.current) : -1;
     evs.forEach((ev, i) => {
       const day = new Date(ev.origin_server_ts).toDateString();
-      if (day !== lastDay) { out.push({ key: 'd' + day, kind: 'day', label: dayLabel(ev.origin_server_ts) }); lastDay = day; }
+      if (day !== lastDay) { out.push({ key: 'd' + day, kind: 'day', label: dayLabel(ev.origin_server_ts), num: new Date(ev.origin_server_ts).getDate() }); lastDay = day; }
       if (i === unreadIdx) out.push({ key: 'unread', kind: 'unread' });
       const prev = evs[i - 1], next = evs[i + 1];
       const near = (a?: MEvent, b?: MEvent) => !!a && !!b && a.sender === b.sender && Math.abs(a.origin_server_ts - b.origin_server_ts) < 5 * 60e3
@@ -367,7 +370,7 @@ export function ChatView({ id, onBack, embedded, nativeActions }: { id: string; 
           onScroll={onScroll}
           scrollEventThrottle={64}
           renderItem={({ item }) => item.kind === 'day'
-            ? <View style={styles.dayWrap}><Text style={[styles.day, { color: t.soft, backgroundColor: t.fill }]}>{item.label}</Text></View>
+            ? <View style={styles.dayWrap}><Text style={[styles.dayNum, { color: t.dark ? '#2E3138' : '#D6D6D0', fontFamily: FONT_TITLE }]}>{item.num}</Text><Text style={[styles.day, { color: t.soft }]}>{item.label.toUpperCase()}</Text></View>
             : item.kind === 'unread'
               ? <View style={styles.unreadLine}><View style={[styles.ul, { backgroundColor: t.line }]} /><Text style={{ color: t.soft, fontSize: 12, fontWeight: '600' }}>Unread messages</Text><View style={[styles.ul, { backgroundColor: t.line }]} /></View>
               : item.ev.type === 'm.call.invite' ? <CallRow r={r} ev={item.ev} t={t} v={v} />
@@ -383,11 +386,11 @@ export function ChatView({ id, onBack, embedded, nativeActions }: { id: string; 
         {up && (
           <Pressable onPress={() => { listRef.current?.scrollToOffset({ offset: 0, animated: true }); setNewCount(0); }} style={[styles.jump, { backgroundColor: t.surface, borderColor: t.line }]}>
             <Ionicons name="chevron-down" size={22} color={t.ink} />
-            {newCount > 0 && <View style={[styles.jumpBadge, { backgroundColor: t.blue }]}><Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{newCount}</Text></View>}
+            {newCount > 0 && <View style={[styles.jumpBadge, { backgroundColor: t.accent }]}><Text style={{ color: t.accentInk, fontSize: 11, fontWeight: '700' }}>{newCount}</Text></View>}
           </Pressable>
         )}
         {/* composer */}
-        <View style={[styles.composerWrap, { paddingBottom: Math.max(ins.bottom, 8) }]}>
+        <View style={[styles.composerWrap, { marginBottom: Math.max(ins.bottom, 8), backgroundColor: t.surface, borderColor: t.line }]}>
           {mentionQ !== null && people && people.filter(p => p.name.toLowerCase().includes(mentionQ)).length > 0 && (
             <View style={[styles.mentions, { backgroundColor: t.surface }]}>
               {people.filter(p => p.name.toLowerCase().includes(mentionQ)).slice(0, 6).map(p => (
@@ -409,9 +412,9 @@ export function ChatView({ id, onBack, embedded, nativeActions }: { id: string; 
           )}
           {(replyTo || editing) && (
             <View style={[styles.replyBar, { backgroundColor: t.surface }]}>
-              <Ionicons name={editing ? 'pencil' : 'arrow-undo'} size={18} color={t.blue} />
+              <Ionicons name={editing ? 'pencil' : 'arrow-undo'} size={18} color={t.accent} />
               <View style={{ flex: 1 }}>
-                <Text style={{ color: t.blue, fontWeight: '600', fontSize: 13 }}>{editing ? 'Editing message' : 'Replying to ' + (replyTo!.sender === S.userId ? 'yourself' : memberName(r, replyTo!.sender))}</Text>
+                <Text style={{ color: t.accent, fontWeight: '600', fontSize: 13 }}>{editing ? 'Editing message' : 'Replying to ' + (replyTo!.sender === S.userId ? 'yourself' : memberName(r, replyTo!.sender))}</Text>
                 <Text numberOfLines={1} style={{ color: t.soft, fontSize: 14 }}>{bodyPreview((editing || replyTo)!)}</Text>
               </View>
               <Pressable onPress={() => { if (editing) setText(S.drafts[r.id] || ''); setReplyTo(null); setEditing(null); }} hitSlop={10}><Ionicons name="close-circle" size={22} color={t.soft} /></Pressable>
@@ -432,8 +435,8 @@ export function ChatView({ id, onBack, embedded, nativeActions }: { id: string; 
               <Pressable onPress={() => setAttachSheet(true)} hitSlop={8} style={[styles.round, { backgroundColor: t.fill }]}>
                 {sending ? <ActivityIndicator /> : <Ionicons name="add" size={24} color={t.ink} />}
               </Pressable>
-              <TextInput ref={inputRef} value={text} onChangeText={onChange} placeholder="Message" placeholderTextColor={t.soft}
-                multiline style={[styles.input, { backgroundColor: t.fill, color: t.ink, fontSize: 17 * Math.max(1, fs) }]}
+              <TextInput ref={inputRef} value={text} onChangeText={onChange} placeholder={`Write to ${roomName(r).split(' ')[0]}…`} placeholderTextColor={t.soft}
+                multiline style={[styles.input, { color: t.ink, fontSize: 17 * Math.max(1, fs) }]}
                 autoCapitalize={botNetOf(r) ? 'none' : 'sentences'} autoCorrect={!botNetOf(r)} spellCheck={!botNetOf(r)} />
               {text.trim() ? (
                 <Pressable onPress={send} onLongPress={() => { if (!editing && !botNetOf(r)) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}); setSched(true); } }} delayLongPress={350}
@@ -441,7 +444,7 @@ export function ChatView({ id, onBack, embedded, nativeActions }: { id: string; 
                   <Ionicons name={editing ? 'checkmark' : 'arrow-up'} size={22} color={t.primaryText} />
                 </Pressable>
               ) : (
-                <Pressable onPress={startRec} style={[styles.round, { backgroundColor: t.fill }]}><Ionicons name="mic" size={21} color={t.ink} /></Pressable>
+                <Pressable onPress={startRec} accessibilityLabel="Record a voice note" style={[styles.round, { backgroundColor: t.accent }]}><Ionicons name="mic" size={21} color={t.accentInk} /></Pressable>
               )}
             </View>
           )}
@@ -449,18 +452,18 @@ export function ChatView({ id, onBack, embedded, nativeActions }: { id: string; 
       </KeyboardAvoidingView>
 
       {/* glass header — controls stay on the left (the iPhone Duo's status pill sits top-right) */}
-      <View pointerEvents="none" style={[styles.statusFade, { height: ins.top, backgroundColor: t.bg, opacity: 0.9 }]} />
+      <View pointerEvents="none" style={[styles.statusFade, { height: ins.top + 60, backgroundColor: t.bg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.line }]} />
       <View pointerEvents="box-none" style={[styles.header, { paddingTop: ins.top + 4, paddingRight: 12 + gut }]}>
         {onBack && <Glass interactive style={styles.backBtn}><Pressable onPress={onBack} hitSlop={8} style={styles.backHit}><Ionicons name="chevron-back" size={26} color={t.ink} /></Pressable></Glass>}
-        <Glass interactive style={styles.hCapsule}>
+        <View style={styles.hCapsule}>
           <Pressable onPress={showInfo} style={styles.hInfo}>
             <Avatar room={r} size={34} />
             <View style={{ flexShrink: 1, marginLeft: 9, marginRight: 6 }}>
-              <Text numberOfLines={1} style={[styles.hName, { color: t.ink }]}>{roomName(r)}{S.muted.has(r.id) ? '  🔕' : ''}</Text>
-              {!!sub && <Text numberOfLines={1} style={[styles.hSub, { color: r.typing.length || seen === 'online' ? t.blue : t.soft }]}>{sub}</Text>}
+              <Text numberOfLines={1} style={[styles.hName, { color: t.ink, fontFamily: FONT_TITLE }]}>{roomName(r)}{S.muted.has(r.id) ? '  🔕' : ''}</Text>
+              {!!sub && <Text numberOfLines={1} style={[styles.hSub, { color: r.typing.length || seen === 'online' ? t.accent : t.soft }]}>{sub}</Text>}
             </View>
           </Pressable>
-        </Glass>
+        </View>
         {isPrivateRoom(r) && callsAvailable && !nativeActions && <>
           <Glass interactive style={styles.backBtn}><Pressable onPress={() => startCall(r, false).catch((e: any) => Alert.alert('Can’t call', e.message || ''))} hitSlop={6} style={styles.backHit} accessibilityLabel="Voice call"><Ionicons name="call" size={20} color={t.ink} /></Pressable></Glass>
           <Glass interactive style={styles.backBtn}><Pressable onPress={() => startCall(r, true).catch((e: any) => Alert.alert('Can’t call', e.message || ''))} hitSlop={6} style={styles.backHit} accessibilityLabel="Video call"><Ionicons name="videocam" size={22} color={t.ink} /></Pressable></Glass>
@@ -541,10 +544,11 @@ const styles = StyleSheet.create({
   hCapsule: { height: 48, borderRadius: 24, overflow: 'hidden', flexShrink: 1, maxWidth: 420 },
   hInfo: { flexDirection: 'row', alignItems: 'center', height: 48, paddingLeft: 7, paddingRight: 12 },
   statusFade: { position: 'absolute', top: 0, left: 0, right: 0 },
-  hName: { fontSize: 17, fontWeight: '600' },
+  hName: { fontSize: 19 },
   hSub: { fontSize: 13 },
-  dayWrap: { alignItems: 'center', marginVertical: 10 },
-  day: { fontSize: 12, fontWeight: '600', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, overflow: 'hidden' },
+  dayWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 18, marginBottom: 6, paddingHorizontal: 6 },
+  dayNum: { fontSize: 30 },
+  day: { fontSize: 12, fontWeight: '700', letterSpacing: 1.6 },
   unreadLine: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 10 },
   ul: { flex: 1, height: StyleSheet.hairlineWidth },
   msgRow: { flexDirection: 'row' },
@@ -552,7 +556,7 @@ const styles = StyleSheet.create({
   callIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   swipeReply: { width: 50, alignItems: 'center', justifyContent: 'center' },
   who: { fontSize: 12, fontWeight: '600', marginLeft: 12, marginBottom: 2 },
-  bubble: { borderRadius: 20, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 6 },
+  bubble: { borderRadius: 18, paddingHorizontal: 14, paddingTop: 9, paddingBottom: 7 },
   media: { borderRadius: 16, overflow: 'hidden' },
   quote: { borderLeftWidth: 3, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, marginBottom: 6 },
   txt: { fontSize: 17, lineHeight: 22 },
@@ -562,12 +566,12 @@ const styles = StyleSheet.create({
   react: { borderRadius: 12, paddingHorizontal: 7, paddingVertical: 2, borderWidth: 1 },
   jump: { position: 'absolute', right: 14, bottom: 80, width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth },
   jumpBadge: { position: 'absolute', top: -6, right: -4, minWidth: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  composerWrap: { paddingHorizontal: 10, paddingTop: 6, gap: 6 },
+  composerWrap: { marginHorizontal: 10, padding: 7, gap: 6, borderRadius: 26, borderWidth: StyleSheet.hairlineWidth },
   replyBar: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, gap: 10 },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  round: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  input: { flex: 1, minHeight: 38, maxHeight: 140, borderRadius: 19, paddingHorizontal: 14, paddingTop: 9, paddingBottom: 9, fontSize: 17 },
-  recBox: { flex: 1, height: 38, borderRadius: 19, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
+  round: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  input: { flex: 1, minHeight: 42, maxHeight: 140, paddingHorizontal: 8, paddingTop: 10, paddingBottom: 10, fontSize: 17 },
+  recBox: { flex: 1, height: 42, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14 },
   recDot: { width: 10, height: 10, borderRadius: 5 },
   emojiRow: { flexDirection: 'row', justifyContent: 'space-between', borderRadius: 14, padding: 8, marginBottom: 10 },
   emojiBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },

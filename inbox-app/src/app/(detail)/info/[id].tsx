@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { S, NETS, roomName, netOf, isGroup, memberCount, isPinned, isArchived, setTag, setMuted, mediaSource, roomMembers, listScheduled,
   cancelScheduled, setReminder, hueFor, reelLink } from '@/lib/matrix';
 import { DuoBar } from '@/components/DuoBar';
-import { useTheme, useStore } from '@/lib/theme';
+import { useTheme, useStore, FONT_TITLE } from '@/lib/theme';
 import { Avatar } from '@/components/Avatar';
 import { Sheet, SheetGroup, SheetItem } from '@/components/Sheet';
 import { quickTimes, fmtWhen } from '@/lib/time';
@@ -30,7 +30,7 @@ export default function Info() {
   const cell = Math.floor((Math.min(width, 600) - 32 - 8) / 3);
   const Btn = ({ icon, label, on, onPress }: { icon: any; label: string; on?: boolean; onPress: () => void }) => (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.btn, { backgroundColor: pressed ? t.fill : t.surface }]}>
-      <Ionicons name={icon} size={22} color={on ? t.blue : t.ink} /><Text style={{ color: on ? t.blue : t.ink, fontSize: 12, fontWeight: '600' }}>{label}</Text>
+      <Ionicons name={icon} size={22} color={on ? t.accent : t.ink} /><Text style={{ color: on ? t.accent : t.ink, fontSize: 12, fontWeight: '600' }}>{label}</Text>
     </Pressable>
   );
   return (
@@ -52,7 +52,7 @@ export default function Info() {
         {S.reminders[r.id] ? <Text style={[styles.note, { color: t.soft }]}>⏰ Reminder {fmtWhen(S.reminders[r.id])}</Text> : null}
         <Pressable onPress={() => router.push({ pathname: '/media/[id]', params: { id: r.id } })}
           style={({ pressed }) => [styles.card, { backgroundColor: pressed ? t.fill : t.surface, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginTop: 18 }]}>
-          <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#0A84FF', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="images" size={18} color="#fff" /></View>
+          <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="images" size={18} color={t.accentInk} /></View>
           <Text style={{ flex: 1, color: t.ink, fontSize: 17 }}>Media, links and docs</Text>
           <Ionicons name="chevron-forward" size={18} color={t.soft} />
         </Pressable>
@@ -99,12 +99,12 @@ export default function Info() {
 }
 
 const styles = StyleSheet.create({
-  name: { fontSize: 24, fontWeight: '700', textAlign: 'center', paddingHorizontal: 20 },
+  name: { fontSize: 28, fontFamily: FONT_TITLE, textAlign: 'center', paddingHorizontal: 20 },
   btns: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginTop: 18 },
-  btn: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 12, borderRadius: 14 },
+  btn: { flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, borderRadius: 18 },
   note: { textAlign: 'center', marginTop: 10 },
   h: { fontSize: 13, fontWeight: '600', marginTop: 24, marginBottom: 6, marginHorizontal: 32 },
-  card: { marginHorizontal: 16, borderRadius: 14, overflow: 'hidden' },
+  card: { marginHorizontal: 16, borderRadius: 20, overflow: 'hidden' },
   schedRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderBottomWidth: StyleSheet.hairlineWidth },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, paddingHorizontal: 16 },
   mem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },

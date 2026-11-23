@@ -15,12 +15,12 @@ import { Sheet } from '@/components/Sheet';
 import { fmtWhen } from '@/lib/time';
 import { DuoBar } from '@/components/DuoBar';
 import { TargetScreen } from '@/components/TargetScreen';
-import { useTheme, useStore } from '@/lib/theme';
+import { useTheme, useStore, FONT_TITLE } from '@/lib/theme';
 import { useWindowDimensions } from 'react-native';
 import { useStatusGutter, useLayout, showList } from '@/lib/layout';
 
 const SIZES: [string, number][] = [['Small', 0.9], ['Default', 1], ['Large', 1.12], ['XL', 1.25]];
-export const APP_BUILD = 47;
+export const APP_BUILD = 48;
 const THEMES: ['auto' | 'light' | 'dark', string][] = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
 
 export default function Accounts() {
@@ -140,12 +140,12 @@ export default function Accounts() {
               {!!me.avatar_url && <Image source={mediaSource(me.avatar_url, 136)} style={StyleSheet.absoluteFill} contentFit="cover" />}
               {photoBusy && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color="#fff" /></View>}
             </View>
-            <View style={{ position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, backgroundColor: t.blue, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: t.bg }}>
+            <View style={{ position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: t.bg }}>
               <Ionicons name="camera" size={12} color="#fff" />
             </View>
           </Pressable>
           <Pressable onPress={editName} style={{ flex: 1 }}>
-            <Text style={{ color: t.ink, fontSize: 20, fontWeight: '700' }} numberOfLines={1}>{me.displayname || S.userId?.split(':')[0].slice(1)}</Text>
+            <Text style={{ color: t.ink, fontSize: 22, fontFamily: FONT_TITLE }} numberOfLines={1}>{me.displayname || S.userId?.split(':')[0].slice(1)}</Text>
             <Text style={{ color: t.soft, fontSize: 14, marginTop: 2 }}>Tap to change your name or photo</Text>
           </Pressable>
         </View>
@@ -296,7 +296,7 @@ export default function Accounts() {
 
 const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 6, marginBottom: 8 },
-  title: { fontSize: 34, fontWeight: '800', letterSpacing: -0.6 },
+  title: { fontSize: 34, fontFamily: FONT_TITLE, letterSpacing: -0.6 },
   h: { fontSize: 13, fontWeight: '600', marginTop: 22, marginBottom: 6, marginHorizontal: 32 },
   card: { marginHorizontal: 16, borderRadius: 14, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', paddingLeft: 14 },

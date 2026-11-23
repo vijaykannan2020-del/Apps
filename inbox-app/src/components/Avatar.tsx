@@ -13,7 +13,7 @@ export function Avatar({ room, size = 52 }: { room: Room; size?: number }) {
   const b = Math.round(size * 0.36);
   return (
     <View style={{ width: size, height: size }}>
-      <View style={[styles.circle, { width: size, height: size, borderRadius: size / 2, backgroundColor: hueFor(room.id) }]}>
+      <View style={[styles.circle, { width: size, height: size, borderRadius: Math.round(size * 0.32), backgroundColor: hueFor(room.id) }]}>
         <Text style={[styles.initial, { fontSize: size * 0.42 }]}>{initial}</Text>
         {src && <Image source={src} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} cachePolicy="memory-disk" recyclingKey={room.id} />}
       </View>

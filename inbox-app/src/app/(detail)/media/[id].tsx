@@ -9,7 +9,7 @@ import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system';
 import { S, roomName, mediaSource, loadShared, classifyShared, SharedItem, memberName } from '@/lib/matrix';
 import { DuoBar } from '@/components/DuoBar';
-import { useTheme } from '@/lib/theme';
+import { useTheme, FONT_TITLE } from '@/lib/theme';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { VideoPlayer } from '@/components/Media';
 
@@ -108,12 +108,12 @@ export default function SharedScreen() {
 
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingRight: 90, paddingBottom: 8 },
-  title: { fontSize: 20, fontWeight: '700' },
-  seg: { flexDirection: 'row', marginHorizontal: 14, marginBottom: 10, borderRadius: 10, padding: 2 },
+  title: { fontSize: 22, fontFamily: FONT_TITLE },
+  seg: { flexDirection: 'row', marginHorizontal: 14, marginBottom: 10, borderRadius: 16, padding: 4 },
   segBtn: { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: 8 },
   vidTag: { position: 'absolute', left: 5, bottom: 5, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8, padding: 3 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
-  rowIcon: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  rowIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   empty: { textAlign: 'center', padding: 40, fontSize: 15 },
   close: { position: 'absolute', left: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
 });

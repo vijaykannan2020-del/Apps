@@ -5,7 +5,7 @@ import { startCalls } from '@/lib/calls';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { login, DEFAULT_SERVER } from '@/lib/matrix';
-import { useTheme } from '@/lib/theme';
+import { useTheme, FONT_TITLE } from '@/lib/theme';
 
 export function LoginScreen() {
   const t = useTheme(); const ins = useSafeAreaInsets();
@@ -24,7 +24,7 @@ export function LoginScreen() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.wrap, { paddingTop: ins.top + 60 }]}>
         <Text style={[styles.title, { color: t.ink }]}>Inbox</Text>
-        <Text style={[styles.sub, { color: t.soft }]}>WhatsApp, Instagram and Messenger in one place</Text>
+        <Text style={[styles.sub, { color: t.soft }]}>All your chats. One calm place.</Text>
         <TextInput style={input} placeholder="Username" placeholderTextColor={t.soft} value={user} onChangeText={setUser}
           autoCapitalize="none" autoCorrect={false} textContentType="username" returnKeyType="next" />
         <TextInput style={input} placeholder="Password" placeholderTextColor={t.soft} value={pass} onChangeText={setPass}
@@ -47,9 +47,9 @@ export function LoginScreen() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: 24, gap: 12 },
-  title: { fontSize: 40, fontWeight: '800', letterSpacing: -1 },
+  title: { fontSize: 44, fontFamily: FONT_TITLE, letterSpacing: -1 },
   sub: { fontSize: 16, marginBottom: 24 },
-  input: { height: 52, borderRadius: 14, paddingHorizontal: 16, fontSize: 17 },
+  input: { height: 52, borderRadius: 16, paddingHorizontal: 16, fontSize: 17 },
   err: { fontSize: 15 },
   btn: { height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   btnTxt: { fontSize: 17, fontWeight: '600' },
