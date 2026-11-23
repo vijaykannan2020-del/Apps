@@ -1,4 +1,4 @@
-// Version 30: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
+// Version 31: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
 // Safari cannot send the MAG box headers a portal checks, so the Sideline bridge on your
 // own server (installed automatically beside your Inbox app) logs in as the chosen box and
 // turns channels into iPhone HLS. Portal URL, MAC and box model stay on this device and are

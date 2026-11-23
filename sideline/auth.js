@@ -3,7 +3,19 @@
 'use strict';
 const q=s=>document.querySelector(s);
 // Update check: if the site has a newer version than this page, reload once with a fresh copy.
-(async()=>{try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const latest=Number((await r.json()).version);const mine=Number(window.SIDELINE_VERSION||0);if(latest>mine&&sessionStorage.getItem('sideline-reloaded-for')!==String(latest)){sessionStorage.setItem('sideline-reloaded-for',String(latest));location.replace(location.pathname+'?v='+latest+location.hash)}}catch{}})();
+// Keep the app current. Re-checks on load and whenever it comes back to the foreground, and
+// cache-busts the reload so a stale saved copy (common for an iPhone Home Screen app) can't stick.
+async function sidelineCheckUpdate(){try{
+ const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});const latest=Number((await r.json()).version);const mine=Number(window.SIDELINE_VERSION||0);
+ if(!(latest>mine))return;
+ const key='sideline-reloaded-for',last=Number(sessionStorage.getItem(key+'-ts')||0);
+ if(sessionStorage.getItem(key)===String(latest)&&Date.now()-last<30000)return; // don't loop faster than every 30s
+ sessionStorage.setItem(key,String(latest));sessionStorage.setItem(key+'-ts',String(Date.now()));
+ location.replace(location.pathname+'?v='+latest+'&t='+Date.now()+location.hash);
+}catch{}}
+sidelineCheckUpdate();
+window.addEventListener('pageshow',e=>{if(e.persisted)sidelineCheckUpdate()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sidelineCheckUpdate()});
 const gate=q('#authGate'),form=q('#sidelineLogin'),message=q('#authMessage'),submit=q('#authSubmit');
 let auth,db,booted=false,activeUid=null,generation=0;
 const status=(text,error=false)=>{message.textContent=text;message.classList.toggle('auth-error',error)};
