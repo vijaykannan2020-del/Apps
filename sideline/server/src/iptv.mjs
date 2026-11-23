@@ -92,6 +92,20 @@ function deriveEndpoints(u) {
     out.push(u.origin + p);
   return out;
 }
+function deviceProfile(mac, agent) {
+  const H = (alg, v) => crypto.createHash(alg).update(v).digest('hex').toUpperCase();
+  const sn = H('md5', mac).slice(0, 13);
+  const model = cleanModel(agent && agent.model);
+  const deviceId = H('sha256', sn);
+  return {
+    hd: '1', ver: 'ImageDescription: 0.2.18-r23-250; ImageDate: Thu Sep 13 11:31:16 EEST 2018; PORTAL version: 5.6.2; API Version: JS API version: 343; STB API version: 146; Player Engine version: 0x58c',
+    num_banks: '2', sn, stb_type: model, client_type: 'STB', image_version: '218', video_out: 'hdmi',
+    device_id: deviceId, device_id2: deviceId, signature: H('sha256', sn + mac), auth_second_step: '1',
+    hw_version: '1.7-BD-00', not_valid_token: '0', hw_version_2: H('sha1', mac), timestamp: String(Math.floor(Date.now() / 1000)),
+    api_signature: '262', prehash: '',
+    metrics: JSON.stringify({ mac, sn, model, type: 'STB', uid: '', random: '' }),
+  };
+}
 const shortURL = x => { try { const u = new URL(x); return u.host + u.pathname; } catch { return String(x); } };
 
 export function createPortalClient(fetchImpl = fetch) {
@@ -101,8 +115,9 @@ export function createPortalClient(fetchImpl = fetch) {
     url.searchParams.set('JsHttpRequest', '1-xml');
     const res = await fetchImpl(url, { headers: portalHeaders(ep, mac, token, agent), redirect: 'follow', signal: AbortSignal.timeout(15000) });
     if (!res.ok) throw new Error('Portal returned HTTP ' + res.status);
-    const text = await res.text();
-    try { return JSON.parse(text); } catch { throw new Error('Portal did not answer like a MAG portal.'); }
+    const text = (await res.text()).replace(/^\uFEFF/, '').trim();
+    try { return JSON.parse(text); }
+    catch { throw new Error('Portal did not answer like a MAG portal (' + (params.action || 'request') + ': "' + text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) + '")'); }
   }
   const found = new Map(); // portal URL -> working login endpoint
   async function discover(entry, mac, agent, tried) {
@@ -131,22 +146,28 @@ export function createPortalClient(fetchImpl = fetch) {
         const r = await get(ep, { type: 'stb', action: 'handshake' }, entry, mac, null, agent);
         const token = r?.js?.token;
         if (!token) { tried.push(shortURL(ep) + ': no token'); continue; }
-        try { await get(ep, { type: 'stb', action: 'get_profile' }, entry, mac, token, agent); } catch {}
+        let profile = null;
+        try { profile = (await get(ep, { type: 'stb', action: 'get_profile', ...deviceProfile(mac, agent) }, entry, mac, token, agent))?.js || null; } catch {}
         found.set(entry, ep);
-        return { ep, token };
+        return { ep, token, profile };
       } catch (e) { tried.push(shortURL(ep) + ': ' + String(e.message).replace('Portal returned ', '').replace('Portal did not answer like a MAG portal.', 'not a portal')); }
     }
     if (cached) { found.delete(entry); return login(entry, mac, agent); }
     throw new Error('Could not log in to the portal. Check the portal URL, MAC address and STB model. Tried: ' + tried.slice(0, 10).join('; '));
   }
   async function channels(origin, mac, agent) {
-    const { ep, token } = await login(origin, mac, agent);
+    const { ep, token, profile } = await login(origin, mac, agent);
     const names = {};
     try {
       const g = await get(ep, { type: 'itv', action: 'get_genres' }, origin, mac, token, agent);
       for (const x of Array.isArray(g?.js) ? g.js : []) names[String(x.id)] = String(x.title || '');
     } catch {}
-    const r = await get(ep, { type: 'itv', action: 'get_all_channels' }, origin, mac, token, agent);
+    let r;
+    try { r = await get(ep, { type: 'itv', action: 'get_all_channels' }, origin, mac, token, agent); }
+    catch (e) {
+      const st = profile && (profile.msg || profile.block_msg || (profile.status != null && Number(profile.status) !== 0 ? 'status ' + profile.status : ''));
+      throw new Error(e.message + (st ? ' — account says: ' + String(st).slice(0, 120) : ''));
+    }
     const list = (Array.isArray(r?.js?.data) ? r.js.data : []).slice(0, 20000).map(c => ({
       id: String(c.id), name: String(c.name || 'Channel'), number: c.number ?? null,
       cmd: String(c.cmd || ''), category: names[String(c.tv_genre_id)] || 'Other',

@@ -108,3 +108,24 @@ test('discovers a non-standard login path via redirect + portal page, and report
   const dead = createPortalClient(async () => new Response('nope', { status: 404 }));
   await assert.rejects(dead.channels('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', {}), e => /Tried: page desi4k\.cc\/: 404/.test(e.message) && /portal\.php: HTTP 404/.test(e.message));
 });
+
+test('sends a full device profile so strict portals authorize the session; shows portal text on refusal', async () => {
+  const { createPortalClient } = await import('../src/iptv.mjs');
+  let authorized = false;
+  const fake = async (url) => {
+    const u = new URL(url), a = u.searchParams.get('action');
+    if (u.pathname !== '/portal.php') return new Response('not found', { status: 404 });
+    if (a === 'handshake') return new Response('﻿' + JSON.stringify({ js: { token: 'T1' } }));
+    if (a === 'get_profile') { authorized = !!(u.searchParams.get('sn') && u.searchParams.get('device_id') && u.searchParams.get('signature') && u.searchParams.get('stb_type') === 'AuraHD9'); return new Response(JSON.stringify({ js: { status: 0 } })); }
+    if (a === 'get_all_channels') return authorized ? new Response(JSON.stringify({ js: { data: [{ id: 1, name: 'Sun TV', cmd: 'ffmpeg http://x/1' }] } })) : new Response('Authorization failed.');
+    return new Response(JSON.stringify({ js: [] }));
+  };
+  const r = await createPortalClient(fake).channels('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', { model: 'AuraHD9' });
+  assert.equal(r.channels[0].name, 'Sun TV');
+  // a refusal now says what the portal answered
+  const refuse = async (url) => { const a = new URL(url).searchParams.get('action'); if (new URL(url).pathname !== '/portal.php') return new Response('', { status: 404 });
+    if (a === 'handshake') return new Response(JSON.stringify({ js: { token: 'T' } }));
+    if (a === 'get_profile') return new Response(JSON.stringify({ js: { status: 2, msg: 'MAC not activated' } }));
+    if (a === 'get_all_channels') return new Response('Authorization failed.'); return new Response(JSON.stringify({ js: [] })); };
+  await assert.rejects(createPortalClient(refuse).channels('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', {}), e => /get_all_channels: "Authorization failed\."/.test(e.message) && /account says: MAC not activated/.test(e.message));
+});
