@@ -49,10 +49,10 @@ try{
    await db.doc('apps/cinemabook/users/'+user.uid).get({source:'server'});
    if(turn!==generation)return;
    if(activeUid&&activeUid!==user.uid)clearServerKey();
-   activeUid=user.uid;scopeStorage(user.uid);
+   activeUid=user.uid;window.sidelineDB=db;scopeStorage(user.uid);
    q('#accountStatus').textContent='Signed in as '+(user.email||'your Cinema Book account')+'. Settings are saved on this browser.';
    status('Opening Sideline…');
-   for(const src of ['directory.js','adaptive.js','app.js','providers.js','debridio.js','board.js','live.js','discover.js','bridge.js','navigation.js','diagnostics.js']){await loadScript(src);if(turn!==generation)return}
+   for(const src of ['directory.js','adaptive.js','app.js','providers.js','debridio.js','board.js','lang.js','live.js','discover.js','bridge.js','navigation.js','diagnostics.js']){await loadScript(src);if(turn!==generation)return}
    booted=true;gate.hidden=true;document.body.classList.remove('auth-locked');
   }catch(error){
    if(turn!==generation)return;
