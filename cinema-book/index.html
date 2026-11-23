@@ -282,7 +282,7 @@ h1,h2,h3{letter-spacing:-.02em}
 
 /* Version 32: home language filter */
 .hlang{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px;padding:2px 16px 4px;scrollbar-width:none}.hlang::-webkit-scrollbar{display:none}.hlang .chip{flex:none}
-.seg{display:inline-flex;background:var(--tint-pink);border-radius:999px;padding:3px;gap:2px;flex:none}.seg button{border:0;background:transparent;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--soft)}.seg button.on{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px #0002}
+.seg{display:inline-flex;background:var(--tint-pink);border-radius:999px;padding:3px;gap:2px;flex:none}.seg button{border:0;background:transparent;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--soft)}.havail{margin:0 0 12px}.seg button.on{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px #0002}
 </style>
 </head>
 <body>
@@ -317,7 +317,7 @@ h1,h2,h3{letter-spacing:-.02em}
     <div id="results" class="hidden sec"></div>
     <div id="homeBody">
       <div class="sec"><div class="chips hlang" id="hLang" role="group" aria-label="Language for new and popular titles"></div></div>
-      <div class="sec"><div class="sec-h"><h2><span class="section-kicker">The spotlight</span><span id="hNewT">New releases</span></h2><div class="seg" id="hKind" role="group" aria-label="Movies or series"><button type="button" data-k="movie" class="on">Movies</button><button type="button" data-k="tv">Series</button></div></div><div id="feat"></div></div>
+      <div class="sec"><div class="sec-h"><h2><span class="section-kicker">The spotlight</span><span id="hNewT">New releases</span></h2><div class="seg" id="hKind" role="group" aria-label="Movies or series"><button type="button" data-k="movie" class="on">Movies</button><button type="button" data-k="tv">Series</button></div></div><div class="seg havail" id="hAvail" role="group" aria-label="Which new titles to show"><button type="button" data-a="all" class="on">All new</button><button type="button" data-a="stream">Streaming now</button></div><div id="feat"></div></div>
       <div class="sec"><div class="sec-h"><h2><span class="section-kicker">Your cinema journal</span>Recently watched</h2><button class="link" id="seeAll" type="button">See all</button></div><div id="latest"></div></div>
       <div class="sec hidden" id="progSec"><div class="sec-h"><h2>Series in progress</h2></div><div id="prog"></div></div>
       <div class="sec" id="wlSec"><div class="sec-h"><h2>Want to watch</h2></div><div id="wl"></div></div>
@@ -398,7 +398,7 @@ h1,h2,h3{letter-spacing:-.02em}
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 32</p>
+    <p class="note" style="text-align:center">Version 33</p>
   </section>
 </div>
 
@@ -454,7 +454,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=32;
+const APP_VERSION=33;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -535,23 +535,26 @@ async function details(type,id){
 }
 function tile(d,cls,sub){return `<button class="${cls}" type="button" data-t="${d.type}" data-id="${d.tmdbId}">${banner(d)}<strong class="poster-title">${esc(d.title)}</strong><${cls==='feat'?'div class="who"':'span'}>${esc(sub||[d.year,d.original_language].filter(Boolean).join(', '))}</${cls==='feat'?'div':'span'}></button>`}
 const HLANGS=[['ta','Tamil'],['ml','Malayalam'],['te','Telugu'],['hi','Hindi'],['kn','Kannada'],['en','English'],['ko','Korean'],['all','All languages']];
-let hLang=ls('cb_hlang')||'ta', hKind=ls('cb_hkind')||'movie';
+let hLang=ls('cb_hlang')||'ta', hKind=ls('cb_hkind')||'movie', hAvail=ls('cb_havail')||'all';
 function relSub(d){const r=d.release||'';if(!r)return d.year||'';const dt=new Date(r+'T12:00:00'),txt=dt.toLocaleDateString(undefined,{month:'short',day:'numeric'});return dt>new Date()?'Coming '+txt:txt}
 async function loadHome(){
   if(!TOKEN){$('#feat').innerHTML=$('#trend').innerHTML='<div class="empty">Add the TMDB key in Settings to see films here.</div>';return}
-  const key=TOKEN+hLang+hKind;if(homeLoaded===key)return;homeLoaded=key;
+  const st=hAvail==='stream',key=TOKEN+hLang+hKind+hAvail+(st?region:'');if(homeLoaded===key)return;homeLoaded=key;
+  const rn=region==='IN'?'India':'USA';
   const nm=(HLANGS.find(x=>x[0]===hLang)||[,''])[1], all=hLang==='all', tv=hKind==='tv';
   $('#hLang').innerHTML=HLANGS.map(([k,n])=>`<button class="chip${k===hLang?' on':''}" type="button" data-l="${k}" aria-pressed="${k===hLang}">${n}</button>`).join('');
-  $$('#hKind button').forEach(b=>b.classList.toggle('on',b.dataset.k===hKind));
-  $('#hNewT').textContent=all?(tv?'New series':'New releases'):`New ${nm} ${tv?'series':'releases'}`;
+  $$('#hKind button').forEach(b=>b.classList.toggle('on',b.dataset.k===hKind));$$('#hAvail button').forEach(b=>b.classList.toggle('on',b.dataset.a===hAvail));
+  $('#hNewT').textContent=(all?(tv?'New series':'New releases'):`New ${nm} ${tv?'series':'releases'}`)+(st?' streaming in '+rn:'');
   $('#hPopT').textContent=all?'Popular this week':`Popular in ${nm}`;
   $('#feat').innerHTML=$('#trend').innerHTML='<div class="empty">Loading…</div>';
   const day=864e5,t=Date.now(),iso=x=>new Date(x).toISOString().slice(0,10),lang=all?{}:{with_original_language:hLang};
-  const q=tv?{...lang,sort_by:'popularity.desc','first_air_date.gte':iso(t-180*day),'first_air_date.lte':iso(t+30*day)}
-            :{...lang,sort_by:'popularity.desc','primary_release_date.gte':iso(t-120*day),'primary_release_date.lte':iso(t+30*day),...(all?{'vote_count.gte':5}:{})};
+  const sq=st?{watch_region:region,with_watch_monetization_types:'flatrate|free|ads'}:{};
+  const q=tv?{...lang,...sq,sort_by:'popularity.desc','first_air_date.gte':iso(t-(st?365:180)*day),'first_air_date.lte':iso(t+(st?0:30)*day)}
+            :{...lang,...sq,sort_by:'popularity.desc','primary_release_date.gte':iso(t-(st?365:120)*day),'primary_release_date.lte':iso(t+(st?0:30)*day),...(all?{'vote_count.gte':5}:{})};
   tm(tv?'/discover/tv':'/discover/movie',q).then(r=>{if(homeLoaded!==key)return;
       const l=cards(r.results,hKind).filter(d=>d.poster);
-      $('#feat').innerHTML=l.length?`<div class="reel">${l.map(d=>tile(d,'feat',relSub(d))).join('')}</div>`:`<div class="empty">No new ${all?'':nm+' '}${tv?'series':'films'} found for the last few months.</div>`})
+      $('#feat').innerHTML=l.length?`<div class="reel">${l.map(d=>tile(d,'feat',relSub(d))).join('')}</div>`:`<div class="empty">${st?`No new ${all?'':nm+' '}${tv?'series':'films'} found streaming in ${rn} from the last year. Try All new, or switch USA/India at the top.`:`No new ${all?'':nm+' '}${tv?'series':'films'} found for the last few months.`}</div>`;
+      if(st)l.slice(0,20).forEach(d=>tm(`/${d.type}/${d.tmdbId}/watch/providers`).then(r=>{if(homeLoaded!==key)return;const x=(r.results||{})[region]||{};const n=[...(x.flatrate||[]),...(x.free||[]),...(x.ads||[])].map(p=>p.provider_name).filter((v,i,a)=>a.indexOf(v)===i).slice(0,2);const el=$(`#feat [data-t="${d.type}"][data-id="${d.tmdbId}"] .who`);if(el&&n.length)el.textContent='On '+n.join(', ')}).catch(()=>{}))})
     .catch(e=>{$('#feat').innerHTML=`<div class="empty">${esc(e.message)}</div>`;homeLoaded=''});
   const pop=all?tm('/trending/all/week').then(r=>cards(r.results))
     :Promise.all([tm('/discover/movie',{...lang,sort_by:'popularity.desc','primary_release_date.gte':iso(t-365*day),'primary_release_date.lte':iso(t)}).then(r=>cards(r.results,'movie')).catch(()=>[]),
@@ -561,6 +564,7 @@ async function loadHome(){
   loadSug();
 }
 $('#hLang').onclick=e=>{const b=e.target.closest('[data-l]');if(!b||b.dataset.l===hLang)return;hLang=b.dataset.l;ls('cb_hlang',hLang);loadHome()};
+$('#hAvail').onclick=e=>{const b=e.target.closest('[data-a]');if(!b||b.dataset.a===hAvail)return;hAvail=b.dataset.a;ls('cb_havail',hAvail);loadHome()};
 $('#hKind').onclick=e=>{const b=e.target.closest('[data-k]');if(!b||b.dataset.k===hKind)return;hKind=b.dataset.k;ls('cb_hkind',hKind);loadHome()};
 let sugFor='';
 function loadSug(){
@@ -572,7 +576,7 @@ function loadSug(){
 
 /* ---- region, nav ---- */
 function paintRegion(){$$('#region button').forEach(b=>b.classList.toggle('on',b.dataset.r===region))}
-$$('#region button').forEach(b=>b.onclick=()=>{region=b.dataset.r;ls('cb_region',region);paintRegion();toast('Streaming shown for '+(region==='IN'?'India':'USA'))});
+$$('#region button').forEach(b=>b.onclick=()=>{region=b.dataset.r;ls('cb_region',region);paintRegion();toast('Streaming shown for '+(region==='IN'?'India':'USA'));if(typeof loadHome==='function')loadHome()});
 paintRegion();
 function show(v){$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));['home','book','stats','post','set'].forEach(x=>$('#v-'+x).classList.toggle('hidden',x!==v));$('#app').scrollTo(0,0);if(v==='stats')renderStats();if(v==='post')drawPost()}
 $$('#nav button').forEach(b=>b.onclick=()=>show(b.dataset.v));
