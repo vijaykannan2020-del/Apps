@@ -74,11 +74,12 @@ const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact, edge 
   );
 });
 
-export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+/** The full chat list. In the new look it lives behind "Everything else" (a sheet on phones) and "All chats" on the open Duo. */
+export function ChatList({ tab, onTab, embedded = false, onClose }: { tab: Tab; onTab: (t: Tab) => void; embedded?: boolean; onClose?: () => void }) {
   const v = useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const { width, height: winH } = useWindowDimensions();
   const gut = useStatusGutter();
   const { single: collapsed, current } = useLayout();
-  const topIns = getRootTop() >= 0 ? Math.min(ins.top, getRootTop()) : ins.top;
+  const topIns = onClose ? 14 : embedded ? 0 : getRootTop() >= 0 ? Math.min(ins.top, getRootTop()) : ins.top;
   const selected = collapsed ? null : current;
   const [kind, setKind] = useState<Kind>('all');
   const [q, setQ] = useState(''); const [archived, setArchived] = useState(false);
@@ -115,8 +116,8 @@ export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) 
 
 
   if (!S.token) return null;
-  const open = (id: string) => openChat(id);
-  const title = archived ? 'Archived' : tab === 'all' ? 'Inbox' : NETS[tab].label;
+  const open = (id: string) => { onClose?.(); setTimeout(() => openChat(id), onClose ? 250 : 0); };
+  const title = archived ? 'Archived' : onClose ? 'Everything else' : embedded ? 'All chats' : tab === 'all' ? 'Inbox' : NETS[tab].label;
   const starredView = kind === 'starred' && !archived && !q;
   const compact = false;
 
@@ -126,9 +127,10 @@ export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) 
       <View style={styles.titleRow}>
         {archived && <Pressable onPress={() => setArchived(false)} hitSlop={12}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>}
         <Text style={[styles.title, { color: t.ink }]}>{title}</Text>
-        {!archived && <ConnDots />}
+        {!archived && !embedded && <ConnDots />}
+        {onClose && <Pressable onPress={onClose} hitSlop={10} style={{ marginLeft: 'auto', minHeight: 44, justifyContent: 'center' }}><Text style={{ color: t.accent, fontWeight: '600', fontSize: 16 }}>Close</Text></Pressable>}
       </View>
-      {!archived && <ConnBanner />}
+      {!archived && !embedded && <ConnBanner />}
       <View style={[styles.search, { backgroundColor: t.fill }]}>
         <Ionicons name="search" size={17} color={t.soft} />
         <TextInput value={q} onChangeText={setQ} placeholder="Search chats and messages" placeholderTextColor={t.soft} style={{ flex: 1, color: t.ink, fontSize: 17 }} autoCorrect={false} returnKeyType="search" />
@@ -177,7 +179,7 @@ export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) 
     <View style={{ flex: 1 }}>
       {starredView ? (
         <FlatList data={S.starred} keyExtractor={x => x.event} ListHeaderComponent={header} extraData={v}
-          contentContainerStyle={{ paddingBottom: ins.bottom + 16 + (collapsed ? SWITCHER_SPACE : 0) }}
+          contentContainerStyle={{ paddingBottom: ins.bottom + 16 + (collapsed && !embedded ? SWITCHER_SPACE : 0) }}
           ListEmptyComponent={<Text style={[styles.emptyTxt, { color: t.soft, textAlign: 'center', paddingTop: 40, paddingHorizontal: 30 }]}>No starred messages yet. Long-press a message → Star.</Text>}
           renderItem={({ item: x }) => {
             const r = S.rooms.get(x.room); if (!r) return null;
@@ -202,12 +204,12 @@ export function ChatList({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) 
                 : <Text style={[styles.emptyTxt, { color: t.soft }]}>{kind === 'unread' ? 'All caught up ✓' : 'No chats yet'}</Text>}
             </View>
           )}
-          contentContainerStyle={{ paddingBottom: ins.bottom + 16 + (collapsed ? SWITCHER_SPACE : 0) }}
+          contentContainerStyle={{ paddingBottom: ins.bottom + 16 + (collapsed && !embedded ? SWITCHER_SPACE : 0) }}
           keyboardDismissMode="on-drag" initialNumToRender={14} windowSize={11}
         />
       )}
       {/* Duo open: these live in iOS's native side bar instead (DuoBar). */}
-      {collapsed && <AppSwitcher current={tab} counts={counts} onSelect={k => k === 'accounts' ? openDetail('/accounts') : onTab(k)} />}
+      {collapsed && !embedded && <AppSwitcher current={tab} counts={counts} onSelect={k => k === 'accounts' ? openDetail('/accounts') : onTab(k)} />}
     </View>
   );
 

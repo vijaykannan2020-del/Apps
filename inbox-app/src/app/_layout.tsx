@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useWindowDimensions } from 'react-native';
 import { SplitView } from 'expo-router/unstable-split-view';
+import { useFonts, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -21,6 +22,7 @@ import { setSplitRef, setCollapsed, useLayout, setRootTop, setWideSingle } from 
 
 export default function RootLayout() {
   const t = useTheme(); useStore();
+  useFonts({ SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold }); // titles; system font until loaded
   const [loaded, setLoaded] = useState(false);
   useEffect(() => { restore().finally(() => { setLoaded(true); if (S.token) { startPush(); startCalls(); startConns(); } }); }, []);
   return (

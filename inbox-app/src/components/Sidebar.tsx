@@ -2,10 +2,10 @@
 import { useRef } from 'react';
 import { View, Dimensions } from 'react-native';
 import { setSidebarRight, useLayout, setListTab, setCollapsed } from '@/lib/layout';
-import { ChatList } from '@/components/ChatList';
+import { Deck } from '@/components/Deck';
 
 export function Sidebar({ standalone = false }: { standalone?: boolean }) {
-  const { tab } = useLayout();
+  const { single } = useLayout();
   const ref = useRef<any>(null);
   // Work out one-column vs side by side from the real layout: iOS only reports changes, not the starting state
   // (opening the app already unfolded sent nothing, so it was wrongly treated as folded).
@@ -15,7 +15,7 @@ export function Sidebar({ standalone = false }: { standalone?: boolean }) {
   });
   return (
     <View ref={ref} style={{ flex: 1 }} onLayout={() => { measure(); setTimeout(measure, 300); }}>
-      <ChatList tab={tab} onTab={k => setListTab(k as any)} />
+      <Deck wide={!single} />
     </View>
   );
 }

@@ -3,23 +3,28 @@ import { useSyncExternalStore } from 'react';
 import { subscribe, getVersion, S } from './matrix';
 
 export type Theme = ReturnType<typeof makeTheme>;
+// New look (Nov 2026): dark ink, warm off-white text, one lime accent. Fonts: Space Grotesk (titles) + system.
+export const FONT_TITLE = 'SpaceGrotesk_700Bold';
 function makeTheme(dark: boolean) {
   return {
     dark,
-    bg: dark ? '#000000' : '#FFFFFF',
-    surface: dark ? '#1C1C1E' : '#F2F2F7',
-    fill: dark ? 'rgba(118,118,128,0.24)' : 'rgba(118,118,128,0.12)',
-    ink: dark ? '#FFFFFF' : '#000000',
-    soft: dark ? 'rgba(235,235,245,0.6)' : 'rgba(60,60,67,0.6)',
-    line: dark ? 'rgba(84,84,88,0.6)' : 'rgba(60,60,67,0.18)',
-    primary: dark ? '#FFFFFF' : '#000000',
-    primaryText: dark ? '#000000' : '#FFFFFF',
-    bubbleIn: dark ? '#262629' : '#E9E9EB',
-    bubbleOut: dark ? '#FFFFFF' : '#000000',
-    bubbleOutText: dark ? '#000000' : '#FFFFFF',
-    blue: '#0A84FF',
-    red: '#FF453A',
-    unread: dark ? '#FFFFFF' : '#000000',
+    bg: dark ? '#0D0E11' : '#F7F7F4',
+    surface: dark ? '#17191E' : '#FFFFFF',
+    fill: dark ? '#1F2228' : 'rgba(20,22,26,0.07)',
+    ink: dark ? '#F2F1EC' : '#14161A',
+    soft: dark ? '#9A9CA3' : '#62656C',
+    line: dark ? '#26292F' : 'rgba(20,22,26,0.12)',
+    accent: dark ? '#C8F169' : '#4E7A00',
+    accentInk: dark ? '#0D0E11' : '#FFFFFF',
+    primary: dark ? '#C8F169' : '#14161A',
+    primaryText: dark ? '#0D0E11' : '#FFFFFF',
+    bubbleIn: dark ? '#17191E' : '#FFFFFF',
+    bubbleOut: dark ? 'rgba(200,241,105,0.13)' : '#E4EFCB',
+    bubbleOutBorder: dark ? 'rgba(200,241,105,0.28)' : 'rgba(78,122,0,0.25)',
+    bubbleOutText: dark ? '#F2F1EC' : '#14161A',
+    blue: dark ? '#5AA9FF' : '#0A6CDB',
+    red: dark ? '#FF6B5E' : '#D6342A',
+    unread: dark ? '#C8F169' : '#14161A',
   };
 }
 const LIGHT = makeTheme(false), DARK = makeTheme(true);

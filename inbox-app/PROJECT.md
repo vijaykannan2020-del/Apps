@@ -17,3 +17,4 @@
 - v42: Instagram posts open Instagram messages (instagram://direct-inbox) — bridge thread id is not IG chat id.
 - v43: Instagram cards open the formatted_body href (the exact link Beeper opens); long-press shows the link.
 - v46: Duo open + upright (portrait, width>=500): one column like a normal iPhone — split shows secondaryOnly, the detail index renders the chat list, chats/Accounts push with normal animation, back pops to the list; bottom glass bar instead of the side strip.
+- v47: NEW LOOK stage 1 — Home is the Deck (src/components/Deck.tsx): one waiting person per card, swipe/Done marks read, Later = 1h reminder; Everything else = full ChatList in a sheet; open Duo: Needs you / All chats switch. New palette (theme.ts) + Space Grotesk titles (@expo-google-fonts/space-grotesk). Design: claude/new-look.md in the Inbox App project.
