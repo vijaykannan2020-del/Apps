@@ -3,7 +3,7 @@
 // via the chat reminder). Every other chat is in "Everything else" (the full list with search) or, on the open Duo,
 // the "All chats" side of the switch.
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Animated, PanResponder, Modal, useWindowDimensions } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, Animated, PanResponder, Modal, useWindowDimensions, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
@@ -20,11 +20,16 @@ import { ChatList } from '@/components/ChatList';
 const LATER_MS = 60 * 60 * 1000;
 const SHOWN = new Set(['m.room.message', 'm.sticker', 'm.call.invite']);
 
-/** People waiting on you: unread, not muted, not archived, not put off with Later. Newest first. */
+// A card stays in the Deck until you choose Done or Later — opening the chat (which marks it read) doesn't remove it.
+const kept = new Set<string>();
+export function keepInDeck(id: string) { kept.add(id); }
+function release(id: string) { kept.delete(id); }
+
+/** People waiting on you: unread (or opened from the Deck), not muted, not archived, not put off with Later. Newest first. */
 export function waitingRooms(tab: 'all' | Net) {
   const now = Date.now();
   return visibleRooms()
-    .filter(r => isUnread(r) && !S.muted.has(r.id) && !isArchived(r) && !(S.reminders[r.id] > now))
+    .filter(r => (isUnread(r) || kept.has(r.id)) && !S.muted.has(r.id) && !isArchived(r) && !(S.reminders[r.id] > now))
     .filter(r => tab === 'all' || netOf(r) === tab)
     .sort((a, b) => b.lastTs - a.lastTs);
 }
@@ -58,11 +63,11 @@ function Card({ r, t, fs, onDone, onLater }: { r: Room; t: Theme; fs: number; on
             <Text style={{ color: t.soft, fontSize: 12 }}>{net ? NETS[net].label : 'Private'} · {r.unread ? `${r.unread} new · ` : ''}{fmtTime(r.lastTs)}</Text>
           </View>
         </View>
-        <Pressable onPress={() => openChat(r.id)} accessibilityLabel="Open the full chat" style={[styles.iconBtn, { backgroundColor: t.bg }]}>
+        <Pressable onPress={() => { keepInDeck(r.id); openChat(r.id); }} accessibilityLabel="Open the full chat" style={[styles.iconBtn, { backgroundColor: t.bg }]}>
           <Ionicons name="arrow-up-outline" size={18} color={t.ink} style={{ transform: [{ rotate: '45deg' }] }} />
         </Pressable>
       </View>
-      <Pressable onPress={() => openChat(r.id)} style={{ flex: 1, minHeight: 0, justifyContent: 'flex-end', gap: 8, overflow: 'hidden' }}>
+      <Pressable onPress={() => { keepInDeck(r.id); openChat(r.id); }} style={{ flex: 1, minHeight: 0, justifyContent: 'flex-end', gap: 8, overflow: 'hidden' }}>
         {lines.map(ev => {
           const mine = ev.sender === S.userId;
           return (
@@ -94,6 +99,13 @@ export function Deck({ wide = false }: { wide?: boolean }) {
   const { tab } = useLayout(); const gut = useStatusGutter();
   const [sheet, setSheet] = useState(false);
   const [mode, setMode] = useState<'deck' | 'all'>('deck');
+  const [kb, setKb] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    const a = Keyboard.addListener('keyboardWillShow', () => setKb(true));
+    const b = Keyboard.addListener('keyboardWillHide', () => setKb(false));
+    return () => { a.remove(); b.remove(); };
+  }, []);
   const fs = S.prefs.fontScale;
   const topIns = getRootTop() >= 0 ? Math.min(ins.top, getRootTop()) : ins.top;
   const { list } = useConns();
@@ -118,6 +130,7 @@ export function Deck({ wide = false }: { wide?: boolean }) {
     const r = topRef.current; if (!r) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     Animated.timing(dx, { toValue: dir * (width + 80), duration: 180, useNativeDriver: true }).start(() => {
+      release(r.id);
       if (dir > 0) markRead(r); else setReminder(r, Date.now() + LATER_MS);
       dx.setValue(0);
     });
@@ -142,7 +155,8 @@ export function Deck({ wide = false }: { wide?: boolean }) {
   const left = deck.length;
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: topIns + 10, paddingHorizontal: 18, paddingBottom: Math.max(ins.bottom, 14) }}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: t.bg, paddingTop: topIns + 10, paddingHorizontal: 18, paddingBottom: kb ? 10 : Math.max(ins.bottom, 14) }}>
+      {!kb && <>
       <View style={[styles.head, { paddingRight: gut }]}>
         <View style={{ flex: 1, gap: 4 }}>
           <Text style={[styles.title, { color: t.ink, fontFamily: FONT_TITLE }]}>Inbox</Text>
@@ -155,6 +169,14 @@ export function Deck({ wide = false }: { wide?: boolean }) {
       </View>
 
       <ConnBanner />
+
+      {mode === 'deck' && (
+        <Pressable onPress={() => { setSearchOpen(true); setSheet(true); }} accessibilityLabel="Search all chats and messages" style={[styles.search, { backgroundColor: t.surface }]}>
+          <Ionicons name="search" size={17} color={t.soft} />
+          <Text style={{ color: t.soft, fontSize: 15 }}>Search chats and messages</Text>
+        </Pressable>
+      )}
+      </>}
 
       {wide && (
         <View style={[styles.seg, { backgroundColor: t.surface }]}>
@@ -170,7 +192,7 @@ export function Deck({ wide = false }: { wide?: boolean }) {
         <View style={{ flex: 1, marginHorizontal: -18 }}><ChatList tab={tab} onTab={k => setListTab(k as any)} embedded /></View>
       ) : (
         <>
-          <View style={styles.tabs}>
+          {!kb && <View style={styles.tabs}>
             {tabs.map(([k, label]) => {
               const on = tab === k;
               return (
@@ -180,25 +202,25 @@ export function Deck({ wide = false }: { wide?: boolean }) {
                 </Pressable>
               );
             })}
-          </View>
+          </View>}
 
-          <View style={{ flex: 1, marginTop: 6 }}>
+          <View style={{ flex: 1, marginTop: kb ? 0 : 6 }}>
             {top ? (
               <>
-                {next && <View style={[styles.peek, { backgroundColor: t.dark ? '#15171B' : '#E9E9E4' }]}><Text style={{ color: t.soft, fontSize: 13 }}>Next: {roomName(next)}</Text></View>}
-                <Animated.View key={top.id} {...pan.panHandlers} style={[StyleSheet.absoluteFill, { top: 14, bottom: 66, transform: [{ translateX: dx }, { rotate }] }]}>
-                  <Card r={top} t={t} fs={fs} onDone={() => markRead(top)} onLater={() => setReminder(top, Date.now() + LATER_MS)} />
+                {next && !kb && <View style={[styles.peek, { backgroundColor: t.dark ? '#15171B' : '#E9E9E4' }]}><Text style={{ color: t.soft, fontSize: 13 }}>Next: {roomName(next)}</Text></View>}
+                <Animated.View key={top.id} {...pan.panHandlers} style={[StyleSheet.absoluteFill, { top: kb ? 0 : 14, bottom: kb ? 0 : 66, transform: [{ translateX: dx }, { rotate }] }]}>
+                  <Card r={top} t={t} fs={fs} onDone={() => { release(top.id); markRead(top); }} onLater={() => { release(top.id); setReminder(top, Date.now() + LATER_MS); }} />
                   <Animated.View pointerEvents="none" style={[styles.stamp, { left: 18, borderColor: t.accent, opacity: doneOp }]}><Text style={[styles.stampTxt, { color: t.accent }]}>DONE</Text></Animated.View>
                   <Animated.View pointerEvents="none" style={[styles.stamp, { right: 18, borderColor: t.ink, opacity: laterOp }]}><Text style={[styles.stampTxt, { color: t.ink }]}>LATER</Text></Animated.View>
                 </Animated.View>
-                <View style={styles.actions}>
+                {!kb && <View style={styles.actions}>
                   <Pressable onPress={() => finish(-1)} style={[styles.bigBtn, { backgroundColor: t.surface }]}>
                     <Ionicons name="time-outline" size={18} color={t.ink} /><Text style={{ color: t.ink, fontWeight: '600', fontSize: 15 }}>Later</Text>
                   </Pressable>
                   <Pressable onPress={() => finish(1)} style={[styles.bigBtn, { backgroundColor: t.accent }]}>
                     <Ionicons name="checkmark" size={20} color={t.accentInk} /><Text style={{ color: t.accentInk, fontWeight: '700', fontSize: 15 }}>Done</Text>
                   </Pressable>
-                </View>
+                </View>}
               </>
             ) : (
               <View style={styles.empty}>
@@ -209,10 +231,10 @@ export function Deck({ wide = false }: { wide?: boolean }) {
             )}
           </View>
 
-          {!wide && (
-            <Pressable onPress={() => setSheet(true)} style={[styles.everything, { borderColor: t.line }]}>
+          {!wide && !kb && (
+            <Pressable onPress={() => { setSearchOpen(false); setSheet(true); }} style={[styles.everything, { borderColor: t.line }]}>
               <Ionicons name="chevron-up" size={16} color={t.soft} />
-              <Text style={{ color: t.soft, fontSize: 14 }}>Everything else · search all chats</Text>
+              <Text style={{ color: t.soft, fontSize: 14 }}>Everything else · all other chats</Text>
             </Pressable>
           )}
         </>
@@ -220,10 +242,10 @@ export function Deck({ wide = false }: { wide?: boolean }) {
 
       <Modal visible={sheet} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSheet(false)}>
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.bg }}>
-          <ChatList tab={tab} onTab={k => setListTab(k as any)} embedded onClose={() => setSheet(false)} />
+          <ChatList tab={tab} onTab={k => setListTab(k as any)} embedded onClose={() => setSheet(false)} focusSearch={searchOpen} />
         </GestureHandlerRootView>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -235,6 +257,7 @@ const styles = StyleSheet.create({
   seg: { flexDirection: 'row', borderRadius: 16, padding: 4, gap: 4, marginTop: 4 },
   segBtn: { flex: 1, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   tabs: { flexDirection: 'row', gap: 18, marginTop: 4 },
+  search: { height: 46, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, marginTop: 6 },
   tab: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
   count: { minWidth: 20, height: 20, borderRadius: 7, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
   peek: { position: 'absolute', left: 11, right: 11, top: 0, bottom: 80, borderRadius: 30, paddingHorizontal: 20, paddingTop: 14 },

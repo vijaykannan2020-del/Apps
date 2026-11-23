@@ -75,7 +75,7 @@ const Row = memo(function Row({ r, t, open, onMore, selected, fs, compact, edge 
 });
 
 /** The full chat list. In the new look it lives behind "Everything else" (a sheet on phones) and "All chats" on the open Duo. */
-export function ChatList({ tab, onTab, embedded = false, onClose }: { tab: Tab; onTab: (t: Tab) => void; embedded?: boolean; onClose?: () => void }) {
+export function ChatList({ tab, onTab, embedded = false, onClose, focusSearch = false }: { tab: Tab; onTab: (t: Tab) => void; embedded?: boolean; onClose?: () => void; focusSearch?: boolean }) {
   const v = useStore(); const t = useTheme(); const ins = useSafeAreaInsets(); const { width, height: winH } = useWindowDimensions();
   const gut = useStatusGutter();
   const { single: collapsed, current } = useLayout();
@@ -133,7 +133,7 @@ export function ChatList({ tab, onTab, embedded = false, onClose }: { tab: Tab; 
       {!archived && !embedded && <ConnBanner />}
       <View style={[styles.search, { backgroundColor: t.fill }]}>
         <Ionicons name="search" size={17} color={t.soft} />
-        <TextInput value={q} onChangeText={setQ} placeholder="Search chats and messages" placeholderTextColor={t.soft} style={{ flex: 1, color: t.ink, fontSize: 17 }} autoCorrect={false} returnKeyType="search" />
+        <TextInput autoFocus={focusSearch} value={q} onChangeText={setQ} placeholder="Search chats and messages" placeholderTextColor={t.soft} style={{ flex: 1, color: t.ink, fontSize: 17 }} autoCorrect={false} returnKeyType="search" />
         {!!q && <Pressable onPress={() => setQ('')} hitSlop={10}><Ionicons name="close-circle" size={18} color={t.soft} /></Pressable>}
       </View>
       {!archived && !q && (
