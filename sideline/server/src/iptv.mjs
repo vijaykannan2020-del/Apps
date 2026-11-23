@@ -49,6 +49,16 @@ export function isBlockedHost(target) {
   return false;
 }
 
+// Full portal URL as typed (origin + path), validated. The path tells us where the login lives.
+export function normalizeEntry(input) {
+  let u = String(input || '').trim();
+  if (!u) throw new Error('Enter your IPTV portal URL.');
+  if (!/^https?:\/\//i.test(u)) u = 'http://' + u;
+  const url = new URL(u);
+  if (isBlockedHost(url.origin)) throw new Error('This portal address is not allowed.');
+  return url.origin + url.pathname;
+}
+
 export function normalizePortal(input) {
   let u = String(input || '').trim();
   if (!u) throw new Error('Enter your IPTV portal URL.');
@@ -66,35 +76,68 @@ function portalHeaders(origin, mac, token, agent) {
     'X-User-Agent': `Model: ${a.model}; Link: WiFi`,
     'X-User-MAC': mac,
     Cookie: `mac=${mac}; stb_lang=en; timezone=America/Chicago`,
-    Referer: origin + '/c/',
+    Referer: new URL(origin).origin + '/c/',
   };
   if (token) h.Authorization = 'Bearer ' + token;
   return h;
 }
+
+// Candidate login (API) URLs for a portal URL, the way STB players derive them.
+function deriveEndpoints(u) {
+  const out = [], path = u.pathname, i = path.toLowerCase().lastIndexOf('/c/');
+  if (i >= 0) { const pre = path.slice(0, i + 1); out.push(u.origin + pre + 'server/load.php', u.origin + pre + 'portal.php'); }
+  const dir = path.replace(/[^/]*$/, '');
+  if (dir && dir !== '/' && i < 0) out.push(u.origin + dir + 'server/load.php', u.origin + dir + 'portal.php');
+  for (const p of ['/portal.php', '/stalker_portal/server/load.php', '/server/load.php', '/c/portal.php', '/stalker_portal/portal.php'])
+    out.push(u.origin + p);
+  return out;
+}
+const shortURL = x => { try { const u = new URL(x); return u.host + u.pathname; } catch { return String(x); } };
 
 export function createPortalClient(fetchImpl = fetch) {
   async function get(ep, params, origin, mac, token, agent) {
     const url = new URL(ep);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     url.searchParams.set('JsHttpRequest', '1-xml');
-    const res = await fetchImpl(url, { headers: portalHeaders(origin, mac, token, agent), redirect: 'follow', signal: AbortSignal.timeout(20000) });
+    const res = await fetchImpl(url, { headers: portalHeaders(ep, mac, token, agent), redirect: 'follow', signal: AbortSignal.timeout(15000) });
     if (!res.ok) throw new Error('Portal returned HTTP ' + res.status);
     const text = await res.text();
     try { return JSON.parse(text); } catch { throw new Error('Portal did not answer like a MAG portal.'); }
   }
-  async function login(origin, mac, agent) {
-    let last;
-    for (const p of ['/portal.php', '/stalker_portal/server/load.php', '/server/load.php', '/c/portal.php']) {
-      const ep = origin + p;
+  const found = new Map(); // portal URL -> working login endpoint
+  async function discover(entry, mac, agent, tried) {
+    const urls = new Set(deriveEndpoints(new URL(entry)));
+    const origin = new URL(entry).origin;
+    for (const probe of [...new Set([entry, origin + '/c/', origin + '/'])]) {
       try {
-        const r = await get(ep, { type: 'stb', action: 'handshake' }, origin, mac, null, agent);
-        const token = r?.js?.token;
-        if (!token) continue;
-        try { await get(ep, { type: 'stb', action: 'get_profile' }, origin, mac, token, agent); } catch {}
-        return { ep, token };
-      } catch (e) { last = e; }
+        const r = await fetchImpl(probe, { headers: portalHeaders(probe, mac, null, agent), redirect: 'follow', signal: AbortSignal.timeout(10000) });
+        const moved = r.url && r.url !== probe ? ' → ' + shortURL(r.url) : '';
+        tried.push('page ' + shortURL(probe) + ': ' + r.status + moved);
+        if (moved) { const fu = new URL(r.url); if (!isBlockedHost(fu.origin)) deriveEndpoints(fu).forEach(x => urls.add(x)); }
+        const text = (await r.text()).slice(0, 300000);
+        for (const m of text.matchAll(/((?:https?:)?\/\/[^"'()\s<>]+\/|\/[^"'()\s<>]*?)(server\/load\.php|portal\.php)/g)) {
+          try { const x = new URL(m[1] + m[2], r.url || probe); if (!isBlockedHost(x.origin)) urls.add(x.toString()); } catch {}
+        }
+      } catch (e) { tried.push('page ' + shortURL(probe) + ': ' + (e.name === 'TimeoutError' ? 'no answer' : 'unreachable')); }
     }
-    throw new Error('Could not log in to the portal. Check the portal URL, MAC address and STB model.' + (last ? ' (' + last.message + ')' : ''));
+    return [...urls].filter(x => !isBlockedHost(x)).slice(0, 20);
+  }
+  async function login(entry, mac, agent) {
+    const tried = [];
+    const cached = found.get(entry);
+    const list = cached ? [cached] : await discover(entry, mac, agent, tried);
+    for (const ep of list) {
+      try {
+        const r = await get(ep, { type: 'stb', action: 'handshake' }, entry, mac, null, agent);
+        const token = r?.js?.token;
+        if (!token) { tried.push(shortURL(ep) + ': no token'); continue; }
+        try { await get(ep, { type: 'stb', action: 'get_profile' }, entry, mac, token, agent); } catch {}
+        found.set(entry, ep);
+        return { ep, token };
+      } catch (e) { tried.push(shortURL(ep) + ': ' + String(e.message).replace('Portal returned ', '').replace('Portal did not answer like a MAG portal.', 'not a portal')); }
+    }
+    if (cached) { found.delete(entry); return login(entry, mac, agent); }
+    throw new Error('Could not log in to the portal. Check the portal URL, MAC address and STB model. Tried: ' + tried.slice(0, 10).join('; '));
   }
   async function channels(origin, mac, agent) {
     const { ep, token } = await login(origin, mac, agent);
@@ -127,7 +170,7 @@ export function createPortalClient(fetchImpl = fetch) {
 // ffmpeg reads the channel with MAG headers and writes a rolling live HLS playlist.
 export function ffmpegArgs({ target, mac, origin, dir, convert, agent }) {
   const a = agentOf(agent);
-  const hdr = `X-User-MAC: ${mac}\r\nX-User-Agent: Model: ${a.model}; Link: WiFi\r\nCookie: mac=${mac}; stb_lang=en\r\nReferer: ${origin}/c/\r\n`;
+  const hdr = `X-User-MAC: ${mac}\r\nX-User-Agent: Model: ${a.model}; Link: WiFi\r\nCookie: mac=${mac}; stb_lang=en\r\nReferer: ${new URL(origin).origin}/c/\r\n`;
   const video = convert
     ? ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-vf', 'scale=w=min(1280\\,iw):h=-2', '-g', '50']
     : ['-c:v', 'copy'];
@@ -206,7 +249,7 @@ export function createIptv({ config, signature, equal, json, body, portal = crea
     if (pathname === '/api/iptv/channels' && req.method === 'POST') {
       try {
         const d = await body(req);
-        json(res, 200, await portal.channels(normalizePortal(d.portal), normalizeMac(d.mac), { ua: d.ua, model: d.model }));
+        json(res, 200, await portal.channels(normalizeEntry(d.portal), normalizeMac(d.mac), { ua: d.ua, model: d.model }));
       } catch (e) { json(res, 502, { error: e.message }); }
       return true;
     }
@@ -214,7 +257,7 @@ export function createIptv({ config, signature, equal, json, body, portal = crea
       try {
         const d = await body(req);
         if (typeof d.cmd !== 'string' || !d.cmd || d.cmd.length > 2000) throw new Error('Choose a channel.');
-        json(res, 200, await start({ origin: normalizePortal(d.portal), mac: normalizeMac(d.mac), cmd: d.cmd, name: String(d.name || '').slice(0, 200), convert: d.convert === true, agent: { ua: d.ua, model: d.model } }));
+        json(res, 200, await start({ origin: normalizeEntry(d.portal), mac: normalizeMac(d.mac), cmd: d.cmd, name: String(d.name || '').slice(0, 200), convert: d.convert === true, agent: { ua: d.ua, model: d.model } }));
       } catch (e) { json(res, 502, { error: e.message }); }
       return true;
     }

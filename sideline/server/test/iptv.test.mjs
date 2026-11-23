@@ -29,7 +29,7 @@ test('portal login carries the chosen box user-agent + MAC', async () => {
     return new Response(JSON.stringify({ js }), { status: 200 });
   };
   const p = createPortalClient(fake);
-  const r = await p.channels('http://desi4k.cc', '1A:17:E3:AB:7B:DF', { ua: 'AURA-UA test string', model: 'AuraHD9' });
+  const r = await p.channels('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', { ua: 'AURA-UA test string', model: 'AuraHD9' });
   assert.equal(r.channels[0].name, 'Willow');
   assert.equal(seen['User-Agent'], 'AURA-UA test string');
   assert.equal(seen['X-User-MAC'], '1A:17:E3:AB:7B:DF');
@@ -83,4 +83,28 @@ test('end to end: MAC-checked stream → iPhone HLS (AAC), signed + expiring', {
     await iptv.close(); await new Promise(r => srv.close(r)); await new Promise(r => media.close(r)); media.closeAllConnections?.();
     await fs.rm(dataDir, { recursive: true, force: true }); await fs.rm(tsFile, { force: true });
   }
+});
+
+test('discovers a non-standard login path via redirect + portal page, and reports what it tried', async () => {
+  const { createPortalClient } = await import('../src/iptv.mjs');
+  // desi4k.cc/c/ redirects to the real portal page, whose script points at /mag/api/server/load.php
+  const fake = async (url, opts) => {
+    const u = new URL(url);
+    if (u.host === 'desi4k.cc' && (u.pathname === '/c/' || u.pathname === '/'))
+      { const r = new Response('<html>redirected</html>', { status: 200 }); Object.defineProperty(r, 'url', { value: 'http://line.real-tv.net:8080/mag/c/index.html' }); return r; }
+    if (u.host === 'line.real-tv.net:8080' && u.pathname === '/mag/c/index.html')
+      return new Response('<script>var loader="/mag/server/load.php";</script>', { status: 200 });
+    if (u.host === 'line.real-tv.net:8080' && u.pathname === '/mag/server/load.php') {
+      const a = u.searchParams.get('action');
+      const js = { handshake: { token: 'TT' }, get_profile: {}, get_genres: [], get_all_channels: { data: [{ id: 1, name: 'Sun TV', cmd: 'ffmpeg http://localhost/ch/1' }] } }[a];
+      return new Response(JSON.stringify({ js }), { status: 200 });
+    }
+    return new Response('not found', { status: 404 });
+  };
+  const p = createPortalClient(fake);
+  const r = await p.channels('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', { model: 'AuraHD9' });
+  assert.equal(r.channels[0].name, 'Sun TV');
+  // and a portal with nothing at all gives a readable diagnostic
+  const dead = createPortalClient(async () => new Response('nope', { status: 404 }));
+  await assert.rejects(dead.channels('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', {}), e => /Tried: page desi4k\.cc\/: 404/.test(e.message) && /portal\.php: HTTP 404/.test(e.message));
 });
