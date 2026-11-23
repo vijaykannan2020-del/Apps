@@ -127,5 +127,5 @@ test('sends a full device profile so strict portals authorize the session; shows
     if (a === 'handshake') return new Response(JSON.stringify({ js: { token: 'T' } }));
     if (a === 'get_profile') return new Response(JSON.stringify({ js: { status: 2, msg: 'MAC not activated' } }));
     if (a === 'get_all_channels') return new Response('Authorization failed.'); return new Response(JSON.stringify({ js: [] })); };
-  await assert.rejects(createPortalClient(refuse).channels('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', {}), e => /get_all_channels: "Authorization failed\."/.test(e.message) && /account says: MAC not activated/.test(e.message));
+  await assert.rejects(createPortalClient(refuse).channels('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', {}), e => /get_all_channels: "Authorization failed\."/.test(e.message) && /login said: MAC not activated/.test(e.message));
 });

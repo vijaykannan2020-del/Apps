@@ -147,7 +147,8 @@ export function createPortalClient(fetchImpl = fetch) {
         const token = r?.js?.token;
         if (!token) { tried.push(shortURL(ep) + ': no token'); continue; }
         let profile = null;
-        try { profile = (await get(ep, { type: 'stb', action: 'get_profile', ...deviceProfile(mac, agent) }, entry, mac, token, agent))?.js || null; } catch {}
+        try { profile = (await get(ep, { type: 'stb', action: 'get_profile', ...deviceProfile(mac, agent) }, entry, mac, token, agent))?.js || null; }
+        catch (e) { profile = { _error: String(e.message).replace(/^Portal did not answer like a MAG portal /, '') }; }
         found.set(entry, ep);
         return { ep, token, profile };
       } catch (e) { tried.push(shortURL(ep) + ': ' + String(e.message).replace('Portal returned ', '').replace('Portal did not answer like a MAG portal.', 'not a portal')); }
@@ -165,8 +166,10 @@ export function createPortalClient(fetchImpl = fetch) {
     let r;
     try { r = await get(ep, { type: 'itv', action: 'get_all_channels' }, origin, mac, token, agent); }
     catch (e) {
-      const st = profile && (profile.msg || profile.block_msg || (profile.status != null && Number(profile.status) !== 0 ? 'status ' + profile.status : ''));
-      throw new Error(e.message + (st ? ' — account says: ' + String(st).slice(0, 120) : ''));
+      const p = profile || {};
+      const st = p._error ? 'profile step failed ' + p._error
+        : [p.msg || p.block_msg, p.status != null ? 'status ' + p.status : '', 'id' in p ? (p.id ? 'account found' : 'account not found') : '', p.stb_type ? 'portal sees ' + p.stb_type : ''].filter(Boolean).join(', ');
+      throw new Error(e.message + (st ? ' — login said: ' + String(st).slice(0, 160) : ' — login said nothing'));
     }
     const list = (Array.isArray(r?.js?.data) ? r.js.data : []).slice(0, 20000).map(c => ({
       id: String(c.id), name: String(c.name || 'Channel'), number: c.number ?? null,
