@@ -124,12 +124,12 @@ export function ChatList({ tab, onTab, embedded = false, onClose, focusSearch = 
   const header = (
     <View style={{ paddingTop: topIns + 6 }}>
       <View style={{ paddingRight: gut }}>
-      <View style={styles.titleRow}>
+      {(!embedded || onClose || archived) && <View style={styles.titleRow}>
         {archived && <Pressable onPress={() => setArchived(false)} hitSlop={12}><Ionicons name="chevron-back" size={30} color={t.ink} /></Pressable>}
         <Text style={[styles.title, { color: t.ink }]}>{title}</Text>
         {!archived && !embedded && <ConnDots />}
         {onClose && <Pressable onPress={onClose} hitSlop={10} style={{ marginLeft: 'auto', minHeight: 44, justifyContent: 'center' }}><Text style={{ color: t.accent, fontWeight: '600', fontSize: 16 }}>Close</Text></Pressable>}
-      </View>
+      </View>}
       {!archived && !embedded && <ConnBanner />}
       <View style={[styles.search, { backgroundColor: t.fill }]}>
         <Ionicons name="search" size={17} color={t.soft} />

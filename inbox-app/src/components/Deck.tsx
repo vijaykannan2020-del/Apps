@@ -189,7 +189,7 @@ export function Deck({ wide = false }: { wide?: boolean }) {
       )}
 
       {mode === 'all' ? (
-        <View style={{ flex: 1, marginHorizontal: -18 }}><ChatList tab={tab} onTab={k => setListTab(k as any)} embedded /></View>
+        <View style={{ flex: 1, marginHorizontal: -18, marginTop: 6, overflow: 'hidden' }}><ChatList tab={tab} onTab={k => setListTab(k as any)} embedded /></View>
       ) : (
         <>
           {!kb && <View style={styles.tabs}>

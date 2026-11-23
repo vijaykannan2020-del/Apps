@@ -10,7 +10,7 @@ function makeTheme(dark: boolean) {
     dark,
     bg: dark ? '#0D0E11' : '#F7F7F4',
     surface: dark ? '#17191E' : '#FFFFFF',
-    fill: dark ? '#1F2228' : 'rgba(20,22,26,0.07)',
+    fill: dark ? '#1F2228' : '#ECECE7', // solid: rows sit on top of their swipe actions
     ink: dark ? '#F2F1EC' : '#14161A',
     soft: dark ? '#9A9CA3' : '#62656C',
     line: dark ? '#26292F' : 'rgba(20,22,26,0.12)',
