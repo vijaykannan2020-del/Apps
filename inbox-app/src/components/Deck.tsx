@@ -3,13 +3,13 @@
 // via the chat reminder). Every other chat is in "Everything else" (the full list with search) or, on the open Duo,
 // the "All chats" side of the switch.
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Animated, PanResponder, Modal, useWindowDimensions, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, Animated, PanResponder, Modal, useWindowDimensions, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { S, Room, MEvent, NETS, Net, visibleRooms, roomName, isUnread, isArchived, netOf, isGroup, memberName, bodyPreview,
-  markRead, sendText, setReminder, fmtTime } from '@/lib/matrix';
+  markRead, sendText, setReminder, fmtTime, reelLink, igOpenUrl } from '@/lib/matrix';
 import { useTheme, useStore, Theme, FONT_TITLE } from '@/lib/theme';
 import { openChat, openDetail, useLayout, setListTab, getRootTop, useStatusGutter } from '@/lib/layout';
 import { Avatar } from '@/components/Avatar';
@@ -34,7 +34,9 @@ export function waitingRooms(tab: 'all' | Net) {
     .sort((a, b) => b.lastTs - a.lastTs);
 }
 
-function lastLines(r: Room, n = 4): MEvent[] {
+/** Every new message (at least the last 4, at most 40), oldest first. The card scrolls to show them all. */
+function lastLines(r: Room): MEvent[] {
+  const n = Math.min(Math.max(r.unread || 0, 4), 40);
   const out: MEvent[] = [];
   for (let i = r.events.length - 1; i >= 0 && out.length < n; i--) {
     const ev = r.events[i]; if (ev.redacted || !SHOWN.has(ev.type)) continue; out.unshift(ev);
@@ -42,11 +44,38 @@ function lastLines(r: Room, n = 4): MEvent[] {
   return out;
 }
 
+const URL_RE = /(https?:\/\/[^\s<>()\]]+)/g;
+const IG_RE = /https?:\/\/(?:www\.)?instagram\.com\/[^\s<>()\]]+/;
+/** One message on the card: links are tappable; Instagram posts/reels get an "Open in Instagram" button. */
+function Line({ ev, t, fs, onOpen }: { ev: MEvent; t: Theme; fs: number; onOpen: () => void }) {
+  const c = ev.content || {};
+  const text = bodyPreview(ev);
+  const ig = reelLink(c) || (IG_RE.exec(c.body || '') || [])[0] || null;
+  const parts = text.split(URL_RE);
+  return (
+    <Pressable onPress={onOpen}>
+      <Text style={{ color: t.ink, fontSize: 15 * fs, lineHeight: 21 * fs }}>
+        {parts.map((p, i) => /^https?:\/\//.test(p)
+          ? <Text key={i} style={{ color: t.blue, textDecorationLine: 'underline' }}
+              onPress={() => Linking.openURL(IG_RE.test(p) ? igOpenUrl(c, p) : p.replace(/[.,;:!?'")]+$/, ''))}>{p}</Text>
+          : <Text key={i}>{p}</Text>)}
+      </Text>
+      {ig && <Pressable onPress={() => Linking.openURL(igOpenUrl(c, ig))} accessibilityLabel="Open in Instagram"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14, backgroundColor: t.fill }}>
+        <Ionicons name={/\/(reel|reels)\//.test(ig) ? 'film-outline' : 'logo-instagram'} size={15} color={t.ink} />
+        <Text style={{ color: t.ink, fontWeight: '600', fontSize: 14 }}>Open in Instagram</Text>
+      </Pressable>}
+    </Pressable>
+  );
+}
+
 function Card({ r, t, fs, onDone, onLater }: { r: Room; t: Theme; fs: number; onDone: () => void; onLater: () => void }) {
   const [text, setText] = useState('');
   const net = netOf(r);
   const lines = lastLines(r);
   const group = isGroup(r);
+  const scroller = useRef<any>(null);
+  const openFull = () => { keepInDeck(r.id); openChat(r.id); };
   const send = (msg: string) => {
     const m = msg.trim(); if (!m) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -67,7 +96,9 @@ function Card({ r, t, fs, onDone, onLater }: { r: Room; t: Theme; fs: number; on
           <Ionicons name="arrow-up-outline" size={18} color={t.ink} style={{ transform: [{ rotate: '45deg' }] }} />
         </Pressable>
       </View>
-      <Pressable onPress={() => { keepInDeck(r.id); openChat(r.id); }} style={{ flex: 1, minHeight: 0, justifyContent: 'flex-end', gap: 8, overflow: 'hidden' }}>
+      <ScrollView ref={scroller} style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end', gap: 8 }}
+        showsVerticalScrollIndicator={false} onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: false })}>
+        {lines.length > 4 && <Text style={{ color: t.soft, fontSize: 12, textAlign: 'center' }}>{lines.length} new messages · scroll up for all</Text>}
         {lines.map(ev => {
           const mine = ev.sender === S.userId;
           return (
@@ -75,11 +106,11 @@ function Card({ r, t, fs, onDone, onLater }: { r: Room; t: Theme; fs: number; on
               ? { alignSelf: 'flex-end', backgroundColor: t.bubbleOut, borderColor: t.bubbleOutBorder, borderWidth: StyleSheet.hairlineWidth, borderTopRightRadius: 4 }
               : { alignSelf: 'flex-start', backgroundColor: t.surface, borderTopLeftRadius: 4 }]}>
               {group && !mine && <Text style={{ color: t.accent, fontSize: 12, fontWeight: '600', marginBottom: 2 }}>{memberName(r, ev.sender).split(' ')[0]}</Text>}
-              <Text numberOfLines={4} style={{ color: t.ink, fontSize: 15 * fs, lineHeight: 21 * fs }}>{bodyPreview(ev)}</Text>
+              <Line ev={ev} t={t} fs={fs} onOpen={openFull} />
             </View>
           );
         })}
-      </Pressable>
+      </ScrollView>
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         {['👍', 'On it', 'Call you soon'].map(q => (
           <Pressable key={q} onPress={() => send(q)} style={[styles.quick, { backgroundColor: t.bg }]}><Text style={{ color: t.ink, fontSize: 14 }}>{q}</Text></Pressable>

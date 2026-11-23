@@ -21,3 +21,4 @@
 - v48: NEW LOOK stages 2-4 — chat: big day numbers, ticks as words (Sending/Sent/Delivered/Read/Not delivered), lime own messages with border, flat header with title font, card-style composer, lime mic; info/accounts/media/call/login/list titles in Space Grotesk, lime accents, rounded-square avatars, rounder cards/sheets.
 - v49: Deck — typing gives the card the whole screen (header/tabs/buttons hide, keyboard-avoiding); search bar on Home (opens Everything else with search focused); a card opened into its chat stays until Done/Later.
 - v50: Duo All chats fix — solid rows (swipe buttons no longer show through), list clipped below switch, no duplicate title
+- v51: Home card scrolls through all new messages; links and Instagram posts tappable on the card
