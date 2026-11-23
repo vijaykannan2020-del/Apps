@@ -279,6 +279,10 @@ h1,h2,h3{letter-spacing:-.02em}
 
 /* Version 23: rewatch history */
 .hist{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--tint-pink);font-size:14px}.hrow b{margin-left:6px}.hrow .link{font-size:12px;color:var(--soft);flex:none}.hrow{align-items:flex-start}.hgrid{flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}.hgrid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--soft);min-width:0}.hgrid .inp{padding:8px 10px;font-size:15px;background:var(--paper);width:100%;min-width:0}
+
+/* Version 32: home language filter */
+.hlang{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px;padding:2px 16px 4px;scrollbar-width:none}.hlang::-webkit-scrollbar{display:none}.hlang .chip{flex:none}
+.seg{display:inline-flex;background:var(--tint-pink);border-radius:999px;padding:3px;gap:2px;flex:none}.seg button{border:0;background:transparent;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--soft)}.seg button.on{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px #0002}
 </style>
 </head>
 <body>
@@ -312,13 +316,14 @@ h1,h2,h3{letter-spacing:-.02em}
     </form>
     <div id="results" class="hidden sec"></div>
     <div id="homeBody">
-      <div class="sec"><div class="sec-h"><h2><span class="section-kicker">The spotlight</span>New Tamil releases</h2></div><div id="feat"></div></div>
+      <div class="sec"><div class="chips hlang" id="hLang" role="group" aria-label="Language for new and popular titles"></div></div>
+      <div class="sec"><div class="sec-h"><h2><span class="section-kicker">The spotlight</span><span id="hNewT">New releases</span></h2><div class="seg" id="hKind" role="group" aria-label="Movies or series"><button type="button" data-k="movie" class="on">Movies</button><button type="button" data-k="tv">Series</button></div></div><div id="feat"></div></div>
       <div class="sec"><div class="sec-h"><h2><span class="section-kicker">Your cinema journal</span>Recently watched</h2><button class="link" id="seeAll" type="button">See all</button></div><div id="latest"></div></div>
       <div class="sec hidden" id="progSec"><div class="sec-h"><h2>Series in progress</h2></div><div id="prog"></div></div>
       <div class="sec" id="wlSec"><div class="sec-h"><h2>Want to watch</h2></div><div id="wl"></div></div>
       <div class="sec hidden" id="famSec"><div class="sec-h"><h2>Family watched</h2></div><div id="fam"></div></div>
       <div class="sec hidden" id="sugSec"><div class="sec-h"><h2 id="sugT"></h2></div><div id="sug"></div></div>
-      <div class="sec"><div class="sec-h"><h2>Popular this week</h2></div><div id="trend"></div></div>
+      <div class="sec"><div class="sec-h"><h2 id="hPopT">Popular this week</h2></div><div id="trend"></div></div>
       <p class="note" style="margin-top:28px">Film data and images come from TMDB, with extra titles from Wikidata. Streaming data comes from JustWatch. This app is not endorsed or certified by TMDB.</p>
     </div>
   </section>
@@ -393,7 +398,7 @@ h1,h2,h3{letter-spacing:-.02em}
       <p class="note" id="aiState"></p></div>
     <div class="panel"><h3>Family</h3><div id="members"></div></div>
     <button class="btn danger" id="signOut" type="button" style="margin-top:14px;width:100%">Sign out</button>
-    <p class="note" style="text-align:center">Version 31</p>
+    <p class="note" style="text-align:center">Version 32</p>
   </section>
 </div>
 
@@ -449,7 +454,7 @@ const entries=()=>Object.values(book);
 const fmtR=r=>r?(r%1?r.toFixed(1):String(r)):'';
 
 /* ---- self-update: the Home Screen app keeps an old copy, so look for a newer one ---- */
-const APP_VERSION=31;
+const APP_VERSION=32;
 async function checkUpdate(){
   try{const r=await fetch('./index.html?ts='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=(await r.text()).match(/const APP_VERSION=(\d+)/);
@@ -515,7 +520,7 @@ async function tm(path,params){
   return cache[ck]=await r.json();
 }
 function card(r,t){const type=t||r.media_type;if(type!=='movie'&&type!=='tv')return null;const dt=r.release_date||r.first_air_date||'';
-  return {tmdbId:r.id,type,key:type+'-'+r.id,title:r.title||r.name||'Untitled',year:dt.slice(0,4),kind:type==='tv'?'Web Series':'Movie',poster:r.poster_path||'',original_language:lang(r.original_language),overview:r.overview||''}}
+  return {tmdbId:r.id,type,key:type+'-'+r.id,title:r.title||r.name||'Untitled',year:dt.slice(0,4),release:dt,kind:type==='tv'?'Web Series':'Movie',poster:r.poster_path||'',original_language:lang(r.original_language),overview:r.overview||''}}
 const cards=(a,t)=>(a||[]).map(r=>card(r,t)).filter(Boolean);
 async function details(type,id){
   const r=await tm('/'+type+'/'+id,{append_to_response:type==='tv'?'aggregate_credits,watch/providers,videos':'credits,watch/providers,videos'});
@@ -529,16 +534,34 @@ async function details(type,id){
     trailer:((vids.find(v=>v.type==='Trailer')||vids[0]||{}).key)||'',full:true};
 }
 function tile(d,cls,sub){return `<button class="${cls}" type="button" data-t="${d.type}" data-id="${d.tmdbId}">${banner(d)}<strong class="poster-title">${esc(d.title)}</strong><${cls==='feat'?'div class="who"':'span'}>${esc(sub||[d.year,d.original_language].filter(Boolean).join(', '))}</${cls==='feat'?'div':'span'}></button>`}
+const HLANGS=[['ta','Tamil'],['ml','Malayalam'],['te','Telugu'],['hi','Hindi'],['kn','Kannada'],['en','English'],['ko','Korean'],['all','All languages']];
+let hLang=ls('cb_hlang')||'ta', hKind=ls('cb_hkind')||'movie';
+function relSub(d){const r=d.release||'';if(!r)return d.year||'';const dt=new Date(r+'T12:00:00'),txt=dt.toLocaleDateString(undefined,{month:'short',day:'numeric'});return dt>new Date()?'Coming '+txt:txt}
 async function loadHome(){
   if(!TOKEN){$('#feat').innerHTML=$('#trend').innerHTML='<div class="empty">Add the TMDB key in Settings to see films here.</div>';return}
-  if(homeLoaded===TOKEN)return;homeLoaded=TOKEN;
-  const t=new Date(),from=new Date(t-120*864e5).toISOString().slice(0,10);
-  tm('/discover/movie',{with_original_language:'ta',sort_by:'popularity.desc','primary_release_date.gte':from,'primary_release_date.lte':new Date(+t+30*864e5).toISOString().slice(0,10)})
-    .then(r=>{const l=cards(r.results,'movie').filter(d=>d.poster);$('#feat').innerHTML=l.length?`<div class="reel">${l.map(d=>tile(d,'feat',d.year)).join('')}</div>`:'<div class="empty">Nothing new found right now.</div>'})
+  const key=TOKEN+hLang+hKind;if(homeLoaded===key)return;homeLoaded=key;
+  const nm=(HLANGS.find(x=>x[0]===hLang)||[,''])[1], all=hLang==='all', tv=hKind==='tv';
+  $('#hLang').innerHTML=HLANGS.map(([k,n])=>`<button class="chip${k===hLang?' on':''}" type="button" data-l="${k}" aria-pressed="${k===hLang}">${n}</button>`).join('');
+  $$('#hKind button').forEach(b=>b.classList.toggle('on',b.dataset.k===hKind));
+  $('#hNewT').textContent=all?(tv?'New series':'New releases'):`New ${nm} ${tv?'series':'releases'}`;
+  $('#hPopT').textContent=all?'Popular this week':`Popular in ${nm}`;
+  $('#feat').innerHTML=$('#trend').innerHTML='<div class="empty">Loading…</div>';
+  const day=864e5,t=Date.now(),iso=x=>new Date(x).toISOString().slice(0,10),lang=all?{}:{with_original_language:hLang};
+  const q=tv?{...lang,sort_by:'popularity.desc','first_air_date.gte':iso(t-180*day),'first_air_date.lte':iso(t+30*day)}
+            :{...lang,sort_by:'popularity.desc','primary_release_date.gte':iso(t-120*day),'primary_release_date.lte':iso(t+30*day),...(all?{'vote_count.gte':5}:{})};
+  tm(tv?'/discover/tv':'/discover/movie',q).then(r=>{if(homeLoaded!==key)return;
+      const l=cards(r.results,hKind).filter(d=>d.poster);
+      $('#feat').innerHTML=l.length?`<div class="reel">${l.map(d=>tile(d,'feat',relSub(d))).join('')}</div>`:`<div class="empty">No new ${all?'':nm+' '}${tv?'series':'films'} found for the last few months.</div>`})
     .catch(e=>{$('#feat').innerHTML=`<div class="empty">${esc(e.message)}</div>`;homeLoaded=''});
-  tm('/trending/all/week').then(r=>{$('#trend').innerHTML=`<div class="row">${cards(r.results).filter(d=>d.poster).map(d=>tile(d,'mini')).join('')}</div>`}).catch(()=>{});
+  const pop=all?tm('/trending/all/week').then(r=>cards(r.results))
+    :Promise.all([tm('/discover/movie',{...lang,sort_by:'popularity.desc','primary_release_date.gte':iso(t-365*day),'primary_release_date.lte':iso(t)}).then(r=>cards(r.results,'movie')).catch(()=>[]),
+                  tm('/discover/tv',{...lang,sort_by:'popularity.desc','air_date.gte':iso(t-60*day)}).then(r=>cards(r.results,'tv')).catch(()=>[])])
+      .then(([m,s])=>{const o=[];for(let i=0;i<Math.max(m.length,s.length);i++){if(m[i])o.push(m[i]);if(i%2===0&&s[i>>1])o.push(s[i>>1])}return o});
+  pop.then(l=>{if(homeLoaded!==key)return;l=l.filter(d=>d.poster);$('#trend').innerHTML=l.length?`<div class="row">${l.map(d=>tile(d,'mini',[d.year,d.type==='tv'?'Series':''].filter(Boolean).join(', '))).join('')}</div>`:'<div class="empty">Nothing popular found right now.</div>'}).catch(()=>{$('#trend').innerHTML=''});
   loadSug();
 }
+$('#hLang').onclick=e=>{const b=e.target.closest('[data-l]');if(!b||b.dataset.l===hLang)return;hLang=b.dataset.l;ls('cb_hlang',hLang);loadHome()};
+$('#hKind').onclick=e=>{const b=e.target.closest('[data-k]');if(!b||b.dataset.k===hKind)return;hKind=b.dataset.k;ls('cb_hkind',hKind);loadHome()};
 let sugFor='';
 function loadSug(){
   const top=entries().filter(e=>e.tmdbId&&+e.rating>=4).sort((a,b)=>b.rating-a.rating||(b.updatedAt||0)-(a.updatedAt||0))[0];
