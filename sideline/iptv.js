@@ -1,4 +1,4 @@
-// Version 31: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
+// Version 32: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
 // Safari cannot send the MAG box headers a portal checks, so the Sideline bridge on your
 // own server (installed automatically beside your Inbox app) logs in as the chosen box and
 // turns channels into iPhone HLS. Portal URL, MAC and box model stay on this device and are
@@ -24,7 +24,10 @@ css.textContent='#iptvBoard{margin:0 0 26px}#iptvBoard .iptv-card{background:var
 document.head.appendChild(css);
 
 const board=document.createElement('div');board.id='iptvBoard';board.className='hidden';
-$('#liveBoard').before(board);
+function attachBoard(){const lb=$('#liveBoard');if(lb&&lb.firstChild!==board)lb.prepend(board)}
+attachBoard();
+// live.js replaces #liveBoard's contents on every refresh; keep the IPTV box pinned at the top.
+{const lb=$('#liveBoard');if(lb)new MutationObserver(()=>{if(lb.firstChild!==board)lb.prepend(board)}).observe(lb,{childList:true})}
 
 const dlg=document.createElement('dialog');dlg.id='iptvDialog';
 dlg.innerHTML='<div class="dialog-head"><h2>Your IPTV</h2><button class="close" id="iptvClose" aria-label="Close IPTV settings">×</button></div>'+
@@ -80,6 +83,7 @@ function chHTML(c,i){const logo=/^https:/i.test(c.logo||'')?'<img src="'+boardEs
 
 let rendered=[];
 function paint(){
+ attachBoard();
  const live=['Live TV','Sports'].includes(view);board.classList.toggle('hidden',!live);if(!live)return;
  const sports=view==='Sports';
  // Not set up yet — show the Set up card on both Live TV and Cricket.
