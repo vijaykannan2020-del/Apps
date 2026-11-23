@@ -1,10 +1,18 @@
-// Version 27: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV.
+// Version 28: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
 // Safari cannot send the MAG box headers a portal checks, so your own Sideline server
-// (the "Server" button) logs in as a MAG box and turns channels into iPhone-friendly HLS.
-// Portal URL and MAC stay on this device and are sent only to your server.
+// (the "Server" button) logs in as the chosen box and turns channels into iPhone HLS.
+// Portal URL, MAC and box model stay on this device and are sent only to your server.
 (function(){
 'use strict';
 const CRICKET_RE=/cricket|\bipl\b|\bt20\b|\bodi\b|willow|star sports|sky sports cricket|ptv sports|ten sports|sony (six|ten)/i;
+// STB models (the box the portal thinks it is talking to) → the user-agent it sends.
+const MAG='Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG200 stbapp ver: ';
+const AURA='Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG200 stbapp ver: 4 rev: 1812 AuraHD/1.7 Safari/533.3';
+const MODELS={
+ 'MAG250':MAG+'2 rev: 250 Safari/533.3','MAG254':MAG+'4 rev: 2721 Safari/533.3','MAG322':MAG+'6 rev: 3701 Safari/533.3',
+ 'MAG351':MAG+'6 rev: 4728 Safari/533.3','MAG420':MAG+'6 rev: 5008 Safari/533.3','AuraHD':AURA,'AuraHD2':AURA,'AuraHD9':AURA};
+const MODEL_LIST=['AuraHD9','AuraHD','AuraHD2','MAG254','MAG250','MAG322','MAG351','MAG420'];
+function agentFor(c){const m=(c&&c.model)||'MAG254';return {model:m,ua:MODELS[m]||MODELS.MAG254}}
 let cfg=read('sideline-iptv',null);if(!cfg||typeof cfg.portal!=='string'||typeof cfg.mac!=='string')cfg=null;
 let list=null,loading=null,errorText='',cat=read('sideline-iptv-cat',''),shown=120,lastPlay=null,view='Live TV';
 
@@ -24,6 +32,7 @@ dlg.innerHTML='<div class="dialog-head"><h2>Your IPTV</h2><button class="close" 
  '<p id="iptvServerState" class="help" role="status"></p>'+
  '<form id="iptvForm" autocomplete="off"><label class="field">Portal URL<input id="iptvPortal" type="text" inputmode="url" placeholder="http://line.provider.com:8080/c/" spellcheck="false" autocapitalize="off" required></label>'+
  '<label class="field">MAC address<input id="iptvMac" type="text" placeholder="00:1A:79:AB:CD:EF" spellcheck="false" autocapitalize="characters" required></label>'+
+ '<label class="field">STB model (the box your provider set up)<select id="iptvModel">'+MODEL_LIST.map(m=>'<option value="'+m+'">'+m+'</option>').join('')+'</select></label>'+
  '<label class="help"><input id="iptvKeepKey" type="checkbox"> Remember my server key on this phone (so IPTV works after closing the app)</label>'+
  '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="primary" id="iptvSave">Save and load channels</button><button class="secondary" id="iptvForget" type="button">Forget IPTV</button><button class="secondary" id="iptvServerBtn" type="button">Server settings</button></div></form>'+
  '<p id="iptvStatus" class="help" role="status"></p>'+
@@ -43,7 +52,7 @@ async function api(route,data,ms){
  finally{clearTimeout(t)}}
 
 function openDialog(){
- $('#iptvPortal').value=cfg?.portal||'';$('#iptvMac').value=cfg?.mac||'';
+ $('#iptvPortal').value=cfg?.portal||'';$('#iptvMac').value=cfg?.mac||'';$('#iptvModel').value=cfg?.model||'MAG254';
  try{$('#iptvKeepKey').checked=!!localStorage.getItem(window.sidelineStorageKey('sideline-bridge-key-keep'))}catch{}
  $('#iptvServerState').textContent=serverReady()?'Server connected ✓ '+bridgeURL.replace(/^https:\/\//,''):'Your Sideline server is not connected on this phone. Tap Server settings first.';
  $('#iptvStatus').textContent='';dlg.showModal()}
@@ -51,18 +60,18 @@ $('#iptvClose').onclick=()=>dlg.close();
 $('#iptvServerBtn').onclick=()=>{dlg.close();openBridgeSettings()};
 $('#iptvForget').onclick=()=>{cfg=null;list=null;errorText='';try{localStorage.removeItem(window.sidelineStorageKey('sideline-iptv'))}catch{}$('#iptvStatus').textContent='IPTV removed from this phone.';paint()};
 $('#iptvForm').onsubmit=async e=>{e.preventDefault();
- const portal=$('#iptvPortal').value.trim(),mac=macOK($('#iptvMac').value);
+ const portal=$('#iptvPortal').value.trim(),mac=macOK($('#iptvMac').value),model=$('#iptvModel').value;
  if(!mac){$('#iptvStatus').textContent='The MAC address needs 12 letters/numbers, like 00:1A:79:AB:CD:EF.';return}
  try{const k=window.sidelineStorageKey('sideline-bridge-key-keep');if($('#iptvKeepKey').checked&&bridgeKey)localStorage.setItem(k,bridgeKey);else localStorage.removeItem(k)}catch{}
  $('#iptvSave').disabled=true;$('#iptvStatus').textContent='Logging in to your portal through your server…';
- try{const data=await api('/api/iptv/channels',{portal,mac},40000);cfg={portal,mac};save('sideline-iptv',cfg);list=data;errorText='';cat='';shown=120;
+ try{const next={portal,mac,model},a=agentFor(next);const data=await api('/api/iptv/channels',{...next,...a},40000);cfg=next;save('sideline-iptv',cfg);list=data;errorText='';cat='';shown=120;
   $('#iptvStatus').textContent='Loaded '+data.channels.length+' channels in '+data.categories.length+' categories ✓';paint();setTimeout(()=>dlg.close(),900)}
  catch(err){$('#iptvStatus').textContent=err.message}
  finally{$('#iptvSave').disabled=false}};
 
 async function loadList(){
  if(!cfg||list||loading)return loading;
- errorText='';loading=api('/api/iptv/channels',cfg,40000).then(d=>{list=d}).catch(e=>{errorText=e.message}).finally(()=>{loading=null;paint()});paint();return loading}
+ errorText='';loading=api('/api/iptv/channels',{...cfg,...agentFor(cfg)},40000).then(d=>{list=d}).catch(e=>{errorText=e.message}).finally(()=>{loading=null;paint()});paint();return loading}
 
 function visible(){
  if(!list)return [];let l=list.channels;
@@ -90,7 +99,7 @@ function paint(){
 
 async function play(c,convert){
  lastPlay={...c,convert:!!convert};paint();toast('Starting '+c.name+'…');
- try{const r=await api('/api/iptv/play',{...cfg,cmd:c.cmd,name:c.name,convert:!!convert},50000);
+ try{const r=await api('/api/iptv/play',{...cfg,...agentFor(cfg),cmd:c.cmd,name:c.name,convert:!!convert},50000);
   const id='iptv-live';channels=channels.filter(x=>x.id!==id);
   channels.push({id,name:c.name,category:'Live TV',tags:[],desc:'Your IPTV'+(c.category?' · '+c.category:''),logo:c.name,photo:'tv',stream:r.hls,alternatives:[r.hls],onDemand:false,mediaFormat:'hls'});
   watch(id);
