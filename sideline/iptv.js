@@ -1,4 +1,4 @@
-// Version 28: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
+// Version 29: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
 // Safari cannot send the MAG box headers a portal checks, so your own Sideline server
 // (the "Server" button) logs in as the chosen box and turns channels into iPhone HLS.
 // Portal URL, MAC and box model stay on this device and are sent only to your server.
@@ -87,13 +87,14 @@ let rendered=[];
 function paint(){
  const live=['Live TV','Sports'].includes(view);board.classList.toggle('hidden',!live);if(!live)return;
  const sports=view==='Sports';
- if(!cfg){board.innerHTML=sports?'':'<div class="iptv-card"><div class="iptv-top"><div><h3>Your IPTV</h3><small>Use a MAC-locked IPTV subscription (MAG portal) here</small></div><button class="primary" data-iptv-setup>Set up</button></div></div>';return}
+ // Not set up yet — show the Set up card on both Live TV and Cricket.
+ if(!cfg){board.innerHTML='<div class="iptv-card"><div class="iptv-top"><div><h3>'+(sports?'Cricket on your IPTV':'Your IPTV')+'</h3><small>Watch a MAC-locked IPTV subscription (MAG / Stalker portal) here</small></div><button class="primary" data-iptv-setup>Set up</button></div></div>';return}
  const head='<div class="iptv-top"><div><h3>'+(sports?'Cricket on your IPTV':'Your IPTV')+'</h3><small>'+(list?list.channels.length+' channels':'')+'</small></div><button class="text-button" data-iptv-setup>⚙ IPTV</button></div>';
  if(!list){board.innerHTML='<div class="iptv-card">'+head+'<p class="help">'+boardEsc(errorText||'Loading your channels…')+'</p>'+(errorText?'<button class="secondary" data-iptv-retry>↻ Try again</button>':'')+'</div>';return}
  rendered=visible();
- if(sports&&!rendered.length){board.innerHTML='';return}
  const chips=sports?'':'<div id="iptvChips" role="group" aria-label="IPTV categories">'+[['','All'],...list.categories.map(x=>[x,x])].map(([v,n])=>'<button type="button" data-iptv-cat="'+boardEsc(v)+'" class="'+(v===cat?'on':'')+'">'+boardEsc(n)+'</button>').join('')+'</div>';
- const grid=rendered.length?'<div id="iptvGrid">'+rendered.slice(0,shown).map(chHTML).join('')+'</div>'+(rendered.length>shown?'<button class="secondary" id="iptvMore" data-iptv-more>Show more ('+(rendered.length-shown)+')</button>':''):'<p class="help">No channels match.</p>';
+ const empty=sports?'No cricket channels found in your IPTV list. Try the search, or use Live TV to see all channels.':'No channels match.';
+ const grid=rendered.length?'<div id="iptvGrid">'+rendered.slice(0,shown).map(chHTML).join('')+'</div>'+(rendered.length>shown?'<button class="secondary" id="iptvMore" data-iptv-more>Show more ('+(rendered.length-shown)+')</button>':''):'<p class="help">'+empty+'</p>';
  const last=lastPlay?'<p id="iptvLast">Last: '+boardEsc(lastPlay.name)+'. No picture? <button class="secondary" data-iptv-convert>Convert video</button></p>':'';
  board.innerHTML='<div class="iptv-card">'+head+chips+grid+last+'</div>'}
 
