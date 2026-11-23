@@ -11,6 +11,10 @@
 	handle /forge/* {
 		reverse_proxy forge-api:8790
 	}
+	# Sideline IPTV bridge (sideline/server): plays MAC-locked IPTV for the Sideline app
+	handle_path /sideline/* {
+		reverse_proxy sideline-api:8791
+	}
 	handle /_synapse/client/* {
 		reverse_proxy synapse:8008
 	}

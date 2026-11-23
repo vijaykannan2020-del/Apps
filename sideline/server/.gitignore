@@ -1,0 +1,4 @@
+.env
+data/
+.deployed-sha
+node_modules/

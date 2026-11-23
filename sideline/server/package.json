@@ -1,0 +1,8 @@
+{
+  "name": "sideline-iptv-server",
+  "private": true,
+  "type": "module",
+  "description": "Sideline IPTV bridge: logs in to a MAC-locked IPTV portal and serves iPhone-friendly HLS",
+  "scripts": { "start": "node src/server.mjs", "test": "node --test test/" },
+  "engines": { "node": ">=22" }
+}

@@ -1,0 +1,20 @@
+# Sideline IPTV bridge. Runs next to My Inbox on the same server and is reached through
+# My Inbox's Caddy at https://<inbox domain>/sideline/ . Secret lives in data/ (never in GitHub).
+name: sideline
+services:
+  api:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    networks:
+      inbox:
+        aliases: [sideline-api]
+    mem_limit: 2g
+
+networks:
+  inbox:
+    external: true
+    name: ${INBOX_NET:-my-inbox_default}

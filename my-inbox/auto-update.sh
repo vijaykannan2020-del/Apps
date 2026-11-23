@@ -169,6 +169,13 @@ if [ ! -f /etc/cron.d/forge-auto ] && [ -z "$(find /tmp/forge-install.stamp -mmi
     && curl -fsSL https://github.com/vijaykannan2020-del/Apps/archive/refs/heads/main.tar.gz | tar xz --strip-components=3 Apps-main/forge/server \
     && chmod +x setup.sh auto-update.sh && ./setup.sh' >> /var/log/forge-install.log 2>&1 < /dev/null &
 fi
+# Sideline IPTV bridge (sideline/server in the same repo), same pattern: install once, then it updates itself.
+if [ ! -f /etc/cron.d/sideline-auto ] && [ -z "$(find /tmp/sideline-install.stamp -mmin -30 2>/dev/null)" ]; then
+  touch /tmp/sideline-install.stamp
+  setsid nohup bash -c 'mkdir -p /opt/sideline && cd /opt/sideline \
+    && curl -fsSL https://github.com/vijaykannan2020-del/Apps/archive/refs/heads/main.tar.gz | tar xz --strip-components=3 Apps-main/sideline/server \
+    && chmod +x setup.sh auto-update.sh && ./setup.sh' >> /var/log/sideline-install.log 2>&1 < /dev/null &
+fi
 # Caddy doesn't notice an edited Caddyfile by itself: reload it whenever the file's contents change.
 CH=$(sha256sum Caddyfile | cut -c1-16)
 if [ "$CH" != "$(cat .caddy-loaded 2>/dev/null || true)" ] && docker compose ps --status running caddy 2>/dev/null | grep -q caddy; then
