@@ -102,18 +102,22 @@ function deviceProfile(mac, agent) {
   const a = agent || {};
   const sn = a.sn || H('md5', mac).slice(0, 13);                 // real serial if supplied
   const model = cleanModel(a.model);
-  const deviceId = a.deviceId || H('sha256', UP(sn));            // real device id if supplied, else standard
-  // With "Use MAC-based device ID" on, the box sends the same value for both ids.
-  const deviceId2 = a.deviceId2 || a.deviceId || H('sha256', UP(mac));
-  const signature = a.signature || H('sha256', UP(sn) + UP(mac));
-  return {
+  const base = {
     hd: '1', ver: 'ImageDescription: 0.2.18-r23-250; ImageDate: Thu Sep 13 11:31:16 EEST 2018; PORTAL version: 5.6.2; API Version: JS API version: 343; STB API version: 146; Player Engine version: 0x58c',
     num_banks: '2', sn, stb_type: model, client_type: 'STB', image_version: '218', video_out: 'hdmi',
-    device_id: deviceId, device_id2: deviceId2, signature, auth_second_step: '1',
     hw_version: '1.7-BD-00', not_valid_token: '0', hw_version_2: H('sha1', mac), timestamp: String(Math.floor(Date.now() / 1000)),
     api_signature: '262', prehash: '',
     metrics: JSON.stringify({ mac, sn, model, type: 'STB', uid: '', random: '' }),
   };
+  // Only send a device id if one was given. A box with "Send Device ID" off (like this user's)
+  // sends none, and strict portals reject any device id they didn't store.
+  if (a.deviceId) {
+    base.device_id = a.deviceId;
+    base.device_id2 = a.deviceId2 || a.deviceId;   // MAC-based boxes reuse the same value
+    base.signature = a.signature || H('sha256', UP(sn) + UP(mac));
+    base.auth_second_step = '1';
+  }
+  return base;
 }
 const shortURL = x => { try { const u = new URL(x); return u.host + u.pathname; } catch { return String(x); } };
 
@@ -178,7 +182,7 @@ export function createPortalClient(fetchImpl = fetch) {
     catch (e) {
       const p = profile || {};
       const sent = deviceProfile(mac, agent);
-      const dbg = 'sent id ' + String(sent.device_id).slice(0, 8) + '/id2 ' + String(sent.device_id2).slice(0, 8);
+      const dbg = sent.device_id ? 'sent id ' + String(sent.device_id).slice(0, 8) + '/id2 ' + String(sent.device_id2).slice(0, 8) : 'sent no device id, sn ' + String(sent.sn).slice(0, 10);
       const st = p._error ? 'profile step failed ' + p._error
         : [p.msg || p.block_msg, p.status != null ? 'status ' + p.status : '', 'id' in p ? (p.id ? 'account found' : 'account not found') : '', p.stb_type ? 'portal sees ' + p.stb_type : ''].filter(Boolean).join(', ');
       throw new Error(e.message + (st ? ' — login said: ' + String(st).slice(0, 160) : ' — login said nothing') + ' [' + dbg + ']');
