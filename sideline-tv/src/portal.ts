@@ -289,12 +289,15 @@ export class Portal {
         const files: any[] = rows.filter((x: any) => x && (x.cmd || x.id)).slice(0, 3)
           .map((x: any) => ({ ...x, cmd: x.cmd && x.cmd !== cmd ? x.cmd : '/media/file_' + x.id + '.mpg' }));
         note = ' · file list: ' + rows.length + ' row(s)' + (rows[0] ? ' ' + JSON.stringify(rows[0]).slice(0, 120) : '');
-        for (const file of files) {
-          const r2 = await this.authed({ ...base, type: 'vod', cmd: String(file.cmd), series: '', forced_storage: '' });
+        const variants = files.flatMap((file: any) => [
+          { file, series: '', storage: '' }, { file, series: '0', storage: '0' }, { file, series: '1', storage: '' },
+        ]);
+        for (const { file, series, storage } of variants) {
+          const r2 = await this.authed({ ...base, type: 'vod', cmd: String(file.cmd), series, forced_storage: storage }).catch(() => null);
           const url2 = this.extract(r2?.js);
-          if (url2) { this.lastRoute = 'portal link for file ' + file.cmd; return url2; }
+          if (url2) { this.lastRoute = 'portal link for file ' + file.cmd + ' (series=' + series + ')'; return url2; }
           last = r2?.js;
-          note += ' · ' + file.cmd + ' → ' + JSON.stringify(r2?.js).slice(0, 90);
+          note += ' · ' + file.cmd + '/' + series + ' → ' + String(r2?.js?.error ?? JSON.stringify(r2?.js)).slice(0, 40);
         }
         // "custom" protocol files: a box sends the file's own address as the request.
         for (const row of rows.slice(0, 2)) {
@@ -309,7 +312,7 @@ export class Portal {
         }
         // Still nothing: the file's own address (protocol "custom") is the stream itself.
         const direct = rows.map((x: any) => String(x?.url || '').replace(/^(ffmpeg|auto)\s+/i, '').trim()).find((u: string) => /^https?:\/\//i.test(u));
-        if (direct) { this.lastRoute = 'file address from the file list (portal refused: ' + (last?.error || '?') + ')'; return direct; }
+        if (direct) { this.lastRoute = 'file address (portal refused: ' + (last?.error || '?') + note + ')'; return direct; }
         break;
       }
     }
