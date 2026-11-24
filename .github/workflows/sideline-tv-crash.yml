@@ -1,0 +1,27 @@
+# Prints the newest TestFlight crash reports for Sideline TV. Start it by changing sideline-tv/crash-check.txt (or Run workflow).
+name: Sideline TV crash logs
+on:
+  push:
+    branches: [main]
+    paths: ['sideline-tv/crash-check.txt', '.github/workflows/sideline-tv-crash.yml']
+  workflow_dispatch:
+jobs:
+  crash:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: sideline-tv } }
+    env:
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      EXPO_ASC_API_KEY_PATH: ${{ github.workspace }}/sideline-tv/asc.p8
+      EXPO_ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      EXPO_ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_APP_ID: ${{ vars.SIDELINETV_ASC_APP_ID || '6838565574' }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 - <<'PY'
+          import os, re
+          body = re.sub(r'\s+', '', re.sub(r'-----(BEGIN|END) PRIVATE KEY-----', '', os.environ['ASC_KEY_P8'].strip()))
+          open('asc.p8', 'w').write('-----BEGIN PRIVATE KEY-----\n' + '\n'.join(body[i:i+64] for i in range(0, len(body), 64)) + '\n-----END PRIVATE KEY-----\n')
+          PY
+          pip install --quiet pyjwt cryptography
+          python3 scripts/crash-logs.py
