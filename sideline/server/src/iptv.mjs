@@ -122,12 +122,17 @@ function deviceProfile(mac, agent) {
 const shortURL = x => { try { const u = new URL(x); return u.host + u.pathname; } catch { return String(x); } };
 
 export function createPortalClient(fetchImpl = fetch) {
+  const cooldownUntil = new Map(); // host -> time we may call it again after a 429
+  const COOLDOWN_MS = 150000;
   async function get(ep, params, origin, mac, token, agent, timeoutMs) {
     const url = new URL(ep);
+    const host = url.host;
+    const until = cooldownUntil.get(host) || 0;
+    if (Date.now() < until) throw new Error('The portal is rate-limiting us. Please wait ' + Math.ceil((until - Date.now()) / 1000) + 's before trying again (and avoid repeat taps — each one restarts the wait).');
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     url.searchParams.set('JsHttpRequest', '1-xml');
     const res = await fetchImpl(url, { headers: portalHeaders(ep, mac, token, agent), redirect: 'follow', signal: AbortSignal.timeout(timeoutMs || 15000) });
-    if (res.status === 429) throw new Error('Portal rate-limited us (HTTP 429). Wait a minute, then try once.');
+    if (res.status === 429) { cooldownUntil.set(host, Date.now() + COOLDOWN_MS); throw new Error('Portal rate-limited us (HTTP 429). Now waiting ~2.5 min — do not tap again until then.'); }
     if (!res.ok) throw new Error('Portal returned HTTP ' + res.status);
     const text = (await res.text()).replace(/^\uFEFF/, '').trim();
     try { return JSON.parse(text); }
@@ -165,7 +170,7 @@ export function createPortalClient(fetchImpl = fetch) {
         catch (e) { profile = { _error: String(e.message).replace(/^Portal did not answer like a MAG portal /, '') }; }
         found.set(entry, ep);
         return { ep, token, profile };
-      } catch (e) { tried.push(shortURL(ep) + ': ' + String(e.message).replace('Portal returned ', '').replace('Portal did not answer like a MAG portal.', 'not a portal')); }
+      } catch (e) { tried.push(shortURL(ep) + ': ' + String(e.message).replace('Portal returned ', '').replace('Portal did not answer like a MAG portal.', 'not a portal')); if (/rate-limit/i.test(e.message)) break; }
     }
     if (cached) { found.delete(entry); return login(entry, mac, agent); }
     throw new Error('Could not log in to the portal. Check the portal URL, MAC address and STB model. Tried: ' + tried.slice(0, 10).join('; '));
