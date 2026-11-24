@@ -8,7 +8,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0f0d1a",
-    "splash": { "image": "./assets/splash-icon.png", "resizeMode": "contain", "backgroundColor": "#0f0d1a" },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f0d1a"
+    },
     "ios": {
       "supportsTablet": true,
       "requireFullScreen": false,
@@ -16,9 +20,13 @@
       "appleTeamId": "95A592GEVD",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": true },
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        },
         "NSLocalNetworkUsageDescription": "Sideline TV plays streams from your IPTV service.",
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "plugins": [
@@ -26,6 +34,19 @@
       "expo-screen-orientation",
       "react-native-vlc-media-player"
     ],
-    "experiments": { "typedRoutes": false }
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "55063128-add5-42af-a074-fd30dde687d0"
+      }
+    },
+    "owner": "vijayakannankrishnans-team"
   }
 }
