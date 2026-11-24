@@ -139,6 +139,7 @@ export function createPortalClient(fetchImpl = fetch) {
     catch { throw new Error('Portal did not answer like a MAG portal (' + (params.action || 'request') + ': "' + text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) + '")'); }
   }
   const found = new Map(); // portal URL -> working login endpoint
+  const sessions = new Map(); // portal URL + mac -> recent { ep, token, profile, ts }
   async function discover(entry, mac, agent, tried) {
     const urls = new Set(deriveEndpoints(new URL(entry)));
     const origin = new URL(entry).origin;
@@ -157,6 +158,9 @@ export function createPortalClient(fetchImpl = fetch) {
     return [...urls].filter(x => !isBlockedHost(x)).slice(0, 20);
   }
   async function login(entry, mac, agent) {
+    const key = entry + '|' + mac;
+    const sess = sessions.get(key);
+    if (sess && Date.now() - sess.ts < 120000) return sess;   // reuse a recent login (e.g. list → play)
     const tried = [];
     const cached = found.get(entry);
     const list = cached ? [cached] : await discover(entry, mac, agent, tried);
@@ -169,7 +173,9 @@ export function createPortalClient(fetchImpl = fetch) {
         try { profile = (await get(ep, { type: 'stb', action: 'get_profile', ...deviceProfile(mac, agent) }, entry, mac, token, agent))?.js || null; }
         catch (e) { profile = { _error: String(e.message).replace(/^Portal did not answer like a MAG portal /, '') }; }
         found.set(entry, ep);
-        return { ep, token, profile };
+        const out = { ep, token, profile, ts: Date.now() };
+        sessions.set(key, out);
+        return out;
       } catch (e) { tried.push(shortURL(ep) + ': ' + String(e.message).replace('Portal returned ', '').replace('Portal did not answer like a MAG portal.', 'not a portal')); if (/rate-limit/i.test(e.message)) break; }
     }
     if (cached) { found.delete(entry); return login(entry, mac, agent); }
@@ -201,13 +207,19 @@ export function createPortalClient(fetchImpl = fetch) {
     return { categories, channels: list };
   }
   async function link(origin, mac, cmd, agent) {
-    const { ep, token } = await login(origin, mac, agent);
-    const r = await get(ep, { type: 'itv', action: 'create_link', cmd, forced_storage: '0', disable_ad: '0' }, origin, mac, token, agent);
-    const raw = String(r?.js?.cmd || '').replace(/^ffmpeg\s+/i, '').trim();
-    const m = raw.match(/https?:\/\/\S+/);
-    if (!m) throw new Error('The portal did not give a playable link for this channel.');
-    if (isBlockedHost(m[0])) throw new Error('The portal gave a link this server will not open.');
-    return m[0];
+    let lastErr;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { ep, token } = await login(origin, mac, agent);   // reuses the channel-list login
+      try {
+        const r = await get(ep, { type: 'itv', action: 'create_link', cmd, forced_storage: '0', disable_ad: '0' }, origin, mac, token, agent);
+        const raw = String(r?.js?.cmd || '').replace(/^ffmpeg\s+/i, '').trim();
+        const m = raw.match(/https?:\/\/\S+/);
+        if (m && !isBlockedHost(m[0])) return m[0];
+        lastErr = new Error('The portal did not give a playable link for this channel.');
+      } catch (e) { lastErr = e; }
+      sessions.delete(origin + '|' + mac);   // token may be stale — force one fresh login
+    }
+    throw lastErr;
   }
   return { channels, link };
 }
