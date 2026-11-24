@@ -15,7 +15,9 @@ export type Settings = {
 
 export type Channel = { id: string; name: string; number: string; cmd: string; category: string; logo: string };
 export type Movie = { id: string; name: string; cmd: string; logo: string; year: string; series: boolean; category: string };
-export type Season = { id: string; name: string; cmd: string; episodes: { n: number; name: string; cmd: string; series: number }[] };
+export type Episode = { n: number; name: string; cmd: string; series: number; seasonId: string; episodeId: string };
+export type Season = { id: string; name: string; cmd: string; episodes: Episode[] };
+export type LinkOpts = { episode?: number; movieId?: string; category?: string; seasonId?: string; episodeId?: string };
 export type Category = { id: string; title: string };
 
 export function normalizeMac(input: string): string {
@@ -61,7 +63,8 @@ export class Portal {
   private token: string | null = null;
   private loggingIn: Promise<void> | null = null;
   onStatus: (text: string) => void = () => {};
-  lastRoute = ''; // how the last link was obtained (shown on the player for troubleshooting)
+  lastRoute = '';
+  lastSubtitles: { name: string; url: string }[] = []; // how the last link was obtained (shown on the player for troubleshooting)
   knownEndpoint: string | null = null; // remembered from last time, tried first
   onEndpoint: (ep: string) => void = () => {};
 
@@ -219,14 +222,14 @@ export class Portal {
     return new URL(this.ep || this.entry).origin + '/stalker_portal/' + String(p).replace(/^\/+/, '');
   }
 
-  async movies(category: string, page: number): Promise<{ items: Movie[]; hasMore: boolean }> {
+  async movies(category: string, page: number, seriesHint = false): Promise<{ items: Movie[]; hasMore: boolean }> {
     const r = await this.authed({ type: 'vod', action: 'get_ordered_list', category, sortby: 'added', p: String(page) }, 40000);
     const js = r?.js || {};
     const rows = Array.isArray(js.data) ? js.data : [];
     const items: Movie[] = rows.map((x: any) => ({
       id: String(x.id), name: String(x.name || x.o_name || 'Untitled'), cmd: String(x.cmd || ''),
       logo: this.pic(x.screenshot_uri || x.poster_path || x.cover || ''), year: String(x.year || ''),
-      series: String(x.is_series) === '1' || (Array.isArray(x.series) && x.series.length > 0), category,
+      series: seriesHint || String(x.is_series) === '1' || (Array.isArray(x.series) && x.series.length > 0), category,
     })).filter((x: Movie) => x.cmd || x.series);
     const total = Number(js.total_items || 0), per = rows.length || 14;
     return { items, hasMore: total ? page * per < total : items.length > 0 };
@@ -241,15 +244,17 @@ export class Portal {
       const name = String(x.name || x.o_name || 'Season');
       if (Array.isArray(x.series) && x.series.length) {
         // Older style: one row per season, episodes are numbers played with series=N.
-        out.push({ id: String(x.id), name, cmd: String(x.cmd || ''), episodes: x.series.map((n: any) => ({ n: Number(n), name: 'Episode ' + n, cmd: String(x.cmd || ''), series: Number(n) })) });
+        out.push({ id: String(x.id), name, cmd: String(x.cmd || ''), episodes: x.series.map((n: any) => ({ n: Number(n), name: 'Episode ' + n, cmd: String(x.cmd || ''), series: Number(n), seasonId: String(x.id), episodeId: '' })) });
       } else {
         // Newer style: ask for the season's episodes.
         const e = await this.authed({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: String(x.id), episode_id: '0', category, sortby: 'added', p: '1' }, 40000).catch(() => null);
         const eps: any[] = Array.isArray(e?.js?.data) ? e.js.data : [];
-        out.push({ id: String(x.id), name, cmd: String(x.cmd || ''), episodes: eps.map((y: any, i: number) => ({ n: Number(y.series_number || y.episode_number || i + 1), name: String(y.name || 'Episode ' + (i + 1)), cmd: String(y.cmd || ''), series: 0 })).filter(y => y.cmd) });
+        out.push({ id: String(x.id), name, cmd: String(x.cmd || ''), episodes: eps.map((y: any, i: number) => ({ n: Number(y.series_number || y.episode_number || i + 1), name: String(y.name || 'Episode ' + (i + 1)), cmd: String(y.cmd || ''), series: 0, seasonId: String(x.id), episodeId: String(y.id || '') })).filter(y => y.cmd || y.episodeId) });
       }
     }
-    return out.filter(x => x.episodes.length);
+    const good = out.filter(x => x.episodes.length);
+    if (!good.length) throw new Error('No episodes came back for this show.\n\nDetails: ' + rows.length + ' row(s) ' + JSON.stringify(rows[0] || r?.js).slice(0, 200));
+    return good;
   }
 
   // Asks the portal for the playable address of a channel, movie or episode.
@@ -263,13 +268,20 @@ export class Portal {
 
   // Asks the portal for the playable address of a channel, movie or episode.
   // Portals differ in how they want movie requests, so it tries the common forms in turn.
-  async link(cmd: string, kind: 'live' | 'movie', episode = 0, movieId = '', category = ''): Promise<string> {
+  async link(cmd: string, kind: 'live' | 'movie', o: LinkOpts = {}): Promise<string> {
+    const episode = o.episode || 0, movieId = o.movieId || '', category = o.category || '';
+    const seasonId = o.seasonId || '0', episodeId = o.episodeId || '0';
+    this.lastSubtitles = [];
+    const grabSubs = (js: any, rows: any[] = []) => {
+      const list = [...(Array.isArray(js?.subtitles) ? js.subtitles : []), ...rows.flatMap((r: any) => Array.isArray(r?.subtitles) ? r.subtitles : [])];
+      this.lastSubtitles = list.map((x: any, i: number) => ({ name: String(x?.lang || x?.language || x?.name || 'Subtitle ' + (i + 1)), url: String(x?.url || x?.file || x || '') })).filter(x => /^https?:\/\//.test(x.url));
+    };
     const base = { action: 'create_link', disable_ad: '0', download: '0', force_ch_link_check: '0' };
     const tries: Record<string, string>[] = kind === 'movie'
-      ? [
+      ? (cmd ? [
           { ...base, type: 'vod', cmd, series: episode ? String(episode) : '', forced_storage: '' },
           { ...base, type: 'vod', cmd, series: String(episode || 0), forced_storage: '0' },
-        ]
+        ] : [{ ...base, type: 'vod', cmd: '', series: '', forced_storage: '' }])
       : [{ ...base, type: 'itv', cmd, series: '', forced_storage: '0' }];
     let last: any = null;
     let note = '';
@@ -277,13 +289,13 @@ export class Portal {
     for (const params of tries) {
       const r = await this.authed(params);
       const url = this.extract(r?.js);
-      if (url) { this.lastRoute = 'portal link (' + params.type + ', series=' + params.series + ', storage=' + params.forced_storage + ')'; return url; }
+      if (url) { grabSubs(r?.js); this.lastRoute = 'portal link (' + params.type + ', series=' + params.series + ', storage=' + params.forced_storage + ')'; return url; }
       last = r?.js;
       if (last?.error === 'limit') throw new Error('Your subscription is already playing on another device. Stop it there and try again.');
       // Newer portals keep a movie's real video file(s) in a separate list; a box asks for that list,
       // then makes the link from the file (cmd like /media/file_123.mpg).
-      if (kind === 'movie' && movieId && !episode && last?.error === 'nothing_to_play') {
-        const f = await this.authed({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: '0', episode_id: '0', category, sortby: 'added', p: '1' }, 30000).catch(() => null);
+      if (kind === 'movie' && movieId && (!episode || episodeId !== '0') && (last?.error === 'nothing_to_play' || !cmd)) {
+        const f = await this.authed({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: seasonId, episode_id: episodeId, category, sortby: 'added', p: '1' }, 30000).catch(() => null);
         const rows: any[] = Array.isArray(f?.js?.data) ? f.js.data : [];
         // Each file row has an id (and sometimes cmd / url). A box asks for /media/file_<id>.mpg.
         // A box asks with the file number first (/media/file_<id>.mpg); some portals want the file's own cmd.
@@ -298,7 +310,7 @@ export class Portal {
         for (const { file, series, storage } of variants) {
           const r2 = await this.authed({ ...base, type: 'vod', cmd: String(file.cmd), series, forced_storage: storage }).catch(() => null);
           const url2 = this.extract(r2?.js);
-          if (url2) { this.lastRoute = 'portal link for file ' + file.cmd + ' (series=' + series + ')'; return url2; }
+          if (url2) { grabSubs(r2?.js, rows); this.lastRoute = 'portal link for file ' + file.cmd + ' (series=' + series + ')'; return url2; }
           last = r2?.js;
           note += ' · ' + String(file.cmd).slice(0, 30) + '/' + series + ' → ' + String(r2?.js?.error ?? JSON.stringify(r2?.js)).slice(0, 40);
         }
@@ -309,7 +321,7 @@ export class Portal {
           for (const c of [u, 'ffmpeg ' + u]) {
             const r3 = await this.authed({ ...base, type: 'vod', cmd: c, series: '', forced_storage: '' }).catch(() => null);
             const url3 = this.extract(r3?.js);
-            if (url3 && url3 !== u) { this.lastRoute = 'portal link for the file address'; return url3; }
+            if (url3 && url3 !== u) { grabSubs(r3?.js, rows); this.lastRoute = 'portal link for the file address'; return url3; }
             note += ' · url-cmd → ' + String(r3?.js?.error ?? JSON.stringify(r3?.js)).slice(0, 30);
           }
         }
@@ -322,6 +334,7 @@ export class Portal {
             const pr = await fetch(direct, { headers: this.headers(false), signal: t.signal, credentials: 'omit' }).finally(t.done);
             probe = 'server ' + pr.status + ' ' + (await pr.text()).replace(/\s+/g, ' ').slice(0, 80);
           } catch (e: any) { probe = 'server: ' + (e?.name === 'AbortError' ? 'no answer in 8s' : 'unreachable'); }
+          grabSubs(null, rows);
           this.lastRoute = 'file address (portal refused: ' + (last?.error || '?') + note + ') · ' + probe;
           return direct;
         }

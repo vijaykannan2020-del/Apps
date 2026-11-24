@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, TextInput, Vi
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCache, isReady, setCache, useSettings } from '../src/store';
 import { portalFor, type Category, type Channel, type Movie } from '../src/portal';
 import { C } from '../src/theme';
@@ -18,6 +19,14 @@ function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () 
     </Pressable>
   );
 }
+
+const LANGS = ['All', 'Tamil', 'English', 'Hindi', 'Telugu', 'Malayalam', 'Kannada'];
+const LANG_KEYS: Record<string, RegExp> = {
+  Tamil: /tamil|\bta\b|\btam\b/i, English: /english|\ben\b|\beng\b|\buk\b|\busa?\b/i, Hindi: /hindi|\bhin\b|bollywood/i,
+  Telugu: /telugu|\btel\b|tollywood/i, Malayalam: /malayalam|\bmal\b/i, Kannada: /kannada|\bkan\b/i,
+};
+const matchLang = (lang: string, ...texts: string[]) => lang === 'All' || texts.some(t => LANG_KEYS[lang]?.test(t));
+const SERIES_WORDS = /show|series|web|drama|season|serial/i;
 
 function Message({ text, action, onAction }: { text: string; action?: string; onAction?: () => void }) {
   return (
@@ -47,6 +56,9 @@ export default function Home() {
   const [liveCat, setLiveCat] = useState('All');
   const [search, setSearch] = useState('');
   const [vodCat, setVodCat] = useState<string | null>(null);
+  const [lang, setLangState] = useState('All');
+  useEffect(() => { AsyncStorage.getItem('sideline-tv.lang').then(v => v && LANGS.includes(v) && setLangState(v)).catch(() => {}); }, []);
+  const setLang = (l: string) => { setLangState(l); setLiveCat('All'); AsyncStorage.setItem('sideline-tv.lang', l).catch(() => {}); };
 
   const key = settings ? JSON.stringify({ p: settings.portal, m: settings.mac }) : '';
   if (mem.key !== key) { mem.key = key; mem.live = undefined; mem.vodCats = undefined; mem.vod = {}; }
@@ -97,7 +109,8 @@ export default function Home() {
     try {
       const cur = mem.vod[cat];
       const page = more && cur ? cur.page + 1 : 1;
-      const r = await portal.movies(cat, page);
+      const title = mem.vodCats?.find(c => c.id === cat)?.title || '';
+      const r = await portal.movies(cat, page, SERIES_WORDS.test(title));
       mem.vod[cat] = { items: more && cur ? [...cur.items, ...r.items] : r.items, page, hasMore: r.hasMore };
     } catch (e: any) { setVodErr(e.message || String(e)); }
     finally { setVodBusy(false); bump(n => n + 1); }
@@ -110,13 +123,16 @@ export default function Home() {
   const shown = useMemo(() => {
     const list = mem.live?.channels || [];
     const q = search.trim().toLowerCase();
-    return list.filter(c => (liveCat === 'All' || c.category === liveCat) && (!q || c.name.toLowerCase().includes(q)));
-  }, [mem.live, liveCat, search]);
+    return list.filter(c => matchLang(lang, c.category, c.name) && (liveCat === 'All' || c.category === liveCat) && (!q || c.name.toLowerCase().includes(q)));
+  }, [mem.live, liveCat, search, lang]);
+  const liveCats = useMemo(() => (mem.live?.categories || []).filter(c => lang === 'All' || matchLang(lang, c)), [mem.live, lang]);
+  const vodCats = useMemo(() => (mem.vodCats || []).filter(c => matchLang(lang, c.title)), [mem.vodCats, lang]);
+  useEffect(() => { if (vodCats.length && !vodCats.some(c => c.id === vodCat)) { setVodErr(''); setVodCat(vodCats[0].id); } }, [vodCats]);
 
   const play = (cmd: string, name: string, kind: 'live' | 'movie', id = '', category = '') => router.push({ pathname: '/player', params: { cmd, name, kind, id, category } });
   const cols = width > 700 ? 5 : 3;
   const tile = (width - 32 - (cols - 1) * 10) / cols;
-  const movies = vodCat ? mem.vod[vodCat] : undefined;
+  const movies = vodCat && vodCats.some(c => c.id === vodCat) ? mem.vod[vodCat] : undefined;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 8 }}>
@@ -141,6 +157,16 @@ export default function Home() {
             ))}
           </View>
 
+          <View style={{ height: 40, marginBottom: 8 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}>
+              {LANGS.map(l => (
+                <Pressable key={l} onPress={() => setLang(l)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, marginRight: 8, backgroundColor: lang === l ? '#ffffff' : C.card }}>
+                  <Text style={{ color: lang === l ? C.bg : C.dim, fontWeight: '700', fontSize: 13 }}>{l}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+
           {tab === 'live' ? (
             <>
               <TextInput value={search} onChangeText={setSearch} placeholder="Search channels" placeholderTextColor="#5f5a7d" autoCorrect={false}
@@ -148,7 +174,7 @@ export default function Home() {
               {mem.live ? (
                 <View style={{ height: 44 }}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-                    {['All', ...mem.live.categories].map(c => <Chip key={c} label={c} on={liveCat === c} onPress={() => setLiveCat(c)} />)}
+                    {['All', ...liveCats].map(c => <Chip key={c} label={c} on={liveCat === c} onPress={() => setLiveCat(c)} />)}
                   </ScrollView>
                 </View>
               ) : null}
@@ -174,7 +200,7 @@ export default function Home() {
               {mem.vodCats ? (
                 <View style={{ height: 44 }}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-                    {mem.vodCats.map(c => <Chip key={c.id} label={c.title} on={vodCat === c.id} onPress={() => { setVodErr(''); setVodCat(c.id); }} />)}
+                    {vodCats.map(c => <Chip key={c.id} label={c.title} on={vodCat === c.id} onPress={() => { setVodErr(''); setVodCat(c.id); }} />)}
                   </ScrollView>
                 </View>
               ) : null}
@@ -184,7 +210,7 @@ export default function Home() {
                 contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: insets.bottom + 24 }}
                 onEndReachedThreshold={0.6}
                 onEndReached={() => { if (vodCat && movies?.hasMore && !vodBusy) loadMovies(vodCat, true); }}
-                ListEmptyComponent={vodBusy || !warm ? <View style={{ alignItems: 'center', marginTop: 40 }}><ActivityIndicator color={C.accent} /><Text style={{ color: C.dim, marginTop: 12 }}>{status}</Text></View> : vodErr ? <Message text={vodErr} action="Try again" onAction={() => (mem.vodCats ? vodCat && loadMovies(vodCat) : loadVodCats())} /> : undefined}
+                ListEmptyComponent={mem.vodCats && !vodCats.length ? <Message text={'No ' + lang + ' categories on your portal. Pick another language.'} /> : vodBusy || !warm ? <View style={{ alignItems: 'center', marginTop: 40 }}><ActivityIndicator color={C.accent} /><Text style={{ color: C.dim, marginTop: 12 }}>{status}</Text></View> : vodErr ? <Message text={vodErr} action="Try again" onAction={() => (mem.vodCats ? vodCat && loadMovies(vodCat) : loadVodCats())} /> : undefined}
                 ListFooterComponent={vodBusy && movies?.items.length ? <ActivityIndicator color={C.accent} style={{ marginVertical: 20 }} /> : undefined}
                 renderItem={({ item }) => (
                   <Pressable onPress={() => item.series ? router.push({ pathname: '/series', params: { id: item.id, name: item.name, category: item.category, logo: item.logo } }) : play(item.cmd, item.name, 'movie', item.id, item.category)} style={{ width: tile, marginBottom: 14 }}>

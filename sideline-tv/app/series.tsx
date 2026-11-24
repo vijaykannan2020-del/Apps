@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadSettings } from '../src/store';
 import { portalFor, type Season } from '../src/portal';
 import { C } from '../src/theme';
+import { setQueue } from '../src/queue';
 
 export default function Series() {
   const insets = useSafeAreaInsets();
@@ -53,7 +54,12 @@ export default function Series() {
             data={season?.episodes || []} keyExtractor={(e, i) => season!.id + ':' + e.n + ':' + i}
             contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}
             renderItem={({ item }) => (
-              <Pressable onPress={() => router.push({ pathname: '/player', params: { cmd: item.cmd, name: `${name} · ${season!.name} · ${item.name}`, kind: 'movie', episode: String(item.series) } })}
+              <Pressable onPress={() => {
+                const all = seasons!.flatMap(se => se.episodes.map(e => ({ cmd: e.cmd, name: `${name} · ${se.name} · ${e.name}`, opts: { episode: e.series, movieId: String(id), category: String(category || ''), seasonId: e.seasonId, episodeId: e.episodeId || undefined } })));
+                const at = seasons!.slice(0, pick).reduce((n, se) => n + se.episodes.length, 0) + season!.episodes.indexOf(item);
+                setQueue(all, at);
+                router.push({ pathname: '/player', params: { kind: 'movie', q: '1' } });
+              }}
                 style={({ pressed }) => ({ padding: 14, marginBottom: 8, borderRadius: 14, backgroundColor: pressed ? C.cardHi : C.card })}>
                 <Text style={{ color: C.text, fontSize: 15, fontWeight: '600' }}>▶  {item.name}</Text>
               </Pressable>
