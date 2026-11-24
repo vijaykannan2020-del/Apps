@@ -10,6 +10,7 @@ import { VLCView, type Track } from '../src/VLC';
 import * as Q from '../src/queue';
 import { lookup } from '../src/tmdb';
 import { findSubtitles, type WebSub } from '../src/subs';
+import { cueAt, loadSubs, type Cue } from '../src/srt';
 import { C } from '../src/theme';
 
 const fmt = (ms: number) => {
@@ -62,13 +63,22 @@ export default function Player() {
   const [web, setWeb] = useState<WebSub[] | null>(null);
   const [webBusy, setWebBusy] = useState(false);
   const [webMsg, setWebMsg] = useState('');
+  const [cues, setCues] = useState<Cue[] | null>(null);   // subtitles the app draws itself
+  const [cueUrl, setCueUrl] = useState('');
+  const [subDelay, setSubDelay] = useState(0);              // ms, + shows later
+  async function applyOwnSubs(url: string) {
+    setSheet(''); setTextSel(-1); setSubUri(undefined); setCueUrl(url); setCues(null);
+    try { setCues(await loadSubs(url)); } catch (e: any) { setCueUrl(''); setMsgToast(e.message || String(e)); }
+  }
+  const [toast, setMsgToast] = useState('');
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setMsgToast(''), 4000); return () => clearTimeout(t); }, [toast]);
   const [barW, setBarW] = useState(1);
   const [drag, setDrag] = useState<number | null>(null);
   const tries = useRef(0);
 
   async function open(it = item) {
     setState('loading'); setMsg(''); setUri(''); setStep('Asking the portal for the link…');
-    setTime(0); setDur(0); setPos(0); setSeek(undefined); setAudio([]); setTexts([]); setAudioSel(undefined); setTextSel(undefined); setSubUri(undefined); setPaused(false);
+    setTime(0); setDur(0); setPos(0); setSeek(undefined); setAudio([]); setTexts([]); setAudioSel(undefined); setTextSel(undefined); setSubUri(undefined); setPaused(false); setCues(null); setCueUrl(''); setWeb(null); setWebMsg('');
     try {
       const p = portalFor(await loadSettings());
       const link = await p.link(it.cmd, kind, it.opts);
@@ -160,6 +170,12 @@ export default function Player() {
       {/* tap anywhere to show / hide the controls */}
       <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} onPress={() => setChrome(c => !c)} />
 
+      {cues && state === 'playing' ? (() => { const line = cueAt(cues, time - subDelay); return line ? (
+        <View pointerEvents="none" style={{ position: 'absolute', left: 24, right: 24, bottom: insets.bottom + (chrome ? 120 : 28), alignItems: 'center' }}>
+          <Text style={{ color: '#fff', fontSize: 19, fontWeight: '600', textAlign: 'center', backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, overflow: 'hidden', textShadowColor: '#000', textShadowRadius: 4 }}>{line}</Text>
+        </View>) : null; })() : null}
+      {toast ? <View pointerEvents="none" style={{ position: 'absolute', top: insets.top + 60, left: 20, right: 20, alignItems: 'center' }}><Text style={{ color: '#fff', backgroundColor: '#000a', padding: 10, borderRadius: 10, overflow: 'hidden' }}>{toast}</Text></View> : null}
+
       {state !== 'playing' ? (
         <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: 30 }}>
           {state === 'loading' ? (
@@ -217,7 +233,9 @@ export default function Player() {
                 ) : null}
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
                   <Btn label={'Audio' + (audio.length > 1 ? ` (${audio.length})` : '')} onPress={() => setSheet('audio')} />
-                  <Btn label="Subtitles" onPress={() => setSheet('subs')} />
+                  <Btn label={cues ? 'Subtitles ✓' : cueUrl ? 'Subtitles…' : 'Subtitles'} onPress={() => setSheet('subs')} />
+                  {cues ? <Btn label="Subs −0.5s" onPress={() => { setSubDelay(d => d - 500); setMsgToast('Subtitle timing ' + ((subDelay - 500) / 1000).toFixed(1) + 's'); }} /> : null}
+                  {cues ? <Btn label="Subs +0.5s" onPress={() => { setSubDelay(d => d + 500); setMsgToast('Subtitle timing ' + ((subDelay + 500) / 1000).toFixed(1) + 's'); }} /> : null}
                   <Btn label={'Screen: ' + ASPECTS[aspect].label} onPress={() => setAspect(a => (a + 1) % ASPECTS.length)} />
                   {Q.hasNext() ? <Btn label="Next episode ▸▸" onPress={playNext} /> : null}
                   <Btn label="📺 Cast" onPress={() => router.replace({ pathname: '/cast', params: { uri, name: item.name, live: kind === 'live' ? '1' : '' } })} />
@@ -241,17 +259,17 @@ export default function Player() {
               )) : <Text style={{ color: C.dim }}>This video has one audio track.</Text>
             ) : (
               <>
-                <Pressable onPress={() => { setTextSel(-1); setSubUri(undefined); setSheet(''); }} style={{ paddingVertical: 12 }}>
+                <Pressable onPress={() => { setTextSel(-1); setSubUri(undefined); setCues(null); setCueUrl(''); setSheet(''); }} style={{ paddingVertical: 12 }}>
                   <Text style={{ color: textSel === -1 ? C.accent : C.text, fontSize: 16 }}>Off</Text>
                 </Pressable>
                 {texts.filter(t => t.id !== -1).map(t => (
-                  <Pressable key={'t' + t.id} onPress={() => { setTextSel(t.id); setSheet(''); }} style={{ paddingVertical: 12 }}>
+                  <Pressable key={'t' + t.id} onPress={() => { setCues(null); setCueUrl(''); setTextSel(t.id); setSheet(''); }} style={{ paddingVertical: 12 }}>
                     <Text style={{ color: textSel === t.id ? C.accent : C.text, fontSize: 16 }}>{t.name}</Text>
                   </Pressable>
                 ))}
                 {subs.map(s => (
-                  <Pressable key={s.url} onPress={() => { setSubUri(s.url); setSheet(''); }} style={{ paddingVertical: 12 }}>
-                    <Text style={{ color: subUri === s.url ? C.accent : C.text, fontSize: 16 }}>{s.name} (from portal)</Text>
+                  <Pressable key={s.url} onPress={() => applyOwnSubs(s.url)} style={{ paddingVertical: 12 }}>
+                    <Text style={{ color: cueUrl === s.url ? C.accent : C.text, fontSize: 16 }}>{s.name} (from portal)</Text>
                   </Pressable>
                 ))}
                 {!texts.filter(t => t.id !== -1).length && !subs.length ? <Text style={{ color: C.dim, paddingVertical: 8 }}>No subtitles came with this video.</Text> : null}
@@ -259,9 +277,9 @@ export default function Player() {
                   <Text style={{ color: C.text, fontWeight: '700' }}>{webBusy ? 'Searching online…' : '🔎  Find subtitles online (English, Tamil, Hindi)'}</Text>
                 </Pressable>
                 {webMsg ? <Text style={{ color: C.dim, paddingVertical: 8 }}>{webMsg}</Text> : null}
-                {(web || []).map(w => (
-                  <Pressable key={w.url} onPress={() => { setSubUri(w.url); setSheet(''); }} style={{ paddingVertical: 12 }}>
-                    <Text style={{ color: subUri === w.url ? C.accent : C.text, fontSize: 15 }}>{w.name}</Text>
+                {(web || []).map((w, wi) => (
+                  <Pressable key={w.url} onPress={() => applyOwnSubs(w.url)} style={{ paddingVertical: 12 }}>
+                    <Text style={{ color: cueUrl === w.url ? C.accent : C.text, fontSize: 15 }}>{w.name} #{wi + 1}</Text>
                   </Pressable>
                 ))}
               </>
