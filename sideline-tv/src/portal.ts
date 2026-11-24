@@ -286,9 +286,12 @@ export class Portal {
         const f = await this.authed({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: '0', episode_id: '0', category, sortby: 'added', p: '1' }, 30000).catch(() => null);
         const rows: any[] = Array.isArray(f?.js?.data) ? f.js.data : [];
         // Each file row has an id (and sometimes cmd / url). A box asks for /media/file_<id>.mpg.
-        const files: any[] = rows.filter((x: any) => x && (x.cmd || x.id)).slice(0, 3)
-          .map((x: any) => ({ ...x, cmd: x.cmd && x.cmd !== cmd ? x.cmd : '/media/file_' + x.id + '.mpg' }));
-        note = ' · file list: ' + rows.length + ' row(s)' + (rows[0] ? ' ' + JSON.stringify(rows[0]).slice(0, 120) : '');
+        // A box asks with the file number first (/media/file_<id>.mpg); some portals want the file's own cmd.
+        const files: any[] = rows.filter((x: any) => x && x.id).slice(0, 2).flatMap((x: any) => [
+          { ...x, cmd: '/media/file_' + x.id + '.mpg' },
+          ...(x.cmd && x.cmd !== cmd && !/^https?:/i.test(x.cmd) ? [{ ...x, cmd: x.cmd }] : []),
+        ]);
+        note = ' · file list: ' + rows.length + ' row(s), id ' + (rows[0]?.id ?? '?');
         const variants = files.flatMap((file: any) => [
           { file, series: '', storage: '' }, { file, series: '0', storage: '0' }, { file, series: '1', storage: '' },
         ]);
@@ -297,7 +300,7 @@ export class Portal {
           const url2 = this.extract(r2?.js);
           if (url2) { this.lastRoute = 'portal link for file ' + file.cmd + ' (series=' + series + ')'; return url2; }
           last = r2?.js;
-          note += ' · ' + file.cmd + '/' + series + ' → ' + String(r2?.js?.error ?? JSON.stringify(r2?.js)).slice(0, 40);
+          note += ' · ' + String(file.cmd).slice(0, 30) + '/' + series + ' → ' + String(r2?.js?.error ?? JSON.stringify(r2?.js)).slice(0, 40);
         }
         // "custom" protocol files: a box sends the file's own address as the request.
         for (const row of rows.slice(0, 2)) {
@@ -307,12 +310,21 @@ export class Portal {
             const r3 = await this.authed({ ...base, type: 'vod', cmd: c, series: '', forced_storage: '' }).catch(() => null);
             const url3 = this.extract(r3?.js);
             if (url3 && url3 !== u) { this.lastRoute = 'portal link for the file address'; return url3; }
-            note += ' · url-cmd → ' + JSON.stringify(r3?.js).slice(0, 70);
+            note += ' · url-cmd → ' + String(r3?.js?.error ?? JSON.stringify(r3?.js)).slice(0, 30);
           }
         }
         // Still nothing: the file's own address (protocol "custom") is the stream itself.
         const direct = rows.map((x: any) => String(x?.url || '').replace(/^(ffmpeg|auto)\s+/i, '').trim()).find((u: string) => /^https?:\/\//i.test(u));
-        if (direct) { this.lastRoute = 'file address (portal refused: ' + (last?.error || '?') + note + ')'; return direct; }
+        if (direct) {
+          let probe = '';
+          try {
+            const t = withTimeout(8000);
+            const pr = await fetch(direct, { headers: this.headers(false), signal: t.signal, credentials: 'omit' }).finally(t.done);
+            probe = 'server ' + pr.status + ' ' + (await pr.text()).replace(/\s+/g, ' ').slice(0, 80);
+          } catch (e: any) { probe = 'server: ' + (e?.name === 'AbortError' ? 'no answer in 8s' : 'unreachable'); }
+          this.lastRoute = 'file address (portal refused: ' + (last?.error || '?') + note + ') · ' + probe;
+          return direct;
+        }
         break;
       }
     }
