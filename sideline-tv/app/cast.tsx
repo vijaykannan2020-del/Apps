@@ -20,6 +20,53 @@ export default function Cast() {
     p.play();
   });
   const [err, setErr] = useState('');
+  // Why might a TV refuse this video? Ask the video server the way a TV would (no set-top-box name),
+  // and read the video/audio formats from the playlist.
+  const [diag, setDiag] = useState('Checking this video for AirPlay…');
+  useEffect(() => {
+    (async () => {
+      const u = String(uri);
+      const get = async (url: string, headers: Record<string, string>, range = false) => {
+        const c = new AbortController(); const t = setTimeout(() => c.abort(), 8000);
+        try {
+          const r = await fetch(url, { headers: range ? { ...headers, Range: 'bytes=0-2047' } : headers, signal: c.signal });
+          const ct = r.headers.get('content-type') || '';
+          const body = /mpegurl|text|json|html/i.test(ct) || /\.m3u8/i.test(url) ? await r.text() : '';
+          return { status: r.status, ct, body };
+        } catch (e: any) { return { status: 0, ct: '', body: e?.name === 'AbortError' ? 'timeout' : 'unreachable' }; }
+        finally { clearTimeout(t); }
+      };
+      const tvUA = { 'User-Agent': 'AppleCoreMedia/1.0.0 (Apple TV; U; CPU OS 18_0 like Mac OS X)' };
+      const lines: string[] = [];
+      const a = await get(u, tvUA);
+      lines.push('As a TV: ' + a.status + ' ' + a.ct);
+      if (!/\.m3u8/i.test(u) && !/mpegurl/i.test(a.ct)) lines.push('Stream type: ' + (a.ct || 'raw stream') + ' (not an AirPlay playlist)');
+      let pl = a.body;
+      if (a.status >= 400 || !pl.includes('#EXT')) {
+        const b = await get(u, { 'User-Agent': 'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG200 stbapp ver: 4 rev: 2721 Safari/533.3' });
+        lines.push('As a set-top box: ' + b.status);
+        pl = b.body;
+      }
+      const codecs = [...new Set((pl.match(/CODECS="([^"]+)"/g) || []).map(x => x.slice(8, -1)))];
+      const res = [...new Set((pl.match(/RESOLUTION=(\d+x\d+)/g) || []).map(x => x.slice(11)))];
+      if (codecs.length) lines.push('Formats: ' + codecs.join(' | '));
+      if (res.length) lines.push('Sizes: ' + res.join(', '));
+      // First sub-playlist / segment, fetched the TV way.
+      const next = pl.split('\n').map(l => l.trim()).find(l => l && !l.startsWith('#'));
+      if (next) {
+        const nu = new URL(next, u).toString();
+        const c = await get(nu, tvUA, true);
+        lines.push('Next part (' + (nu.split('?')[0].split('.').pop() || '?') + ') as a TV: ' + c.status + ' ' + c.ct);
+        if (c.body.includes('#EXT')) {
+          const seg = c.body.split('\n').map(l => l.trim()).find(l => l && !l.startsWith('#'));
+          const map = (c.body.match(/#EXT-X-MAP:URI="([^"]+)"/) || [])[1];
+          if (/#EXT-X-KEY/.test(c.body)) lines.push('Encrypted: ' + ((c.body.match(/METHOD=([A-Z0-9-]+)/) || [])[1] || 'yes'));
+          if (seg) { const su = new URL(seg, nu).toString(); const d = await get(su, tvUA, true); lines.push('Video piece (' + (su.split('?')[0].split('.').pop() || '?') + ') as a TV: ' + d.status + ' ' + d.ct + (map ? ' · fMP4' : '')); }
+        }
+      }
+      setDiag(lines.join('\n'));
+    })();
+  }, [uri]);
   useEffect(() => {
     if (!player) return;
     const sub = player.addListener('statusChange', ({ status, error }) => { if (status === 'error') setErr(error?.message || 'This video cannot be cast this way.'); });
@@ -38,7 +85,7 @@ export default function Cast() {
         <>
           <VideoView player={player} style={{ flex: 1 }} nativeControls allowsPictureInPicture contentFit="contain" />
           <Text style={{ color: '#bbb', textAlign: 'center', padding: 16, paddingBottom: insets.bottom + 16 }}>
-            {err ? err + '\n\n' : ''}Tap the video, then the AirPlay icon (▭ with a triangle) and pick your TV.{'\n'}Fire TV: install the free "AirScreen" app on it first.
+            {err ? err + '\n\n' : ''}{diag}{'\n\n'}Tap the video, then the AirPlay icon (▭ with a triangle) and pick your TV.{'\n'}Fire TV: install the free "AirScreen" app on it first.
           </Text>
         </>
       ) : (
