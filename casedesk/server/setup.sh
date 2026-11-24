@@ -29,6 +29,12 @@ setenv .env INGEST_PERM "$(conf INGEST_PERM)"
 DOMAIN=$(conf CASEDESK_DOMAIN)
 [ -n "$DOMAIN" ] && setenv .env ALLOWED_ORIGIN '*'
 mkdir -p data/content
+# Website pages (casedesk/site) next to the server; auto-update.sh keeps them current
+if [ ! -f site/home.html ]; then
+  mkdir -p site
+  curl -fsSL https://github.com/vijaykannan2020-del/Apps/archive/refs/heads/main.tar.gz \
+    | tar xz -C site --strip-components=3 --wildcards 'Apps-*/casedesk/site/*' && log "website pages installed"
+fi
 
 # 3) Build and start the API
 docker compose up -d --build --remove-orphans

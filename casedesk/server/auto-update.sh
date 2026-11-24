@@ -11,6 +11,8 @@ SHA=$(git ls-remote "$REPO" refs/heads/main 2>/dev/null | cut -f1)
 [ "$SHA" = "$(cat .deployed-sha 2>/dev/null || true)" ] && exit 0
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 curl -fsSL "$REPO/archive/$SHA.tar.gz" | tar xz -C "$TMP" --strip-components=3 "Apps-$SHA/casedesk/server"
+# Website pages (casedesk/site) live in ./site so a page change also redeploys
+curl -fsSL "$REPO/archive/$SHA.tar.gz" | tar xz -C "$TMP" --strip-components=2 "Apps-$SHA/casedesk/site" || true
 if diff -qr --exclude=data --exclude=.env --exclude=.deployed-sha "$TMP" . >/dev/null 2>&1; then
   echo "$SHA" > .deployed-sha; exit 0
 fi
