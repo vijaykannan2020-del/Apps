@@ -38,6 +38,7 @@ export function VLCView(p: {
   onBuffering?: () => void;
   onError?: () => void;
   onEnded?: () => void;
+  onProgress?: () => void;
 }) {
   return (
     <RCTVLCPlayer
@@ -54,7 +55,7 @@ export function VLCView(p: {
       onVideoLoadStart={noop}
       onVideoPaused={noop}
       onVideoStopped={noop}
-      onVideoProgress={noop}
+      onVideoProgress={() => p.onProgress?.()}
       onVideoLoad={noop}
       onRecordingState={noop}
       onSnapshot={noop}
