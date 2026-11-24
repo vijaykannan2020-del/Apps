@@ -12,7 +12,7 @@ import { C } from '../src/theme';
 export default function Player() {
   useKeepAwake();
   const insets = useSafeAreaInsets();
-  const { cmd, name, kind, episode, id } = useLocalSearchParams<{ cmd: string; name: string; kind: 'live' | 'movie'; episode?: string; id?: string }>();
+  const { cmd, name, kind, episode, id, category } = useLocalSearchParams<{ cmd: string; name: string; kind: 'live' | 'movie'; episode?: string; id?: string; category?: string }>();
   const [uri, setUri] = useState('');
   const [opts, setOpts] = useState<string[]>([]);
   const [state, setState] = useState<'loading' | 'playing' | 'error'>('loading');
@@ -25,7 +25,7 @@ export default function Player() {
     setState('loading'); setMsg(''); setUri(''); setStep('Asking the portal for the link…');
     try {
       const p = portalFor(await loadSettings());
-      const link = await p.link(String(cmd), kind === 'movie' ? 'movie' : 'live', Number(episode || 0), String(id || ''));
+      const link = await p.link(String(cmd), kind === 'movie' ? 'movie' : 'live', Number(episode || 0), String(id || ''), String(category || ''));
       setOpts(p.playerOptions());
       setStep('Connecting to the stream… (' + new URL(link).host + ')');
       setUri(link);

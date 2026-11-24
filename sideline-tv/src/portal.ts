@@ -262,22 +262,37 @@ export class Portal {
 
   // Asks the portal for the playable address of a channel, movie or episode.
   // Portals differ in how they want movie requests, so it tries the common forms in turn.
-  async link(cmd: string, kind: 'live' | 'movie', episode = 0, movieId = ''): Promise<string> {
+  async link(cmd: string, kind: 'live' | 'movie', episode = 0, movieId = '', category = ''): Promise<string> {
     const base = { action: 'create_link', disable_ad: '0', download: '0', force_ch_link_check: '0' };
     const tries: Record<string, string>[] = kind === 'movie'
       ? [
           { ...base, type: 'vod', cmd, series: episode ? String(episode) : '', forced_storage: '' },
           { ...base, type: 'vod', cmd, series: String(episode || 0), forced_storage: '0' },
-          ...(movieId && !episode ? [{ ...base, type: 'vod', cmd: '/media/' + movieId + '.mpg', series: '', forced_storage: '' }] : []),
         ]
       : [{ ...base, type: 'itv', cmd, series: '', forced_storage: '0' }];
     let last: any = null;
+    let note = '';
     for (const params of tries) {
       const r = await this.authed(params);
       const url = this.extract(r?.js);
       if (url) return url;
       last = r?.js;
       if (last?.error === 'limit') throw new Error('Your subscription is already playing on another device. Stop it there and try again.');
+      // Newer portals keep a movie's real video file(s) in a separate list; a box asks for that list,
+      // then makes the link from the file (cmd like /media/file_123.mpg).
+      if (kind === 'movie' && movieId && !episode && last?.error === 'nothing_to_play') {
+        const f = await this.authed({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: '0', episode_id: '0', category, sortby: 'added', p: '1' }, 30000).catch(() => null);
+        const rows: any[] = Array.isArray(f?.js?.data) ? f.js.data : [];
+        const files: any[] = rows.filter((x: any) => x?.cmd && x.cmd !== cmd).slice(0, 3);
+        note = ' · file list: ' + rows.length + ' row(s)' + (rows[0] ? ' ' + JSON.stringify(rows[0]).slice(0, 120) : '');
+        for (const file of files) {
+          const r2 = await this.authed({ ...base, type: 'vod', cmd: String(file.cmd), series: '', forced_storage: '' });
+          const url2 = this.extract(r2?.js);
+          if (url2) return url2;
+          last = r2?.js;
+        }
+        break;
+      }
     }
     const why: Record<string, string> = {
       nothing_to_play: 'The portal says this title has no video file right now.',
@@ -285,7 +300,7 @@ export class Portal {
       not_found: 'The portal could not find this title.',
     };
     throw new Error((why[last?.error] || 'The portal did not give a playable link for this title.') +
-      '\n\nDetails: cmd ' + String(cmd).slice(0, 60) + ' → ' + JSON.stringify(last).slice(0, 160));
+      '\n\nDetails: cmd ' + String(cmd).slice(0, 60) + ' → ' + JSON.stringify(last).slice(0, 160) + note);
   }
 
   playerOptions(): string[] {

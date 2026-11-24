@@ -113,7 +113,7 @@ export default function Home() {
     return list.filter(c => (liveCat === 'All' || c.category === liveCat) && (!q || c.name.toLowerCase().includes(q)));
   }, [mem.live, liveCat, search]);
 
-  const play = (cmd: string, name: string, kind: 'live' | 'movie', id = '') => router.push({ pathname: '/player', params: { cmd, name, kind, id } });
+  const play = (cmd: string, name: string, kind: 'live' | 'movie', id = '', category = '') => router.push({ pathname: '/player', params: { cmd, name, kind, id, category } });
   const cols = width > 700 ? 5 : 3;
   const tile = (width - 32 - (cols - 1) * 10) / cols;
   const movies = vodCat ? mem.vod[vodCat] : undefined;
@@ -187,7 +187,7 @@ export default function Home() {
                 ListEmptyComponent={vodBusy || !warm ? <View style={{ alignItems: 'center', marginTop: 40 }}><ActivityIndicator color={C.accent} /><Text style={{ color: C.dim, marginTop: 12 }}>{status}</Text></View> : vodErr ? <Message text={vodErr} action="Try again" onAction={() => (mem.vodCats ? vodCat && loadMovies(vodCat) : loadVodCats())} /> : undefined}
                 ListFooterComponent={vodBusy && movies?.items.length ? <ActivityIndicator color={C.accent} style={{ marginVertical: 20 }} /> : undefined}
                 renderItem={({ item }) => (
-                  <Pressable onPress={() => item.series ? router.push({ pathname: '/series', params: { id: item.id, name: item.name, category: item.category, logo: item.logo } }) : play(item.cmd, item.name, 'movie', item.id)} style={{ width: tile, marginBottom: 14 }}>
+                  <Pressable onPress={() => item.series ? router.push({ pathname: '/series', params: { id: item.id, name: item.name, category: item.category, logo: item.logo } }) : play(item.cmd, item.name, 'movie', item.id, item.category)} style={{ width: tile, marginBottom: 14 }}>
                     <View style={{ width: tile, height: tile * 1.5, borderRadius: 12, backgroundColor: C.card, overflow: 'hidden' }}>
                       {item.logo ? <Image source={item.logo} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={150} /> : null}
                     </View>
