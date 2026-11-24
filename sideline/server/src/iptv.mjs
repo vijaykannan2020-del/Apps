@@ -212,22 +212,50 @@ export function createPortalClient(fetchImpl = fetch) {
     channelCache.set(ckey, { data, ts: Date.now() });
     return data;
   }
-  async function link(origin, mac, cmd, agent) {
+  async function link(origin, mac, cmd, agent, contentType) {
+    const type = contentType === 'vod' || contentType === 'series' ? 'vod' : 'itv';
     let lastErr;
     for (let attempt = 0; attempt < 2; attempt++) {
       const { ep, token } = await login(origin, mac, agent);   // reuses the channel-list login
       try {
-        const r = await get(ep, { type: 'itv', action: 'create_link', cmd, forced_storage: '0', disable_ad: '0' }, origin, mac, token, agent);
+        const r = await get(ep, { type, action: 'create_link', cmd, forced_storage: '0', disable_ad: '0', series: '0' }, origin, mac, token, agent);
         const raw = String(r?.js?.cmd || '').replace(/^ffmpeg\s+/i, '').trim();
         const m = raw.match(/https?:\/\/\S+/);
         if (m && !isBlockedHost(m[0])) return m[0];
-        lastErr = new Error('The portal did not give a playable link for this channel.');
+        lastErr = new Error('The portal did not give a playable link for this title.');
       } catch (e) { lastErr = e; }
       sessions.delete(origin + '|' + mac);   // token may be stale — force one fresh login
     }
     throw lastErr;
   }
-  return { channels, link };
+
+  // Movies (VOD): categories, then a paginated list per category.
+  function picURL(origin, p) {
+    if (!p) return '';
+    if (/^https?:\/\//i.test(p)) return p;
+    return new URL(origin).origin + '/stalker_portal/' + String(p).replace(/^\/+/, '');
+  }
+  async function vodCategories(origin, mac, agent) {
+    const { ep, token } = await login(origin, mac, agent);
+    const r = await get(ep, { type: 'vod', action: 'get_categories' }, origin, mac, token, agent, 30000);
+    const cats = (Array.isArray(r?.js) ? r.js : []).map(c => ({ id: String(c.id), title: String(c.title || c.name || '') }))
+      .filter(c => c.id && c.id !== '*' && c.title);
+    return { categories: cats };
+  }
+  async function vodList(origin, mac, agent, category, page) {
+    const { ep, token } = await login(origin, mac, agent);
+    const p = Math.max(1, Number(page) || 1);
+    const r = await get(ep, { type: 'vod', action: 'get_ordered_list', category: String(category), sortby: 'added', p: String(p) }, origin, mac, token, agent, 40000);
+    const js = r?.js || {};
+    const rows = Array.isArray(js.data) ? js.data : [];
+    const items = rows.map(x => ({
+      id: String(x.id), name: String(x.name || x.o_name || 'Untitled'), cmd: String(x.cmd || ''),
+      logo: picURL(origin, x.screenshot_uri || x.poster_path || x.cover || ''), year: String(x.year || ''),
+    })).filter(x => x.cmd);
+    const total = Number(js.total_items || 0), per = rows.length || 14;
+    return { items, hasMore: total ? p * per < total : items.length > 0 };
+  }
+  return { channels, link, vodCategories, vodList };
 }
 
 // ffmpeg reads the channel with MAG headers and writes a rolling live HLS playlist.
@@ -277,12 +305,12 @@ export function createIptv({ config, signature, equal, json, body, portal = crea
     throw new Error('The channel did not start in time. It may be offline; try another channel.');
   }
 
-  async function start({ origin, mac, cmd, name, convert, agent }) {
-    const target = await portal.link(origin, mac, cmd, agent);
+  async function start({ origin, mac, cmd, name, convert, agent, contentType }) {
+    const target = await portal.link(origin, mac, cmd, agent, contentType);
     while (lives.size >= maxLive) await stop([...lives.values()].sort((a, b) => a.started - b.started)[0]);
     const id = crypto.randomUUID(), dir = path.join(root, id);
     await fs.mkdir(dir, { recursive: true });
-    const live = { id, dir, origin, mac, cmd, name, agent, convert: !!convert, started: Date.now(), seen: Date.now(), state: 'starting', error: null };
+    const live = { id, dir, origin, mac, cmd, name, agent, contentType, convert: !!convert, started: Date.now(), seen: Date.now(), state: 'starting', error: null };
     lives.set(id, live);
     const proc = spawn(config.ffmpeg, ffmpegArgs({ target, mac, origin, dir, convert, agent }), { stdio: ['ignore', 'ignore', 'pipe'] });
     live.process = proc;
@@ -320,7 +348,21 @@ export function createIptv({ config, signature, equal, json, body, portal = crea
       try {
         const d = await body(req);
         if (typeof d.cmd !== 'string' || !d.cmd || d.cmd.length > 2000) throw new Error('Choose a channel.');
-        json(res, 200, await start({ origin: normalizeEntry(d.portal), mac: normalizeMac(d.mac), cmd: d.cmd, name: String(d.name || '').slice(0, 200), convert: d.convert === true, agent: { ua: d.ua, model: d.model, sn: d.sn, deviceId: d.deviceId, deviceId2: d.deviceId2, signature: d.signature } }));
+        json(res, 200, await start({ origin: normalizeEntry(d.portal), mac: normalizeMac(d.mac), cmd: d.cmd, name: String(d.name || '').slice(0, 200), convert: d.convert === true, contentType: d.contentType, agent: { ua: d.ua, model: d.model, sn: d.sn, deviceId: d.deviceId, deviceId2: d.deviceId2, signature: d.signature } }));
+      } catch (e) { json(res, 502, { error: e.message }); }
+      return true;
+    }
+    if (pathname === '/api/iptv/vod-categories' && req.method === 'POST') {
+      try {
+        const d = await body(req);
+        json(res, 200, await portal.vodCategories(normalizeEntry(d.portal), normalizeMac(d.mac), { ua: d.ua, model: d.model, sn: d.sn, deviceId: d.deviceId, deviceId2: d.deviceId2, signature: d.signature }));
+      } catch (e) { json(res, 502, { error: e.message }); }
+      return true;
+    }
+    if (pathname === '/api/iptv/vod-list' && req.method === 'POST') {
+      try {
+        const d = await body(req);
+        json(res, 200, await portal.vodList(normalizeEntry(d.portal), normalizeMac(d.mac), { ua: d.ua, model: d.model, sn: d.sn, deviceId: d.deviceId, deviceId2: d.deviceId2, signature: d.signature }, d.category, d.page));
       } catch (e) { json(res, 502, { error: e.message }); }
       return true;
     }
@@ -344,7 +386,7 @@ export function createIptv({ config, signature, equal, json, body, portal = crea
     if (name === 'direct.ts') {
       // Raw stream for VLC: fresh portal link, MAG headers, piped through.
       try {
-        const target = await portal.link(live.origin, live.mac, live.cmd, live.agent);
+        const target = await portal.link(live.origin, live.mac, live.cmd, live.agent, live.contentType);
         const up = await fetch(target, { headers: portalHeaders(live.origin, live.mac, null, live.agent), redirect: 'follow' });
         if (!up.ok || !up.body) { json(res, 502, { error: 'The IPTV server refused the stream.' }); return true; }
         res.writeHead(200, { 'Content-Type': up.headers.get('content-type') || 'video/mp2t', 'Cache-Control': 'no-store' });

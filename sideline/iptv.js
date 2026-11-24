@@ -1,4 +1,4 @@
-// Version 36: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
+// Version 37: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
 // Safari cannot send the MAG box headers a portal checks, so the Sideline bridge on your
 // own server (installed automatically beside your Inbox app) logs in as the chosen box and
 // turns channels into iPhone HLS. Portal URL, MAC and box model stay on this device and are
@@ -17,11 +17,15 @@ const MODEL_LIST=['AuraHD9','AuraHD','AuraHD2','MAG254','MAG250','MAG322','MAG35
 function agentFor(c){const m=(c&&c.model)||'MAG254';return {model:m,ua:MODELS[m]||MODELS.MAG254,sn:(c&&c.sn)||'',deviceId:(c&&c.deviceId)||'',deviceId2:(c&&c.deviceId2)||'',signature:(c&&c.signature)||''}}
 let cfg=read('sideline-iptv',null);if(!cfg||typeof cfg.portal!=='string'||typeof cfg.mac!=='string')cfg=null;
 let list=null,loading=null,errorText='',cat=read('sideline-iptv-cat',''),shown=120,lastPlay=null,view='Live TV';
+let tab='live',vodCats=null,vodCat='',vodItems=[],vodPage=1,vodLoading=null,vodMore=false,vodErr='';
 const serverBase=()=>((cfg&&cfg.server)||DEFAULT_SERVER).replace(/\/+$/,'');
 
 const css=document.createElement('style');
 css.textContent='#iptvBoard{margin:0 0 26px}#iptvBoard .iptv-card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}#iptvBoard .iptv-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 12px}#iptvBoard .iptv-top h3{margin:0;font-size:18px}#iptvBoard .iptv-top small{color:var(--muted)}#iptvChips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 0 12px}#iptvChips::-webkit-scrollbar{display:none}#iptvChips button{flex:0 0 auto;border:1px solid var(--line);background:var(--bg2);color:var(--muted);border-radius:999px;padding:0 14px;min-height:36px;font:600 13px/1 inherit}#iptvChips button.on{background:var(--accent);border-color:var(--accent);color:#fff}#iptvGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.iptv-ch{display:flex;align-items:center;gap:10px;min-height:58px;padding:8px 10px;border-radius:12px;background:var(--bg2);border:1px solid var(--line);color:var(--text);text-align:left;font:600 13px/1.25 inherit;cursor:pointer}.iptv-ch:active{transform:scale(.98)}.iptv-ch img,.iptv-ch i{flex:0 0 40px;width:40px;height:40px;border-radius:8px;object-fit:contain;background:#0006;display:grid;place-items:center;font-style:normal;color:var(--muted);font-size:12px}.iptv-ch span{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.iptv-ch.playing{border-color:var(--accent)}#iptvMore{margin-top:12px}#iptvLast{margin:12px 0 0;font-size:12px;color:var(--muted)}#iptvLast button{margin-left:6px}@media(max-width:600px){#iptvGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}';
 document.head.appendChild(css);
+const css2=document.createElement('style');
+css2.textContent='.iptv-tabs{display:inline-flex;gap:4px;background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:4px;margin:0 0 14px}.iptv-tabs button{border:0;background:transparent;color:var(--muted);border-radius:999px;min-height:32px;padding:0 16px;font:600 13px/1 inherit;cursor:pointer}.iptv-tabs button.on{background:var(--accent);color:#fff}.vod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px}.vod-card{display:flex;flex-direction:column;gap:6px;background:transparent;border:0;color:var(--text);text-align:left;cursor:pointer;padding:0}.vod-card:active{transform:scale(.97)}.vod-card .ph,.vod-card img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:10px;background:var(--bg2);display:grid;place-items:center;color:var(--muted);font-size:11px}.vod-card span{font:600 12px/1.3 inherit;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}@media(max-width:600px){.vod-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}';
+document.head.appendChild(css2);
 
 const board=document.createElement('div');board.id='iptvBoard';board.className='hidden';
 function attachBoard(){const lb=$('#liveBoard');if(lb&&lb.firstChild!==board)lb.prepend(board)}
@@ -93,30 +97,57 @@ function paint(){
  const sports=view==='Sports';
  // Not set up yet — show the Set up card on both Live TV and Cricket.
  if(!cfg){board.innerHTML='<div class="iptv-card"><div class="iptv-top"><div><h3>'+(sports?'Cricket on your IPTV':'Your IPTV')+'</h3><small>Watch a MAC-locked IPTV subscription (MAG / Stalker portal) here</small></div><button class="primary" data-iptv-setup>Set up</button></div></div>';return}
- const head='<div class="iptv-top"><div><h3>'+(sports?'Cricket on your IPTV':'Your IPTV')+'</h3><small>'+(list?list.channels.length+' channels':'')+'</small></div><button class="text-button" data-iptv-setup>⚙ IPTV</button></div>';
- if(!list){board.innerHTML='<div class="iptv-card">'+head+'<p class="help">'+boardEsc(errorText||'Loading your channels…')+'</p>'+(errorText?'<button class="secondary" data-iptv-retry>↻ Try again</button>':'')+'</div>';return}
+ const head='<div class="iptv-top"><div><h3>'+(sports?'Cricket on your IPTV':'Your IPTV')+'</h3><small>'+(tab==='movies'?'Movies':(list?list.channels.length+' channels':''))+'</small></div><button class="text-button" data-iptv-setup>⚙ IPTV</button></div>';
+ const last=lastPlay?'<p id="iptvLast">Last: '+boardEsc(lastPlay.name)+'. No picture? <button class="secondary" data-iptv-convert>Convert video</button></p>':'';
+ const tabs=sports?'':'<div class="iptv-tabs" role="group" aria-label="Live or Movies"><button type="button" data-iptv-tab="live" class="'+(tab==='live'?'on':'')+'">Live TV</button><button type="button" data-iptv-tab="movies" class="'+(tab==='movies'?'on':'')+'">Movies</button></div>';
+ // Movies (VOD) view
+ if(!sports&&tab==='movies'){
+  const catChips=vodCats&&vodCats.length?'<div id="iptvChips" role="group" aria-label="Movie categories">'+vodCats.map(c=>'<button type="button" data-vod-cat="'+boardEsc(c.id)+'" class="'+(c.id===vodCat?'on':'')+'">'+boardEsc(c.title)+'</button>').join('')+'</div>':'';
+  let body;
+  if(vodErr)body='<p class="help">'+boardEsc(vodErr)+'</p><button class="secondary" data-vod-retry>↻ Try again</button>';
+  else if(!vodCats||(!vodItems.length&&vodLoading))body='<p class="help">Loading movies…</p>';
+  else if(!vodItems.length)body='<p class="help">No movies in this category.</p>';
+  else body='<div class="vod-grid">'+vodItems.map(vodCardHTML).join('')+'</div>'+(vodMore?'<button class="secondary" id="iptvMore" data-vod-more>'+(vodLoading?'Loading…':'Show more')+'</button>':'');
+  board.innerHTML='<div class="iptv-card">'+head+tabs+catChips+body+last+'</div>';return}
+ if(!list){board.innerHTML='<div class="iptv-card">'+head+tabs+'<p class="help">'+boardEsc(errorText||'Loading your channels…')+'</p>'+(errorText?'<button class="secondary" data-iptv-retry>↻ Try again</button>':'')+'</div>';return}
  rendered=visible();
  const chips=sports?'':'<div id="iptvChips" role="group" aria-label="IPTV categories">'+[['','All'],...list.categories.map(x=>[x,x])].map(([v,n])=>'<button type="button" data-iptv-cat="'+boardEsc(v)+'" class="'+(v===cat?'on':'')+'">'+boardEsc(n)+'</button>').join('')+'</div>';
  const empty=sports?'No cricket channels found in your IPTV list. Try the search, or use Live TV to see all channels.':'No channels match.';
  const grid=rendered.length?'<div id="iptvGrid">'+rendered.slice(0,shown).map(chHTML).join('')+'</div>'+(rendered.length>shown?'<button class="secondary" id="iptvMore" data-iptv-more>Show more ('+(rendered.length-shown)+')</button>':''):'<p class="help">'+empty+'</p>';
- const last=lastPlay?'<p id="iptvLast">Last: '+boardEsc(lastPlay.name)+'. No picture? <button class="secondary" data-iptv-convert>Convert video</button></p>':'';
- board.innerHTML='<div class="iptv-card">'+head+chips+grid+last+'</div>'}
+ board.innerHTML='<div class="iptv-card">'+head+tabs+chips+grid+last+'</div>'}
 
-async function play(c,convert){
- lastPlay={...c,convert:!!convert};paint();toast('Starting '+c.name+'…');
- try{const r=await api('/api/iptv/play',{...cfg,...agentFor(cfg),cmd:c.cmd,name:c.name,convert:!!convert},50000);
+function vodCardHTML(m,i){const img=/^https?:/i.test(m.logo||'')?'<img src="'+boardEsc(m.logo)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML=\'<span class=&quot;ph&quot;>Movie</span>\'">':'<span class="ph">Movie</span>';
+ return '<button class="vod-card" data-vod="'+i+'" title="'+boardEsc(m.name)+'">'+img+'<span>'+boardEsc(m.name)+(m.year?' ('+boardEsc(m.year)+')':'')+'</span></button>'}
+async function loadVodCats(){
+ if(vodCats||vodLoading)return;vodErr='';
+ try{const d=await api('/api/iptv/vod-categories',{...cfg,...agentFor(cfg)},40000);vodCats=d.categories||[];if(vodCats.length)vodCat=vodCats[0].id;paint();if(vodCat)loadVod(true)}
+ catch(e){vodErr=e.message;paint()}}
+function loadVod(reset){
+ if(!vodCat||vodLoading)return vodLoading;if(reset){vodItems=[];vodPage=1;vodMore=false;vodErr=''}
+ vodLoading=api('/api/iptv/vod-list',{...cfg,...agentFor(cfg),category:vodCat,page:vodPage},60000)
+  .then(d=>{vodItems=reset?(d.items||[]):vodItems.concat(d.items||[]);vodMore=!!d.hasMore;vodErr=''})
+  .catch(e=>{vodErr=e.message}).finally(()=>{vodLoading=null;paint()});paint();return vodLoading}
+
+async function play(c,convert,contentType){
+ lastPlay={...c,convert:!!convert,contentType};paint();toast('Starting '+c.name+'…');
+ try{const r=await api('/api/iptv/play',{...cfg,...agentFor(cfg),cmd:c.cmd,name:c.name,convert:!!convert,contentType:contentType||'itv'},60000);
   const id='iptv-live';channels=channels.filter(x=>x.id!==id);
-  channels.push({id,name:c.name,category:'Live TV',tags:[],desc:'Your IPTV'+(c.category?' · '+c.category:''),logo:c.name,photo:'tv',stream:r.hls,alternatives:[r.hls],onDemand:false,mediaFormat:'hls'});
+  channels.push({id,name:c.name,category:contentType==='vod'?'Movie':'Live TV',tags:[],desc:'Your IPTV'+(c.category?' · '+c.category:''),logo:c.name,photo:'tv',stream:r.hls,alternatives:[r.hls],onDemand:contentType==='vod',mediaFormat:'hls'});
   watch(id);
   if(r.direct){const vlc=makePlayerURL(r.direct);if(vlc){$('#infusePlayer').href=vlc;$('#infusePlayer').classList.remove('hidden')}}}
  catch(e){toast(e.message)}}
 
 board.addEventListener('click',e=>{
+ const tb=e.target.closest('[data-iptv-tab]');if(tb){const t=tb.dataset.iptvTab;if(t!==tab){tab=t;paint();if(t==='movies')loadVodCats()}return}
+ const mv=e.target.closest('[data-vod]');if(mv){const m=vodItems[Number(mv.dataset.vod)];if(m)play(m,false,'vod');return}
+ const vc=e.target.closest('[data-vod-cat]');if(vc){if(vc.dataset.vodCat!==vodCat){vodCat=vc.dataset.vodCat;loadVod(true)}return}
+ if(e.target.closest('[data-vod-more]')){if(!vodLoading&&vodMore){vodPage++;loadVod(false)}return}
+ if(e.target.closest('[data-vod-retry]')){vodErr='';if(!vodCats)loadVodCats();else loadVod(true);return}
  const ch=e.target.closest('[data-iptv]');if(ch){const c=rendered[Number(ch.dataset.iptv)];if(c)play(c,false);return}
  if(e.target.closest('[data-iptv-setup]')){openDialog();return}
  if(e.target.closest('[data-iptv-retry]')){loadList();return}
  if(e.target.closest('[data-iptv-more]')){shown+=120;paint();return}
- if(e.target.closest('[data-iptv-convert]')&&lastPlay){play(lastPlay,true);return}
+ if(e.target.closest('[data-iptv-convert]')&&lastPlay){play(lastPlay,true,lastPlay.contentType);return}
  const ct=e.target.closest('[data-iptv-cat]');if(ct){cat=ct.dataset.iptvCat;save('sideline-iptv-cat',cat);shown=120;paint()}});
 $('#search').addEventListener('input',()=>{if(!board.classList.contains('hidden')){shown=120;paint()}});
 

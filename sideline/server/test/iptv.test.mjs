@@ -173,3 +173,29 @@ test('caches the channel list and reuses the login for play (one portal login, l
   assert.equal(listCalls, 1, 'channel list fetched once, then cached');
   assert.equal(linkCalls, 2);
 });
+
+test('pulls VOD (movies) categories and a paginated list, and plays via create_link type=vod', async () => {
+  const { createPortalClient } = await import('../src/iptv.mjs');
+  let vodCreateType = null;
+  const fake = async (url) => {
+    const u = new URL(url), a = u.searchParams.get('action'), t = u.searchParams.get('type');
+    if (u.pathname !== '/portal.php') return new Response('', { status: 404 });
+    if (a === 'handshake') return new Response(JSON.stringify({ js: { token: 'T' } }));
+    if (a === 'get_profile') return new Response(JSON.stringify({ js: { status: 0, id: '1' } }));
+    if (t === 'vod' && a === 'get_categories') return new Response(JSON.stringify({ js: [{ id: '*', title: 'All' }, { id: '10', title: 'Tamil Movies' }, { id: '11', title: 'Hollywood' }] }));
+    if (t === 'vod' && a === 'get_ordered_list') { const p = u.searchParams.get('p'); return new Response(JSON.stringify({ js: { total_items: 20, data: p === '1' ? [{ id: 5, name: 'Vikram', cmd: '/media/5.mpg', screenshot_uri: 'screenshots/5.jpg', year: 2022 }] : [{ id: 6, name: 'Jailer', cmd: '/media/6.mpg' }] } })); }
+    if (t === 'vod' && a === 'create_link') { vodCreateType = t; return new Response(JSON.stringify({ js: { cmd: 'ffmpeg http://stream/movie.mp4' } })); }
+    return new Response(JSON.stringify({ js: [] }));
+  };
+  const p = createPortalClient(fake);
+  const ag = { model: 'AuraHD9', sn: '062014N014728' };
+  const cats = await p.vodCategories('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', ag);
+  assert.deepEqual(cats.categories.map(c => c.title), ['Tamil Movies', 'Hollywood']); // '*' filtered out
+  const l1 = await p.vodList('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', ag, '10', 1);
+  assert.equal(l1.items[0].name, 'Vikram');
+  assert.match(l1.items[0].logo, /stalker_portal\/screenshots\/5\.jpg$/);
+  assert.equal(l1.hasMore, true);
+  const t = await p.link('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', '/media/5.mpg', ag, 'vod');
+  assert.equal(t, 'http://stream/movie.mp4');
+  assert.equal(vodCreateType, 'vod');
+});
