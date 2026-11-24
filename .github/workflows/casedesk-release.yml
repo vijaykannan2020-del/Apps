@@ -29,7 +29,14 @@ jobs:
       - name: Release
         env: { GROUP: '${{ inputs.group }}' }
         run: |
-          if [ -n "$GROUP" ]; then FROM="--group $GROUP"; else FROM="--branch main"; fi
-          npx -y eas-cli@latest update:republish $FROM --destination-channel production --platform ios \
+          if [ -z "$GROUP" ]; then
+            # newest update on the main branch (eas only republishes by group id when non-interactive)
+            npx -y eas-cli@latest update:list --branch main --limit 1 --json --non-interactive > /tmp/list.json || true
+            head -c 600 /tmp/list.json; echo
+            GROUP=$(jq -r '[(.currentPage? // .updates? // .)[]?] | .[0] | (.group // .groupId // .id) // empty' /tmp/list.json)
+            echo "Newest main update group: $GROUP"
+          fi
+          [ -n "$GROUP" ] && [ "$GROUP" != null ] || { echo "::error::No update found on branch main"; exit 1; }
+          npx -y eas-cli@latest update:republish --group "$GROUP" --destination-channel production --platform ios \
             --message "Released to App Store users $(date -u +%Y-%m-%d)" --non-interactive
           echo "::notice::Released. App Store users get it the next time they open the app twice."
