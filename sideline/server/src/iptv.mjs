@@ -3,7 +3,7 @@
 // and turns a channel into a live HLS stream that iPhone Safari can play. Browsers cannot
 // send these headers themselves, which is why this runs here and not in the web page.
 import path from 'node:path';
-import { promises as fs, createReadStream } from 'node:fs';
+import { promises as fs, createReadStream, readFileSync, writeFileSync } from 'node:fs';
 import { pipeline, Readable } from 'node:stream';
 import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
@@ -121,7 +121,7 @@ function deviceProfile(mac, agent) {
 }
 const shortURL = x => { try { const u = new URL(x); return u.host + u.pathname; } catch { return String(x); } };
 
-export function createPortalClient(fetchImpl = fetch) {
+export function createPortalClient(fetchImpl = fetch, persistDir) {
   const cooldownUntil = new Map(); // host -> time we may call it again after a 429
   const COOLDOWN_MS = 150000;
   async function get(ep, params, origin, mac, token, agent, timeoutMs) {
@@ -138,7 +138,11 @@ export function createPortalClient(fetchImpl = fetch) {
     try { return JSON.parse(text); }
     catch { throw new Error('Portal did not answer like a MAG portal (' + (params.action || 'request') + ': "' + text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90) + '")'); }
   }
-  const found = new Map(); // portal URL -> working login endpoint
+  // The working login endpoint per portal, remembered on disk so a restart doesn't re-scan the portal.
+  const found = new Map();
+  const epFile = persistDir ? path.join(persistDir, 'portal-endpoints.json') : null;
+  if (epFile) { try { for (const [k, v] of Object.entries(JSON.parse(readFileSync(epFile, 'utf8')))) found.set(k, v); } catch {} }
+  function rememberEndpoint(entry, ep) { found.set(entry, ep); if (epFile) { try { writeFileSync(epFile, JSON.stringify(Object.fromEntries(found))); } catch {} } }
   const sessions = new Map(); // portal URL + mac -> recent { ep, token, profile, ts }
   const channelCache = new Map(); // portal URL + mac -> recent { data, ts }
   async function discover(entry, mac, agent, tried) {
@@ -173,7 +177,7 @@ export function createPortalClient(fetchImpl = fetch) {
         let profile = null;
         try { profile = (await get(ep, { type: 'stb', action: 'get_profile', ...deviceProfile(mac, agent) }, entry, mac, token, agent))?.js || null; }
         catch (e) { profile = { _error: String(e.message).replace(/^Portal did not answer like a MAG portal /, '') }; }
-        found.set(entry, ep);
+        rememberEndpoint(entry, ep);
         const out = { ep, token, profile, ts: Date.now() };
         sessions.set(key, out);
         return out;
@@ -277,7 +281,8 @@ export function ffmpegArgs({ target, mac, origin, dir, convert, agent }) {
     '-hls_segment_filename', path.join(dir, 'seg-%06d.ts'), path.join(dir, 'index.m3u8')];
 }
 
-export function createIptv({ config, signature, equal, json, body, portal = createPortalClient() }) {
+export function createIptv({ config, signature, equal, json, body, portal }) {
+  portal = portal || createPortalClient(fetch, config.dataDir);
   const lives = new Map();
   const maxLive = Number(config.maxIptv || 1);
   const root = path.join(config.dataDir, 'iptv');
