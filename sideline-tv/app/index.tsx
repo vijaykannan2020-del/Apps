@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isReady, useSettings } from '../src/store';
 import { portalFor, type Category, type Channel, type Movie } from '../src/portal';
 import { C } from '../src/theme';
+import release from '../src/release.json';
 
 // Kept while the app is open, so coming back from the player doesn't reload anything.
 const mem: { key?: string; live?: { categories: string[]; channels: Channel[] }; vodCats?: Category[]; vod: Record<string, { items: Movie[]; page: number; hasMore: boolean }> } = { vod: {} };
@@ -86,6 +87,7 @@ export default function Home() {
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 14 }}>
         <View style={{ width: 22, height: 8, backgroundColor: C.accent, borderRadius: 2, transform: [{ skewX: '-20deg' }], marginRight: 10 }} />
         <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: 0.5, flex: 1 }}>SIDELINE<Text style={{ color: C.accent }}>.</Text></Text>
+        <Text style={{ color: C.dim, fontSize: 12, marginRight: 10 }}>v1.{release.n}</Text>
         <Pressable onPress={() => router.push('/settings')} hitSlop={12} style={{ padding: 6 }}>
           <Text style={{ color: C.dim, fontSize: 22 }}>⚙︎</Text>
         </Pressable>

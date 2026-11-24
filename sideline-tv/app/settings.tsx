@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EMPTY, loadSettings, saveSettings } from '../src/store';
 import { normalizeMac, normalizePortal, type Settings } from '../src/portal';
 import { C } from '../src/theme';
+import release from '../src/release.json';
 
 const MODELS = ['MAG254', 'MAG250', 'MAG322', 'AuraHD9'];
 
@@ -61,7 +62,7 @@ export default function SettingsScreen() {
         <Pressable onPress={save} style={{ backgroundColor: C.accent, borderRadius: 16, paddingVertical: 16, alignItems: 'center' }}>
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 17 }}>Save</Text>
         </Pressable>
-        <Text style={{ color: '#6f6a8f', fontSize: 12, marginTop: 16, textAlign: 'center' }}>Saved only on this iPhone.</Text>
+        <Text style={{ color: '#6f6a8f', fontSize: 12, marginTop: 16, textAlign: 'center' }}>Saved only on this iPhone.{'\n'}Sideline TV version 1.{release.n}{release.at ? ' · ' + release.at.slice(0, 16).replace('T', ' ') + ' UTC' : ''}</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
