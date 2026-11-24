@@ -55,9 +55,12 @@ if [ -n "$DOMAIN" ]; then
       chmod 600 /etc/cron.d/duckdns-casedesk
     fi
   fi
-  if [ -n "$INBOX_DIR" ] && ! grep -qx "CASEDESK_SITE=$DOMAIN" "$INBOX_DIR/.env" 2>/dev/null; then
-    setenv "$INBOX_DIR/.env" CASEDESK_SITE "$DOMAIN"
-    (cd "$INBOX_DIR" && docker compose up -d caddy) && log "HTTPS on https://$DOMAIN"
+  # Website domains (deploy.conf SITE_DOMAINS) share the same Caddy site block and certificates
+  SITES="$DOMAIN"
+  for d in $(conf SITE_DOMAINS | tr ',' ' '); do SITES="$SITES, $d"; done
+  if [ -n "$INBOX_DIR" ] && ! grep -qxF "CASEDESK_SITE=$SITES" "$INBOX_DIR/.env" 2>/dev/null; then
+    setenv "$INBOX_DIR/.env" CASEDESK_SITE "$SITES"
+    (cd "$INBOX_DIR" && docker compose up -d caddy) && log "HTTPS on $SITES"
   fi
 fi
 log "CaseDesk API running"

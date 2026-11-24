@@ -18,6 +18,7 @@ import { sendPush } from './push.mjs';
 import { createForum, isForumPath } from './forum.mjs';
 import { appleVerifier, googleVerifier, appleExchangeCode, appleRevoke } from './auth.mjs';
 import { supportPage } from './support.mjs';
+import { handleSite } from './site.mjs';
 import { createWallet, ensureKeyAndCsr, ensureWwdr } from './wallet.mjs';
 
 // Community Q&A + sign in (src/forum.mjs). Data in data/forum.json, flushed every 10 s and on shutdown.
@@ -71,6 +72,8 @@ const server = http.createServer(async (req, res) => {
     });
     res.end(JSON.stringify(body));
   };
+  // Company website (tharamaya.com) by Host — see src/site.mjs
+  if (handleSite(req, res)) return;
   if (req.method === 'OPTIONS') return send(204, {});
   const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
   if (limited(ip)) return send(429, { error: 'Too many requests — slow down.' });

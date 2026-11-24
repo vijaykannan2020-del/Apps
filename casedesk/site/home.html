@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tharamaya — simple apps for everyday life</title>
+<meta name="description" content="Tharamaya makes small, private apps for everyday life. Immigration Wallet keeps your family’s US immigration documents and dates on your own phone.">
+<link rel="stylesheet" href="/style.css">
+<style>
+.brand{font-size:15px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text2);margin:0 0 56px}
+.hero{font-size:40px;line-height:46px;letter-spacing:-.6px;font-weight:700;margin:0 0 12px}
+.lead{font-size:19px;color:var(--text2);margin:0 0 48px;max-width:30em}
+.app{display:flex;gap:16px;align-items:center;padding:16px 0}
+.app .icon{flex:none;width:60px;height:60px;border-radius:14px;font-size:28px}
+.app b{display:block;font-size:19px}
+.app span{color:var(--text2);font-size:15px}
+.links{display:flex;flex-wrap:wrap;gap:8px 20px;padding:4px 0 16px;border-top:.5px solid var(--sep);padding-top:14px}
+.links a{font-weight:500}
+footer{margin-top:64px;color:var(--text2);font-size:13px}
+footer a{color:var(--text2)}
+</style>
+</head>
+<body>
+<main>
+  <p class="brand">Tharamaya</p>
+  <h1 class="hero">Simple apps for everyday life.</h1>
+  <p class="lead">Small, private apps that do one job well. Your data stays on your phone — no ads, no tracking.</p>
+
+  <h2>Apps</h2>
+  <div class="card">
+    <div class="app">
+      <div class="icon" aria-hidden="true">W</div>
+      <div><b>Immigration Wallet</b><span>Your family’s US immigration documents and dates, on your own phone.</span></div>
+    </div>
+    <div class="links">
+      <a id="store" href="https://apps.apple.com/app/id6836097003">App Store</a>
+      <a href="/immigration-wallet/support">Support</a>
+      <a href="/immigration-wallet/privacy">Privacy</a>
+    </div>
+  </div>
+
+  <footer>© 2026 Tharamaya · <a href="mailto:hello@tharamaya.com">hello@tharamaya.com</a></footer>
+</main>
+<script src="/links.js"></script>
+<script>try{document.getElementById('store').href=window.IW_LINKS.appStore}catch(e){}</script>
+</body>
+</html>

@@ -8,6 +8,8 @@ services:
     env_file: .env
     volumes:
       - ./data:/app/data
+      # Website pages (casedesk/site), live after each git pull
+      - ../site:/app/site:ro
     networks:
       inbox:
         aliases: [casedesk-api]
