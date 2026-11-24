@@ -296,6 +296,17 @@ export class Portal {
           last = r2?.js;
           note += ' · ' + file.cmd + ' → ' + JSON.stringify(r2?.js).slice(0, 90);
         }
+        // "custom" protocol files: a box sends the file's own address as the request.
+        for (const row of rows.slice(0, 2)) {
+          const u = String(row?.url || '').trim();
+          if (!/^https?:\/\//i.test(u)) continue;
+          for (const c of [u, 'ffmpeg ' + u]) {
+            const r3 = await this.authed({ ...base, type: 'vod', cmd: c, series: '', forced_storage: '' }).catch(() => null);
+            const url3 = this.extract(r3?.js);
+            if (url3 && url3 !== u) { this.lastRoute = 'portal link for the file address'; return url3; }
+            note += ' · url-cmd → ' + JSON.stringify(r3?.js).slice(0, 70);
+          }
+        }
         // Still nothing: the file's own address (protocol "custom") is the stream itself.
         const direct = rows.map((x: any) => String(x?.url || '').replace(/^(ffmpeg|auto)\s+/i, '').trim()).find((u: string) => /^https?:\/\//i.test(u));
         if (direct) { this.lastRoute = 'file address from the file list (portal refused: ' + (last?.error || '?') + ')'; return direct; }
