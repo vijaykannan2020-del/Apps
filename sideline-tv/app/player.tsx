@@ -20,6 +20,7 @@ export default function Player() {
   const [step, setStep] = useState('Asking the portal for the link…');
   const [chrome, setChrome] = useState(true);
   const [slow, setSlow] = useState(false);
+  const [route, setRoute] = useState('');
   const tries = useRef(0);
 
   async function open() {
@@ -28,6 +29,7 @@ export default function Player() {
       const p = portalFor(await loadSettings());
       const link = await p.link(String(cmd), kind === 'movie' ? 'movie' : 'live', Number(episode || 0), String(id || ''), String(category || ''));
       setOpts(p.playerOptions());
+      { const u = new URL(link); setRoute(p.lastRoute + ' → ' + u.host + u.pathname.slice(-40)); }
       setStep('Connecting to the stream… (' + new URL(link).host + ')');
       setUri(link);
     } catch (e: any) { setState('error'); setMsg(e.message || String(e)); }
@@ -82,6 +84,7 @@ export default function Player() {
       {state !== 'playing' ? (
         <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', padding: 30 } as any}>
           {state === 'loading' ? (<><ActivityIndicator size="large" color={C.accent} /><Text style={{ color: '#bbb', marginTop: 14, textAlign: 'center' }}>{step}</Text>
+            {slow && route ? <Text style={{ color: '#777', marginTop: 8, fontSize: 12, textAlign: 'center' }}>{route}</Text> : null}
             {slow ? (
               <Pressable onPress={openInVLC} style={{ marginTop: 18, borderColor: '#fff6', borderWidth: 1, paddingHorizontal: 20, paddingVertical: 11, borderRadius: 14 }}>
                 <Text style={{ color: '#fff', fontWeight: '600' }}>Open in VLC app</Text>
@@ -89,6 +92,7 @@ export default function Player() {
             ) : null}</>) : (
             <>
               <Text style={{ color: '#fff', textAlign: 'center', fontSize: 15, lineHeight: 21 }}>{msg}</Text>
+              {route ? <Text style={{ color: '#777', marginTop: 8, fontSize: 12, textAlign: 'center' }}>{route}</Text> : null}
               <Pressable onPress={() => { tries.current = 0; open(); }} style={{ marginTop: 18, backgroundColor: C.accent, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 14 }}>
                 <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
               </Pressable>

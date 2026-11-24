@@ -61,6 +61,7 @@ export class Portal {
   private token: string | null = null;
   private loggingIn: Promise<void> | null = null;
   onStatus: (text: string) => void = () => {};
+  lastRoute = ''; // how the last link was obtained (shown on the player for troubleshooting)
   knownEndpoint: string | null = null; // remembered from last time, tried first
   onEndpoint: (ep: string) => void = () => {};
 
@@ -272,10 +273,11 @@ export class Portal {
       : [{ ...base, type: 'itv', cmd, series: '', forced_storage: '0' }];
     let last: any = null;
     let note = '';
+    this.lastRoute = '';
     for (const params of tries) {
       const r = await this.authed(params);
       const url = this.extract(r?.js);
-      if (url) return url;
+      if (url) { this.lastRoute = 'portal link (' + params.type + ', series=' + params.series + ', storage=' + params.forced_storage + ')'; return url; }
       last = r?.js;
       if (last?.error === 'limit') throw new Error('Your subscription is already playing on another device. Stop it there and try again.');
       // Newer portals keep a movie's real video file(s) in a separate list; a box asks for that list,
@@ -290,12 +292,13 @@ export class Portal {
         for (const file of files) {
           const r2 = await this.authed({ ...base, type: 'vod', cmd: String(file.cmd), series: '', forced_storage: '' });
           const url2 = this.extract(r2?.js);
-          if (url2) return url2;
+          if (url2) { this.lastRoute = 'portal link for file ' + file.cmd; return url2; }
           last = r2?.js;
+          note += ' · ' + file.cmd + ' → ' + JSON.stringify(r2?.js).slice(0, 90);
         }
         // Still nothing: the file's own address (protocol "custom") is the stream itself.
         const direct = rows.map((x: any) => String(x?.url || '').replace(/^(ffmpeg|auto)\s+/i, '').trim()).find((u: string) => /^https?:\/\//i.test(u));
-        if (direct) return direct;
+        if (direct) { this.lastRoute = 'file address from the file list (portal refused: ' + (last?.error || '?') + ')'; return direct; }
         break;
       }
     }
