@@ -8,6 +8,7 @@ import { getCache, isReady, setCache, useSettings } from '../src/store';
 import { portalFor, type Category, type Channel, type Movie } from '../src/portal';
 import { C } from '../src/theme';
 import { lookup, type Hit } from '../src/tmdb';
+import { CategoryButton, CategoryPicker } from '../src/CategoryPicker';
 import release from '../src/release.json';
 
 // Kept while the app is open, so coming back from the player doesn't reload anything.
@@ -77,6 +78,7 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const [vodCat, setVodCat] = useState<string | null>(null);
   const [lang, setLangState] = useState('All');
+  const [picker, setPicker] = useState<'' | 'live' | 'vod'>('');
   const [mq, setMq] = useState('');                 // movie search text
   const [res, setRes] = useState<{ q: string; items: Movie[]; page: number; hasMore: boolean; total: number } | null>(null);
   const [resBusy, setResBusy] = useState(false);
@@ -169,6 +171,7 @@ export default function Home() {
     return list.filter(c => matchLang(lang, c.category, c.name) && (liveCat === 'All' || c.category === liveCat) && (!q || c.name.toLowerCase().includes(q)));
   }, [mem.live, liveCat, search, lang]);
   const liveCats = useMemo(() => (mem.live?.categories || []).filter(c => lang === 'All' || matchLang(lang, c)), [mem.live, lang]);
+  const liveCounts = useMemo(() => { const m: Record<string, number> = {}; for (const c of mem.live?.channels || []) m[c.category] = (m[c.category] || 0) + 1; return m; }, [mem.live]);
   const vodCats = useMemo(() => (mem.vodCats || []).filter(c => matchLang(lang, c.title)), [mem.vodCats, lang]);
   useEffect(() => { if (vodCats.length && !vodCats.some(c => c.id === vodCat)) { setVodErr(''); setVodCat(vodCats[0].id); } }, [vodCats]);
 
@@ -214,13 +217,10 @@ export default function Home() {
             <>
               <TextInput value={search} onChangeText={setSearch} placeholder="Search channels" placeholderTextColor="#5f5a7d" autoCorrect={false}
                 style={{ marginHorizontal: 16, marginBottom: 10, backgroundColor: C.card, color: C.text, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15 }} />
-              {mem.live ? (
-                <View style={{ height: 44 }}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-                    {['All', ...liveCats].map(c => <Chip key={c} label={c} on={liveCat === c} onPress={() => setLiveCat(c)} />)}
-                  </ScrollView>
-                </View>
-              ) : null}
+              {mem.live ? <CategoryButton label={liveCat === 'All' ? 'All channels' : liveCat} onPress={() => setPicker('live')} /> : null}
+              <CategoryPicker visible={picker === 'live'} title="TV categories" selected={liveCat} onClose={() => setPicker('')} onPick={setLiveCat}
+                items={[{ id: 'All', title: 'All channels', count: (mem.live?.channels || []).filter(c => matchLang(lang, c.category, c.name)).length },
+                  ...liveCats.map(c => ({ id: c, title: c, count: liveCounts[c] || 0 }))]} />
               <FlatList
                 data={shown} keyExtractor={c => c.id} initialNumToRender={20} windowSize={9}
                 contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: insets.bottom + 24 }}
@@ -261,13 +261,9 @@ export default function Home() {
                 />
               ) : (
               <>
-              {mem.vodCats ? (
-                <View style={{ height: 44 }}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-                    {vodCats.map(c => <Chip key={c.id} label={c.title} on={vodCat === c.id} onPress={() => { setVodErr(''); setVodCat(c.id); }} />)}
-                  </ScrollView>
-                </View>
-              ) : null}
+              {mem.vodCats && vodCats.length ? <CategoryButton label={vodCats.find(c => c.id === vodCat)?.title || 'Pick a category'} onPress={() => setPicker('vod')} /> : null}
+              <CategoryPicker visible={picker === 'vod'} title="Movie & series categories" selected={vodCat} onClose={() => setPicker('')}
+                onPick={id => { setVodErr(''); setVodCat(id); }} items={vodCats.map(c => ({ id: c.id, title: c.title }))} />
               <FlatList
                 data={movies?.items || []} keyExtractor={m => m.id} initialNumToRender={14} windowSize={9}
                 contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: insets.bottom + 24 }}
