@@ -283,7 +283,9 @@ export class Portal {
       if (kind === 'movie' && movieId && !episode && last?.error === 'nothing_to_play') {
         const f = await this.authed({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: '0', episode_id: '0', category, sortby: 'added', p: '1' }, 30000).catch(() => null);
         const rows: any[] = Array.isArray(f?.js?.data) ? f.js.data : [];
-        const files: any[] = rows.filter((x: any) => x?.cmd && x.cmd !== cmd).slice(0, 3);
+        // Each file row has an id (and sometimes cmd / url). A box asks for /media/file_<id>.mpg.
+        const files: any[] = rows.filter((x: any) => x && (x.cmd || x.id)).slice(0, 3)
+          .map((x: any) => ({ ...x, cmd: x.cmd && x.cmd !== cmd ? x.cmd : '/media/file_' + x.id + '.mpg' }));
         note = ' · file list: ' + rows.length + ' row(s)' + (rows[0] ? ' ' + JSON.stringify(rows[0]).slice(0, 120) : '');
         for (const file of files) {
           const r2 = await this.authed({ ...base, type: 'vod', cmd: String(file.cmd), series: '', forced_storage: '' });
@@ -291,6 +293,9 @@ export class Portal {
           if (url2) return url2;
           last = r2?.js;
         }
+        // Still nothing: the file's own address (protocol "custom") is the stream itself.
+        const direct = rows.map((x: any) => String(x?.url || '').replace(/^(ffmpeg|auto)\s+/i, '').trim()).find((u: string) => /^https?:\/\//i.test(u));
+        if (direct) return direct;
         break;
       }
     }
