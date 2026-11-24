@@ -19,7 +19,9 @@ jobs:
         with: { node-version: 22, cache: npm, cache-dependency-path: sideline-tv/package-lock.json }
       - run: npm ci
       - name: Stamp the version number (the app shows v1.<this run number>)
-        run: printf '{ "n": %s, "at": "%s" }\n' "${{ github.run_number }}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > src/release.json
+        run: |
+          printf '{ "n": %s, "at": "%s" }\n' "${{ github.run_number }}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > src/release.json
+          cat src/release.json
       - run: npx -y eas-cli@latest init --non-interactive --force --id "$(jq -r '.expo.extra.eas.projectId' app.json)"
       - name: Publish update
         env:
