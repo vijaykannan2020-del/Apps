@@ -8,65 +8,37 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../src/theme';
+import { loadSettings } from '../src/store';
+import { portalFor } from '../src/portal';
 
 export default function Cast() {
+  const [tryLive, setTryLive] = useState(false);
   useKeepAwake();
   const insets = useSafeAreaInsets();
-  const { uri, name, live } = useLocalSearchParams<{ uri: string; name: string; live?: string }>();
-  const [tryLive, setTryLive] = useState(false);
-  const canPlay = !live || tryLive;
-  const player = useVideoPlayer(canPlay ? { uri: String(uri), headers: { 'User-Agent': 'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG200 stbapp ver: 4 rev: 2721 Safari/533.3' } } : null, p => {
+  const params = useLocalSearchParams<{ uri: string; name: string; live?: string; cmd?: string; opts?: string; at?: string }>();
+  const { uri, name, live } = params;
+  const [src, setSrc] = useState<string | null>(null);
+
+  const canPlay = (!live || tryLive) && !!src;
+  const player = useVideoPlayer(canPlay ? { uri: String(src), headers: { 'User-Agent': 'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG200 stbapp ver: 4 rev: 2721 Safari/533.3' } } : null, p => {
     p.allowsExternalPlayback = true;
+    const at = Number(params.at || 0);
+    if (at > 5) p.currentTime = at;
     p.play();
   });
   const [err, setErr] = useState('');
-  // Why might a TV refuse this video? Ask the video server the way a TV would (no set-top-box name),
-  // and read the video/audio formats from the playlist.
-  const [diag, setDiag] = useState('Checking this video for AirPlay…');
+  // A fresh link just for the TV: provider links are often single-use, and the phone's player already used its link.
+  const [step, setStep] = useState('Getting a fresh link for the TV…');
   useEffect(() => {
     (async () => {
-      const u = String(uri);
-      const get = async (url: string, headers: Record<string, string>, range = false) => {
-        const c = new AbortController(); const t = setTimeout(() => c.abort(), 8000);
-        try {
-          const r = await fetch(url, { headers: range ? { ...headers, Range: 'bytes=0-2047' } : headers, signal: c.signal });
-          const ct = r.headers.get('content-type') || '';
-          const body = /mpegurl|text|json|html/i.test(ct) || /\.m3u8/i.test(url) ? await r.text() : '';
-          return { status: r.status, ct, body };
-        } catch (e: any) { return { status: 0, ct: '', body: e?.name === 'AbortError' ? 'timeout' : 'unreachable' }; }
-        finally { clearTimeout(t); }
-      };
-      const tvUA = { 'User-Agent': 'AppleCoreMedia/1.0.0 (Apple TV; U; CPU OS 18_0 like Mac OS X)' };
-      const lines: string[] = [];
-      const a = await get(u, tvUA);
-      lines.push('As a TV: ' + a.status + ' ' + a.ct);
-      if (!/\.m3u8/i.test(u) && !/mpegurl/i.test(a.ct)) lines.push('Stream type: ' + (a.ct || 'raw stream') + ' (not an AirPlay playlist)');
-      let pl = a.body;
-      if (a.status >= 400 || !pl.includes('#EXT')) {
-        const b = await get(u, { 'User-Agent': 'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG200 stbapp ver: 4 rev: 2721 Safari/533.3' });
-        lines.push('As a set-top box: ' + b.status);
-        pl = b.body;
-      }
-      const codecs = [...new Set((pl.match(/CODECS="([^"]+)"/g) || []).map(x => x.slice(8, -1)))];
-      const res = [...new Set((pl.match(/RESOLUTION=(\d+x\d+)/g) || []).map(x => x.slice(11)))];
-      if (codecs.length) lines.push('Formats: ' + codecs.join(' | '));
-      if (res.length) lines.push('Sizes: ' + res.join(', '));
-      // First sub-playlist / segment, fetched the TV way.
-      const next = pl.split('\n').map(l => l.trim()).find(l => l && !l.startsWith('#'));
-      if (next) {
-        const nu = new URL(next, u).toString();
-        const c = await get(nu, tvUA, true);
-        lines.push('Next part (' + (nu.split('?')[0].split('.').pop() || '?') + ') as a TV: ' + c.status + ' ' + c.ct);
-        if (c.body.includes('#EXT')) {
-          const seg = c.body.split('\n').map(l => l.trim()).find(l => l && !l.startsWith('#'));
-          const map = (c.body.match(/#EXT-X-MAP:URI="([^"]+)"/) || [])[1];
-          if (/#EXT-X-KEY/.test(c.body)) lines.push('Encrypted: ' + ((c.body.match(/METHOD=([A-Z0-9-]+)/) || [])[1] || 'yes'));
-          if (seg) { const su = new URL(seg, nu).toString(); const d = await get(su, tvUA, true); lines.push('Video piece (' + (su.split('?')[0].split('.').pop() || '?') + ') as a TV: ' + d.status + ' ' + d.ct + (map ? ' · fMP4' : '')); }
-        }
-      }
-      setDiag(lines.join('\n'));
+      try {
+        const p = portalFor(await loadSettings());
+        const opts = (() => { try { return JSON.parse(String(params.opts || '{}')); } catch { return {}; } })();
+        const fresh = params.cmd !== undefined && !live ? await p.link(String(params.cmd), 'movie', opts) : String(uri);
+        setSrc(fresh); setStep('');
+      } catch (e: any) { setSrc(String(uri)); setStep(''); }
     })();
-  }, [uri]);
+  }, []);
   useEffect(() => {
     if (!player) return;
     const sub = player.addListener('statusChange', ({ status, error }) => { if (status === 'error') setErr(error?.message || 'This video cannot be cast this way.'); });
@@ -85,7 +57,7 @@ export default function Cast() {
         <>
           <VideoView player={player} style={{ flex: 1 }} nativeControls allowsPictureInPicture contentFit="contain" />
           <Text style={{ color: '#bbb', textAlign: 'center', padding: 16, paddingBottom: insets.bottom + 16 }}>
-            {err ? err + '\n\n' : ''}{diag}{'\n\n'}Tap the video, then the AirPlay icon (▭ with a triangle) and pick your TV.{'\n'}Fire TV: install the free "AirScreen" app on it first.
+            {err ? err + '\n\n' : ''}{step ? step + '\n\n' : ''}Tap the video, then the AirPlay icon (▭ with a triangle) and pick your TV.{'\n'}Fire TV: install the free "AirScreen" app on it first.
           </Text>
         </>
       ) : (

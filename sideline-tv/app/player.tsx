@@ -238,7 +238,7 @@ export default function Player() {
                   {cues ? <Btn label="Subs +0.5s" onPress={() => { setSubDelay(d => d + 500); setMsgToast('Subtitle timing ' + ((subDelay + 500) / 1000).toFixed(1) + 's'); }} /> : null}
                   <Btn label={'Screen: ' + ASPECTS[aspect].label} onPress={() => setAspect(a => (a + 1) % ASPECTS.length)} />
                   {Q.hasNext() ? <Btn label="Next episode ▸▸" onPress={playNext} /> : null}
-                  <Btn label="📺 Cast" onPress={() => router.replace({ pathname: '/cast', params: { uri, name: item.name, live: kind === 'live' ? '1' : '' } })} />
+                  <Btn label="📺 Cast" onPress={() => router.replace({ pathname: '/cast', params: { uri, name: item.name, live: kind === 'live' ? '1' : '', cmd: item.cmd, opts: JSON.stringify(item.opts || {}), at: String(Math.floor(time / 1000)) } })} />
                 </View>
               </View>
             </>
