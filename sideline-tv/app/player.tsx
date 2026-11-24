@@ -101,6 +101,10 @@ export default function Player() {
     if (tries.current < 1) { tries.current++; open(); return; }
     setState('error');
     setMsg('This stream would not play. It may be offline, or your subscription may be in use on another device.');
+    // Check what the video server actually sends back, and show it under the message.
+    (async () => {
+      try { const p = portalFor(await loadSettings()); const r = await p.probe(uri); setRoute(x => x + ' · ' + r); } catch {}
+    })();
   }
 
   const seekable = kind === 'movie' && dur > 0;

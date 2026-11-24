@@ -371,6 +371,19 @@ export class Portal {
       '\n\nDetails: cmd ' + String(cmd).slice(0, 60) + ' → ' + JSON.stringify(last).slice(0, 160) + note);
   }
 
+  // Fetches a stream address the way the box would and reports what came back (for troubleshooting).
+  async probe(url: string): Promise<string> {
+    const look = async (label: string, headers: Record<string, string>) => {
+      try {
+        const t = withTimeout(8000);
+        const r = await fetch(url, { headers, signal: t.signal, credentials: 'omit' }).finally(t.done);
+        const body = (await r.text()).replace(/\s+/g, ' ').slice(0, 90);
+        return label + ' ' + r.status + (r.url && r.url !== url ? ' → ' + new URL(r.url).host : '') + ' ' + body;
+      } catch (e: any) { return label + ' ' + (e?.name === 'AbortError' ? 'no answer' : 'unreachable'); }
+    };
+    return [await look('box:', this.headers(false)), await look('plain:', {})].join(' | ');
+  }
+
   playerOptions(): string[] {
     return ['--http-user-agent=' + MAG_UA, '--network-caching=1500', '--http-reconnect'];
   }
