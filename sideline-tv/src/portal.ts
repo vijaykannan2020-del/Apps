@@ -236,25 +236,46 @@ export class Portal {
   }
 
   // Seasons and episodes of a TV series (both portal styles).
-  async seasons(movieId: string, category: string): Promise<Season[]> {
-    const r = await this.authed({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: '0', episode_id: '0', category, sortby: 'added', p: '1' }, 40000);
-    const rows: any[] = Array.isArray(r?.js?.data) ? r.js.data : [];
-    const out: Season[] = [];
-    for (const x of rows) {
-      const name = String(x.name || x.o_name || 'Season');
-      if (Array.isArray(x.series) && x.series.length) {
-        // Older style: one row per season, episodes are numbers played with series=N.
-        out.push({ id: String(x.id), name, cmd: String(x.cmd || ''), episodes: x.series.map((n: any) => ({ n: Number(n), name: 'Episode ' + n, cmd: String(x.cmd || ''), series: Number(n), seasonId: String(x.id), episodeId: '' })) });
-      } else {
-        // Newer style: ask for the season's episodes.
-        const e = await this.authed({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: String(x.id), episode_id: '0', category, sortby: 'added', p: '1' }, 40000).catch(() => null);
-        const eps: any[] = Array.isArray(e?.js?.data) ? e.js.data : [];
-        out.push({ id: String(x.id), name, cmd: String(x.cmd || ''), episodes: eps.map((y: any, i: number) => ({ n: Number(y.series_number || y.episode_number || i + 1), name: String(y.name || 'Episode ' + (i + 1)), cmd: String(y.cmd || ''), series: 0, seasonId: String(x.id), episodeId: String(y.id || '') })).filter(y => y.cmd || y.episodeId) });
-      }
+  // Reads every page of a paged portal list (the portal sends about 14 rows per page).
+  private async allPages(params: Record<string, string>, maxPages = 30): Promise<any[]> {
+    const out: any[] = [];
+    for (let p = 1; p <= maxPages; p++) {
+      const r = await this.authed({ ...params, p: String(p) }, 40000);
+      const js = r?.js || {};
+      const rows: any[] = Array.isArray(js.data) ? js.data : [];
+      out.push(...rows);
+      const total = Number(js.total_items || 0), per = Number(js.max_page_items || rows.length || 14);
+      if (!rows.length || (total && out.length >= total) || (!total && rows.length < per)) break;
     }
-    const good = out.filter(x => x.episodes.length);
-    if (!good.length) throw new Error('No episodes came back for this show.\n\nDetails: ' + rows.length + ' row(s) ' + JSON.stringify(rows[0] || r?.js).slice(0, 200));
-    return good;
+    return out;
+  }
+
+  // Seasons of a TV series. Older portals put the episode numbers inside each season;
+  // newer ones need a separate call per season (see episodes()).
+  async seasons(movieId: string, category: string): Promise<Season[]> {
+    const rows = await this.allPages({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: '0', episode_id: '0', category, sortby: 'added' });
+    const out: Season[] = rows.map((x: any) => {
+      const name = String(x.name || x.o_name || 'Season');
+      const eps: Episode[] = Array.isArray(x.series) && x.series.length
+        ? x.series.map((n: any) => ({ n: Number(n), name: 'Episode ' + n, cmd: String(x.cmd || ''), series: Number(n), seasonId: String(x.id), episodeId: '' }))
+        : [];
+      return { id: String(x.id), name, cmd: String(x.cmd || ''), episodes: eps.sort((a, b) => a.n - b.n) };
+    });
+    if (!out.length) throw new Error('No seasons came back for this show.');
+    // Seasons in order (Season 1 first) when the names carry a number.
+    const num = (t: string) => Number((t.match(/season\s*(\d+)/i) || t.match(/^(\d+)/) || [])[1] || 9999);
+    return out.sort((a, b) => num(a.name) - num(b.name));
+  }
+
+  // All episodes of one season (newer portals), every page, Episode 1 first.
+  async episodes(movieId: string, seasonId: string, category: string): Promise<Episode[]> {
+    const rows = await this.allPages({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: seasonId, episode_id: '0', category, sortby: 'added' });
+    const eps: Episode[] = rows.map((y: any, i: number) => ({
+      n: Number(y.series_number || y.episode_number || (String(y.name || '').match(/episode\s*(\d+)/i) || [])[1] || i + 1),
+      name: String(y.name || 'Episode ' + (i + 1)), cmd: String(y.cmd || ''), series: 0, seasonId, episodeId: String(y.id || ''),
+    })).filter((y: Episode) => y.cmd || y.episodeId);
+    const seen = new Set<string>();
+    return eps.filter(e => { const k = e.episodeId || e.cmd + e.n; if (seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => a.n - b.n);
   }
 
   // Asks the portal for the playable address of a channel, movie or episode.
