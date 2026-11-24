@@ -310,8 +310,13 @@ export class Portal {
     for (const params of tries) {
       const r = await this.authed(params);
       const url = this.extract(r?.js);
-      if (url) { grabSubs(r?.js); this.lastRoute = 'portal link (' + params.type + ', series=' + params.series + ', storage=' + params.forced_storage + ')'; return url; }
-      last = r?.js;
+      if (url) {
+        const route = 'portal link (' + params.type + ', series=' + params.series + ', storage=' + params.forced_storage + ')';
+        const chk = kind === 'movie' ? await this.streamOk(url) : { ok: true, why: '' };
+        if (chk.ok) { grabSubs(r?.js); this.lastRoute = route; return url; }
+        note += ' · ' + route + ' ✗ ' + chk.why;
+      }
+      last = url ? { error: 'nothing_to_play' } : r?.js;
       if (last?.error === 'limit') throw new Error('Your subscription is already playing on another device. Stop it there and try again.');
       // Newer portals keep a movie's real video file(s) in a separate list; a box asks for that list,
       // then makes the link from the file (cmd like /media/file_123.mpg).
@@ -337,7 +342,12 @@ export class Portal {
         for (const { file, series, storage } of variants) {
           const r2 = await this.authed({ ...base, type: 'vod', cmd: String(file.cmd), series, forced_storage: storage }).catch(() => null);
           const url2 = this.extract(r2?.js);
-          if (url2) { grabSubs(r2?.js, rows); this.lastRoute = 'portal link for file ' + file.cmd + ' (series=' + series + ')'; return url2; }
+          if (url2) {
+            const chk = await this.streamOk(url2);
+            if (chk.ok) { grabSubs(r2?.js, rows); this.lastRoute = 'portal link for file ' + file.cmd + ' (series=' + series + ')'; return url2; }
+            note += ' · ' + String(file.cmd).slice(0, 30) + ' ✗ ' + chk.why;
+            continue;
+          }
           last = r2?.js;
           note += ' · ' + String(file.cmd).slice(0, 30) + '/' + series + ' → ' + String(r2?.js?.error ?? JSON.stringify(r2?.js)).slice(0, 40);
         }
@@ -348,7 +358,12 @@ export class Portal {
           for (const c of [u, 'ffmpeg ' + u]) {
             const r3 = await this.authed({ ...base, type: 'vod', cmd: c, series: '', forced_storage: '' }).catch(() => null);
             const url3 = this.extract(r3?.js);
-            if (url3 && url3 !== u) { grabSubs(r3?.js, rows); this.lastRoute = 'portal link for the file address'; return url3; }
+            if (url3 && url3 !== u) {
+              const chk = await this.streamOk(url3);
+              if (chk.ok) { grabSubs(r3?.js, rows); this.lastRoute = 'portal link for the file address'; return url3; }
+              note += ' · url-cmd ✗ ' + chk.why;
+              continue;
+            }
             note += ' · url-cmd → ' + String(r3?.js?.error ?? JSON.stringify(r3?.js)).slice(0, 30);
           }
         }
@@ -375,6 +390,23 @@ export class Portal {
     };
     throw new Error((why[last?.error] || 'The portal did not give a playable link for this title.') +
       '\n\nDetails: cmd ' + String(cmd).slice(0, 60) + ' → ' + JSON.stringify(last).slice(0, 160) + note);
+  }
+
+  // Quick check that the video server really has the file before the player gets it.
+  async streamOk(url: string): Promise<{ ok: boolean; why: string }> {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), 8000);
+    try {
+      const r = await fetch(url, { headers: this.headers(false), signal: c.signal, credentials: 'omit' });
+      if (r.status >= 400) { const b = (await r.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 50); return { ok: false, why: r.status + ' ' + b }; }
+      if (/\.m3u8(\?|$)/i.test(url) || /mpegurl/i.test(r.headers.get('content-type') || '')) {
+        const b = await r.text();
+        if (/no such file|not found/i.test(b) || !b.includes('#EXT')) return { ok: false, why: 'bad playlist ' + b.replace(/\s+/g, ' ').slice(0, 40) };
+      }
+      return { ok: true, why: '' };
+    } catch (e: any) {
+      return e?.name === 'AbortError' ? { ok: true, why: 'slow' } : { ok: false, why: 'unreachable' }; // slow ≠ missing: let the player try
+    } finally { clearTimeout(t); c.abort(); }
   }
 
   // Fetches a stream address the way the box would and reports what came back (for troubleshooting).
