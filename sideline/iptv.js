@@ -1,4 +1,4 @@
-// Version 33: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
+// Version 34: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
 // Safari cannot send the MAG box headers a portal checks, so the Sideline bridge on your
 // own server (installed automatically beside your Inbox app) logs in as the chosen box and
 // turns channels into iPhone HLS. Portal URL, MAC and box model stay on this device and are
@@ -14,7 +14,7 @@ const MODELS={
  'MAG250':MAG+'2 rev: 250 Safari/533.3','MAG254':MAG+'4 rev: 2721 Safari/533.3','MAG322':MAG+'6 rev: 3701 Safari/533.3',
  'MAG351':MAG+'6 rev: 4728 Safari/533.3','MAG420':MAG+'6 rev: 5008 Safari/533.3','AuraHD':AURA,'AuraHD2':AURA,'AuraHD9':AURA};
 const MODEL_LIST=['AuraHD9','AuraHD','AuraHD2','MAG254','MAG250','MAG322','MAG351','MAG420'];
-function agentFor(c){const m=(c&&c.model)||'MAG254';return {model:m,ua:MODELS[m]||MODELS.MAG254,sn:(c&&c.sn)||'',deviceId:(c&&c.deviceId)||''}}
+function agentFor(c){const m=(c&&c.model)||'MAG254';return {model:m,ua:MODELS[m]||MODELS.MAG254,sn:(c&&c.sn)||'',deviceId:(c&&c.deviceId)||'',deviceId2:(c&&c.deviceId2)||'',signature:(c&&c.signature)||''}}
 let cfg=read('sideline-iptv',null);if(!cfg||typeof cfg.portal!=='string'||typeof cfg.mac!=='string')cfg=null;
 let list=null,loading=null,errorText='',cat=read('sideline-iptv-cat',''),shown=120,lastPlay=null,view='Live TV';
 const serverBase=()=>((cfg&&cfg.server)||DEFAULT_SERVER).replace(/\/+$/,'');
@@ -37,6 +37,9 @@ dlg.innerHTML='<div class="dialog-head"><h2>Your IPTV</h2><button class="close" 
  '<label class="field">STB model (the box your provider set up)<select id="iptvModel">'+MODEL_LIST.map(m=>'<option value="'+m+'">'+m+'</option>').join('')+'</select></label>'+
  '<label class="field">Serial number <span style="color:var(--muted);font-weight:400">(from your box app, optional)</span><input id="iptvSn" type="text" placeholder="e.g. 062014N016744" spellcheck="false" autocapitalize="characters"></label>'+
  '<label class="field">Device ID <span style="color:var(--muted);font-weight:400">(optional)</span><input id="iptvDev" type="text" placeholder="long code from your box app" spellcheck="false" autocapitalize="characters"></label>'+
+ '<details style="margin:0 0 12px"><summary class="help" style="cursor:pointer">More identity fields (only if still refused)</summary>'+
+ '<label class="field">Device ID 2 <span style="color:var(--muted);font-weight:400">(optional)</span><input id="iptvDev2" type="text" placeholder="from your box app" spellcheck="false" autocapitalize="characters"></label>'+
+ '<label class="field">Signature <span style="color:var(--muted);font-weight:400">(optional)</span><input id="iptvSig" type="text" placeholder="from your box app" spellcheck="false" autocapitalize="characters"></label></details>'+
  '<label class="field">Bridge address<input id="iptvServer" type="text" inputmode="url" placeholder="'+DEFAULT_SERVER+'" spellcheck="false" autocapitalize="off"></label>'+
  '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="primary" id="iptvSave">Save and load channels</button><button class="secondary" id="iptvForget" type="button">Forget IPTV</button></div></form>'+
  '<p id="iptvStatus" class="help" role="status"></p>'+
@@ -54,16 +57,16 @@ async function api(route,data,ms){
  finally{clearTimeout(t)}}
 
 function openDialog(){
- $('#iptvPortal').value=cfg?.portal||'';$('#iptvMac').value=cfg?.mac||'';$('#iptvModel').value=cfg?.model||'MAG254';$('#iptvSn').value=cfg?.sn||'';$('#iptvDev').value=cfg?.deviceId||'';$('#iptvServer').value=cfg?.server||DEFAULT_SERVER;
+ $('#iptvPortal').value=cfg?.portal||'';$('#iptvMac').value=cfg?.mac||'';$('#iptvModel').value=cfg?.model||'MAG254';$('#iptvSn').value=cfg?.sn||'';$('#iptvDev').value=cfg?.deviceId||'';$('#iptvDev2').value=cfg?.deviceId2||'';$('#iptvSig').value=cfg?.signature||'';$('#iptvServer').value=cfg?.server||DEFAULT_SERVER;
  $('#iptvStatus').textContent='';dlg.showModal()}
 $('#iptvClose').onclick=()=>dlg.close();
 $('#iptvForget').onclick=()=>{cfg=null;list=null;errorText='';try{localStorage.removeItem(window.sidelineStorageKey('sideline-iptv'))}catch{}$('#iptvStatus').textContent='IPTV removed from this phone.';paint()};
 $('#iptvForm').onsubmit=async e=>{e.preventDefault();
- const portal=$('#iptvPortal').value.trim(),mac=macOK($('#iptvMac').value),model=$('#iptvModel').value,sn=$('#iptvSn').value.trim(),deviceId=$('#iptvDev').value.trim(),server=($('#iptvServer').value.trim()||DEFAULT_SERVER).replace(/\/+$/,'');
+ const portal=$('#iptvPortal').value.trim(),mac=macOK($('#iptvMac').value),model=$('#iptvModel').value,sn=$('#iptvSn').value.trim(),deviceId=$('#iptvDev').value.trim(),deviceId2=$('#iptvDev2').value.trim(),signature=$('#iptvSig').value.trim(),server=($('#iptvServer').value.trim()||DEFAULT_SERVER).replace(/\/+$/,'');
  if(!mac){$('#iptvStatus').textContent='The MAC address needs 12 letters/numbers, like 00:1A:79:AB:CD:EF.';return}
  if(!/^https?:\/\//i.test(server)){$('#iptvStatus').textContent='The bridge address should start with https://';return}
  $('#iptvSave').disabled=true;$('#iptvStatus').textContent='Logging in to your portal through your bridge…';
- const prev=cfg;cfg={portal,mac,model,sn,deviceId,server};
+ const prev=cfg;cfg={portal,mac,model,sn,deviceId,deviceId2,signature,server};
  try{const data=await api('/api/iptv/channels',{...cfg,...agentFor(cfg)},40000);save('sideline-iptv',cfg);list=data;errorText='';cat='';shown=120;
   $('#iptvStatus').textContent='Loaded '+data.channels.length+' channels in '+data.categories.length+' categories ✓';paint();setTimeout(()=>dlg.close(),900)}
  catch(err){cfg=prev;$('#iptvStatus').textContent=err.message}
