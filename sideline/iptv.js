@@ -1,4 +1,4 @@
-// Version 34: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
+// Version 35: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
 // Safari cannot send the MAG box headers a portal checks, so the Sideline bridge on your
 // own server (installed automatically beside your Inbox app) logs in as the chosen box and
 // turns channels into iPhone HLS. Portal URL, MAC and box model stay on this device and are
@@ -67,14 +67,14 @@ $('#iptvForm').onsubmit=async e=>{e.preventDefault();
  if(!/^https?:\/\//i.test(server)){$('#iptvStatus').textContent='The bridge address should start with https://';return}
  $('#iptvSave').disabled=true;$('#iptvStatus').textContent='Logging in to your portal through your bridge…';
  const prev=cfg;cfg={portal,mac,model,sn,deviceId,deviceId2,signature,server};
- try{const data=await api('/api/iptv/channels',{...cfg,...agentFor(cfg)},40000);save('sideline-iptv',cfg);list=data;errorText='';cat='';shown=120;
+ try{const data=await api('/api/iptv/channels',{...cfg,...agentFor(cfg)},150000);save('sideline-iptv',cfg);list=data;errorText='';cat='';shown=120;
   $('#iptvStatus').textContent='Loaded '+data.channels.length+' channels in '+data.categories.length+' categories ✓';paint();setTimeout(()=>dlg.close(),900)}
  catch(err){cfg=prev;$('#iptvStatus').textContent=err.message}
  finally{$('#iptvSave').disabled=false}};
 
 async function loadList(){
  if(!cfg||list||loading)return loading;
- errorText='';loading=api('/api/iptv/channels',{...cfg,...agentFor(cfg)},40000).then(d=>{list=d}).catch(e=>{errorText=e.message}).finally(()=>{loading=null;paint()});paint();return loading}
+ errorText='';loading=api('/api/iptv/channels',{...cfg,...agentFor(cfg)},150000).then(d=>{list=d}).catch(e=>{errorText=e.message}).finally(()=>{loading=null;paint()});paint();return loading}
 
 function visible(){
  if(!list)return [];let l=list.channels;

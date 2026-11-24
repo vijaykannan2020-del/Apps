@@ -122,11 +122,11 @@ function deviceProfile(mac, agent) {
 const shortURL = x => { try { const u = new URL(x); return u.host + u.pathname; } catch { return String(x); } };
 
 export function createPortalClient(fetchImpl = fetch) {
-  async function get(ep, params, origin, mac, token, agent) {
+  async function get(ep, params, origin, mac, token, agent, timeoutMs) {
     const url = new URL(ep);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     url.searchParams.set('JsHttpRequest', '1-xml');
-    const res = await fetchImpl(url, { headers: portalHeaders(ep, mac, token, agent), redirect: 'follow', signal: AbortSignal.timeout(15000) });
+    const res = await fetchImpl(url, { headers: portalHeaders(ep, mac, token, agent), redirect: 'follow', signal: AbortSignal.timeout(timeoutMs || 15000) });
     if (res.status === 429) throw new Error('Portal rate-limited us (HTTP 429). Wait a minute, then try once.');
     if (!res.ok) throw new Error('Portal returned HTTP ' + res.status);
     const text = (await res.text()).replace(/^\uFEFF/, '').trim();
@@ -178,7 +178,7 @@ export function createPortalClient(fetchImpl = fetch) {
       for (const x of Array.isArray(g?.js) ? g.js : []) names[String(x.id)] = String(x.title || '');
     } catch {}
     let r;
-    try { r = await get(ep, { type: 'itv', action: 'get_all_channels' }, origin, mac, token, agent); }
+    try { r = await get(ep, { type: 'itv', action: 'get_all_channels' }, origin, mac, token, agent, 110000); }
     catch (e) {
       const p = profile || {};
       const sent = deviceProfile(mac, agent);
