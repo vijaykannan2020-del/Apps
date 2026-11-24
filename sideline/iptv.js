@@ -1,3 +1,4 @@
+// Version 38: "Open in Sideline TV" hands saved portal details to the iPhone app.
 // Version 37: IPTV portal (MAG / Stalker, MAC-locked) inside Live TV, with STB box model.
 // Safari cannot send the MAG box headers a portal checks, so the Sideline bridge on your
 // own server (installed automatically beside your Inbox app) logs in as the chosen box and
@@ -91,13 +92,15 @@ function chHTML(c,i){const logo=/^https:/i.test(c.logo||'')?'<img src="'+boardEs
  return '<button class="iptv-ch'+(lastPlay&&lastPlay.id===c.id?' playing':'')+'" data-iptv="'+i+'" title="'+boardEsc(c.name)+'">'+logo+'<span>'+boardEsc(c.name)+'</span></button>'}
 
 let rendered=[];
+// Hands the saved portal details to the Sideline TV iPhone app in one tap (nothing typed again, nothing sent to a server).
+function tvAppLink(){const q=new URLSearchParams({portal:cfg.portal||'',mac:cfg.mac||'',model:cfg.model||'',serial:cfg.sn||'',deviceId:cfg.deviceId||''});return 'sidelinetv://setup?'+q.toString().replace(/'/g,'%27')}
 function paint(){
  attachBoard();
  const live=['Live TV','Sports'].includes(view);board.classList.toggle('hidden',!live);if(!live)return;
  const sports=view==='Sports';
  // Not set up yet — show the Set up card on both Live TV and Cricket.
  if(!cfg){board.innerHTML='<div class="iptv-card"><div class="iptv-top"><div><h3>'+(sports?'Cricket on your IPTV':'Your IPTV')+'</h3><small>Watch a MAC-locked IPTV subscription (MAG / Stalker portal) here</small></div><button class="primary" data-iptv-setup>Set up</button></div></div>';return}
- const head='<div class="iptv-top"><div><h3>'+(sports?'Cricket on your IPTV':'Your IPTV')+'</h3><small>'+(tab==='movies'?'Movies':(list?list.channels.length+' channels':''))+'</small></div><button class="text-button" data-iptv-setup>⚙ IPTV</button></div>';
+ const head='<div class="iptv-top"><div><h3>'+(sports?'Cricket on your IPTV':'Your IPTV')+'</h3><small>'+(tab==='movies'?'Movies':(list?list.channels.length+' channels':''))+'</small></div><span style="display:flex;gap:6px;align-items:center"><a class="primary" style="text-decoration:none;padding:8px 12px;border-radius:999px;font-size:13px" href="'+tvAppLink()+'">▶ Open in Sideline TV</a><button class="text-button" data-iptv-setup>⚙ IPTV</button></span></div>';
  const last=lastPlay?'<p id="iptvLast">Last: '+boardEsc(lastPlay.name)+'. No picture? <button class="secondary" data-iptv-convert>Convert video</button></p>':'';
  const tabs=sports?'':'<div class="iptv-tabs" role="group" aria-label="Live or Movies"><button type="button" data-iptv-tab="live" class="'+(tab==='live'?'on':'')+'">Live TV</button><button type="button" data-iptv-tab="movies" class="'+(tab==='movies'?'on':'')+'">Movies</button></div>';
  // Movies (VOD) view

@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Sideline TV",
+    "slug": "sideline-tv",
+    "scheme": "sidelinetv",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0f0d1a",
+    "splash": { "image": "./assets/splash-icon.png", "resizeMode": "contain", "backgroundColor": "#0f0d1a" },
+    "ios": {
+      "supportsTablet": true,
+      "requireFullScreen": false,
+      "bundleIdentifier": "com.vijaykannan.sidelinetv",
+      "appleTeamId": "95A592GEVD",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": true },
+        "NSLocalNetworkUsageDescription": "Sideline TV plays streams from your IPTV service.",
+        "UIBackgroundModes": ["audio"]
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-screen-orientation",
+      "react-native-vlc-media-player"
+    ],
+    "experiments": { "typedRoutes": false }
+  }
+}

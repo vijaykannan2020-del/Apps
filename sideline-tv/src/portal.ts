@@ -1,0 +1,240 @@
+// Stalker / Ministra portal client that runs on the phone, the way a set-top box app does:
+// it connects straight from your own internet with your portal URL, MAC and box details.
+import * as Crypto from 'expo-crypto';
+
+export const MAG_UA =
+  'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG200 stbapp ver: 4 rev: 2721 Safari/533.3';
+
+export type Settings = {
+  portal: string;   // e.g. http://example.com/c/
+  mac: string;      // 00:1A:79:XX:XX:XX
+  model: string;    // MAG254, MAG250, AuraHD9 …
+  serial: string;   // optional box serial number
+  deviceId: string; // optional; leave blank when the box has "Send Device ID" off
+};
+
+export type Channel = { id: string; name: string; number: string; cmd: string; category: string; logo: string };
+export type Movie = { id: string; name: string; cmd: string; logo: string; year: string };
+export type Category = { id: string; title: string };
+
+export function normalizeMac(input: string): string {
+  const hex = String(input || '').replace(/[^0-9a-f]/gi, '').toUpperCase();
+  if (hex.length !== 12) throw new Error('Enter the MAC address as 12 letters/numbers, e.g. 00:1A:79:AB:CD:EF.');
+  return hex.match(/.{2}/g)!.join(':');
+}
+
+export function normalizePortal(input: string): string {
+  let u = String(input || '').trim();
+  if (!u) throw new Error('Enter your portal URL in Settings.');
+  if (!/^https?:\/\//i.test(u)) u = 'http://' + u;
+  const url = new URL(u);
+  return url.origin + url.pathname;
+}
+
+const hash = async (alg: Crypto.CryptoDigestAlgorithm, v: string) =>
+  (await Crypto.digestStringAsync(alg, v)).toUpperCase();
+
+function withTimeout(ms: number) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  return { signal: c.signal, done: () => clearTimeout(t) };
+}
+
+// Login (API) addresses for a portal URL, the way STB players work them out.
+function endpointsFor(u: URL): string[] {
+  const out: string[] = [];
+  const p = u.pathname, i = p.toLowerCase().lastIndexOf('/c/');
+  if (i >= 0) {
+    const pre = p.slice(0, i + 1);
+    out.push(u.origin + pre + 'server/load.php', u.origin + pre + 'portal.php');
+  }
+  for (const x of ['/portal.php', '/stalker_portal/server/load.php', '/server/load.php']) out.push(u.origin + x);
+  return [...new Set(out)];
+}
+
+export class Portal {
+  private s: Settings;
+  private mac: string;
+  private entry: string;
+  private ep: string | null = null;
+  private token: string | null = null;
+  private loggingIn: Promise<void> | null = null;
+
+  constructor(s: Settings) {
+    this.s = s;
+    this.mac = normalizeMac(s.mac);
+    this.entry = normalizePortal(s.portal);
+  }
+
+  private headers(withToken = true): Record<string, string> {
+    const h: Record<string, string> = {
+      'User-Agent': MAG_UA,
+      Accept: '*/*',
+      'X-User-Agent': `Model: ${this.s.model || 'MAG254'}; Link: WiFi`,
+      'X-User-MAC': this.mac,
+      Cookie: `mac=${this.mac}; stb_lang=en; timezone=America/Chicago`,
+      Referer: new URL(this.ep || this.entry).origin + '/c/',
+    };
+    if (withToken && this.token) h.Authorization = 'Bearer ' + this.token;
+    return h;
+  }
+
+  private async call(ep: string, params: Record<string, string>, timeoutMs = 20000, withToken = true): Promise<any> {
+    const url = new URL(ep);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+    url.searchParams.set('JsHttpRequest', '1-xml');
+    const t = withTimeout(timeoutMs);
+    let res: Response;
+    try {
+      res = await fetch(url.toString(), { headers: this.headers(withToken), signal: t.signal, credentials: 'omit' });
+    } catch (e: any) {
+      throw new Error(e?.name === 'AbortError' ? 'The portal took too long to answer.' : 'Could not reach the portal. Check your internet.');
+    } finally { t.done(); }
+    if (res.status === 429) throw new Error('The portal says too many requests. Wait a few minutes, then try again.');
+    if (!res.ok) throw new Error('Portal returned HTTP ' + res.status);
+    const text = (await res.text()).replace(/^﻿/, '').trim();
+    try { return JSON.parse(text); }
+    catch { throw new Error('The portal gave an unexpected answer (' + (params.action || 'request') + ').'); }
+  }
+
+  private async profileParams(): Promise<Record<string, string>> {
+    const sn = this.s.serial?.trim() || (await hash(Crypto.CryptoDigestAlgorithm.MD5, this.mac)).slice(0, 13);
+    const model = this.s.model || 'MAG254';
+    const p: Record<string, string> = {
+      hd: '1',
+      ver: 'ImageDescription: 0.2.18-r23-250; ImageDate: Thu Sep 13 11:31:16 EEST 2018; PORTAL version: 5.6.2; API Version: JS API version: 343; STB API version: 146; Player Engine version: 0x58c',
+      num_banks: '2', sn, stb_type: model, client_type: 'STB', image_version: '218', video_out: 'hdmi',
+      hw_version: '1.7-BD-00', not_valid_token: '0',
+      hw_version_2: await hash(Crypto.CryptoDigestAlgorithm.SHA1, this.mac),
+      timestamp: String(Math.floor(Date.now() / 1000)), api_signature: '262', prehash: '',
+      metrics: JSON.stringify({ mac: this.mac, sn, model, type: 'STB', uid: '', random: '' }),
+    };
+    const id = this.s.deviceId?.trim();
+    if (id) {
+      p.device_id = id;
+      p.device_id2 = id;
+      p.signature = await hash(Crypto.CryptoDigestAlgorithm.SHA256, sn.toUpperCase() + this.mac);
+      p.auth_second_step = '1';
+    }
+    return p;
+  }
+
+  // Finds the login address (following the portal page's redirect once, like a box does).
+  private async candidates(): Promise<string[]> {
+    const list = endpointsFor(new URL(this.entry));
+    try {
+      const t = withTimeout(10000);
+      const r = await fetch(this.entry, { headers: this.headers(false), signal: t.signal, credentials: 'omit' }).finally(t.done);
+      if (r.url && r.url !== this.entry) return [...new Set([...endpointsFor(new URL(r.url)), ...list])];
+    } catch {}
+    return list;
+  }
+
+  private async doLogin() {
+    const errors: string[] = [];
+    const list = this.ep ? [this.ep] : await this.candidates();
+    for (const ep of list) {
+      try {
+        this.token = null;
+        const r = await this.call(ep, { type: 'stb', action: 'handshake' }, 15000, false);
+        const token = r?.js?.token;
+        if (!token) { errors.push(new URL(ep).host + ': no token'); continue; }
+        this.ep = ep;
+        this.token = token;
+        const prof = await this.call(ep, { type: 'stb', action: 'get_profile', ...(await this.profileParams()) });
+        const js = prof?.js || {};
+        if (js.status === 1 || js.block_msg) throw new Error(String(js.msg || js.block_msg || 'The portal did not accept this device.'));
+        return;
+      } catch (e: any) {
+        errors.push(new URL(ep).host + ': ' + e.message);
+        if (/too many requests|did not accept/i.test(e.message)) break;
+      }
+    }
+    this.ep = null; this.token = null;
+    throw new Error('Could not log in. Check the portal URL, MAC and box model in Settings.\n' + errors.slice(0, 4).join('\n'));
+  }
+
+  // One login shared by everything that needs it at the same moment.
+  async login(force = false) {
+    if (this.token && !force) return;
+    if (!this.loggingIn) this.loggingIn = this.doLogin().finally(() => { this.loggingIn = null; });
+    return this.loggingIn;
+  }
+
+  // Runs a portal call; if the session expired, logs in again once and retries.
+  private async authed(params: Record<string, string>, timeoutMs?: number) {
+    await this.login();
+    try {
+      const r = await this.call(this.ep!, params, timeoutMs);
+      if (r?.js === false || (typeof r?.text === 'string' && /authoriz/i.test(r.text))) throw new Error('auth');
+      return r;
+    } catch (e: any) {
+      if (/too many requests/i.test(e.message)) throw e;
+      await this.login(true);
+      return this.call(this.ep!, params, timeoutMs);
+    }
+  }
+
+  async channels(): Promise<{ categories: string[]; channels: Channel[] }> {
+    const names: Record<string, string> = {};
+    try {
+      const g = await this.authed({ type: 'itv', action: 'get_genres' });
+      for (const x of Array.isArray(g?.js) ? g.js : []) names[String(x.id)] = String(x.title || '');
+    } catch {}
+    const r = await this.authed({ type: 'itv', action: 'get_all_channels' }, 120000);
+    const channels: Channel[] = (Array.isArray(r?.js?.data) ? r.js.data : []).map((c: any) => ({
+      id: String(c.id), name: String(c.name || 'Channel'), number: String(c.number ?? ''),
+      cmd: String(c.cmd || ''), category: names[String(c.tv_genre_id)] || 'Other',
+      logo: /^https?:\/\//i.test(c.logo || '') ? c.logo : '',
+    })).filter((c: Channel) => c.cmd);
+    return { categories: [...new Set(channels.map(c => c.category))], channels };
+  }
+
+  async vodCategories(): Promise<Category[]> {
+    const r = await this.authed({ type: 'vod', action: 'get_categories' }, 30000);
+    return (Array.isArray(r?.js) ? r.js : [])
+      .map((c: any) => ({ id: String(c.id), title: String(c.title || c.name || '') }))
+      .filter((c: Category) => c.id && c.id !== '*' && c.title);
+  }
+
+  private pic(p: string) {
+    if (!p) return '';
+    if (/^https?:\/\//i.test(p)) return p;
+    return new URL(this.ep || this.entry).origin + '/stalker_portal/' + String(p).replace(/^\/+/, '');
+  }
+
+  async movies(category: string, page: number): Promise<{ items: Movie[]; hasMore: boolean }> {
+    const r = await this.authed({ type: 'vod', action: 'get_ordered_list', category, sortby: 'added', p: String(page) }, 40000);
+    const js = r?.js || {};
+    const rows = Array.isArray(js.data) ? js.data : [];
+    const items: Movie[] = rows.map((x: any) => ({
+      id: String(x.id), name: String(x.name || x.o_name || 'Untitled'), cmd: String(x.cmd || ''),
+      logo: this.pic(x.screenshot_uri || x.poster_path || x.cover || ''), year: String(x.year || ''),
+    })).filter((x: Movie) => x.cmd);
+    const total = Number(js.total_items || 0), per = rows.length || 14;
+    return { items, hasMore: total ? page * per < total : items.length > 0 };
+  }
+
+  // Asks the portal for the playable address of a channel or movie.
+  async link(cmd: string, kind: 'live' | 'movie'): Promise<string> {
+    const r = await this.authed({ type: kind === 'movie' ? 'vod' : 'itv', action: 'create_link', cmd, forced_storage: '0', disable_ad: '0', series: '0' });
+    const js = r?.js;
+    const raw = String((js && (js.cmd || js.url)) || (typeof js === 'string' ? js : '')).replace(/^(ffmpeg|auto)\s+/i, '').trim();
+    const m = raw.match(/https?:\/\/\S+/);
+    if (m) return m[0];
+    if (/^\/\S+/.test(raw)) return new URL(raw, new URL(this.ep!).origin).toString();
+    throw new Error('The portal did not give a playable link for this title.');
+  }
+
+  playerOptions(): string[] {
+    return ['--http-user-agent=' + MAG_UA, '--network-caching=1500', '--http-reconnect'];
+  }
+}
+
+// One shared client for the app, rebuilt when settings change.
+let current: { key: string; portal: Portal } | null = null;
+export function portalFor(s: Settings): Portal {
+  const key = JSON.stringify(s);
+  if (!current || current.key !== key) current = { key, portal: new Portal(s) };
+  return current.portal;
+}
