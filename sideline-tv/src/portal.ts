@@ -245,8 +245,19 @@ export class Portal {
 
   // Asks the portal for the playable address of a channel, movie or episode.
   async link(cmd: string, kind: 'live' | 'movie', episode = 0): Promise<string> {
-    const r = await this.authed({ type: kind === 'movie' ? 'vod' : 'itv', action: 'create_link', cmd, forced_storage: '0', disable_ad: '0', series: String(episode || 0) });
+    // Same parameters a real MAG box sends (movies: empty series/forced_storage unless it's an episode).
+    const params = kind === 'movie'
+      ? { type: 'vod', action: 'create_link', cmd, series: episode ? String(episode) : '', forced_storage: '', disable_ad: '0', download: '0', force_ch_link_check: '0' }
+      : { type: 'itv', action: 'create_link', cmd, series: '', forced_storage: '0', disable_ad: '0', download: '0', force_ch_link_check: '0' };
+    const r = await this.authed(params);
     const js = r?.js;
+    const why: Record<string, string> = {
+      nothing_to_play: 'The portal says this title has no video file right now.',
+      limit: 'Your subscription is already playing on another device. Stop it there and try again.',
+      link_fault: 'The portal could not make a link for this title right now.',
+      not_found: 'The portal could not find this title.',
+    };
+    if (js && typeof js === 'object' && js.error && why[js.error]) throw new Error(why[js.error]);
     const raw = String((js && (js.cmd || js.url)) || (typeof js === 'string' ? js : '')).replace(/^(ffmpeg|auto)\s+/i, '').trim();
     const m = raw.match(/https?:\/\/\S+/);
     if (m) return m[0];
