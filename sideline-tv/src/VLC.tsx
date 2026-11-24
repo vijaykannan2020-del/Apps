@@ -14,7 +14,18 @@ type NativeProps = {
   onVideoBuffering?: (e: Ev) => void;
   onVideoError?: (e: Ev) => void;
   onVideoEnded?: (e: Ev) => void;
+  onVideoOpen?: (e: Ev) => void;
+  onVideoLoadStart?: (e: Ev) => void;
+  onVideoPaused?: (e: Ev) => void;
+  onVideoStopped?: (e: Ev) => void;
+  onVideoProgress?: (e: Ev) => void;
+  onVideoLoad?: (e: Ev) => void;
+  onRecordingState?: (e: Ev) => void;
+  onSnapshot?: (e: Ev) => void;
+  progressUpdateInterval?: number;
 };
+// The native player calls every one of these without checking, so all must be set (a missing one crashes).
+const noop = () => {};
 
 const RCTVLCPlayer = requireNativeComponent<NativeProps>('RCTVLCPlayer');
 
@@ -39,6 +50,15 @@ export function VLCView(p: {
       onVideoBuffering={() => p.onBuffering?.()}
       onVideoError={() => p.onError?.()}
       onVideoEnded={() => p.onEnded?.()}
+      onVideoOpen={noop}
+      onVideoLoadStart={noop}
+      onVideoPaused={noop}
+      onVideoStopped={noop}
+      onVideoProgress={noop}
+      onVideoLoad={noop}
+      onRecordingState={noop}
+      onSnapshot={noop}
+      progressUpdateInterval={0}
     />
   );
 }
