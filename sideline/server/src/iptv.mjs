@@ -219,10 +219,13 @@ export function createPortalClient(fetchImpl = fetch) {
       const { ep, token } = await login(origin, mac, agent);   // reuses the channel-list login
       try {
         const r = await get(ep, { type, action: 'create_link', cmd, forced_storage: '0', disable_ad: '0', series: '0' }, origin, mac, token, agent);
-        const raw = String(r?.js?.cmd || '').replace(/^ffmpeg\s+/i, '').trim();
-        const m = raw.match(/https?:\/\/\S+/);
+        const js = r?.js;
+        const raw = String((js && (js.cmd || js.url)) || (typeof js === 'string' ? js : '')).replace(/^(ffmpeg|auto)\s+/i, '').trim();
+        let m = raw.match(/https?:\/\/\S+/);
         if (m && !isBlockedHost(m[0])) return m[0];
-        lastErr = new Error('The portal did not give a playable link for this title.');
+        // Some portals return a host-relative path for VOD — resolve it against the portal.
+        if (!m && /^\/\S+/.test(raw)) { try { const abs = new URL(raw, new URL(ep).origin).toString(); if (!isBlockedHost(abs)) return abs; } catch {} }
+        lastErr = new Error('The portal did not give a playable link for this title. (portal said: ' + JSON.stringify(js).slice(0, 140) + ')');
       } catch (e) { lastErr = e; }
       sessions.delete(origin + '|' + mac);   // token may be stale — force one fresh login
     }
