@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput,
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EMPTY, loadSettings, saveSettings } from '../src/store';
-import { normalizeMac, normalizePortal, type Settings } from '../src/portal';
+import { normalizeMac, normalizePortal, portalFor, type Settings } from '../src/portal';
 import { C } from '../src/theme';
 import release from '../src/release.json';
 import { getTmdbKey, setTmdbKey } from '../src/tmdb';
@@ -25,10 +25,26 @@ function Field({ label, value, onChange, placeholder, hint }: { label: string; v
   );
 }
 
+function fmtDate(v: string) {
+  const d = new Date(v.replace(' ', 'T'));
+  return isNaN(d.getTime()) ? v : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function daysLeft(v: string) {
+  const d = new Date(v.replace(' ', 'T'));
+  if (isNaN(d.getTime())) return '';
+  const n = Math.ceil((d.getTime() - Date.now()) / 86400000);
+  return n < 0 ? ' (expired)' : n === 0 ? ' (today)' : ` (${n} day${n === 1 ? '' : 's'} left)`;
+}
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [s, setS] = useState<Settings>(EMPTY);
   const [err, setErr] = useState('');
+  const [acct, setAcct] = useState<{ ends: string; plan: string; raw: string } | null>(null);
+  const [acctErr, setAcctErr] = useState('');
+  useEffect(() => {
+    loadSettings().then(st => { if (st.portal && st.mac) portalFor(st).accountInfo().then(setAcct).catch(e => setAcctErr(e.message || String(e))); });
+  }, []);
   const [tmdb, setTmdb] = useState('');
   const [subsKey, setSubsKeyState] = useState('');
   useEffect(() => { loadSettings().then(setS); getTmdbKey().then(setTmdb); getSubsKey().then(setSubsKeyState); }, []);
@@ -50,6 +66,15 @@ export default function SettingsScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 22 }}>
           <Text style={{ color: C.text, fontSize: 26, fontWeight: '800', flex: 1 }}>Your IPTV</Text>
           <Pressable onPress={() => router.back()} hitSlop={12}><Text style={{ color: C.dim, fontSize: 16 }}>Close</Text></Pressable>
+        </View>
+        <View style={{ backgroundColor: C.card, borderRadius: 14, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: C.line }}>
+          <Text style={{ color: C.dim, fontSize: 13 }}>Subscription</Text>
+          {acct ? (
+            acct.ends ? <Text style={{ color: C.text, fontSize: 17, fontWeight: '700', marginTop: 4 }}>Ends {fmtDate(acct.ends)}{daysLeft(acct.ends)}</Text>
+              : <Text style={{ color: C.text, fontSize: 15, marginTop: 4 }}>Your portal didn't share an end date.</Text>
+          ) : acctErr ? <Text style={{ color: C.dim, marginTop: 4 }}>{acctErr}</Text> : <Text style={{ color: C.dim, marginTop: 4 }}>Checking…</Text>}
+          {acct?.plan ? <Text style={{ color: C.dim, marginTop: 4 }}>Plan: {acct.plan}</Text> : null}
+          {acct && !acct.ends ? <Text style={{ color: '#6f6a8f', fontSize: 11, marginTop: 6 }}>{acct.raw}</Text> : null}
         </View>
         <Field label="Portal URL" value={s.portal} onChange={up('portal')} placeholder="http://yourportal.com/c/" />
         <Field label="MAC address" value={s.mac} onChange={up('mac')} placeholder="00:1A:79:AB:CD:EF" />

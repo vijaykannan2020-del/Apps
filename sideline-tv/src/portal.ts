@@ -64,6 +64,7 @@ export class Portal {
   private loggingIn: Promise<void> | null = null;
   onStatus: (text: string) => void = () => {};
   lastRoute = '';
+  profile: any = null; // what the portal said about this box at login (often includes the end date)
   lastSubtitles: { name: string; url: string }[] = []; // how the last link was obtained (shown on the player for troubleshooting)
   knownEndpoint: string | null = null; // remembered from last time, tried first
   onEndpoint: (ep: string) => void = () => {};
@@ -153,6 +154,7 @@ export class Portal {
         this.token = token;
         const prof = await this.call(ep, { type: 'stb', action: 'get_profile', ...(await this.profileParams()) });
         const js = prof?.js || {};
+        this.profile = js;
         if (js.status === 1 || js.block_msg) throw new Error(String(js.msg || js.block_msg || 'The portal did not accept this device.'));
         this.onEndpoint(ep);
         return;
@@ -407,6 +409,22 @@ export class Portal {
     };
     throw new Error((why[last?.error] || 'The portal did not give a playable link for this title.') +
       '\n\nDetails: cmd ' + String(cmd).slice(0, 60) + ' → ' + JSON.stringify(last).slice(0, 160) + note);
+  }
+
+  // Subscription details the portal reports to the box (end date, plan). Field names differ between portals.
+  async accountInfo(): Promise<{ ends: string; plan: string; raw: string }> {
+    let info: any = null;
+    try { info = (await this.authed({ type: 'account_info', action: 'get_main_info' }, 15000))?.js || null; } catch {}
+    const srcs = [info || {}, this.profile || {}];
+    const pick = (...keys: string[]) => { for (const o of srcs) for (const k of keys) { const v = o?.[k]; if (v && String(v) !== '0' && String(v) !== '0000-00-00 00:00:00') return String(v); } return ''; };
+    let ends = pick('end_date', 'expire_billing_date', 'tariff_expired_date', 'expire_date', 'exp_date', 'expiry', 'account_expire', 'phone');
+    // Some portals put the date inside a sentence (e.g. in "phone"); pull out a date if there is one.
+    const m = ends.match(/\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?|\b[A-Z][a-z]+ \d{1,2},? \d{4}\b|\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/);
+    if (m) ends = m[0]; else if (!/\d{4}|\d{2}[./-]\d{2}/.test(ends)) ends = '';
+    if (/^\d{9,10}$/.test(ends)) ends = new Date(Number(ends) * 1000).toISOString().slice(0, 10);
+    const plan = pick('tariff_plan', 'tariff_plan_name', 'tariff', 'plan');
+    const raw = JSON.stringify(info || {}).slice(0, 160);
+    return { ends, plan, raw };
   }
 
   // Quick check that the video server really has the file before the player gets it.
