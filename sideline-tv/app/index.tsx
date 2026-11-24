@@ -77,6 +77,10 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const [vodCat, setVodCat] = useState<string | null>(null);
   const [lang, setLangState] = useState('All');
+  const [mq, setMq] = useState('');                 // movie search text
+  const [res, setRes] = useState<{ q: string; items: Movie[]; page: number; hasMore: boolean; total: number } | null>(null);
+  const [resBusy, setResBusy] = useState(false);
+  const [resErr, setResErr] = useState('');
   useEffect(() => { AsyncStorage.getItem('sideline-tv.lang').then(v => v && LANGS.includes(v) && setLangState(v)).catch(() => {}); }, []);
   const setLang = (l: string) => { setLangState(l); setLiveCat('All'); AsyncStorage.setItem('sideline-tv.lang', l).catch(() => {}); };
 
@@ -135,6 +139,25 @@ export default function Home() {
     } catch (e: any) { setVodErr(e.message || String(e)); }
     finally { setVodBusy(false); bump(n => n + 1); }
   }, [portal]);
+
+  const isSeriesCat = (id: string) => SERIES_WORDS.test(mem.vodCats?.find(c => c.id === id)?.title || '');
+  const searchMovies = useCallback(async (q: string, more = false) => {
+    if (!portal) return;
+    setResBusy(true); setResErr('');
+    try {
+      const page = more && res && res.q === q ? res.page + 1 : 1;
+      const r = await portal.searchMovies(q, page, isSeriesCat);
+      setRes(prev => ({ q, page, hasMore: r.hasMore, total: r.total, items: more && prev && prev.q === q ? [...prev.items, ...r.items] : r.items }));
+    } catch (e: any) { setResErr(e.message || String(e)); }
+    finally { setResBusy(false); }
+  }, [portal, res]);
+  // Search as you type (waits until you pause typing).
+  useEffect(() => {
+    const q = mq.trim();
+    if (q.length < 2) { setRes(null); setResErr(''); return; }
+    const t = setTimeout(() => searchMovies(q), 600);
+    return () => clearTimeout(t);
+  }, [mq]);
 
   useEffect(() => { if (warm && tab === 'live' && !mem.live && !liveBusy) loadLive(); }, [warm, tab, key]);
   useEffect(() => { if (warm && tab === 'movies' && !mem.vodCats && !vodBusy) loadVodCats(); }, [warm, tab, key]);
@@ -217,6 +240,27 @@ export default function Home() {
             </>
           ) : (
             <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 10 }}>
+                <TextInput value={mq} onChangeText={setMq} placeholder="Search movies & series" placeholderTextColor="#5f5a7d" autoCorrect={false} returnKeyType="search"
+                  onSubmitEditing={() => mq.trim().length >= 2 && searchMovies(mq.trim())}
+                  style={{ flex: 1, backgroundColor: C.card, color: C.text, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15 }} />
+                {mq ? <Pressable onPress={() => setMq('')} hitSlop={10} style={{ marginLeft: 10 }}><Text style={{ color: C.dim, fontSize: 15 }}>Clear</Text></Pressable> : null}
+              </View>
+              {mq.trim().length >= 2 ? (
+                <FlatList
+                  data={res?.q === mq.trim() || res ? res?.items || [] : []} keyExtractor={(m, i) => m.id + ':' + i} initialNumToRender={14} windowSize={9} keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: insets.bottom + 24 }}
+                  onEndReachedThreshold={0.6}
+                  onEndReached={() => { if (res?.hasMore && !resBusy) searchMovies(res.q, true); }}
+                  ListHeaderComponent={res && !resBusy ? <Text style={{ color: C.dim, fontSize: 12, marginBottom: 8 }}>{res.total || res.items.length} result{(res.total || res.items.length) === 1 ? '' : 's'} for "{res.q}"</Text> : undefined}
+                  ListEmptyComponent={resBusy ? <ActivityIndicator color={C.accent} style={{ marginTop: 30 }} /> : resErr ? <Message text={resErr} action="Try again" onAction={() => searchMovies(mq.trim())} /> : res ? <Message text={'Nothing found for "' + res.q + '". Try fewer words or a different spelling.'} /> : undefined}
+                  ListFooterComponent={resBusy && res?.items.length ? <ActivityIndicator color={C.accent} style={{ marginVertical: 20 }} /> : undefined}
+                  renderItem={({ item }) => (
+                    <MovieRow item={item} onPress={() => item.series ? router.push({ pathname: '/series', params: { id: item.id, name: item.name, category: item.category, logo: item.logo } }) : play(item.cmd, item.name, 'movie', item.id, item.category)} />
+                  )}
+                />
+              ) : (
+              <>
               {mem.vodCats ? (
                 <View style={{ height: 44 }}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
@@ -235,6 +279,8 @@ export default function Home() {
                   <MovieRow item={item} onPress={() => item.series ? router.push({ pathname: '/series', params: { id: item.id, name: item.name, category: item.category, logo: item.logo } }) : play(item.cmd, item.name, 'movie', item.id, item.category)} />
                 )}
               />
+              </>
+              )}
             </>
           )}
         </>

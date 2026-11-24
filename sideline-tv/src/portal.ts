@@ -235,6 +235,23 @@ export class Portal {
     return { items, hasMore: total ? page * per < total : items.length > 0 };
   }
 
+  // Searches the whole movie & series library by name (the portal's own search, like the box's search box).
+  async searchMovies(query: string, page: number, isSeriesCat: (categoryId: string) => boolean): Promise<{ items: Movie[]; hasMore: boolean; total: number }> {
+    const r = await this.authed({ type: 'vod', action: 'get_ordered_list', category: '*', search: query, sortby: 'added', p: String(page) }, 40000);
+    const js = r?.js || {};
+    const rows = Array.isArray(js.data) ? js.data : [];
+    const items: Movie[] = rows.map((x: any) => {
+      const cat = String(x.category_id || x.genre_id || '');
+      return {
+        id: String(x.id), name: String(x.name || x.o_name || 'Untitled'), cmd: String(x.cmd || ''),
+        logo: this.pic(x.screenshot_uri || x.poster_path || x.cover || ''), year: String(x.year || ''),
+        series: isSeriesCat(cat) || String(x.is_series) === '1' || (Array.isArray(x.series) && x.series.length > 0), category: cat,
+      };
+    }).filter((x: Movie) => x.cmd || x.series);
+    const total = Number(js.total_items || 0), per = Number(js.max_page_items || rows.length || 14);
+    return { items, total, hasMore: total ? page * per < total : rows.length >= per };
+  }
+
   // Seasons and episodes of a TV series (both portal styles).
   // Reads every page of a paged portal list (the portal sends about 14 rows per page).
   private async allPages(params: Record<string, string>, maxPages = 30): Promise<any[]> {
