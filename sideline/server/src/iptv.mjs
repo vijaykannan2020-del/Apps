@@ -20,8 +20,12 @@ export function cleanModel(model) {
   const t = String(model || '').replace(/[^\w .\-\/]/g, '').trim().slice(0, 40);
   return t || 'MAG200';
 }
+function cleanId(v) {
+  const t = String(v || '').replace(/[^0-9A-Za-z:._-]/g, '').slice(0, 80);
+  return t || null;
+}
 function agentOf(a) {
-  return { ua: cleanUA(a && a.ua) || MAG_UA, model: cleanModel(a && a.model) };
+  return { ua: cleanUA(a && a.ua) || MAG_UA, model: cleanModel(a && a.model), sn: cleanId(a && a.sn), deviceId: cleanId(a && a.deviceId) };
 }
 
 export function normalizeMac(input) {
@@ -94,13 +98,16 @@ function deriveEndpoints(u) {
 }
 function deviceProfile(mac, agent) {
   const H = (alg, v) => crypto.createHash(alg).update(v).digest('hex').toUpperCase();
-  const sn = H('md5', mac).slice(0, 13);
-  const model = cleanModel(agent && agent.model);
-  const deviceId = H('sha256', sn);
+  const UP = v => String(v).toUpperCase();
+  const a = agent || {};
+  const sn = a.sn || H('md5', mac).slice(0, 13);                 // real serial if supplied
+  const model = cleanModel(a.model);
+  const deviceId = a.deviceId || H('sha256', UP(sn));            // real device id if supplied, else standard
+  const deviceId2 = H('sha256', UP(mac));
   return {
     hd: '1', ver: 'ImageDescription: 0.2.18-r23-250; ImageDate: Thu Sep 13 11:31:16 EEST 2018; PORTAL version: 5.6.2; API Version: JS API version: 343; STB API version: 146; Player Engine version: 0x58c',
     num_banks: '2', sn, stb_type: model, client_type: 'STB', image_version: '218', video_out: 'hdmi',
-    device_id: deviceId, device_id2: deviceId, signature: H('sha256', sn + mac), auth_second_step: '1',
+    device_id: deviceId, device_id2: deviceId2, signature: H('sha256', UP(sn) + UP(mac)), auth_second_step: '1',
     hw_version: '1.7-BD-00', not_valid_token: '0', hw_version_2: H('sha1', mac), timestamp: String(Math.floor(Date.now() / 1000)),
     api_signature: '262', prehash: '',
     metrics: JSON.stringify({ mac, sn, model, type: 'STB', uid: '', random: '' }),
@@ -114,6 +121,7 @@ export function createPortalClient(fetchImpl = fetch) {
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     url.searchParams.set('JsHttpRequest', '1-xml');
     const res = await fetchImpl(url, { headers: portalHeaders(ep, mac, token, agent), redirect: 'follow', signal: AbortSignal.timeout(15000) });
+    if (res.status === 429) throw new Error('Portal rate-limited us (HTTP 429). Wait a minute, then try once.');
     if (!res.ok) throw new Error('Portal returned HTTP ' + res.status);
     const text = (await res.text()).replace(/^\uFEFF/, '').trim();
     try { return JSON.parse(text); }
@@ -273,7 +281,7 @@ export function createIptv({ config, signature, equal, json, body, portal = crea
     if (pathname === '/api/iptv/channels' && req.method === 'POST') {
       try {
         const d = await body(req);
-        json(res, 200, await portal.channels(normalizeEntry(d.portal), normalizeMac(d.mac), { ua: d.ua, model: d.model }));
+        json(res, 200, await portal.channels(normalizeEntry(d.portal), normalizeMac(d.mac), { ua: d.ua, model: d.model, sn: d.sn, deviceId: d.deviceId }));
       } catch (e) { json(res, 502, { error: e.message }); }
       return true;
     }
@@ -281,7 +289,7 @@ export function createIptv({ config, signature, equal, json, body, portal = crea
       try {
         const d = await body(req);
         if (typeof d.cmd !== 'string' || !d.cmd || d.cmd.length > 2000) throw new Error('Choose a channel.');
-        json(res, 200, await start({ origin: normalizeEntry(d.portal), mac: normalizeMac(d.mac), cmd: d.cmd, name: String(d.name || '').slice(0, 200), convert: d.convert === true, agent: { ua: d.ua, model: d.model } }));
+        json(res, 200, await start({ origin: normalizeEntry(d.portal), mac: normalizeMac(d.mac), cmd: d.cmd, name: String(d.name || '').slice(0, 200), convert: d.convert === true, agent: { ua: d.ua, model: d.model, sn: d.sn, deviceId: d.deviceId } }));
       } catch (e) { json(res, 502, { error: e.message }); }
       return true;
     }

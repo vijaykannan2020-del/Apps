@@ -129,3 +129,20 @@ test('sends a full device profile so strict portals authorize the session; shows
     if (a === 'get_all_channels') return new Response('Authorization failed.'); return new Response(JSON.stringify({ js: [] })); };
   await assert.rejects(createPortalClient(refuse).channels('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', {}), e => /get_all_channels: "Authorization failed\."/.test(e.message) && /login said: MAC not activated/.test(e.message));
 });
+
+test('sends the real serial + device id so a device-locked portal authorizes', async () => {
+  const { createPortalClient } = await import('../src/iptv.mjs');
+  const REAL_SN='062014N016744', REAL_DEV='ABC123DEVICEID';
+  let seenDev=null, seenSn=null;
+  const fake = async (url) => {
+    const u=new URL(url), a=u.searchParams.get('action');
+    if(u.pathname!=='/portal.php') return new Response('',{status:404});
+    if(a==='handshake') return new Response(JSON.stringify({js:{token:'T'}}));
+    if(a==='get_profile'){ seenDev=u.searchParams.get('device_id'); seenSn=u.searchParams.get('sn'); return new Response(JSON.stringify({js:{status:0,id:'42'}})); }
+    if(a==='get_all_channels') return (seenDev===REAL_DEV&&seenSn===REAL_SN) ? new Response(JSON.stringify({js:{data:[{id:1,name:'Sun TV',cmd:'ffmpeg http://x/1'}]}})) : new Response('Authorization failed.');
+    return new Response(JSON.stringify({js:[]}));
+  };
+  const r = await createPortalClient(fake).channels('http://desi4k.cc/','1A:17:E3:AB:7B:DF',{model:'MAG250',sn:REAL_SN,deviceId:REAL_DEV});
+  assert.equal(r.channels[0].name,'Sun TV');
+  assert.equal(seenSn,REAL_SN); assert.equal(seenDev,REAL_DEV);
+});
