@@ -17,7 +17,7 @@ const siteDir = () => DIRS.find((d) => fs.existsSync(path.join(d, 'home.html')))
 export const SITE_HOSTS = (process.env.SITE_HOSTS || 'tharamaya.com,www.tharamaya.com')
   .split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8' };
 const APP = '/immigration-wallet';
 const PAGES = { '': 'get.html', privacy: 'privacy.html', support: 'support.html', get: 'get.html' };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -37,7 +37,7 @@ export function resolve(pathname) {
   if (p.includes('/') || p.includes('..')) return null;
   const bare = p.replace(/\.html$/, '');
   if (pathname.startsWith(APP + '/') && bare in PAGES) return PAGES[bare];
-  if (/^[a-z0-9-]+\.(css|js|png|svg|txt)$/.test(p)) return p;
+  if (/^[a-z0-9-]+\.(css|js|png|jpg|webp|svg|txt)$/.test(p)) return p;
   return null;
 }
 

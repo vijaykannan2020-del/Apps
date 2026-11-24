@@ -3,45 +3,128 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Tharamaya — simple apps for everyday life</title>
-<meta name="description" content="Tharamaya makes small, private apps for everyday life. Immigration Wallet keeps your family’s US immigration documents and dates on your own phone.">
-<link rel="stylesheet" href="/style.css">
+<meta name="theme-color" content="#08080A">
+<title>Tharamaya — Thoughtful apps for everyday life</title>
+<meta name="description" content="Tharamaya makes calm, private apps for everyday life. Immigration Wallet keeps your family’s US immigration documents and dates on your own phone.">
+<link rel="icon" href="/iw-icon.png">
 <style>
-.brand{font-size:15px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text2);margin:0 0 56px}
-.hero{font-size:40px;line-height:46px;letter-spacing:-.6px;font-weight:700;margin:0 0 12px}
-.lead{font-size:19px;color:var(--text2);margin:0 0 48px;max-width:30em}
-.app{display:flex;gap:16px;align-items:center;padding:16px 0}
-.app .icon{flex:none;width:60px;height:60px;border-radius:14px;font-size:28px}
-.app b{display:block;font-size:19px}
-.app span{color:var(--text2);font-size:15px}
-.links{display:flex;flex-wrap:wrap;gap:8px 20px;padding:4px 0 16px;border-top:.5px solid var(--sep);padding-top:14px}
-.links a{font-weight:500}
-footer{margin-top:64px;color:var(--text2);font-size:13px}
-footer a{color:var(--text2)}
+:root{--bg:#08080A;--ink:#F5F5F7;--mute:#8E8E95;--faint:#5A5A61;--line:rgba(255,255,255,.08);--card:rgba(255,255,255,.035);--blue:#9CC3FF;--rose:#F6B7C6}
+*{box-sizing:border-box;margin:0}
+html{background:var(--bg);overflow-x:hidden}
+body{color:var(--ink);font:17px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+.glow{position:absolute;top:0;left:0;right:0;height:110vh;pointer-events:none;z-index:0;
+  background:radial-gradient(40% 35% at 30% 30%,rgba(120,160,255,.16),transparent 70%),radial-gradient(35% 30% at 75% 20%,rgba(246,160,190,.10),transparent 70%)}
+nav{position:sticky;top:0;z-index:10;backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);background:rgba(8,8,10,.6);border-bottom:.5px solid var(--line)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:56px;padding-top:env(safe-area-inset-top)}
+.mark{font-weight:600;font-size:17px;letter-spacing:-.2px}
+.mark i{font-style:normal;color:var(--mute)}
+nav a.c{font-size:14px;color:var(--mute)}
+header.wrap{position:relative;padding:88px 24px 80px;text-align:center}
+.eyebrow{display:inline-block;font-size:13px;letter-spacing:.4px;color:var(--mute);border:.5px solid var(--line);background:var(--card);padding:6px 14px;border-radius:99px;margin-bottom:28px}
+h1{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter",sans-serif;font-size:clamp(44px,9vw,88px);line-height:1.02;letter-spacing:-.045em;font-weight:700;max-width:12ch;margin:0 auto}
+h1 span{background:linear-gradient(100deg,#fff 10%,var(--blue) 55%,var(--rose) 95%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lede{font-size:clamp(18px,2.4vw,21px);color:var(--mute);max-width:32em;margin:24px auto 0;line-height:1.45;letter-spacing:-.01em}
+section{position:relative;z-index:1}
+.app{border:.5px solid var(--line);border-radius:32px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));overflow:hidden;display:grid;grid-template-columns:1fr;gap:0}
+.app .txt{padding:40px 28px 8px}
+.apphead{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.apphead img{width:56px;height:56px;border-radius:13px;box-shadow:0 0 0 .5px rgba(255,255,255,.15),0 8px 24px rgba(0,0,0,.5)}
+.apphead b{display:block;font-size:19px;letter-spacing:-.2px}
+.apphead span{font-size:14px;color:var(--mute)}
+h2{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter",sans-serif;font-size:clamp(30px,5vw,44px);line-height:1.08;letter-spacing:-.035em;font-weight:700}
+.app p.d{color:var(--mute);margin-top:14px;max-width:28em}
+ul.f{list-style:none;padding:0;margin:28px 0 0;display:grid;gap:14px}
+ul.f li{display:flex;gap:12px;font-size:16px;color:#D6D6DA}
+ul.f li::before{content:"";flex:none;width:6px;height:6px;border-radius:3px;background:var(--blue);margin-top:9px;box-shadow:0 0 12px var(--blue)}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.btn{display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 22px;border-radius:99px;font-size:16px;font-weight:600;letter-spacing:-.1px;transition:transform .2s ease,opacity .2s}
+.btn:active{transform:scale(.97)}
+.btn.p{background:var(--ink);color:#000}
+.btn.g{border:.5px solid rgba(255,255,255,.18);color:var(--ink)}
+.btn svg{width:17px;height:17px}
+.small{font-size:13px;color:var(--faint);margin-top:14px}
+.phones{position:relative;height:400px;margin-top:16px;overflow:hidden}
+.phone{position:absolute;width:162px;border-radius:40px;padding:7px;background:#1b1b1e;box-shadow:0 0 0 .5px rgba(255,255,255,.12),0 40px 80px -20px rgba(0,0,0,.8)}
+.phone img{display:block;width:100%;border-radius:33px;padding-top:20px;background:#000}
+.phone.a{left:50%;top:28px;transform:translateX(-98%) rotate(-5deg)}
+.phone.b{left:50%;top:60px;transform:translateX(2%) rotate(4deg)}
+.principles{display:grid;grid-template-columns:1fr;gap:1px;background:var(--line);border-radius:24px;overflow:hidden;border:.5px solid var(--line);margin-top:96px}
+.pr{background:var(--bg);padding:28px}
+.pr b{display:block;font-size:17px;letter-spacing:-.2px;margin-bottom:6px}
+.pr span{color:var(--mute);font-size:15px}
+.k{font-size:13px;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);margin:0 0 18px 4px}
+footer{margin:96px 0 0;border-top:.5px solid var(--line);padding:32px 0 calc(40px + env(safe-area-inset-bottom))}
+footer .wrap{display:flex;flex-wrap:wrap;gap:12px 28px;justify-content:space-between;font-size:14px;color:var(--mute)}
+footer nav{all:unset;display:flex;gap:22px}
+.rv{opacity:0;transform:translateY(24px);transition:opacity 1s cubic-bezier(.2,.7,.2,1),transform 1s cubic-bezier(.2,.7,.2,1)}
+.rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}}
+@media (min-width:860px){
+  header.wrap{padding:150px 24px 110px}
+  .app{grid-template-columns:1.05fr 1fr;align-items:center}
+  .app .txt{padding:64px 0 64px 64px}
+  .phones{height:600px;margin:0}
+  .phone{width:260px}
+  .principles{grid-template-columns:repeat(3,1fr)}
+}
 </style>
 </head>
 <body>
-<main>
-  <p class="brand">Tharamaya</p>
-  <h1 class="hero">Simple apps for everyday life.</h1>
-  <p class="lead">Small, private apps that do one job well. Your data stays on your phone — no ads, no tracking.</p>
+<div class="glow" aria-hidden="true"></div>
+<nav><div class="wrap"><a class="mark" href="/">Tharamaya</a><a class="c" href="mailto:hello@tharamaya.com">Contact</a></div></nav>
 
-  <h2>Apps</h2>
-  <div class="card">
-    <div class="app">
-      <div class="icon" aria-hidden="true">W</div>
-      <div><b>Immigration Wallet</b><span>Your family’s US immigration documents and dates, on your own phone.</span></div>
+<header class="wrap">
+  <div class="eyebrow rv">Independent app studio</div>
+  <h1 class="rv">Thoughtful apps for <span>everyday life.</span></h1>
+  <p class="lede rv">Calm, private tools that do one job beautifully. Your data stays on your phone — no ads, no tracking, no noise.</p>
+</header>
+
+<section class="wrap" id="apps">
+  <p class="k rv">Our apps</p>
+  <div class="app rv">
+    <div class="txt">
+      <div class="apphead"><img src="/iw-icon.png" alt=""><div><b>Immigration Wallet</b><span>For iPhone</span></div></div>
+      <h2>Your family’s immigration, in one calm place.</h2>
+      <p class="d">Documents, dates and USCIS case updates for everyone in your family — kept privately on your own phone.</p>
+      <ul class="f">
+        <li>Know what needs attention, before it’s urgent</li>
+        <li>Every document, readable and searchable</li>
+        <li>Reminders for expiry dates and deadlines</li>
+      </ul>
+      <div class="cta">
+        <a class="btn p" id="store" href="https://apps.apple.com/app/id6836097003"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>App Store</a>
+        <a class="btn g" href="/immigration-wallet/support">Support</a>
+      </div>
+      <p class="small">Not affiliated with USCIS or any government agency.</p>
     </div>
-    <div class="links">
-      <a id="store" href="https://apps.apple.com/app/id6836097003">App Store</a>
-      <a href="/immigration-wallet/support">Support</a>
-      <a href="/immigration-wallet/privacy">Privacy</a>
+    <div class="phones" aria-hidden="true">
+      <div class="phone a"><img src="/iw-home.jpg" alt="" loading="lazy"></div>
+      <div class="phone b"><img src="/iw-doc.jpg" alt="" loading="lazy"></div>
     </div>
   </div>
+</section>
 
-  <footer>© 2026 Tharamaya · <a href="mailto:hello@tharamaya.com">hello@tharamaya.com</a></footer>
-</main>
+<section class="wrap">
+  <div class="principles rv">
+    <div class="pr"><b>Private by design</b><span>Everything lives on your device. No accounts required.</span></div>
+    <div class="pr"><b>Nothing to sell you</b><span>No ads, no trackers, no data brokers. Ever.</span></div>
+    <div class="pr"><b>Made with care</b><span>Small, focused, and quietly beautiful.</span></div>
+  </div>
+</section>
+
+<footer><div class="wrap">
+  <span>© 2026 Tharamaya</span>
+  <nav><a href="/immigration-wallet/privacy">Privacy</a><a href="/immigration-wallet/support">Support</a><a href="mailto:hello@tharamaya.com">hello@tharamaya.com</a></nav>
+</div></footer>
+
 <script src="/links.js"></script>
-<script>try{document.getElementById('store').href=window.IW_LINKS.appStore}catch(e){}</script>
+<script>
+try{document.getElementById('store').href=window.IW_LINKS.appStore}catch(e){}
+(function(){var els=document.querySelectorAll('.rv');if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('in')});return}
+var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12});
+els.forEach(function(e,i){e.style.transitionDelay=(i<3?i*90:0)+'ms';io.observe(e)})})();
+</script>
 </body>
 </html>
