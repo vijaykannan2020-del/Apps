@@ -8,6 +8,8 @@ import { loadSettings } from '../src/store';
 import { portalFor, type LinkOpts } from '../src/portal';
 import { VLCView, type Track } from '../src/VLC';
 import * as Q from '../src/queue';
+import { lookup } from '../src/tmdb';
+import { findSubtitles, type WebSub } from '../src/subs';
 import { C } from '../src/theme';
 
 const fmt = (ms: number) => {
@@ -57,6 +59,9 @@ export default function Player() {
   const [subUri, setSubUri] = useState<string | undefined>(undefined);
   const [sheet, setSheet] = useState<'' | 'audio' | 'subs'>('');
   const [aspect, setAspect] = useState(0);
+  const [web, setWeb] = useState<WebSub[] | null>(null);
+  const [webBusy, setWebBusy] = useState(false);
+  const [webMsg, setWebMsg] = useState('');
   const [barW, setBarW] = useState(1);
   const [drag, setDrag] = useState<number | null>(null);
   const tries = useRef(0);
@@ -94,6 +99,24 @@ export default function Player() {
     const t = setTimeout(() => setChrome(false), 4000);
     return () => clearTimeout(t);
   }, [state, chrome, paused, sheet]);
+
+  // Subtitles from the web: find the title on TMDB, then search subtitles for it.
+  async function searchWebSubs() {
+    setWebBusy(true); setWebMsg(''); setWeb(null);
+    try {
+      const parts = item.name.split(' · ');
+      const show = parts[0];
+      const season = Number((item.name.match(/season\s*(\d+)/i) || [])[1] || 0);
+      const ep = Number((parts.slice(2).join(' ').match(/episode\s*(\d+)/i) || [])[1] || 0);
+      const isEp = Q.current() !== null && season > 0 && ep > 0;
+      const hit = await lookup(show, isEp ? 'tv' : 'movie');
+      if (!hit) throw new Error('Could not find this title on TMDB. Add your TMDB key in Settings if you haven\'t.');
+      const list = await findSubtitles(hit.id, ['en', 'ta', 'hi'], isEp ? season : undefined, isEp ? ep : undefined);
+      setWeb(list);
+      if (!list.length) setWebMsg('No subtitles found online for ' + hit.title + '.');
+    } catch (e: any) { setWebMsg(e.message || String(e)); }
+    finally { setWebBusy(false); }
+  }
 
   const openInVLC = () => uri && Linking.openURL('vlc-x-callback://x-callback-url/stream?url=' + encodeURIComponent(uri)).catch(() => {});
 
@@ -197,6 +220,7 @@ export default function Player() {
                   <Btn label="Subtitles" onPress={() => setSheet('subs')} />
                   <Btn label={'Screen: ' + ASPECTS[aspect].label} onPress={() => setAspect(a => (a + 1) % ASPECTS.length)} />
                   {Q.hasNext() ? <Btn label="Next episode ▸▸" onPress={playNext} /> : null}
+                  <Btn label="📺 Cast" onPress={() => router.replace({ pathname: '/cast', params: { uri, name: item.name, live: kind === 'live' ? '1' : '' } })} />
                 </View>
               </View>
             </>
@@ -231,6 +255,15 @@ export default function Player() {
                   </Pressable>
                 ))}
                 {!texts.filter(t => t.id !== -1).length && !subs.length ? <Text style={{ color: C.dim, paddingVertical: 8 }}>No subtitles came with this video.</Text> : null}
+                <Pressable onPress={searchWebSubs} style={{ marginTop: 10, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, backgroundColor: C.cardHi }}>
+                  <Text style={{ color: C.text, fontWeight: '700' }}>{webBusy ? 'Searching online…' : '🔎  Find subtitles online (English, Tamil, Hindi)'}</Text>
+                </Pressable>
+                {webMsg ? <Text style={{ color: C.dim, paddingVertical: 8 }}>{webMsg}</Text> : null}
+                {(web || []).map(w => (
+                  <Pressable key={w.url} onPress={() => { setSubUri(w.url); setSheet(''); }} style={{ paddingVertical: 12 }}>
+                    <Text style={{ color: subUri === w.url ? C.accent : C.text, fontSize: 15 }}>{w.name}</Text>
+                  </Pressable>
+                ))}
               </>
             )}
           </ScrollView>

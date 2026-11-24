@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCache, isReady, setCache, useSettings } from '../src/store';
 import { portalFor, type Category, type Channel, type Movie } from '../src/portal';
 import { C } from '../src/theme';
+import { lookup, type Hit } from '../src/tmdb';
 import release from '../src/release.json';
 
 // Kept while the app is open, so coming back from the player doesn't reload anything.
@@ -27,6 +28,25 @@ const LANG_KEYS: Record<string, RegExp> = {
 };
 const matchLang = (lang: string, ...texts: string[]) => lang === 'All' || texts.some(t => LANG_KEYS[lang]?.test(t));
 const SERIES_WORDS = /show|series|web|drama|season|serial/i;
+
+// One movie / show per row: TMDB poster when a key is set (portal pictures often don't load), title, year.
+function MovieRow({ item, onPress }: { item: Movie; onPress: () => void }) {
+  const [hit, setHit] = useState<Hit | null>(null);
+  useEffect(() => { let alive = true; lookup(item.name, item.series ? 'tv' : 'movie').then(h => alive && setHit(h)); return () => { alive = false; }; }, [item.id]);
+  const poster = hit?.poster || item.logo;
+  const year = item.year && item.year !== '0' ? item.year : hit?.year || '';
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', padding: 8, marginBottom: 8, borderRadius: 14, backgroundColor: pressed ? C.cardHi : C.card })}>
+      <View style={{ width: 54, height: 80, borderRadius: 8, backgroundColor: '#100e1d', overflow: 'hidden', marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
+        {poster ? <Image source={poster} style={{ width: 54, height: 80 }} contentFit="cover" transition={150} /> : <Text style={{ color: C.dim, fontSize: 20 }}>{item.series ? '▤' : '▶'}</Text>}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text numberOfLines={2} style={{ color: C.text, fontSize: 15, fontWeight: '600' }}>{item.name}</Text>
+        <Text style={{ color: C.dim, fontSize: 12, marginTop: 4 }}>{[year, item.series ? 'Series · episodes ›' : 'Movie'].filter(Boolean).join(' · ')}</Text>
+      </View>
+    </Pressable>
+  );
+}
 
 function Message({ text, action, onAction }: { text: string; action?: string; onAction?: () => void }) {
   return (
@@ -205,20 +225,14 @@ export default function Home() {
                 </View>
               ) : null}
               <FlatList
-                key={'grid' + cols} data={movies?.items || []} numColumns={cols} keyExtractor={m => m.id}
-                columnWrapperStyle={{ gap: 10 }}
+                data={movies?.items || []} keyExtractor={m => m.id} initialNumToRender={14} windowSize={9}
                 contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: insets.bottom + 24 }}
                 onEndReachedThreshold={0.6}
                 onEndReached={() => { if (vodCat && movies?.hasMore && !vodBusy) loadMovies(vodCat, true); }}
                 ListEmptyComponent={mem.vodCats && !vodCats.length ? <Message text={'No ' + lang + ' categories on your portal. Pick another language.'} /> : vodBusy || !warm ? <View style={{ alignItems: 'center', marginTop: 40 }}><ActivityIndicator color={C.accent} /><Text style={{ color: C.dim, marginTop: 12 }}>{status}</Text></View> : vodErr ? <Message text={vodErr} action="Try again" onAction={() => (mem.vodCats ? vodCat && loadMovies(vodCat) : loadVodCats())} /> : undefined}
                 ListFooterComponent={vodBusy && movies?.items.length ? <ActivityIndicator color={C.accent} style={{ marginVertical: 20 }} /> : undefined}
                 renderItem={({ item }) => (
-                  <Pressable onPress={() => item.series ? router.push({ pathname: '/series', params: { id: item.id, name: item.name, category: item.category, logo: item.logo } }) : play(item.cmd, item.name, 'movie', item.id, item.category)} style={{ width: tile, marginBottom: 14 }}>
-                    <View style={{ width: tile, height: tile * 1.5, borderRadius: 12, backgroundColor: C.card, overflow: 'hidden' }}>
-                      {item.logo ? <Image source={item.logo} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={150} /> : null}
-                    </View>
-                    <Text numberOfLines={2} style={{ color: C.text, fontSize: 12, marginTop: 6 }}>{item.name}{item.year ? ` (${item.year})` : ''}</Text>
-                  </Pressable>
+                  <MovieRow item={item} onPress={() => item.series ? router.push({ pathname: '/series', params: { id: item.id, name: item.name, category: item.category, logo: item.logo } }) : play(item.cmd, item.name, 'movie', item.id, item.category)} />
                 )}
               />
             </>

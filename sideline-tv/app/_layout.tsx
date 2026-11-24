@@ -11,6 +11,7 @@ export default function Layout() {
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
         <Stack.Screen name="setup" />
         <Stack.Screen name="series" />
+        <Stack.Screen name="cast" options={{ presentation: 'fullScreenModal', contentStyle: { backgroundColor: '#000' } }} />
         <Stack.Screen name="player" options={{ presentation: 'fullScreenModal', animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
       </Stack>
     </>

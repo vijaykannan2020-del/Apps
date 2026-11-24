@@ -6,6 +6,8 @@ import { EMPTY, loadSettings, saveSettings } from '../src/store';
 import { normalizeMac, normalizePortal, type Settings } from '../src/portal';
 import { C } from '../src/theme';
 import release from '../src/release.json';
+import { getTmdbKey, setTmdbKey } from '../src/tmdb';
+import { getSubsKey, setSubsKey } from '../src/subs';
 
 const MODELS = ['MAG254', 'MAG250', 'MAG322', 'AuraHD9'];
 
@@ -27,13 +29,17 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [s, setS] = useState<Settings>(EMPTY);
   const [err, setErr] = useState('');
-  useEffect(() => { loadSettings().then(setS); }, []);
+  const [tmdb, setTmdb] = useState('');
+  const [subsKey, setSubsKeyState] = useState('');
+  useEffect(() => { loadSettings().then(setS); getTmdbKey().then(setTmdb); getSubsKey().then(setSubsKeyState); }, []);
   const up = (k: keyof Settings) => (v: string) => setS(p => ({ ...p, [k]: v }));
 
   async function save() {
     try {
       normalizePortal(s.portal); normalizeMac(s.mac);
       await saveSettings({ ...s, mac: normalizeMac(s.mac), portal: s.portal.trim() });
+      await setTmdbKey(tmdb);
+      await setSubsKey(subsKey);
       router.back();
     } catch (e: any) { setErr(e.message); }
   }
@@ -58,6 +64,9 @@ export default function SettingsScreen() {
         </View>
         <Field label="Serial number (optional)" value={s.serial} onChange={up('serial')} placeholder="From your box's settings" />
         <Field label="Device ID (optional)" value={s.deviceId} onChange={up('deviceId')} hint='Leave blank if your box has "Send Device ID" turned off.' />
+        <Text style={{ color: C.text, fontSize: 17, fontWeight: '700', marginTop: 8, marginBottom: 12 }}>Posters & subtitles</Text>
+        <Field label="TMDB key (for movie posters)" value={tmdb} onChange={setTmdb} placeholder="Same key as in Cinema Book" hint="In Cinema Book: Settings → TMDB key. Copy it here." />
+        <Field label="Subtitles key (optional)" value={subsKey} onChange={setSubsKeyState} placeholder="Free key from sub.wyzie.io" hint="Lets the player find subtitles online when a video has none." />
         {err ? <Text style={{ color: C.danger, marginBottom: 14 }}>{err}</Text> : null}
         <Pressable onPress={save} style={{ backgroundColor: C.accent, borderRadius: 16, paddingVertical: 16, alignItems: 'center' }}>
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 17 }}>Save</Text>

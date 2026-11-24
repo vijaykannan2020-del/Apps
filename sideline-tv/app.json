@@ -32,7 +32,8 @@
     "plugins": [
       "expo-router",
       "expo-screen-orientation",
-      "react-native-vlc-media-player"
+      "react-native-vlc-media-player",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": false
@@ -48,7 +49,7 @@
       }
     },
     "owner": "vijayakannankrishnans-team",
-    "runtimeVersion": "1",
+    "runtimeVersion": "2",
     "updates": {
       "url": "https://u.expo.dev/55063128-add5-42af-a074-fd30dde687d0",
       "checkAutomatically": "ON_LOAD",

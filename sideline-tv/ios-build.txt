@@ -1,1 +1,1 @@
-2 — adds instant updates, TV series, Live TV diagnostics
+3 — AirPlay cast, TMDB posters in rows, online subtitles
