@@ -1,1 +1,1 @@
-21 store — App Store build with privacy manifests
+22 test — TestFlight test build (update channel main)
