@@ -1,0 +1,25 @@
+# App Store compliance check (Nov 2026): generates the iOS project the way the build does (expo prebuild)
+# and runs the App Store Compliance Playbook guard (github.com/mjmirza/app-store-compliance, pinned).
+# Fails on a CRITICAL rejection risk (for example a missing privacy manifest). HIGH and MEDIUM lines are
+# printed for a person to read; see casedesk/app/STORE.md → Compliance check for the ones already reviewed.
+name: CaseDesk App Store compliance
+on:
+  push:
+    branches: [main]
+    paths: ['casedesk/app/app.json', 'casedesk/app/package.json', 'casedesk/app/targets/**', 'casedesk/app/modules/**', 'casedesk/app/plugins/**', 'casedesk/app/ios-build.txt', '.github/workflows/casedesk-compliance.yml']
+  workflow_dispatch:
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: casedesk/app } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: casedesk/app/package-lock.json }
+      - run: npm ci --no-audit --no-fund
+      - name: Generate the iOS project
+        run: npx expo prebuild -p ios --no-install
+      - name: Get the playbook (pinned)
+        run: git clone --depth 1 --branch v2.5.1 https://github.com/mjmirza/app-store-compliance "$RUNNER_TEMP/asc" || git clone --depth 1 https://github.com/mjmirza/app-store-compliance "$RUNNER_TEMP/asc"
+      - name: Compliance guard
+        run: bash "$RUNNER_TEMP/asc/agent-os/hooks/app-store-compliance-guard.sh" "$PWD"

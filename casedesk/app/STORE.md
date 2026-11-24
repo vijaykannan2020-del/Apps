@@ -257,3 +257,26 @@ commit, push, then run the workflow **CaseDesk store listing upload** (see LAUNC
 5. **Home-screen name**: `app.json` `name` is now “Immigration Wallet”; the icon label changes only with the next native build (OTA can’t change it).
 6. Kept on purpose (not user-visible or would break existing installs): slug/scheme `casedesk`, bundle id, iCloud container `iCloud.com.vijaykannan.casedesk` and its private folder “CaseDesk Backups”, iCloud backup file names `CaseDesk-<date>.casedesk`, storage keys `cd2.*`, backup format id `CASEDESK-BACKUP 1`, the `.casedesk` extension, the server’s User-Agent string.
 7. `expo-updates` privacy (see App Privacy).
+
+## Compliance check (App Store Compliance Playbook v2.5.1, Nov 24, 2026)
+
+Run on every change to app.json, targets, modules or plugins by `.github/workflows/casedesk-compliance.yml`.
+Result after adding the privacy manifests: **CLEAR, 0 critical**. Two critical findings were real and are fixed:
+- **Privacy manifest missing** → `app.json` `ios.privacyManifests` (collected data types match the App Privacy
+  table above; required-reason APIs: UserDefaults CA92.1 + 1C8F.1, file timestamps C617.1, boot time 35F9.1,
+  disk space E174.1) and `targets/widget/PrivacyInfo.xcprivacy` (App Group UserDefaults 1C8F.1).
+
+Reviewed and not a problem:
+- *Social login without Sign in with Apple* (4.8): Sign in with Apple is there (`src/data/communityAuth.ts`);
+  Google only shows next to it once a Google client id is set.
+- *Custom URL scheme without Universal Links*: the scheme only opens screens in the app; nothing sensitive is
+  passed through it. Universal Links come with the domain move.
+- *localStorage*: web preview only (tips seen); the phone app keeps data in its own encrypted storage.
+- *Dynamic Type in the widget*, *haptics*: design advice, not rejection causes. The widget uses fixed sizes
+  because widget space is fixed.
+
+Manual (a scan can't check these): the 2026 age-rating questions in App Store Connect (13+, 16+, 18+ — the app
+has user-generated content in Community, with report and block), and the review notes.
+
+Later (laws starting Jan 2027, not part of review): Apple's age-range signal (California AB 1043, Alabama
+HB 161) and the New York SAFE for Kids rules for feeds and night-time notifications to minors.
