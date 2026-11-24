@@ -47,6 +47,12 @@
         "projectId": "55063128-add5-42af-a074-fd30dde687d0"
       }
     },
-    "owner": "vijayakannankrishnans-team"
+    "owner": "vijayakannankrishnans-team",
+    "runtimeVersion": "1",
+    "updates": {
+      "url": "https://u.expo.dev/55063128-add5-42af-a074-fd30dde687d0",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    }
   }
 }

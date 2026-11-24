@@ -10,6 +10,7 @@ export default function Layout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
         <Stack.Screen name="setup" />
+        <Stack.Screen name="series" />
         <Stack.Screen name="player" options={{ presentation: 'fullScreenModal', animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
       </Stack>
     </>

@@ -14,7 +14,8 @@ export type Settings = {
 };
 
 export type Channel = { id: string; name: string; number: string; cmd: string; category: string; logo: string };
-export type Movie = { id: string; name: string; cmd: string; logo: string; year: string };
+export type Movie = { id: string; name: string; cmd: string; logo: string; year: string; series: boolean; category: string };
+export type Season = { id: string; name: string; cmd: string; episodes: { n: number; name: string; cmd: string; series: number }[] };
 export type Category = { id: string; title: string };
 
 export function normalizeMac(input: string): string {
@@ -181,7 +182,13 @@ export class Portal {
       const g = await this.authed({ type: 'itv', action: 'get_genres' });
       for (const x of Array.isArray(g?.js) ? g.js : []) names[String(x.id)] = String(x.title || '');
     } catch {}
-    const r = await this.authed({ type: 'itv', action: 'get_all_channels' }, 120000);
+    let r = await this.authed({ type: 'itv', action: 'get_all_channels' }, 120000);
+    if (!Array.isArray(r?.js?.data) || !r.js.data.length) {
+      // Some portals only answer the paged list; try page 1 of it before giving up.
+      const alt = await this.authed({ type: 'itv', action: 'get_ordered_list', genre: '*', fav: '0', sortby: 'number', p: '1' }, 60000).catch(() => null);
+      if (Array.isArray(alt?.js?.data) && alt.js.data.length) r = alt;
+      else throw new Error('The portal sent no channels. Its reply: ' + JSON.stringify(r).slice(0, 160) + '\n\nCheck the serial number in Settings.');
+    }
     const channels: Channel[] = (Array.isArray(r?.js?.data) ? r.js.data : []).map((c: any) => ({
       id: String(c.id), name: String(c.name || 'Channel'), number: String(c.number ?? ''),
       cmd: String(c.cmd || ''), category: names[String(c.tv_genre_id)] || 'Other',
@@ -210,20 +217,41 @@ export class Portal {
     const items: Movie[] = rows.map((x: any) => ({
       id: String(x.id), name: String(x.name || x.o_name || 'Untitled'), cmd: String(x.cmd || ''),
       logo: this.pic(x.screenshot_uri || x.poster_path || x.cover || ''), year: String(x.year || ''),
-    })).filter((x: Movie) => x.cmd);
+      series: String(x.is_series) === '1' || (Array.isArray(x.series) && x.series.length > 0), category,
+    })).filter((x: Movie) => x.cmd || x.series);
     const total = Number(js.total_items || 0), per = rows.length || 14;
     return { items, hasMore: total ? page * per < total : items.length > 0 };
   }
 
-  // Asks the portal for the playable address of a channel or movie.
-  async link(cmd: string, kind: 'live' | 'movie'): Promise<string> {
-    const r = await this.authed({ type: kind === 'movie' ? 'vod' : 'itv', action: 'create_link', cmd, forced_storage: '0', disable_ad: '0', series: '0' });
+  // Seasons and episodes of a TV series (both portal styles).
+  async seasons(movieId: string, category: string): Promise<Season[]> {
+    const r = await this.authed({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: '0', episode_id: '0', category, sortby: 'added', p: '1' }, 40000);
+    const rows: any[] = Array.isArray(r?.js?.data) ? r.js.data : [];
+    const out: Season[] = [];
+    for (const x of rows) {
+      const name = String(x.name || x.o_name || 'Season');
+      if (Array.isArray(x.series) && x.series.length) {
+        // Older style: one row per season, episodes are numbers played with series=N.
+        out.push({ id: String(x.id), name, cmd: String(x.cmd || ''), episodes: x.series.map((n: any) => ({ n: Number(n), name: 'Episode ' + n, cmd: String(x.cmd || ''), series: Number(n) })) });
+      } else {
+        // Newer style: ask for the season's episodes.
+        const e = await this.authed({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: String(x.id), episode_id: '0', category, sortby: 'added', p: '1' }, 40000).catch(() => null);
+        const eps: any[] = Array.isArray(e?.js?.data) ? e.js.data : [];
+        out.push({ id: String(x.id), name, cmd: String(x.cmd || ''), episodes: eps.map((y: any, i: number) => ({ n: Number(y.series_number || y.episode_number || i + 1), name: String(y.name || 'Episode ' + (i + 1)), cmd: String(y.cmd || ''), series: 0 })).filter(y => y.cmd) });
+      }
+    }
+    return out.filter(x => x.episodes.length);
+  }
+
+  // Asks the portal for the playable address of a channel, movie or episode.
+  async link(cmd: string, kind: 'live' | 'movie', episode = 0): Promise<string> {
+    const r = await this.authed({ type: kind === 'movie' ? 'vod' : 'itv', action: 'create_link', cmd, forced_storage: '0', disable_ad: '0', series: String(episode || 0) });
     const js = r?.js;
     const raw = String((js && (js.cmd || js.url)) || (typeof js === 'string' ? js : '')).replace(/^(ffmpeg|auto)\s+/i, '').trim();
     const m = raw.match(/https?:\/\/\S+/);
     if (m) return m[0];
     if (/^\/\S+/.test(raw)) return new URL(raw, new URL(this.ep!).origin).toString();
-    throw new Error('The portal did not give a playable link for this title.');
+    throw new Error('The portal did not give a playable link for this title. Its reply: ' + JSON.stringify(js).slice(0, 140));
   }
 
   playerOptions(): string[] {

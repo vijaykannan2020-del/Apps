@@ -1,1 +1,1 @@
-1 — first TestFlight build
+2 — adds instant updates, TV series, Live TV diagnostics

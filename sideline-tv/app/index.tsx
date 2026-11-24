@@ -149,7 +149,7 @@ export default function Home() {
                 ListEmptyComponent={busy ? <ActivityIndicator color={C.accent} style={{ marginTop: 40 }} /> : err ? <Message text={err} action="Try again" onAction={() => (mem.vodCats ? vodCat && loadMovies(vodCat) : loadVodCats())} /> : undefined}
                 ListFooterComponent={busy && movies?.items.length ? <ActivityIndicator color={C.accent} style={{ marginVertical: 20 }} /> : undefined}
                 renderItem={({ item }) => (
-                  <Pressable onPress={() => play(item.cmd, item.name, 'movie')} style={{ width: tile, marginBottom: 14 }}>
+                  <Pressable onPress={() => item.series ? router.push({ pathname: '/series', params: { id: item.id, name: item.name, category: item.category, logo: item.logo } }) : play(item.cmd, item.name, 'movie')} style={{ width: tile, marginBottom: 14 }}>
                     <View style={{ width: tile, height: tile * 1.5, borderRadius: 12, backgroundColor: C.card, overflow: 'hidden' }}>
                       {item.logo ? <Image source={item.logo} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={150} /> : null}
                     </View>

@@ -1,0 +1,25 @@
+# Sends Sideline TV code changes straight to the installed iPhone app (no new TestFlight build needed),
+# as long as no native parts changed (runtimeVersion in app.json stays the same).
+name: Sideline TV app update
+on:
+  push:
+    branches: [main]
+    paths: ['sideline-tv/app/**', 'sideline-tv/src/**', '.github/workflows/sideline-tv-update.yml']
+  workflow_dispatch:
+concurrency: { group: sideline-tv-update, cancel-in-progress: true }
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: sideline-tv } }
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: sideline-tv/package-lock.json }
+      - run: npm ci
+      - run: npx -y eas-cli@latest init --non-interactive --force --id "$(jq -r '.expo.extra.eas.projectId' app.json)"
+      - name: Publish update
+        env:
+          MSG: ${{ github.event.head_commit.message || 'manual' }}
+        run: npx -y eas-cli@latest update --channel main --platform ios --message "$(printf '%s' "$MSG" | head -n 1 | cut -c1-200)" --non-interactive
