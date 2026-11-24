@@ -62,7 +62,7 @@ export const WELCOME = {
   ].join('\n'),
 };
 
-export const SUPPORT_EMAIL = 'immigrationwallet@gmail.com';
+export const SUPPORT_EMAIL = 'hello@tharamaya.com';
 export const moderationEmail = ({ env = process.env, file } = {}) => (env.MODERATION_EMAIL || '').trim() || readConf('MODERATION_EMAIL', file) || SUPPORT_EMAIL;
 const SESSION_DAYS = 180;
 const MAX_SESSIONS = 10;

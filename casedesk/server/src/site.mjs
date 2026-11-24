@@ -78,7 +78,7 @@ export function handleSite(req, res) {
     let html = body.toString('utf8');
     const email = moderationEmail();
     if (file === 'support.html') html = html.replace('<h2>Privacy</h2>', communitySection(email));
-    if (email) html = html.replaceAll('immigrationwallet@gmail.com', email);
+    if (email) html = html.replaceAll('hello@tharamaya.com', email);
     body = Buffer.from(html);
   }
   res.writeHead(200, {

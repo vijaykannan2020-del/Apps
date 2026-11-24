@@ -27,13 +27,11 @@ export const SOURCES: Record<string, Source> = {
 /** Wallet wording must never suggest an official ID (shown wherever documents are shown or shared). */
 export const NOT_OFFICIAL_ID = 'Copies for your reference — not an official ID.';
 
-/** Public pages (casedesk/site/*.html). Host them at these URLs before launch — see STORE.md. */
-export const SITE_BASE = 'https://casedeskapp.duckdns.org';
-// The app server only serves /support; the static pages live on GitHub Pages (casedesk/site).
-export const PAGES_BASE = 'https://vijaykannan2020-del.github.io/Apps/casedesk/site';
-export const PRIVACY_URL = `${PAGES_BASE}/privacy.html`;
-export const SUPPORT_URL = `${SITE_BASE}/support`; // served live by the server (server/src/support.mjs); site/support.html is the static copy
-export const CONTACT_EMAIL = 'immigrationwallet@gmail.com'; // the owner's support address (same as the server's MODERATION_EMAIL default)
+/** Public pages on the company website (casedesk/site/*.html, served by the server for tharamaya.com). */
+export const SITE_BASE = 'https://tharamaya.com/immigration-wallet';
+export const PRIVACY_URL = `${SITE_BASE}/privacy`;
+export const SUPPORT_URL = `${SITE_BASE}/support`; // FAQ + community rules and moderation contact
+export const CONTACT_EMAIL = 'hello@tharamaya.com'; // the owner's support address (same as the server's MODERATION_EMAIL default)
 
 /** Built-in data and how far it has been checked (Settings → About and STORE.md → Data to confirm). */
 export type DataSource = { id: string; name: string; asOf: string; source: Source; status: 'checked' | 'partly checked' | 'unverified' | 'live only'; note: string };

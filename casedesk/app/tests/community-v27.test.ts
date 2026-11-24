@@ -300,11 +300,11 @@ test('tips: exactly one first-visit tip on the feed; other community screens onl
 
 test('support email is the real address everywhere the app shows it (no placeholder)', () => {
   const { CONTACT_EMAIL } = require('../src/content/legal') as typeof import('../src/content/legal');
-  assert.equal(CONTACT_EMAIL, 'immigrationwallet@gmail.com');
+  assert.equal(CONTACT_EMAIL, 'hello@tharamaya.com');
   const root = path.join(__dirname, '..');
   for (const f of ['src/content/legal.ts', 'STORE.md', '../site/privacy.html', '../site/support.html']) {
     const text = fs.readFileSync(path.join(root, f), 'utf8');
     assert.ok(!/['">:]CONTACT_EMAIL['"<]|\*\*CONTACT_EMAIL\*\*/.test(text), `${f} still shows the placeholder`);
-    assert.ok(text.includes('immigrationwallet@gmail.com'), f);
+    assert.ok(text.includes('hello@tharamaya.com'), f);
   }
 });

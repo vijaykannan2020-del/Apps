@@ -482,7 +482,7 @@ test('the real deploy.conf turns Google sign-in on for the owner client id only'
 });
 
 test('support email: deploy.conf and the default name the owner address; the environment overrides; no placeholder is served', async () => {
-  const E = 'immigrationwallet@gmail.com';
+  const E = 'hello@tharamaya.com';
   assert.equal(SUPPORT_EMAIL, E);
   assert.equal(readConf('MODERATION_EMAIL'), E);
   assert.equal(moderationEmail({ env: {} }), E);

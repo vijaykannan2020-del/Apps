@@ -18,9 +18,9 @@ Items marked **CONFIRM** need the owner before submission.
 | Primary category | Productivity | |
 | Secondary category | Reference | |
 | Price | Free, no in-app purchases, all countries (or US + India + Canada first, see LAUNCH.md) | |
-| Privacy policy URL | https://vijaykannan2020-del.github.io/Apps/casedesk/site/privacy.html | |
-| Support URL | https://vijaykannan2020-del.github.io/Apps/casedesk/site/support.html | |
-| Marketing URL | https://vijaykannan2020-del.github.io/Apps/casedesk/site/get.html | |
+| Privacy policy URL | https://tharamaya.com/immigration-wallet/privacy | |
+| Support URL | https://tharamaya.com/immigration-wallet/support | |
+| Marketing URL | https://tharamaya.com | |
 | Copyright | 2026 OWNER_LEGAL_NAME (**CONFIRM**: your full legal name, or your company) | |
 
 ### Name and subtitle options (keyword reasoning)
@@ -207,7 +207,7 @@ WALLET CARD (shown when the server's Wallet signing is on): Family > Wallet stat
 
 Immigration Wallet is not affiliated with USCIS or any government agency. The disclaimer is on the first screen, in Settings > About and on Updates; every data screen ends with a source line (Source · as of date · Not legal advice) that opens the official source and the full disclaimer. Not legal advice.
 
-Contact: immigrationwallet@gmail.com
+Contact: hello@tharamaya.com
 ```
 
 ## Screenshots
@@ -250,8 +250,8 @@ commit, push, then run the workflow **CaseDesk store listing upload** (see LAUNC
 
 ### Launch settings
 
-1. **Support email** — done: `immigrationwallet@gmail.com` in `casedesk/site/*.html`, `src/content/legal.ts` and the server (`MODERATION_EMAIL` in `deploy.conf`).
-2. **Host the pages** (Nov 20 check: the API server serves only `/support`, not `/privacy.html` or `/support.html`; GitHub Pages serves `casedesk/site/*` from `main`, so use the Pages URLs above in App Store Connect, and point `PRIVACY_URL` in `src/content/legal.ts` at the Pages copy in the next OTA update): `casedesk/site/privacy.html`, `support.html`, `style.css` must be reachable at the Privacy / Support URLs above (the API server doesn’t serve static files yet — add a Caddy `file_server` route or use GitHub Pages and update `SITE_BASE` in `src/content/legal.ts`). A `duckdns.org` domain works but a own domain looks more trustworthy to reviewers and users.
+1. **Support email** — done: `hello@tharamaya.com` in `casedesk/site/*.html`, `src/content/legal.ts` and the server (`MODERATION_EMAIL` in `deploy.conf`).
+2. **Host the pages** — done (Nov 24): the company site https://tharamaya.com is served by the API server (server/src/site.mjs) from `casedesk/site`; Cloudflare DNS points tharamaya.com, www and api at the server (DNS only), Caddy issues the certificates. hello@tharamaya.com forwards to the owner's Gmail (Cloudflare Email Routing).
 3. **Encryption declaration** — see Export compliance (recommend `true` + mass-market exemption).
 4. **Copyright holder** name.
 5. **Home-screen name**: `app.json` `name` is now “Immigration Wallet”; the icon label changes only with the next native build (OTA can’t change it).
