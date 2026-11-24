@@ -76,7 +76,7 @@ export default function Home() {
     return list.filter(c => (liveCat === 'All' || c.category === liveCat) && (!q || c.name.toLowerCase().includes(q)));
   }, [mem.live, liveCat, search]);
 
-  const play = (cmd: string, name: string, kind: 'live' | 'movie') => router.push({ pathname: '/player', params: { cmd, name, kind } });
+  const play = (cmd: string, name: string, kind: 'live' | 'movie', id = '') => router.push({ pathname: '/player', params: { cmd, name, kind, id } });
   const cols = width > 700 ? 5 : 3;
   const tile = (width - 32 - (cols - 1) * 10) / cols;
   const movies = vodCat ? mem.vod[vodCat] : undefined;
@@ -149,7 +149,7 @@ export default function Home() {
                 ListEmptyComponent={busy ? <ActivityIndicator color={C.accent} style={{ marginTop: 40 }} /> : err ? <Message text={err} action="Try again" onAction={() => (mem.vodCats ? vodCat && loadMovies(vodCat) : loadVodCats())} /> : undefined}
                 ListFooterComponent={busy && movies?.items.length ? <ActivityIndicator color={C.accent} style={{ marginVertical: 20 }} /> : undefined}
                 renderItem={({ item }) => (
-                  <Pressable onPress={() => item.series ? router.push({ pathname: '/series', params: { id: item.id, name: item.name, category: item.category, logo: item.logo } }) : play(item.cmd, item.name, 'movie')} style={{ width: tile, marginBottom: 14 }}>
+                  <Pressable onPress={() => item.series ? router.push({ pathname: '/series', params: { id: item.id, name: item.name, category: item.category, logo: item.logo } }) : play(item.cmd, item.name, 'movie', item.id)} style={{ width: tile, marginBottom: 14 }}>
                     <View style={{ width: tile, height: tile * 1.5, borderRadius: 12, backgroundColor: C.card, overflow: 'hidden' }}>
                       {item.logo ? <Image source={item.logo} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={150} /> : null}
                     </View>

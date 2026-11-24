@@ -244,25 +244,40 @@ export class Portal {
   }
 
   // Asks the portal for the playable address of a channel, movie or episode.
-  async link(cmd: string, kind: 'live' | 'movie', episode = 0): Promise<string> {
-    // Same parameters a real MAG box sends (movies: empty series/forced_storage unless it's an episode).
-    const params = kind === 'movie'
-      ? { type: 'vod', action: 'create_link', cmd, series: episode ? String(episode) : '', forced_storage: '', disable_ad: '0', download: '0', force_ch_link_check: '0' }
-      : { type: 'itv', action: 'create_link', cmd, series: '', forced_storage: '0', disable_ad: '0', download: '0', force_ch_link_check: '0' };
-    const r = await this.authed(params);
-    const js = r?.js;
-    const why: Record<string, string> = {
-      nothing_to_play: 'The portal says this title has no video file right now.',
-      limit: 'Your subscription is already playing on another device. Stop it there and try again.',
-      link_fault: 'The portal could not make a link for this title right now.',
-      not_found: 'The portal could not find this title.',
-    };
-    if (js && typeof js === 'object' && js.error && why[js.error]) throw new Error(why[js.error]);
+  private extract(js: any): string | null {
     const raw = String((js && (js.cmd || js.url)) || (typeof js === 'string' ? js : '')).replace(/^(ffmpeg|auto)\s+/i, '').trim();
     const m = raw.match(/https?:\/\/\S+/);
     if (m) return m[0];
     if (/^\/\S+/.test(raw)) return new URL(raw, new URL(this.ep!).origin).toString();
-    throw new Error('The portal did not give a playable link for this title. Its reply: ' + JSON.stringify(js).slice(0, 140));
+    return null;
+  }
+
+  // Asks the portal for the playable address of a channel, movie or episode.
+  // Portals differ in how they want movie requests, so it tries the common forms in turn.
+  async link(cmd: string, kind: 'live' | 'movie', episode = 0, movieId = ''): Promise<string> {
+    const base = { action: 'create_link', disable_ad: '0', download: '0', force_ch_link_check: '0' };
+    const tries: Record<string, string>[] = kind === 'movie'
+      ? [
+          { ...base, type: 'vod', cmd, series: episode ? String(episode) : '', forced_storage: '' },
+          { ...base, type: 'vod', cmd, series: String(episode || 0), forced_storage: '0' },
+          ...(movieId && !episode ? [{ ...base, type: 'vod', cmd: '/media/' + movieId + '.mpg', series: '', forced_storage: '' }] : []),
+        ]
+      : [{ ...base, type: 'itv', cmd, series: '', forced_storage: '0' }];
+    let last: any = null;
+    for (const params of tries) {
+      const r = await this.authed(params);
+      const url = this.extract(r?.js);
+      if (url) return url;
+      last = r?.js;
+      if (last?.error === 'limit') throw new Error('Your subscription is already playing on another device. Stop it there and try again.');
+    }
+    const why: Record<string, string> = {
+      nothing_to_play: 'The portal says this title has no video file right now.',
+      link_fault: 'The portal could not make a link for this title right now.',
+      not_found: 'The portal could not find this title.',
+    };
+    throw new Error((why[last?.error] || 'The portal did not give a playable link for this title.') +
+      '\n\nDetails: cmd ' + String(cmd).slice(0, 60) + ' → ' + JSON.stringify(last).slice(0, 160));
   }
 
   playerOptions(): string[] {

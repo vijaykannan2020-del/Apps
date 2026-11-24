@@ -12,7 +12,7 @@ import { C } from '../src/theme';
 export default function Player() {
   useKeepAwake();
   const insets = useSafeAreaInsets();
-  const { cmd, name, kind, episode } = useLocalSearchParams<{ cmd: string; name: string; kind: 'live' | 'movie'; episode?: string }>();
+  const { cmd, name, kind, episode, id } = useLocalSearchParams<{ cmd: string; name: string; kind: 'live' | 'movie'; episode?: string; id?: string }>();
   const [uri, setUri] = useState('');
   const [opts, setOpts] = useState<string[]>([]);
   const [state, setState] = useState<'loading' | 'playing' | 'error'>('loading');
@@ -24,7 +24,7 @@ export default function Player() {
     setState('loading'); setMsg(''); setUri('');
     try {
       const p = portalFor(await loadSettings());
-      const link = await p.link(String(cmd), kind === 'movie' ? 'movie' : 'live', Number(episode || 0));
+      const link = await p.link(String(cmd), kind === 'movie' ? 'movie' : 'live', Number(episode || 0), String(id || ''));
       setOpts(p.playerOptions());
       setUri(link);
     } catch (e: any) { setState('error'); setMsg(e.message || String(e)); }
