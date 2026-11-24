@@ -317,14 +317,20 @@ export class Portal {
       // then makes the link from the file (cmd like /media/file_123.mpg).
       if (kind === 'movie' && movieId && (!episode || episodeId !== '0') && (last?.error === 'nothing_to_play' || !cmd)) {
         const f = await this.authed({ type: 'vod', action: 'get_ordered_list', movie_id: movieId, season_id: seasonId, episode_id: episodeId, category, sortby: 'added', p: '1' }, 30000).catch(() => null);
-        const rows: any[] = Array.isArray(f?.js?.data) ? f.js.data : [];
+        const allRows: any[] = Array.isArray(f?.js?.data) ? f.js.data : [];
+        // For an episode the portal can send the whole season's files: keep only this episode's file(s).
+        const mine = episodeId !== '0'
+          ? allRows.filter((x: any) => [x?.series_id, x?.episode_id, x?.video_id].map(v => String(v ?? '')).includes(episodeId))
+          : allRows;
+        const rows: any[] = mine.length ? mine : episodeId !== '0' && episode ? allRows.filter((x: any) => String(x?.series ?? x?.series_number ?? '') === String(episode)) : allRows;
+        if (episodeId !== '0' && !mine.length) note += ' · no file matched episode ' + episodeId + ' among ' + allRows.length;
         // Each file row has an id (and sometimes cmd / url). A box asks for /media/file_<id>.mpg.
         // A box asks with the file number first (/media/file_<id>.mpg); some portals want the file's own cmd.
         const files: any[] = rows.filter((x: any) => x && x.id).slice(0, 2).flatMap((x: any) => [
           { ...x, cmd: '/media/file_' + x.id + '.mpg' },
           ...(x.cmd && x.cmd !== cmd && !/^https?:/i.test(x.cmd) ? [{ ...x, cmd: x.cmd }] : []),
         ]);
-        note = ' · file list: ' + rows.length + ' row(s), id ' + (rows[0]?.id ?? '?');
+        note += ' · file list: ' + rows.length + '/' + allRows.length + ' row(s), id ' + (rows[0]?.id ?? '?') + (episodeId !== '0' && allRows[0] ? ' · row0 ' + JSON.stringify({ id: allRows[0].id, series_id: allRows[0].series_id, video_id: allRows[0].video_id, episode_id: allRows[0].episode_id }) : '');
         const variants = files.flatMap((file: any) => [
           { file, series: '', storage: '' }, { file, series: '0', storage: '0' }, { file, series: '1', storage: '' },
         ]);
