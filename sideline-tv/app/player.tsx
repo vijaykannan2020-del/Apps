@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -19,6 +19,7 @@ export default function Player() {
   const [msg, setMsg] = useState('');
   const [step, setStep] = useState('Asking the portal for the link…');
   const [chrome, setChrome] = useState(true);
+  const [slow, setSlow] = useState(false);
   const tries = useRef(0);
 
   async function open() {
@@ -37,6 +38,15 @@ export default function Player() {
     open();
     return () => { ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {}); };
   }, []);
+
+  // After 10 seconds without video, offer the VLC app as a second player for the same link.
+  useEffect(() => {
+    setSlow(false);
+    if (state !== 'loading' || !uri) return;
+    const t = setTimeout(() => setSlow(true), 10000);
+    return () => clearTimeout(t);
+  }, [state, uri]);
+  const openInVLC = () => uri && Linking.openURL('vlc-x-callback://x-callback-url/stream?url=' + encodeURIComponent(uri)).catch(() => {});
 
   // If nothing plays within 40 seconds, say so instead of spinning forever.
   useEffect(() => {
@@ -71,12 +81,22 @@ export default function Player() {
 
       {state !== 'playing' ? (
         <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', padding: 30 } as any}>
-          {state === 'loading' ? (<><ActivityIndicator size="large" color={C.accent} /><Text style={{ color: '#bbb', marginTop: 14, textAlign: 'center' }}>{step}</Text></>) : (
+          {state === 'loading' ? (<><ActivityIndicator size="large" color={C.accent} /><Text style={{ color: '#bbb', marginTop: 14, textAlign: 'center' }}>{step}</Text>
+            {slow ? (
+              <Pressable onPress={openInVLC} style={{ marginTop: 18, borderColor: '#fff6', borderWidth: 1, paddingHorizontal: 20, paddingVertical: 11, borderRadius: 14 }}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Open in VLC app</Text>
+              </Pressable>
+            ) : null}</>) : (
             <>
               <Text style={{ color: '#fff', textAlign: 'center', fontSize: 15, lineHeight: 21 }}>{msg}</Text>
               <Pressable onPress={() => { tries.current = 0; open(); }} style={{ marginTop: 18, backgroundColor: C.accent, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 14 }}>
                 <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
               </Pressable>
+              {uri ? (
+                <Pressable onPress={openInVLC} style={{ marginTop: 12, borderColor: '#fff6', borderWidth: 1, paddingHorizontal: 20, paddingVertical: 11, borderRadius: 14 }}>
+                  <Text style={{ color: '#fff', fontWeight: '600' }}>Open in VLC app</Text>
+                </Pressable>
+              ) : null}
             </>
           )}
         </View>
