@@ -140,6 +140,7 @@ export function createPortalClient(fetchImpl = fetch) {
   }
   const found = new Map(); // portal URL -> working login endpoint
   const sessions = new Map(); // portal URL + mac -> recent { ep, token, profile, ts }
+  const channelCache = new Map(); // portal URL + mac -> recent { data, ts }
   async function discover(entry, mac, agent, tried) {
     const urls = new Set(deriveEndpoints(new URL(entry)));
     const origin = new URL(entry).origin;
@@ -160,7 +161,7 @@ export function createPortalClient(fetchImpl = fetch) {
   async function login(entry, mac, agent) {
     const key = entry + '|' + mac;
     const sess = sessions.get(key);
-    if (sess && Date.now() - sess.ts < 120000) return sess;   // reuse a recent login (e.g. list → play)
+    if (sess && Date.now() - sess.ts < 300000) return sess;   // reuse a recent login (e.g. list → play), like a real box
     const tried = [];
     const cached = found.get(entry);
     const list = cached ? [cached] : await discover(entry, mac, agent, tried);
@@ -182,6 +183,9 @@ export function createPortalClient(fetchImpl = fetch) {
     throw new Error('Could not log in to the portal. Check the portal URL, MAC address and STB model. Tried: ' + tried.slice(0, 10).join('; '));
   }
   async function channels(origin, mac, agent) {
+    const ckey = origin + '|' + mac;
+    const cc = channelCache.get(ckey);
+    if (cc && Date.now() - cc.ts < 300000) return cc.data;   // reuse the recent list instead of re-asking the portal
     const { ep, token, profile } = await login(origin, mac, agent);
     const names = {};
     try {
@@ -204,7 +208,9 @@ export function createPortalClient(fetchImpl = fetch) {
       logo: /^https?:\/\//i.test(c.logo || '') ? c.logo : '',
     })).filter(c => c.cmd);
     const categories = [...new Set(list.map(c => c.category))];
-    return { categories, channels: list };
+    const data = { categories, channels: list };
+    channelCache.set(ckey, { data, ts: Date.now() });
+    return data;
   }
   async function link(origin, mac, cmd, agent) {
     let lastErr;

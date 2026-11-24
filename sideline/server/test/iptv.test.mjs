@@ -147,3 +147,29 @@ test('sends the real serial + device id so a device-locked portal authorizes', a
   assert.equal(r.channels[0].name,'Sun TV');
   assert.equal(seenSn,REAL_SN); assert.equal(seenDev,REAL_DEV);
 });
+
+test('caches the channel list and reuses the login for play (one portal login, like a real box)', async () => {
+  const { createPortalClient } = await import('../src/iptv.mjs');
+  let handshakes = 0, listCalls = 0, linkCalls = 0;
+  const fake = async (url) => {
+    const u = new URL(url), a = u.searchParams.get('action');
+    if (u.pathname !== '/portal.php') return new Response('', { status: 404 });
+    if (a === 'handshake') { handshakes++; return new Response(JSON.stringify({ js: { token: 'T' } })); }
+    if (a === 'get_profile') return new Response(JSON.stringify({ js: { status: 0, id: '1' } }));
+    if (a === 'get_genres') return new Response(JSON.stringify({ js: [] }));
+    if (a === 'get_all_channels') { listCalls++; return new Response(JSON.stringify({ js: { data: [{ id: 1, name: 'Sun TV', cmd: 'ffmpeg http://localhost/ch/1' }] } })); }
+    if (a === 'create_link') { linkCalls++; return new Response(JSON.stringify({ js: { cmd: 'ffmpeg http://stream/1.ts' } })); }
+    return new Response(JSON.stringify({ js: [] }));
+  };
+  const p = createPortalClient(fake);
+  const ag = { model: 'AuraHD9', sn: '062014N014728' };
+  await p.channels('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', ag);
+  await p.channels('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', ag); // cached — no portal call
+  const t1 = await p.link('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', 'ffmpeg http://localhost/ch/1', ag);
+  const t2 = await p.link('http://desi4k.cc/', '1A:17:E3:AB:7B:DF', 'ffmpeg http://localhost/ch/1', ag);
+  assert.equal(t1, 'http://stream/1.ts');
+  assert.equal(t2, 'http://stream/1.ts');
+  assert.equal(handshakes, 1, 'logged in once, not per action');
+  assert.equal(listCalls, 1, 'channel list fetched once, then cached');
+  assert.equal(linkCalls, 2);
+});
