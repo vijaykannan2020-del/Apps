@@ -19,6 +19,7 @@ import { createForum, isForumPath } from './forum.mjs';
 import { appleVerifier, googleVerifier, appleExchangeCode, appleRevoke } from './auth.mjs';
 import { supportPage } from './support.mjs';
 import { handleSite } from './site.mjs';
+import { moderatePage } from './moderate.mjs';
 import { createWallet, ensureKeyAndCsr, ensureWwdr } from './wallet.mjs';
 
 // Community Q&A + sign in (src/forum.mjs). Data in data/forum.json, flushed every 10 s and on shutdown.
@@ -72,6 +73,11 @@ const server = http.createServer(async (req, res) => {
     });
     res.end(JSON.stringify(body));
   };
+  // Moderator page (works on every host): password stays in the browser, data comes from /api/admin/forum/*
+  if (req.method === 'GET' && (req.url === '/moderate' || req.url.startsWith('/moderate?'))) {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex' });
+    return res.end(moderatePage());
+  }
   // Company website (tharamaya.com) by Host — see src/site.mjs
   if (handleSite(req, res)) return;
   if (req.method === 'OPTIONS') return send(204, {});

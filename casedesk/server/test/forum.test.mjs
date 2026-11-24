@@ -234,3 +234,17 @@ test('unknown forum paths 404, other paths are not handled', async () => {
   await assert.rejects(call('GET', '/api/forum/nope'), (e) => e.status === 404);
   assert.equal(await call('GET', '/api/news'), null);
 });
+
+test('admin: password checked against a SHA-256 from deploy.conf', async () => {
+  const { createForum } = await import('../src/forum.mjs');
+  const crypto = await import('node:crypto');
+  const pw = 'abcde-fghjk-mnpqr-stuvw-xyz23';
+  const f = createForum({ welcome: false, adminToken: '', adminHash: crypto.createHash('sha256').update(pw).digest('hex') });
+  const ok = await f.route({ method: 'GET', path: '/api/admin/forum/reports', query: new URLSearchParams(), token: pw }).catch((e) => e);
+  assert.ok(Array.isArray(ok.items), 'right password opens reports');
+  const bad = await f.route({ method: 'GET', path: '/api/admin/forum/reports', query: new URLSearchParams(), token: pw + 'x' }).catch((e) => e);
+  assert.equal(bad.status, 401);
+  const none = createForum({ welcome: false, adminToken: '', adminHash: '' });
+  const off = await none.route({ method: 'GET', path: '/api/admin/forum/reports', query: new URLSearchParams(), token: pw }).catch((e) => e);
+  assert.equal(off.status, 401);
+});

@@ -135,7 +135,7 @@ export function commentTree(list, sort = 'best') {
   return walk(roots, 0);
 }
 
-export function createForum({ welcome = true, file = null, now = Date.now, notify = async () => {}, verifyApple, verifyGoogle, exchangeAppleCode = async () => null, revokeApple = async () => false, adminToken = process.env.ADMIN_TOKEN || '', flushMs = 10_000 } = {}) {
+export function createForum({ welcome = true, file = null, now = Date.now, notify = async () => {}, verifyApple, verifyGoogle, exchangeAppleCode = async () => null, revokeApple = async () => false, adminToken = process.env.ADMIN_TOKEN || '', adminHash = (process.env.ADMIN_TOKEN_SHA256 || readConf('ADMIN_TOKEN_SHA256') || '').trim().toLowerCase(), flushMs = 10_000 } = {}) {
   let db = emptyDb();
   if (file) { try { db = migrate(JSON.parse(fs.readFileSync(file, 'utf8'))); } catch {} }
   /** Create or refresh the pinned Welcome post. Votes, saves and comments on it are kept. It is written to
@@ -173,7 +173,7 @@ export function createForum({ welcome = true, file = null, now = Date.now, notif
   }
 
   // ---------- refresh-token sealing (Apple revoke needs it; never stored in the clear) ----------
-  const sealKey = () => crypto.createHash('sha256').update('forum-seal:' + (process.env.APPLE_SIGNIN_KEY || process.env.ADMIN_TOKEN || 'casedesk')).digest();
+  const sealKey = () => crypto.createHash('sha256').update('forum-seal:' + (process.env.APPLE_SIGNIN_KEY || process.env.FORUM_SEAL_KEY || 'casedesk')).digest();
   const seal = (s) => { const iv = crypto.randomBytes(12); const c = crypto.createCipheriv('aes-256-gcm', sealKey(), iv); const enc = Buffer.concat([c.update(s, 'utf8'), c.final()]); return [iv, c.getAuthTag(), enc].map((b) => b.toString('base64url')).join('.'); };
   const unseal = (s) => { try { const [iv, tag, enc] = s.split('.').map((x) => Buffer.from(x, 'base64url')); const d = crypto.createDecipheriv('aes-256-gcm', sealKey(), iv); d.setAuthTag(tag); return Buffer.concat([d.update(enc), d.final()]).toString('utf8'); } catch { return null; } };
 
@@ -750,8 +750,15 @@ export function createForum({ welcome = true, file = null, now = Date.now, notif
 
   // ---------- admin (Authorization: Bearer ADMIN_TOKEN) ----------
   function needAdmin(token) {
-    const a = Buffer.from(String(adminToken || '')), b = Buffer.from(String(token || ''));
-    if (!adminToken || adminToken.length < 16 || a.length !== b.length || !crypto.timingSafeEqual(a, b)) throw err(401, 'Admin only.');
+    const t = String(token || '');
+    // 1) ADMIN_TOKEN in .env, or 2) only its SHA-256 in deploy.conf (public repo; the password itself is never stored)
+    const a = Buffer.from(String(adminToken || '')), b = Buffer.from(t);
+    if (adminToken && adminToken.length >= 16 && a.length === b.length && crypto.timingSafeEqual(a, b)) return;
+    if (/^[0-9a-f]{64}$/.test(adminHash) && t.length >= 16) {
+      const h = Buffer.from(crypto.createHash('sha256').update(t).digest('hex')), w = Buffer.from(adminHash);
+      if (crypto.timingSafeEqual(h, w)) return;
+    }
+    throw err(401, 'Admin only.');
   }
   function adminReports(token, q) {
     needAdmin(token);
@@ -797,7 +804,7 @@ export function createForum({ welcome = true, file = null, now = Date.now, notif
   }
   function adminMessages(token) { needAdmin(token); return { messages: db.messages.slice(-200).reverse() }; }
 
-  const status = () => ({ users: Object.keys(db.users).length, posts: Object.keys(db.posts).length, comments: Object.keys(db.comments).length, openReports: db.reports.filter((r) => r.status === 'open').length, admin: !!adminToken && adminToken.length >= 16 });
+  const status = () => ({ users: Object.keys(db.users).length, posts: Object.keys(db.posts).length, comments: Object.keys(db.comments).length, openReports: db.reports.filter((r) => r.status === 'open').length, admin: (!!adminToken && adminToken.length >= 16) || /^[0-9a-f]{64}$/.test(adminHash) });
   const rules = () => ({ version: RULES_VERSION, rules: RULES, contact: moderationEmail(), disclaimer: 'Community answers are from other users, not lawyers — not legal advice.' });
   const tags = () => TAGS;
   const meta = () => ({ tags: TAGS, types: POST_TYPES, avatars: AVATARS, flairs: FLAIRS, offices: OFFICES, steps: STEPS, maxDepth: MAX_DEPTH });
