@@ -10,6 +10,8 @@ import { VLCView, type Track } from '../src/VLC';
 import * as Q from '../src/queue';
 import { lookup } from '../src/tmdb';
 import { findSubtitles, type WebSub } from '../src/subs';
+import { fetchVariants, type Variant } from '../src/hls';
+import { MAG_UA } from '../src/portal';
 import { cueAt, loadSubs, type Cue } from '../src/srt';
 import { C } from '../src/theme';
 
@@ -58,8 +60,12 @@ export default function Player() {
   const [textSel, setTextSel] = useState<number | undefined>(undefined);
   const [subs, setSubs] = useState<{ name: string; url: string }[]>([]);
   const [subUri, setSubUri] = useState<string | undefined>(undefined);
-  const [sheet, setSheet] = useState<'' | 'audio' | 'subs'>('');
+  const [sheet, setSheet] = useState<'' | 'audio' | 'subs' | 'quality'>('');
   const [aspect, setAspect] = useState(0);
+  const [variants, setVariants] = useState<Variant[] | null>(null); // quality options from the HLS playlist
+  const [varBusy, setVarBusy] = useState(false);
+  const [qualityUrl, setQualityUrl] = useState('');                 // '' = Auto (let the player choose)
+  const resumeFrac = useRef<number | null>(null);
   const [web, setWeb] = useState<WebSub[] | null>(null);
   const [webBusy, setWebBusy] = useState(false);
   const [webMsg, setWebMsg] = useState('');
@@ -78,7 +84,7 @@ export default function Player() {
 
   async function open(it = item) {
     setState('loading'); setMsg(''); setUri(''); setStep('Asking the portal for the link…');
-    setTime(0); setDur(0); setPos(0); setSeek(undefined); setAudio([]); setTexts([]); setAudioSel(undefined); setTextSel(undefined); setSubUri(undefined); setPaused(false); setCues(null); setCueUrl(''); setWeb(null); setWebMsg('');
+    setTime(0); setDur(0); setPos(0); setSeek(undefined); setAudio([]); setTexts([]); setAudioSel(undefined); setTextSel(undefined); setSubUri(undefined); setPaused(false); setCues(null); setCueUrl(''); setWeb(null); setWebMsg(''); setVariants(null); setQualityUrl(''); resumeFrac.current = null;
     try {
       const p = portalFor(await loadSettings());
       const link = await p.link(it.cmd, kind, it.opts);
@@ -140,10 +146,23 @@ export default function Player() {
     })();
   }
 
+  const playUrl = qualityUrl || uri;
   const seekable = kind === 'movie' && dur > 0;
   const jumpTo = (frac: number) => { const f = Math.min(0.999, Math.max(0, frac)); setSeek(f + Math.random() * 1e-6); setPos(f); setChrome(true); };
   const skip = (sec: number) => { if (seekable) jumpTo((time + sec * 1000) / dur); };
   const playNext = () => { const n = Q.next(); if (n) { setItem(n); tries.current = 0; open(n); } };
+  async function openQuality() {
+    setSheet('quality');
+    if (variants !== null || !/\.m3u8/i.test(uri)) return;
+    setVarBusy(true);
+    try { setVariants(await fetchVariants(uri, { 'User-Agent': MAG_UA })); } catch { setVariants([]); } finally { setVarBusy(false); }
+  }
+  function pickQuality(url: string) {
+    setSheet('');
+    if (url === qualityUrl) return;
+    if (seekable) resumeFrac.current = pos;   // come back to the same spot after the switch
+    setQualityUrl(url);
+  }
 
   const pan = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -157,9 +176,9 @@ export default function Player() {
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
       {uri ? (
-        <VLCView key={uri} uri={uri} options={opts} style={{ flex: 1 }}
+        <VLCView key={playUrl} uri={playUrl} options={opts} style={{ flex: 1 }}
           paused={paused} seek={seek} audioTrack={audioSel} textTrack={textSel} subtitleUri={subUri} aspect={ASPECTS[aspect].value}
-          onPlaying={() => { tries.current = 0; setState('playing'); }}
+          onPlaying={() => { tries.current = 0; setState('playing'); if (resumeFrac.current !== null) { const f = resumeFrac.current; resumeFrac.current = null; setTimeout(() => setSeek(f + Math.random() * 1e-6), 400); } }}
           onProgress={p => { setState(st => (st === 'loading' ? 'playing' : st)); setTime(p.currentTime); if (p.duration > 0) setDur(p.duration); setPos(p.position); }}
           onLoad={i => { if (i.audioTracks) setAudio(i.audioTracks); if (i.textTracks) setTexts(i.textTracks); if (i.duration) setDur(Number(i.duration)); }}
           onBuffering={() => setStep(s => (s.startsWith('Buffering') ? s : 'Buffering the video…'))}
@@ -236,6 +255,7 @@ export default function Player() {
                   <Btn label={cues ? 'Subtitles ✓' : cueUrl ? 'Subtitles…' : 'Subtitles'} onPress={() => setSheet('subs')} />
                   {cues ? <Btn label="Subs −0.5s" onPress={() => { setSubDelay(d => d - 500); setMsgToast('Subtitle timing ' + ((subDelay - 500) / 1000).toFixed(1) + 's'); }} /> : null}
                   {cues ? <Btn label="Subs +0.5s" onPress={() => { setSubDelay(d => d + 500); setMsgToast('Subtitle timing ' + ((subDelay + 500) / 1000).toFixed(1) + 's'); }} /> : null}
+                  <Btn label={qualityUrl && variants ? 'Quality: ' + (variants.find(v => v.url === qualityUrl)?.label || 'set') : 'Quality'} onPress={openQuality} />
                   <Btn label={'Screen: ' + ASPECTS[aspect].label} onPress={() => setAspect(a => (a + 1) % ASPECTS.length)} />
                   {Q.hasNext() ? <Btn label="Next episode ▸▸" onPress={playNext} /> : null}
                   <Btn label="📺 Cast" onPress={() => router.replace({ pathname: '/cast', params: { uri, name: item.name, live: kind === 'live' ? '1' : '', cmd: item.cmd, opts: JSON.stringify(item.opts || {}), at: String(Math.floor(time / 1000)) } })} />
@@ -249,7 +269,7 @@ export default function Player() {
       <Modal visible={!!sheet} transparent animationType="slide" onRequestClose={() => setSheet('')} supportedOrientations={['portrait', 'landscape']}>
         <Pressable style={{ flex: 1, backgroundColor: '#0008' }} onPress={() => setSheet('')} />
         <View style={{ backgroundColor: C.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 18, paddingBottom: insets.bottom + 18, maxHeight: '60%' }}>
-          <Text style={{ color: C.text, fontSize: 18, fontWeight: '800', marginBottom: 10 }}>{sheet === 'audio' ? 'Audio language' : 'Subtitles'}</Text>
+          <Text style={{ color: C.text, fontSize: 18, fontWeight: '800', marginBottom: 10 }}>{sheet === 'audio' ? 'Audio language' : sheet === 'quality' ? 'Picture quality' : 'Subtitles'}</Text>
           <ScrollView>
             {sheet === 'audio' ? (
               audio.length ? audio.map(t => (
@@ -257,6 +277,20 @@ export default function Player() {
                   <Text style={{ color: audioSel === t.id ? C.accent : C.text, fontSize: 16 }}>{t.name}</Text>
                 </Pressable>
               )) : <Text style={{ color: C.dim }}>This video has one audio track.</Text>
+            ) : sheet === 'quality' ? (
+              varBusy ? <ActivityIndicator color={C.accent} style={{ marginVertical: 20 }} /> : (
+                <>
+                  <Pressable onPress={() => pickQuality('')} style={{ paddingVertical: 12 }}>
+                    <Text style={{ color: qualityUrl === '' ? C.accent : C.text, fontSize: 16 }}>Auto (adjusts to your connection)</Text>
+                  </Pressable>
+                  {(variants || []).map(v => (
+                    <Pressable key={v.url} onPress={() => pickQuality(v.url)} style={{ paddingVertical: 12 }}>
+                      <Text style={{ color: qualityUrl === v.url ? C.accent : C.text, fontSize: 16 }}>{v.label}{v.bandwidth ? '  ·  ' + (v.bandwidth / 1e6).toFixed(1) + ' Mbps' : ''}</Text>
+                    </Pressable>
+                  ))}
+                  {variants && !variants.length ? <Text style={{ color: C.dim, paddingVertical: 8 }}>This video comes in one quality only, so there's nothing to switch.</Text> : null}
+                </>
+              )
             ) : (
               <>
                 <Pressable onPress={() => { setTextSel(-1); setSubUri(undefined); setCues(null); setCueUrl(''); setSheet(''); }} style={{ paddingVertical: 12 }}>
