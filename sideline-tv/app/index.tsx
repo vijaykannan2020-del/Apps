@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, TextInput, Vi
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { isReady, useSettings } from '../src/store';
+import { getCache, isReady, setCache, useSettings } from '../src/store';
 import { portalFor, type Category, type Channel, type Movie } from '../src/portal';
 import { C } from '../src/theme';
 import release from '../src/release.json';
@@ -38,38 +38,74 @@ export default function Home() {
   const settings = useSettings();
   const ready = isReady(settings);
   const [tab, setTab] = useState<'live' | 'movies'>('live');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
+  const [liveBusy, setLiveBusy] = useState(false);
+  const [vodBusy, setVodBusy] = useState(false);
+  const [liveErr, setLiveErr] = useState('');
+  const [vodErr, setVodErr] = useState('');
+  const [status, setStatus] = useState('');
   const [, bump] = useState(0);
   const [liveCat, setLiveCat] = useState('All');
   const [search, setSearch] = useState('');
   const [vodCat, setVodCat] = useState<string | null>(null);
 
-  const key = settings ? JSON.stringify(settings) : '';
+  const key = settings ? JSON.stringify({ p: settings.portal, m: settings.mac }) : '';
   if (mem.key !== key) { mem.key = key; mem.live = undefined; mem.vodCats = undefined; mem.vod = {}; }
   const portal = ready ? portalFor(settings!) : null;
+  if (portal) {
+    portal.onStatus = setStatus;
+    portal.onEndpoint = ep => setCache('endpoint', key, ep);
+  }
 
-  const run = useCallback(async (fn: () => Promise<void>) => {
-    setBusy(true); setErr('');
-    try { await fn(); } catch (e: any) { setErr(e.message || String(e)); }
-    finally { setBusy(false); bump(n => n + 1); }
-  }, []);
+  // Remembered login address + saved lists: show instantly, refresh in the background when old.
+  const [warm, setWarm] = useState(false);
+  useEffect(() => {
+    if (!ready || !portal) return;
+    let alive = true;
+    (async () => {
+      const ep = await getCache<string>('endpoint', key);
+      if (ep && !portal.knownEndpoint) portal.knownEndpoint = ep.data;
+      const live = await getCache<{ categories: string[]; channels: Channel[] }>('live', key);
+      if (live && !mem.live) mem.live = live.data;
+      const cats = await getCache<Category[]>('vodcats', key);
+      if (cats && !mem.vodCats) { mem.vodCats = cats.data; if (cats.data[0]) setVodCat(c => c || cats.data[0].id); }
+      if (alive) { setWarm(true); bump(n => n + 1); }
+      // Channel lists change rarely: refresh quietly if the saved one is older than 12 hours.
+      if (live && Date.now() - live.at > 12 * 3600e3) loadLive(true);
+    })();
+    return () => { alive = false; };
+  }, [ready, key]);
 
-  const loadLive = useCallback(() => portal && run(async () => { mem.live = await portal.channels(); }), [portal, run]);
-  const loadVodCats = useCallback(() => portal && run(async () => {
-    mem.vodCats = await portal.vodCategories();
-    if (mem.vodCats[0]) setVodCat(c => c || mem.vodCats![0].id);
-  }), [portal, run]);
-  const loadMovies = useCallback((cat: string, more = false) => portal && run(async () => {
-    const cur = mem.vod[cat];
-    const page = more && cur ? cur.page + 1 : 1;
-    const r = await portal.movies(cat, page);
-    mem.vod[cat] = { items: more && cur ? [...cur.items, ...r.items] : r.items, page, hasMore: r.hasMore };
-  }), [portal, run]);
+  const loadLive = useCallback(async (quiet = false) => {
+    if (!portal) return;
+    if (!quiet) { setLiveBusy(true); setLiveErr(''); }
+    try { mem.live = await portal.channels(); setCache('live', key, mem.live); }
+    catch (e: any) { if (!quiet || !mem.live) setLiveErr(e.message || String(e)); }
+    finally { setLiveBusy(false); setStatus(''); bump(n => n + 1); }
+  }, [portal, key]);
+  const loadVodCats = useCallback(async () => {
+    if (!portal) return;
+    setVodBusy(true); setVodErr('');
+    try {
+      mem.vodCats = await portal.vodCategories(); setCache('vodcats', key, mem.vodCats);
+      if (mem.vodCats[0]) setVodCat(c => c || mem.vodCats![0].id);
+    } catch (e: any) { setVodErr(e.message || String(e)); }
+    finally { setVodBusy(false); bump(n => n + 1); }
+  }, [portal, key]);
+  const loadMovies = useCallback(async (cat: string, more = false) => {
+    if (!portal) return;
+    setVodBusy(true); setVodErr('');
+    try {
+      const cur = mem.vod[cat];
+      const page = more && cur ? cur.page + 1 : 1;
+      const r = await portal.movies(cat, page);
+      mem.vod[cat] = { items: more && cur ? [...cur.items, ...r.items] : r.items, page, hasMore: r.hasMore };
+    } catch (e: any) { setVodErr(e.message || String(e)); }
+    finally { setVodBusy(false); bump(n => n + 1); }
+  }, [portal]);
 
-  useEffect(() => { if (ready && tab === 'live' && !mem.live && !busy) loadLive(); }, [ready, tab, key]);
-  useEffect(() => { if (ready && tab === 'movies' && !mem.vodCats && !busy) loadVodCats(); }, [ready, tab, key]);
-  useEffect(() => { if (ready && tab === 'movies' && vodCat && !mem.vod[vodCat] && !busy) loadMovies(vodCat); }, [ready, tab, vodCat, key]);
+  useEffect(() => { if (warm && tab === 'live' && !mem.live && !liveBusy) loadLive(); }, [warm, tab, key]);
+  useEffect(() => { if (warm && tab === 'movies' && !mem.vodCats && !vodBusy) loadVodCats(); }, [warm, tab, key]);
+  useEffect(() => { if (warm && tab === 'movies' && vodCat && !mem.vod[vodCat] && !vodBusy && !vodErr) loadMovies(vodCat); }, [warm, tab, vodCat, key, vodBusy, vodErr]);
 
   const shown = useMemo(() => {
     const list = mem.live?.channels || [];
@@ -119,7 +155,7 @@ export default function Home() {
               <FlatList
                 data={shown} keyExtractor={c => c.id} initialNumToRender={20} windowSize={9}
                 contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: insets.bottom + 24 }}
-                ListEmptyComponent={busy ? <ActivityIndicator color={C.accent} style={{ marginTop: 40 }} /> : err ? <Message text={err} action="Try again" onAction={loadLive} /> : mem.live ? <Message text="No channels here." /> : undefined}
+                ListEmptyComponent={liveBusy || !warm ? <View style={{ alignItems: 'center', marginTop: 40 }}><ActivityIndicator color={C.accent} /><Text style={{ color: C.dim, marginTop: 12, textAlign: 'center', paddingHorizontal: 20 }}>{status}</Text></View> : liveErr ? <Message text={liveErr} action="Try again" onAction={() => loadLive()} /> : mem.live ? <Message text="No channels here." /> : undefined}
                 renderItem={({ item }) => (
                   <Pressable onPress={() => play(item.cmd, item.name, 'live')} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', padding: 10, marginBottom: 8, borderRadius: 14, backgroundColor: pressed ? C.cardHi : C.card })}>
                     <View style={{ width: 52, height: 38, borderRadius: 8, backgroundColor: '#100e1d', marginRight: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
@@ -138,7 +174,7 @@ export default function Home() {
               {mem.vodCats ? (
                 <View style={{ height: 44 }}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-                    {mem.vodCats.map(c => <Chip key={c.id} label={c.title} on={vodCat === c.id} onPress={() => setVodCat(c.id)} />)}
+                    {mem.vodCats.map(c => <Chip key={c.id} label={c.title} on={vodCat === c.id} onPress={() => { setVodErr(''); setVodCat(c.id); }} />)}
                   </ScrollView>
                 </View>
               ) : null}
@@ -147,9 +183,9 @@ export default function Home() {
                 columnWrapperStyle={{ gap: 10 }}
                 contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: insets.bottom + 24 }}
                 onEndReachedThreshold={0.6}
-                onEndReached={() => { if (vodCat && movies?.hasMore && !busy) loadMovies(vodCat, true); }}
-                ListEmptyComponent={busy ? <ActivityIndicator color={C.accent} style={{ marginTop: 40 }} /> : err ? <Message text={err} action="Try again" onAction={() => (mem.vodCats ? vodCat && loadMovies(vodCat) : loadVodCats())} /> : undefined}
-                ListFooterComponent={busy && movies?.items.length ? <ActivityIndicator color={C.accent} style={{ marginVertical: 20 }} /> : undefined}
+                onEndReached={() => { if (vodCat && movies?.hasMore && !vodBusy) loadMovies(vodCat, true); }}
+                ListEmptyComponent={vodBusy || !warm ? <View style={{ alignItems: 'center', marginTop: 40 }}><ActivityIndicator color={C.accent} /><Text style={{ color: C.dim, marginTop: 12 }}>{status}</Text></View> : vodErr ? <Message text={vodErr} action="Try again" onAction={() => (mem.vodCats ? vodCat && loadMovies(vodCat) : loadVodCats())} /> : undefined}
+                ListFooterComponent={vodBusy && movies?.items.length ? <ActivityIndicator color={C.accent} style={{ marginVertical: 20 }} /> : undefined}
                 renderItem={({ item }) => (
                   <Pressable onPress={() => item.series ? router.push({ pathname: '/series', params: { id: item.id, name: item.name, category: item.category, logo: item.logo } }) : play(item.cmd, item.name, 'movie', item.id)} style={{ width: tile, marginBottom: 14 }}>
                     <View style={{ width: tile, height: tile * 1.5, borderRadius: 12, backgroundColor: C.card, overflow: 'hidden' }}>

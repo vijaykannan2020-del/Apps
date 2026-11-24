@@ -60,6 +60,9 @@ export class Portal {
   private ep: string | null = null;
   private token: string | null = null;
   private loggingIn: Promise<void> | null = null;
+  onStatus: (text: string) => void = () => {};
+  knownEndpoint: string | null = null; // remembered from last time, tried first
+  onEndpoint: (ep: string) => void = () => {};
 
   constructor(s: Settings) {
     this.s = s;
@@ -131,9 +134,11 @@ export class Portal {
     return list;
   }
 
-  private async doLogin() {
+  private async doLogin(): Promise<void> {
     const errors: string[] = [];
-    const list = this.ep ? [this.ep] : await this.candidates();
+    this.onStatus('Logging in to your portal…');
+    const usingKnown = !this.ep && !!this.knownEndpoint;
+    const list = this.ep ? [this.ep] : usingKnown ? [this.knownEndpoint!] : await this.candidates();
     for (const ep of list) {
       try {
         this.token = null;
@@ -145,6 +150,7 @@ export class Portal {
         const prof = await this.call(ep, { type: 'stb', action: 'get_profile', ...(await this.profileParams()) });
         const js = prof?.js || {};
         if (js.status === 1 || js.block_msg) throw new Error(String(js.msg || js.block_msg || 'The portal did not accept this device.'));
+        this.onEndpoint(ep);
         return;
       } catch (e: any) {
         errors.push(new URL(ep).host + ': ' + e.message);
@@ -152,6 +158,7 @@ export class Portal {
       }
     }
     this.ep = null; this.token = null;
+    if (usingKnown && !errors.some(e => /too many requests|did not accept/i.test(e))) { this.knownEndpoint = null; return this.doLogin(); }
     throw new Error('Could not log in. Check the portal URL, MAC and box model in Settings.\n' + errors.slice(0, 4).join('\n'));
   }
 
@@ -182,7 +189,8 @@ export class Portal {
       const g = await this.authed({ type: 'itv', action: 'get_genres' });
       for (const x of Array.isArray(g?.js) ? g.js : []) names[String(x.id)] = String(x.title || '');
     } catch {}
-    let r = await this.authed({ type: 'itv', action: 'get_all_channels' }, 120000);
+    this.onStatus('Downloading your channel list… (thousands of channels, can take a minute)');
+    let r = await this.authed({ type: 'itv', action: 'get_all_channels' }, 180000);
     if (!Array.isArray(r?.js?.data) || !r.js.data.length) {
       // Some portals only answer the paged list; try page 1 of it before giving up.
       const alt = await this.authed({ type: 'itv', action: 'get_ordered_list', genre: '*', fav: '0', sortby: 'number', p: '1' }, 60000).catch(() => null);

@@ -34,3 +34,14 @@ export function useSettings(): Settings | null {
 }
 
 export const isReady = (s: Settings | null) => !!(s && s.portal.trim() && s.mac.replace(/[^0-9a-f]/gi, '').length === 12);
+
+// Saved lists (channel list, movie categories, login address) so the app opens instantly next time.
+export async function getCache<T>(name: string, key: string): Promise<{ at: number; data: T } | null> {
+  try {
+    const v = JSON.parse((await AsyncStorage.getItem('sideline-tv.cache.' + name)) || 'null');
+    return v && v.key === key ? { at: v.at, data: v.data } : null;
+  } catch { return null; }
+}
+export async function setCache(name: string, key: string, data: unknown) {
+  try { await AsyncStorage.setItem('sideline-tv.cache.' + name, JSON.stringify({ key, at: Date.now(), data })); } catch {}
+}
