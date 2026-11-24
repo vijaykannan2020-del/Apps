@@ -31,8 +31,8 @@ combinations are matched (“green” + “card” finds “green card”).
 
 | Option | Name (30) | Subtitle (30) | Why |
 |---|---|---|---|
-| **A (recommended)** | Immigration Wallet | USCIS Case Status & Green Card | “uscis case status” is the biggest search in this niche (people paste receipt numbers daily); “green card” is the second. Both get subtitle weight; “updates” searches almost nobody. Frees the keyword field for visa types and forms. |
-| B (current) | Immigration Wallet | USCIS Case Updates & Status | Already set. Keeps “uscis case status” but spends 7 characters on “updates”. Use keyword set B below. |
+| **A (live since Nov 24)** | Immigration Wallet | USCIS Case Status & Green Card | “uscis case status” is the biggest search in this niche (people paste receipt numbers daily); “green card” is the second. Both get subtitle weight; “updates” searches almost nobody. Frees the keyword field for visa types and forms. |
+| B (replaced) | Immigration Wallet | USCIS Case Updates & Status | Already set. Keeps “uscis case status” but spends 7 characters on “updates”. Use keyword set B below. |
 | C | Immigration Wallet | H-1B, Green Card & USCIS Case | Pushes the visa type up; slightly weaker on “case status”. |
 | D (if Apple objects to “USCIS”) | Immigration Wallet | Visa, Case & Green Card Tracker | No agency name in the listing title (Guideline 5.2: names must not suggest government affiliation). Move uscis into keywords. |
 
@@ -106,9 +106,9 @@ Immigration Wallet is not affiliated with, endorsed by or connected to USCIS, DH
 
 ### Keywords (100, comma separated, no spaces)
 
-Set A (with subtitle A, 96 characters):
+Set A (live since Nov 24, with subtitle A, 100 characters; rfe and citizenship replaced the weaker i797 and travel):
 ```
-h1b,h4,l1,f1,opt,stem,i94,ead,i485,i140,i797,visa,bulletin,priority,date,tracker,passport,travel
+h1b,h4,l1,f1,opt,stem,i94,ead,i485,i140,visa,bulletin,priority,date,tracker,passport,rfe,citizenship
 ```
 Set B (if you keep subtitle B, 97 characters):
 ```
