@@ -58,6 +58,7 @@ export function handleSite(req, res) {
   const host = hostOf(req);
   if (!isSiteHost(host)) return false;
   const url = new URL(req.url, 'http://x');
+  if (url.pathname.startsWith('/api/')) return false; // the API answers on every host (the moderator page uses it)
   if (host.startsWith('www.')) {
     res.writeHead(301, { Location: `https://${host.slice(4)}${url.pathname}${url.search}` });
     res.end();

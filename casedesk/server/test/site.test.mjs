@@ -41,3 +41,7 @@ test('www redirects, pages render, support gets community rules', async () => {
   assert.match(sup.body, /Common questions/);
   assert.equal((await run('tharamaya.com', '/nope')).status, 404);
 });
+
+test('API paths pass through on site hosts', async () => {
+  assert.equal(await run('tharamaya.com', '/api/admin/forum/reports'), null);
+});
