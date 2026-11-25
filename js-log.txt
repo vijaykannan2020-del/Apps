@@ -1,0 +1,3 @@
+--------- beginning of main
+11-25 22:20:21.391  2719  2823 I ReactNativeJS: Running "main"
+11-25 22:20:46.962  2719  2823 W ReactNativeJS: `expo-router/unstable-native-tabs` is deprecated. Use `expo-router/native-tabs` instead.
