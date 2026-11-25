@@ -6,7 +6,10 @@ import { useFamily } from '../data/FamilyProvider';
 import { askNotificationPermission, notificationPermission, openNotificationSettings } from '../native/reminders';
 import { setupOpen } from '../core/onboarding';
 import { useGuide } from './guide';
-import { alertOn, permText, shouldAskNotifications, type AlertKind, type Perm } from '../core/notify';
+import { alertOn, newsTopicsText, permText, pushTopics, shouldAskNotifications, type AlertKind, type Perm } from '../core/notify';
+import { router } from 'expo-router';
+import { useCommunityUser } from '../data/communityApi';
+import { disableAnswerPush, enableAnswerPush } from '../data/communityAuth';
 import { Button, Group, Icon, Row, SheetButtons, Switch, T, TourTarget, Why, font, useSheet, useTheme, useToast, useTourActive } from '../ui';
 
 /** Permission state, refreshed when the app comes back from iOS Settings. */
@@ -27,6 +30,7 @@ export function NotifyExplainer({ onDone }: { onDone?: (granted: boolean) => voi
     ['clock', 'Case status changes', 'When a check on uscis.gov shows something new.'],
     ['cal', 'Before documents expire', 'Passport, I-94, approvals, EAD and green card — at the times you pick.'],
     ['list', 'New Visa Bulletin', 'Each month, so you know if your date moved.'],
+    ['news', 'Important immigration news', 'USCIS and DOL updates for your visa types.'],
   ];
   const finish = async (ask: boolean) => {
     await f.actions.updateSettings({ notifAskedAt: new Date().toISOString() });
@@ -38,7 +42,7 @@ export function NotifyExplainer({ onDone }: { onDone?: (granted: boolean) => voi
   };
   return (
     <View>
-      <Why>Alerts are worked out on this phone. Nothing about you is sent to us.</Why>
+      <Why>Reminders are worked out on this phone. For news and the Visa Bulletin we keep only an anonymous phone code and the topics you follow — never names, dates or receipt numbers.</Why>
       <View style={{ gap: 14, marginTop: 16 }}>
         {items.map(([icon, title, sub]) => (
           <View key={title} style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
@@ -76,8 +80,15 @@ export function NotifyRows() {
   const [perm, refresh] = usePermission();
   const txt = permText(perm ?? 'unavailable');
   const onPress = perm === 'denied' ? openNotificationSettings : perm === 'undetermined' ? () => sheet.open('Get alerts?', <NotifyExplainer onDone={refresh} />) : undefined;
-  const toggle = (k: AlertKind, title: string, sub: string) => (
-    <Row title={title} subtitle={sub} trailing={<Switch value={alertOn(f.settings, k)} label={title} onValueChange={(on) => f.actions.updateSettings({ alerts: { ...(f.settings.alerts ?? {}), [k]: on } })} />} />
+  const toast = useToast();
+  const cu = useCommunityUser();
+  const [replies, setReplies] = useState(!!cu.user?.notify);
+  useEffect(() => { setReplies(!!cu.user?.notify); }, [cu.user?.notify]);
+  const topics = pushTopics(f.settings, f.people, f.records);
+  const bulletinSub = topics.bulletin.categories.length ? `Once a month · how ${topics.bulletin.categories.join(', ')} moved` : 'Once a month';
+  const isOn = (k: AlertKind | 'newsAll') => (k === 'newsAll' ? f.settings.alerts?.newsAll === true : alertOn(f.settings, k));
+  const toggle = (k: AlertKind | 'newsAll', title: string, sub: string) => (
+    <Row title={title} subtitle={sub} trailing={<Switch value={isOn(k)} label={title} onValueChange={(on) => f.actions.updateSettings({ alerts: { ...(f.settings.alerts ?? {}), [k]: on } })} />} />
   );
   return (
     <TourTarget id="notify">
@@ -86,7 +97,16 @@ export function NotifyRows() {
         {perm === 'denied' ? <Row title="Open iOS Settings" titleTone="accent" chevron={false} onPress={openNotificationSettings} /> : null}
         {toggle('cases', 'Case status changes', 'When a check shows a new status')}
         {toggle('docs', 'Document expiry reminders', 'Before passports, I-94s, approvals and cards expire')}
-        {toggle('bulletin', 'New Visa Bulletin', 'Once a month')}
+        {toggle('bulletin', 'New Visa Bulletin', bulletinSub)}
+        {toggle('news', 'Immigration news', `USCIS and DOL updates · ${newsTopicsText(topics)}`)}
+        {alertOn(f.settings, 'news') ? toggle('newsAll', 'Every news update', 'Off: only important changes') : null}
+        <Row title="Community replies" subtitle={cu.user ? 'Answers to your posts and comments' : 'Sign in to Community to get replies'}
+          trailing={cu.user ? <Switch value={replies} label="Community replies" onValueChange={async (on) => {
+            setReplies(on);
+            if (on) { const ok = await enableAnswerPush(true); if (!ok) { setReplies(false); toast('Turn on notifications for Immigration Wallet in iOS Settings'); } }
+            else await disableAnswerPush();
+          }} /> : undefined}
+          onPress={cu.user ? undefined : () => router.push('/community/account' as any)} chevron={!cu.user} />
       </Group>
     </TourTarget>
   );

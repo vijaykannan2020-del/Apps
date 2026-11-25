@@ -2,6 +2,7 @@
 // missing steps and the case list (all in src/core), and re-derives after every save.
 // Screens read from useFamily() and change things through `actions` — no logic in screens.
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import type { Case, Document, Person, Settings } from '../core/model';
 import { DEFAULT_SETTINGS } from '../core/model';
 import { deriveRecord, type PersonRecord } from '../core/record';
@@ -19,7 +20,8 @@ import { bindDraft, draftFiles, restoreDraft, type Flow } from './flow';
 import { sweepOrphans } from '../native/files';
 import { referencedFiles } from '../core/files';
 import { notifyNow, reminderItems, scheduleReminders } from '../native/reminders';
-import { alertOn, bulletinAlert, caseChanges, statusMap } from '../core/notify';
+import { alertOn, bulletinAlert, caseChanges, pushTopics, statusMap } from '../core/notify';
+import { syncPushAlerts } from './pushAlerts';
 import { useICloudAuto } from './icloudBackup';
 import { useWidgetSync } from './widgetSync';
 
@@ -109,8 +111,26 @@ export function FamilyProvider({ children, store = appStore() }: { children: Rea
     if (!ready) return;
     const r = bulletinAlert(snap.settings.bulletinSeen, bulletin.data.month, bulletin.live);
     if (r.seen && r.seen !== snap.settings.bulletinSeen) store.updateSettings({ bulletinSeen: r.seen }).catch(() => {});
-    if (r.alert && alertOn(snap.settings, 'bulletin')) notifyNow(r.alert).catch(() => {});
+    // The server sends the bulletin alert itself (with the family's dates) once this phone is signed up for it.
+    if (r.alert && alertOn(snap.settings, 'bulletin') && !snap.settings.bulletinPush) notifyNow(r.alert).catch(() => {});
   }, [ready, bulletin.live, bulletin.data.month]);
+
+  // Server alerts sign-up (news + Visa Bulletin): anonymous push token + topics, kept in step with Settings
+  // and the family's visa types. Re-sent on each launch (cheap; the server de-duplicates by token).
+  const topics = useMemo(() => pushTopics(snap.settings, derived.people, derived.records), [snap.settings.alerts, derived.people, derived.records]);
+  const topicsKey = JSON.stringify(topics);
+  const [wake, setWake] = useState(0); // back from iOS Settings or the permission prompt: try again
+  useEffect(() => { const sub = AppState.addEventListener('change', (st) => { if (st === 'active') setWake((n) => n + 1); }); return () => sub.remove(); }, []);
+  useEffect(() => {
+    if (!ready) return;
+    let live = true;
+    syncPushAlerts(topics).then((ok) => {
+      if (!live) return;
+      const server = ok && topics.bulletin.enabled;
+      if (server !== !!snap.settings.bulletinPush) store.updateSettings({ bulletinPush: server }).catch(() => {});
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [ready, topicsKey, wake]);
 
   // Home-screen widgets (v2.5): summary snapshot to the App Group; no-op on older builds.
   useWidgetSync(ready, { people: derived.people, records: derived.records, results: derived.results, caseList: derived.caseList, settings: snap.settings, bulletin: bulletin.data });
