@@ -1,1 +1,1 @@
-23 store — App Store 1.0.1 build: new app icon (wallet, eagle badge, status check)
+24 store — App Store 1.0.1 build: new app icon (wallet, eagle badge, status check)
