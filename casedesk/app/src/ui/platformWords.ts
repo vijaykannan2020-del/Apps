@@ -7,3 +7,6 @@ export const LOCK_NAME = android ? 'Fingerprint' : 'Face ID';
 /** The automatic backup place. */
 export const CLOUD_NAME = android ? 'Google Drive' : 'iCloud';
 export const STORE_NAME = android ? 'Google Play' : 'the App Store';
+/** The phone's settings app. */
+export const OS_SETTINGS = android ? 'Android Settings' : 'iOS Settings';
+export const KEYCHAIN = android ? 'this phone’s secure storage' : 'this iPhone’s keychain';

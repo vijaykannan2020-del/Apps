@@ -4,7 +4,7 @@
 // Deep link: casedesk://settings (app/settings.tsx).
 import { LANE, RELEASE } from '../content/release';
 import React, { useEffect } from 'react';
-import { Linking, Pressable, View } from 'react-native';
+import { Linking, Platform, Pressable, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fmt } from '../core/dates';
 import { RULES_CHECKED } from '../core/rules/catalog';
@@ -97,7 +97,7 @@ export function SettingsScreen() {
 }
 
 /** One Settings sub-page (/settings-page/<id>). Every option that used to sit on the long Settings list lives here. */
-const PAGE_TITLE: Record<string, string> = { appearance: 'Appearance', privacy: `${LOCK_NAME} & privacy`, notifications: 'Notifications', backup: 'Backup', share: 'Share with family', widgets: 'Widgets & Wallet', help: 'Help & tips', about: 'About' };
+const PAGE_TITLE: Record<string, string> = { appearance: 'Appearance', privacy: `${LOCK_NAME} & privacy`, notifications: 'Notifications', backup: 'Backup', share: 'Share with family', widgets: Platform.OS === 'android' ? 'Widgets' : 'Widgets & Wallet', help: 'Help & tips', about: 'About' };
 export function SettingsPage() {
   const { id = '' } = useLocalSearchParams<{ id: string }>();
   const os = listOS();

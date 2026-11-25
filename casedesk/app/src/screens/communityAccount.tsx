@@ -14,6 +14,7 @@ import { asyncKV } from '../native/asyncKV';
 import { Button, Card, ChipToggle, Chips, EmptyState, Field, Group, Hint, LinkButton, MIN_TOUCH, Note, Option, Row, Screen, SectionHeader, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useTheme, useToast, TourButton, TourScope, TourTarget, useSheetTour, useTour } from '../ui';
 import { back, go } from './common';
 import { CAvatar, TagChip } from './communityUi';
+import { OS_SETTINGS } from '../ui/platformWords';
 
 const kv = asyncKV();
 const NOTIFY_ASKED = 'community.notifyAsked';
@@ -158,7 +159,7 @@ function NotifySheet({ onClose }: { onClose: () => void }) {
       <Why>We’ll notify you when someone replies to you, and when a post or comment of yours reaches an upvote milestone. Nothing else, and you can turn it off in Community → Account.</Why>
       <SheetButtons>
         <Button kind="ghost" title="Not now" onPress={onClose} />
-        <Button grow icon="bell" title="Notify me" onPress={async () => { const ok = await enableAnswerPush(true); onClose(); toast(ok ? 'You’ll be notified of replies' : 'Notifications are off in iOS Settings'); }} />
+        <Button grow icon="bell" title="Notify me" onPress={async () => { const ok = await enableAnswerPush(true); onClose(); toast(ok ? 'You’ll be notified of replies' : `Notifications are off in ${OS_SETTINGS}`); }} />
       </SheetButtons>
     </View>
   );
@@ -395,7 +396,7 @@ export function CommunityAccountScreen() {
       <Group style={{ marginTop: 12 }}>
         <Row icon="bell" title="Push notifications" subtitle="Replies to you and upvote milestones" trailing={<Switch value={notify} label="Push notifications for replies and upvote milestones" onValueChange={async (on) => {
           setNotify(on);
-          if (on) { const ok = await enableAnswerPush(true); if (!ok) { setNotify(false); toast('Turn on notifications for Immigration Wallet in iOS Settings'); } }
+          if (on) { const ok = await enableAnswerPush(true); if (!ok) { setNotify(false); toast(`Turn on notifications for Immigration Wallet in ${OS_SETTINGS}`); } }
           else await disableAnswerPush();
         }} />} />
       </Group>

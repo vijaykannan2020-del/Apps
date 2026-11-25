@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 import { useCommunityUser } from '../data/communityApi';
 import { disableAnswerPush, enableAnswerPush } from '../data/communityAuth';
 import { Button, Group, Icon, Row, SheetButtons, Switch, T, TourTarget, Why, font, useSheet, useTheme, useToast, useTourActive } from '../ui';
+import { OS_SETTINGS } from '../ui/platformWords';
 
 /** Permission state, refreshed when the app comes back from iOS Settings. */
 export function usePermission(): [Perm | null, () => void] {
@@ -78,7 +79,7 @@ export function NotifyPrompt() {
 export function NotifyRows() {
   const f = useFamily(); const sheet = useSheet();
   const [perm, refresh] = usePermission();
-  const txt = permText(perm ?? 'unavailable');
+  const txt = permText(perm ?? 'unavailable', OS_SETTINGS);
   const onPress = perm === 'denied' ? openNotificationSettings : perm === 'undetermined' ? () => sheet.open('Get alerts?', <NotifyExplainer onDone={refresh} />) : undefined;
   const toast = useToast();
   const cu = useCommunityUser();
@@ -94,7 +95,7 @@ export function NotifyRows() {
     <TourTarget id="notify">
       <Group>
         <Row icon="bell" title={`Notifications · ${perm ? txt.title : '…'}`} subtitle={perm ? txt.sub : 'Checking…'} onPress={onPress} chevron={!!onPress} />
-        {perm === 'denied' ? <Row title="Open iOS Settings" titleTone="accent" chevron={false} onPress={openNotificationSettings} /> : null}
+        {perm === 'denied' ? <Row title={`Open ${OS_SETTINGS}`} titleTone="accent" chevron={false} onPress={openNotificationSettings} /> : null}
         {toggle('cases', 'Case status changes', 'When a check shows a new status')}
         {toggle('docs', 'Document expiry reminders', 'Before passports, I-94s, approvals and cards expire')}
         {toggle('bulletin', 'New Visa Bulletin', bulletinSub)}
@@ -103,7 +104,7 @@ export function NotifyRows() {
         <Row title="Community replies" subtitle={cu.user ? 'Answers to your posts and comments' : 'Sign in to Community to get replies'}
           trailing={cu.user ? <Switch value={replies} label="Community replies" onValueChange={async (on) => {
             setReplies(on);
-            if (on) { const ok = await enableAnswerPush(true); if (!ok) { setReplies(false); toast('Turn on notifications for Immigration Wallet in iOS Settings'); } }
+            if (on) { const ok = await enableAnswerPush(true); if (!ok) { setReplies(false); toast(`Turn on notifications for Immigration Wallet in ${OS_SETTINGS}`); } }
             else await disableAnswerPush();
           }} /> : undefined}
           onPress={cu.user ? undefined : () => router.push('/community/account' as any)} chevron={!cu.user} />

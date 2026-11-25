@@ -9,7 +9,7 @@ import { forgetPassword, hasKeychain, savePassword } from '../native/secret';
 import { Button, Field, Group, Hint, Meter, Note, Row, Screen, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useToast, TourButton, TourScope, TourTarget, useSheetTour } from '../ui';
 import { RestorePanel } from './profile';
 import { back, home } from './common';
-import { CLOUD_NAME } from '../ui/platformWords';
+import { CLOUD_NAME, KEYCHAIN } from '../ui/platformWords';
 
 const when = (iso?: string) => { if (!iso) return 'Never'; try { const d = new Date(iso); return `${fmt(iso.slice(0, 10))} · ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`; } catch { return fmt(iso.slice(0, 10)); } };
 
@@ -88,7 +88,7 @@ export function ICloudPasswordSheet({ mode }: { mode: 'enable' | 'once' }) {
       {mode === 'enable' && !keychain ? <Note tone="amber">This version can’t keep the password in the keychain, so backups can’t run on their own. Update the app from the App Store for automatic backups.</Note> : null}
       <TourTarget id="password"><Field label="Backup password" value={pw} onChangeText={setPw} secure placeholder="At least 8 characters" autoCapitalize="none" /></TourTarget>
       <Field label="Type it again" value={pw2} onChangeText={setPw2} secure autoCapitalize="none" />
-      <Hint>{keychain ? 'Kept in this iPhone’s keychain for automatic backups. You’ll need it to restore on a new phone — we can’t recover it.' : 'You’ll need it to restore — we can’t recover it.'}</Hint>
+      <Hint>{keychain ? `Kept in ${KEYCHAIN} for automatic backups. You’ll need it to restore on a new phone — we can’t recover it.` : 'You’ll need it to restore — we can’t recover it.'}</Hint>
       {busy ? <View style={{ marginTop: 12 }}><View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}><Spinner /><T tone="text2" style={font.foot}>{`Backing up… ${pct}%`}</T></View><Meter value={pct} max={100} /></View> : null}
       <SheetButtons><Button kind="ghost" title="Cancel" onPress={s.close} /><Button grow title={mode === 'enable' ? 'Turn on' : 'Back up'} busy={busy} onPress={go} /></SheetButtons>
     </TourScope>

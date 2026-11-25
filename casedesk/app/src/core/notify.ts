@@ -73,10 +73,10 @@ export function bulletinAlert(seen: string | undefined, month: string | undefine
 }
 
 /** Settings row text for the permission state. */
-export function permText(p: Perm): { title: string; sub: string } {
+export function permText(p: Perm, settingsName = 'iOS Settings'): { title: string; sub: string } {
   switch (p) {
     case 'granted': return { title: 'On', sub: 'Case changes, document expiry, Visa Bulletins and news' };
-    case 'denied': return { title: 'Off', sub: 'Turned off in iOS Settings — tap to open Settings and allow notifications' };
+    case 'denied': return { title: 'Off', sub: `Turned off in ${settingsName} — tap to open Settings and allow notifications` };
     case 'undetermined': return { title: 'Not turned on', sub: 'Tap to turn on alerts' };
     default: return { title: 'Not available', sub: 'Notifications work in the iPhone and Android app' };
   }
