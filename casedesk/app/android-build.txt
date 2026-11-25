@@ -1,0 +1,1 @@
+1 test — first Android build: app with Google sign-in, Google Drive backup, home-screen widget

@@ -3,13 +3,13 @@
 // the Account screen (avatar, display name, visa flair, karma, saved posts, notifications, blocked
 // people, sign out, Delete account — Apple 5.1.1(v)).
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import { AVATARS, COMMUNITY_DISCLAIMER, COMMUNITY_RULES, FLAIRS, REPORT_REASONS, RULES_VERSION, fmtCount, joined, nameProblem, type PastelName } from '../core/community';
 import {
   blockUser, contactModerators, deleteAccount, getBlocks, getRules, refreshMe, report, signOut, unblockUser, updateMe, useCommunityUser,
   type Author, type CommunityUser,
 } from '../data/communityApi';
-import { appleModule, appleSupport, disableAnswerPush, enableAnswerPush, finishGoogle, googleModule, googleSupport, signInWithApple, type AppleSupport } from '../data/communityAuth';
+import { androidGoogleClient, appleModule, appleSupport, disableAnswerPush, enableAnswerPush, finishGoogle, googleModule, googleSupport, signInWithApple, signInWithGoogleNative, type AppleSupport } from '../data/communityAuth';
 import { asyncKV } from '../native/asyncKV';
 import { Button, Card, ChipToggle, Chips, EmptyState, Field, Group, Hint, LinkButton, MIN_TOUCH, Note, Option, Row, Screen, SectionHeader, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useTheme, useToast, TourButton, TourScope, TourTarget, useSheetTour, useTour } from '../ui';
 import { back, go } from './common';
@@ -56,6 +56,19 @@ function GoogleButton({ cfg, setError }: { cfg: GoogleCfg; setError: (s: string)
   );
 }
 
+/** Android: Google's own account picker (no browser), then the same server sign-in as iOS. */
+function NativeGoogleButton({ webClientId, setError }: { webClientId: string; setError: (s: string) => void }) {
+  const t = useTheme();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Pressable onPress={async () => { setError(''); setBusy(true); try { await signInWithGoogleNative(webClientId); } catch (e: any) { setError(e.message); } finally { setBusy(false); } }} disabled={busy} accessibilityRole="button" accessibilityLabel="Sign in with Google" accessibilityState={{ disabled: busy }}
+      style={({ pressed }) => ({ height: 50, width: '100%', marginTop: 10, borderRadius: 14, backgroundColor: t.dark ? t.primary : t.card, borderWidth: t.dark ? 0 : 1, borderColor: t.fieldBorder, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: busy ? 0.5 : pressed ? 0.8 : 1 })}>
+      <Text allowFontScaling={false} style={{ color: '#4285F4', fontSize: 20, fontWeight: '700' }}>G</Text>
+      <Text style={{ color: t.dark ? t.onPrimary : t.text, fontSize: 19, fontWeight: '600' }}>Sign in with Google</Text>
+    </Pressable>
+  );
+}
+
 export function RulesList() {
   return (
     <View style={{ gap: 10, marginTop: 12 }}>
@@ -78,7 +91,8 @@ export function JoinSheet({ onReady, onClose }: { onReady: () => void; onClose: 
   const [google, setGoogle] = useState<GoogleCfg | null>(null);
   const tour = useSheetTour('communitySignIn', undefined, { auto: false });
   useEffect(() => { appleSupport().then(setSupport); googleSupport().then(setGoogle).catch(() => {}); }, []);
-  const showGoogle = !!google;
+  const androidGoogle = androidGoogleClient();
+  const showGoogle = !!google || !!androidGoogle;
   const done = React.useRef(false);
   const finish = () => { if (done.current) return; done.current = true; onClose(); setTimeout(onReady, 50); };
   useEffect(() => { if (user?.rulesAccepted && !user.banned) finish(); }, [user?.rulesAccepted, user?.banned]);
@@ -107,12 +121,13 @@ export function JoinSheet({ onReady, onClose }: { onReady: () => void; onClose: 
       <Hint>{COMMUNITY_DISCLAIMER}</Hint>
       {support === null ? <View style={{ marginTop: 18 }}><Spinner /></View> : null}
       {support === 'update' ? <Note tone="amber">Update the app from the App Store to join the community. You can keep reading in this version.</Note> : null}
-      {support === 'unsupported' && !showGoogle ? <Note tone="grey">Sign in with Apple isn’t available on this device. You can keep reading.</Note> : null}
+      {support === 'unsupported' && !showGoogle ? <Note tone="grey">{Platform.OS === 'android' ? 'Google sign-in is coming to Android soon. You can keep reading.' : 'Sign in with Apple isn’t available on this device. You can keep reading.'}</Note> : null}
       {support === 'ok' ? <TourTarget id="apple"><AppleButton busy={busy} onPress={async () => {
         setBusy(true); setError('');
         try { await signInWithApple(); } catch (e: any) { setError(e.message); } finally { setBusy(false); }
       }} /></TourTarget> : null}
       {google ? <GoogleButton cfg={google} setError={setError} /> : null}
+      {androidGoogle ? <NativeGoogleButton webClientId={androidGoogle} setError={setError} /> : null}
       {error ? <Note tone="red">{error}</Note> : null}
       <Hint center style={{ marginTop: 14 }}>By joining you agree to the community rules. Content that breaks them is removed and accounts are banned.</Hint>
       <TourTarget id="rules"><LinkButton align="left" title="Read the community rules" onPress={() => { onClose(); go('/community/rules'); }} /></TourTarget>

@@ -27,6 +27,7 @@ export const leadText = (lead: number[], sep = ', ') => (lead.length ? `${lead.j
 /** Profile (from the avatar on Home): you, your family, and alerts / reminders per person.
  *  Everything else moved to the Settings tab (v2.1). */
 import { GcProfileRow } from './gc';
+import { LOCK_NAME } from '../ui/platformWords';
 export function ProfileScreen() {
   const f = useFamily();
   const me = f.main;
@@ -57,7 +58,7 @@ export function ProfileScreen() {
         <Row icon="users" iconPastel="butter" title="Family" subtitle={f.people.filter((p) => p.id !== me?.id).map((p) => p.name.split(' ')[0]).join(', ') || 'Add your family'} onPress={() => router.navigate('/(tabs)/family' as never)} />
         <Row icon="bell" iconPastel="butter" title="Reminders" subtitle="On or off for each person" onPress={() => go('/settings-page/notifications')} />
       </Group>
-      <Group style={{ marginTop: 16 }}><Row icon="gear" title="Settings" subtitle="Appearance, Face ID, backup, help, about" onPress={() => go('/settings')} /></Group>
+      <Group style={{ marginTop: 16 }}><Row icon="gear" title="Settings" subtitle={`Appearance, ${LOCK_NAME}, backup, help, about`} onPress={() => go('/settings')} /></Group>
     </Screen>
   );
 }

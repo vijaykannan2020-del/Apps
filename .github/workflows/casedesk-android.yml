@@ -1,0 +1,122 @@
+# Builds the CaseDesk (Immigration Wallet) Android app on GitHub's own Linux machine (eas build --local):
+# a signed Play Store bundle (.aab) plus a universal test APK made from it, then installs that APK on an
+# Android emulator, opens the main screens and saves screenshots. Start it by changing
+# casedesk/app/android-build.txt (or Run workflow).
+#
+# Signing: the upload keystore is made here on the first run and saved ENCRYPTED in
+# casedesk/app/credentials/android.enc (key = derived from the ASC_KEY_P8 secret, same as the iPhone
+# signing). Its fingerprints are printed in the log (Google sign-in needs the SHA-1). Use Play App Signing:
+# if this upload key is ever lost, Google can reset it.
+# Same two kinds of build as iPhone: TEST (channel main, every update) or STORE (channel production,
+# approved releases only — android-build.txt starts with a number and the word store).
+# Secrets: EXPO_TOKEN, ASC_KEY_P8.
+name: CaseDesk Android build
+on:
+  push:
+    branches: [main]
+    paths: ['casedesk/app/android-build.txt', '.github/workflows/casedesk-android.yml']
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: 'test (every update) or store (approved releases only)'
+        type: choice
+        options: [auto, test, store]
+        default: auto
+permissions:
+  contents: write
+concurrency: { group: casedesk-android, cancel-in-progress: false }
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults: { run: { working-directory: casedesk/app } }
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check secrets
+        run: |
+          for v in EXPO_TOKEN ASC_KEY_P8; do if [ -z "${!v}" ]; then echo "::error::Missing secret $v"; missing=1; else echo "$v ✓"; fi; done
+          [ -z "$missing" ]
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true; df -h /
+      - uses: actions/setup-java@v4
+        with: { distribution: zulu, java-version: 17 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: casedesk/app/package-lock.json }
+      - run: npm ci
+      - name: Upload keystore (make once, keep encrypted in the repo)
+        run: |
+          set -e
+          PASS=$(python3 -c "import os,hashlib;k=''.join(os.environ['ASC_KEY_P8'].split());print(hashlib.sha256(('casedesk-android:'+k).encode()).hexdigest())")
+          mkdir -p credentials
+          if [ -f credentials/android.enc ]; then
+            P="$PASS" openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in credentials/android.enc -out /tmp/a.tar -pass env:P
+            tar -xf /tmp/a.tar -C credentials
+            echo "Using the saved upload keystore ✓"
+          else
+            SP=$(openssl rand -hex 24)
+            keytool -genkeypair -v -storetype PKCS12 -keystore credentials/upload.jks -alias upload -keyalg RSA -keysize 4096 -validity 10000 \
+              -storepass "$SP" -keypass "$SP" -dname "CN=Immigration Wallet, O=Vijayakannan Krishnan, C=US"
+            printf '{"android":{"keystore":{"keystorePath":"credentials/upload.jks","keystorePassword":"%s","keyAlias":"upload","keyPassword":"%s"}}}\n' "$SP" "$SP" > credentials/android.json
+            tar -cf /tmp/a.tar -C credentials upload.jks android.json
+            P="$PASS" openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in /tmp/a.tar -out credentials/android.enc -pass env:P
+            git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+            git add -f credentials/android.enc && git commit -q -m "CaseDesk: save encrypted Android upload keystore"
+            git pull --rebase -q && git push -q
+            echo "New upload keystore made and saved encrypted ✓"
+          fi
+          cp credentials/android.json credentials.json
+          SP=$(jq -r .android.keystore.keystorePassword credentials.json)
+          echo "::group::Upload key fingerprints (public — add the SHA-1 to the Google Android OAuth client)"
+          keytool -list -v -keystore credentials/upload.jks -alias upload -storepass "$SP" | grep -E 'SHA1:|SHA256:'
+          echo "::endgroup::"
+          jq '.build.production.android.credentialsSource = "local"' eas.json > e.json && mv e.json eas.json
+      - name: Test or store build?
+        run: |
+          KIND="${{ inputs.kind || 'auto' }}"
+          if [ "$KIND" = auto ]; then head -1 android-build.txt 2>/dev/null | grep -qiE '^[0-9]+ store' && KIND=store || KIND=test; fi
+          PROFILE=$([ "$KIND" = store ] && echo store || echo production)
+          echo "PROFILE=$PROFILE" >> "$GITHUB_ENV"; echo "Kind: $KIND (profile $PROFILE)"
+      - name: Build the Play Store bundle (.aab)
+        run: |
+          npx -y eas-cli@latest build --local --platform android --profile "$PROFILE" --non-interactive --output "$GITHUB_WORKSPACE/immigration-wallet.aab"
+          ls -la "$GITHUB_WORKSPACE/immigration-wallet.aab"
+      - name: Universal test APK from the bundle (same signing)
+        run: |
+          set -e
+          curl -sSL -o /tmp/bundletool.jar https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar
+          SP=$(jq -r .android.keystore.keystorePassword credentials.json)
+          java -jar /tmp/bundletool.jar build-apks --bundle="$GITHUB_WORKSPACE/immigration-wallet.aab" --output=/tmp/app.apks --mode=universal \
+            --ks=credentials/upload.jks --ks-key-alias=upload --ks-pass="pass:$SP" --key-pass="pass:$SP"
+          unzip -o -q /tmp/app.apks universal.apk -d /tmp && mv /tmp/universal.apk "$GITHUB_WORKSPACE/immigration-wallet.apk"
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          "$AAPT" dump badging "$GITHUB_WORKSPACE/immigration-wallet.apk" | grep -E "^package:|sdkVersion|targetSdkVersion" | tee /tmp/badging.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: immigration-wallet-android
+          if-no-files-found: error
+          path: |
+            immigration-wallet.aab
+            immigration-wallet.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Run on an Android emulator and take screenshots
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_7
+          disable-animations: true
+          working-directory: casedesk/app
+          script: bash scripts/android-verify.sh "$GITHUB_WORKSPACE/immigration-wallet.apk"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: android-emulator-screenshots, path: casedesk/app/shots/ }
+      - name: Never keep the decrypted keystore
+        if: always()
+        run: rm -f credentials/upload.jks credentials/android.json credentials.json /tmp/a.tar

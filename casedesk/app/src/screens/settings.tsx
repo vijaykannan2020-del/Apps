@@ -23,6 +23,7 @@ import { NotifyRows } from './notify';
 import { FamilyWalletRow, WidgetPrivacyRows, WidgetRows } from './wallet';
 import { ImportSharedRow, InviteRow, ShareRow } from './share';
 import { useGuide } from './guide';
+import { LOCK_NAME } from '../ui/platformWords';
 
 export function SettingsScreen() {
   const f = useFamily();
@@ -47,9 +48,9 @@ export function SettingsScreen() {
   const version = RELEASE;
   const me = f.main;
   const faceId = async (on: boolean) => {
-    if (on && !(await canUseBiometrics())) { toast('Set up Face ID or a passcode in the system settings first'); return; }
-    if (on && !(await authenticate('Turn on Face ID lock'))) return;
-    await f.actions.updateSettings({ faceId: on, hideInSwitcher: on }); toast(on ? 'Face ID on' : 'Face ID off');
+    if (on && !(await canUseBiometrics())) { toast(`Set up ${LOCK_NAME} or a passcode in the system settings first`); return; }
+    if (on && !(await authenticate(`Turn on ${LOCK_NAME} lock`))) return;
+    await f.actions.updateSettings({ faceId: on, hideInSwitcher: on }); toast(on ? `${LOCK_NAME} on` : `${LOCK_NAME} off`);
   };
   return (
     <Screen tour={tour} nav={os === 'android' ? { back: 'Back', onBack: back, title: 'Settings', appBar: 'android' } : { back: 'Back', onBack: back }}>
@@ -73,7 +74,7 @@ export function SettingsScreen() {
             Groups without a section title need their own gap, or their rounded corners touch. */}
         <Group style={{ marginTop: 22 }}>
           <Row icon={theme.value === 'light' ? 'sun' : 'moon'} iconPastel="butter" title="Appearance" subtitle={`${theme.value[0].toUpperCase() + theme.value.slice(1)} · colours`} onPress={() => go('/settings-page/appearance')} />
-          <Row icon="face" iconPastel="sage" title="Face ID &amp; privacy" subtitle={`Face ID ${f.settings.faceId ? 'on' : 'off'} · documents stay on this phone`} onPress={() => go('/settings-page/privacy')} />
+          <Row icon="face" iconPastel="sage" title={`${LOCK_NAME} & privacy`} subtitle={`${LOCK_NAME} ${f.settings.faceId ? 'on' : 'off'} · documents stay on this phone`} onPress={() => go('/settings-page/privacy')} />
           <Row icon="bell" iconPastel="butter" title="Notifications &amp; reminders" subtitle={`${leadText(f.settings.reminderLeadDays, ', ')} · per person`} onPress={() => go('/settings-page/notifications')} />
         </Group>
         <TourTarget id="backup" style={{ marginTop: 22 }}><Group>
@@ -96,7 +97,7 @@ export function SettingsScreen() {
 }
 
 /** One Settings sub-page (/settings-page/<id>). Every option that used to sit on the long Settings list lives here. */
-const PAGE_TITLE: Record<string, string> = { appearance: 'Appearance', privacy: 'Face ID & privacy', notifications: 'Notifications', backup: 'Backup', share: 'Share with family', widgets: 'Widgets & Wallet', help: 'Help & tips', about: 'About' };
+const PAGE_TITLE: Record<string, string> = { appearance: 'Appearance', privacy: `${LOCK_NAME} & privacy`, notifications: 'Notifications', backup: 'Backup', share: 'Share with family', widgets: 'Widgets & Wallet', help: 'Help & tips', about: 'About' };
 export function SettingsPage() {
   const { id = '' } = useLocalSearchParams<{ id: string }>();
   const os = listOS();
@@ -119,9 +120,9 @@ function SettingsPageBody({ id }: { id: string }) {
   const lastBackup = f.settings.lastBackupAt ? fmt(f.settings.lastBackupAt.slice(0, 10)) : 'Never';
   void lastBackup;
   const faceId = async (on: boolean) => {
-    if (on && !(await canUseBiometrics())) { toast('Set up Face ID or a passcode in the system settings first'); return; }
-    if (on && !(await authenticate('Turn on Face ID lock'))) return;
-    await f.actions.updateSettings({ faceId: on, hideInSwitcher: on }); toast(on ? 'Face ID on' : 'Face ID off');
+    if (on && !(await canUseBiometrics())) { toast(`Set up ${LOCK_NAME} or a passcode in the system settings first`); return; }
+    if (on && !(await authenticate(`Turn on ${LOCK_NAME} lock`))) return;
+    await f.actions.updateSettings({ faceId: on, hideInSwitcher: on }); toast(on ? `${LOCK_NAME} on` : `${LOCK_NAME} off`);
   };
   switch (id) {
     case 'backup': return <BackupPage fileBackup={() => sheet.open('Back up now', <BackupSheet />)} fileRestore={() => sheet.open('Restore from backup', <RestoreSheet />)} importShared={<ImportSharedRow />} />;
@@ -139,7 +140,7 @@ function SettingsPageBody({ id }: { id: string }) {
     case 'privacy': return (
       <>
         <Group>
-          <Row icon="face" iconPastel="sage" title="Face ID lock" subtitle="Also hides documents in the app switcher" trailing={<Switch value={!!f.settings.faceId} label="Face ID lock" onValueChange={faceId} />} />
+          <Row icon="face" iconPastel="sage" title={`${LOCK_NAME} lock`} subtitle="Also hides documents in the app switcher" trailing={<Switch value={!!f.settings.faceId} label={`${LOCK_NAME} lock`} onValueChange={faceId} />} />
           <Row icon="shield" iconPastel="sage" title="Privacy" subtitle="Your documents stay on this phone" onPress={() => go('/help/privacy')} />
         </Group>
         <SectionHeader>Widgets</SectionHeader>

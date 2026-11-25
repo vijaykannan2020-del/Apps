@@ -68,6 +68,39 @@ export async function googleSupport(): Promise<{ iosClientId: string; webClientI
 }
 export async function finishGoogle(idToken: string) { await signInWith('google', { idToken }); }
 
+// ---------- Android: native Google sign-in (Credential Manager) ----------
+// Needs extra.googleWebClientId (a Web OAuth client in the same Google project as the Android client,
+// which is registered with the app's signing SHA-1). The id token's aud is the web client id, so the
+// server's GOOGLE_CLIENT_ID list must include it. Hidden on iOS and on builds without the module.
+export const googleNativeModule = (): any => {
+  if (Platform.OS !== 'android') return undefined;
+  try { if (!require('react-native').TurboModuleRegistry?.get?.('RNGoogleSignin') && !require('react-native').NativeModules?.RNGoogleSignin) return undefined; } catch { return undefined; }
+  try { return require('@react-native-google-signin/google-signin'); } catch { return undefined; }
+};
+export function androidGoogleClient(): string | null {
+  if (Platform.OS !== 'android') return null;
+  try {
+    const id = String(require('expo-constants').default?.expoConfig?.extra?.googleWebClientId || '').trim();
+    return /^[\w-]+\.apps\.googleusercontent\.com$/.test(id) && googleNativeModule()?.GoogleSignin ? id : null;
+  } catch { return null; }
+}
+export async function signInWithGoogleNative(webClientId: string): Promise<void> {
+  const { GoogleSignin, isSuccessResponse, statusCodes } = googleNativeModule();
+  GoogleSignin.configure({ webClientId, scopes: [] });
+  try {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const r = await GoogleSignin.signIn();
+    if (isSuccessResponse && !isSuccessResponse(r)) return; // cancelled
+    const idToken = r?.data?.idToken ?? r?.idToken;
+    if (!idToken) throw new Error('Google didn’t return a sign-in token. Try again.');
+    await finishGoogle(idToken);
+  } catch (e: any) {
+    if (e?.code === statusCodes?.SIGN_IN_CANCELLED) return;
+    if (e?.code === statusCodes?.PLAY_SERVICES_NOT_AVAILABLE) throw new Error('Google Play services is needed to sign in with Google.');
+    throw e instanceof Error && !e.message.includes('DEVELOPER_ERROR') ? e : new Error('Google sign-in didn’t finish. Try again.');
+  }
+}
+
 // ---------- push for "someone answered" ----------
 /** Asks iOS for permission (once), then registers this phone's Expo push token with the account. */
 export async function enableAnswerPush(ask: boolean): Promise<boolean> {

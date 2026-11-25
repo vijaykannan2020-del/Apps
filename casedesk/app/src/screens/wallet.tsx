@@ -12,6 +12,7 @@ import { widgetHideLocked, widgetNames } from '../core/widgets';
 import { fmt } from '../core/dates';
 import { Button, ChipToggle, Chips, Group, Hint, Note, Row, Segmented, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useTheme, useToast, TourButton, TourScope, TourTarget, useSheetTour } from '../ui';
 import { go } from './common';
+import { LOCK_NAME } from '../ui/platformWords';
 
 /** Is the Wallet card offered here? iPhone/iPad, and the server can sign passes (503 → hidden). */
 export function useWalletReady(): boolean {
@@ -157,7 +158,7 @@ export function WidgetPrivacyRows() {
       <Row icon="grid" title="Names on widgets">
         <Segmented options={['Initials', 'First names']} value={names === 'first' ? 'First names' : 'Initials'} onChange={(v) => f.actions.updateSettings({ widgetNames: v === 'First names' ? 'first' : 'initials' })} />
       </Row>
-      <Row icon="lock" title="Hide widget details when locked" subtitle="With Face ID lock on, widgets only say “Open Immigration Wallet”"
+      <Row icon="lock" title="Hide widget details when locked" subtitle={`With ${LOCK_NAME} lock on, widgets only say “Open Immigration Wallet”`}
         trailing={<Switch value={widgetHideLocked(f.settings)} label="Hide widget details when locked" onValueChange={(on) => { f.actions.updateSettings({ widgetHideLocked: on }); toast(on ? 'Widget details hidden while locked' : 'Widgets show details'); }} />} />
     </Group>
   );
@@ -172,10 +173,17 @@ export function WidgetRows() {
       <Row icon="grid" title="Show names on widgets">
         <Segmented options={['Initials', 'First names']} value={names === 'first' ? 'First names' : 'Initials'} onChange={(v) => f.actions.updateSettings({ widgetNames: v === 'First names' ? 'first' : 'initials' })} />
       </Row>
-      <Row icon="lock" title="Hide details on widgets when Face ID lock is on" subtitle="Widgets then only say “Open Immigration Wallet”"
-        trailing={<Switch value={widgetHideLocked(f.settings)} label="Hide details on widgets when Face ID lock is on" onValueChange={(on) => { f.actions.updateSettings({ widgetHideLocked: on }); toast(on ? 'Widget details hidden while locked' : 'Widgets show details'); }} />} />
-      <Row icon="bulb" title="Choose what a widget shows" subtitle="Long-press a widget → Edit Widget to choose what it shows" onPress={() => go('/help/widgets')} />
-      <Row icon="help" title="Add a widget" subtitle={available ? 'Touch and hold the Home Screen → Edit → Add Widget → Immigration Wallet' : 'Needs the latest app version from the App Store'} onPress={() => go('/help/widgets')} />
+      <Row icon="lock" title={Platform.OS === 'android' ? 'Hide details on widgets when the app lock is on' : `Hide details on widgets when ${LOCK_NAME} lock is on`} subtitle="Widgets then only say “Open Immigration Wallet”"
+        trailing={<Switch value={widgetHideLocked(f.settings)} label="Hide details on widgets when the app lock is on" onValueChange={(on) => { f.actions.updateSettings({ widgetHideLocked: on }); toast(on ? 'Widget details hidden while locked' : 'Widgets show details'); }} />} />
+      {Platform.OS === 'android' ? (
+        <Row icon="help" title="Add the widget to your home screen" subtitle={available ? 'Or long-press the home screen → Widgets → Immigration Wallet' : 'Needs the latest app version from Google Play'}
+          onPress={available ? () => { try { require('react-native-android-widget').requestPinWidget({ widgetName: 'Family' }).catch(() => toast('Long-press the home screen → Widgets → Immigration Wallet')); } catch { toast('Long-press the home screen → Widgets → Immigration Wallet'); } } : undefined} />
+      ) : (
+        <>
+          <Row icon="bulb" title="Choose what a widget shows" subtitle="Long-press a widget → Edit Widget to choose what it shows" onPress={() => go('/help/widgets')} />
+          <Row icon="help" title="Add a widget" subtitle={available ? 'Touch and hold the Home Screen → Edit → Add Widget → Immigration Wallet' : 'Needs the latest app version from the App Store'} onPress={() => go('/help/widgets')} />
+        </>
+      )}
     </Group></TourTarget>
   );
 }

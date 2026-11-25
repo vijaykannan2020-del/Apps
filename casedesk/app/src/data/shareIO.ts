@@ -76,6 +76,7 @@ export async function pickShareFile(): Promise<PickedShare | null> {
 
 /** Only local files: a link like casedesk://share-import?file=https://… must never make the app fetch. */
 export function isLocalShareUrl(u: string): boolean {
+  if (/^content:\/\/[\w.-]+\//i.test(u)) return true; // Android content provider (local, never the network)
   return /^file:\/\//i.test(u) && !/\.\.(\/|$)/.test(decodeURI(u)) && decodeURI(u).toLowerCase().endsWith(`.${SHARE_EXT}`);
 }
 
@@ -85,7 +86,7 @@ export async function readShareUrl(url: string): Promise<PickedShare> {
   const text = await readText(url);
   if (!text || !isShareFile(text)) throw new Error('Couldn’t open that file');
   readShareHeader(text);
-  return { text, name: decodeURIComponent(url.split('/').pop() ?? `share.${SHARE_EXT}`), uri: url };
+  return { text, name: url.startsWith('content:') ? `share.${SHARE_EXT}` : decodeURIComponent(url.split('/').pop() ?? `share.${SHARE_EXT}`), uri: url };
 }
 
 /** The copy iOS put in Documents/Inbox (or the picker's cache copy): delete after import. */

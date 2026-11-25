@@ -15,7 +15,7 @@ export async function noteOpenAndMaybeAsk(f: Fam, today: string): Promise<void> 
   const days = f.settings.openDays ?? [];
   const next = days.includes(today) ? days : [...days, today].slice(-10);
   if (next !== days) await f.actions.updateSettings({ openDays: next });
-  if (Platform.OS !== 'ios' || f.settings.ratingAskedAt) return;
+  if ((Platform.OS !== 'ios' && Platform.OS !== 'android') || f.settings.ratingAskedAt) return; // Android: Play in-app review
   if (f.docs.length < 3 || next.length < 4) return;
   if (!requireOptionalNativeModule('ExpoStoreReview')) return;
   try {

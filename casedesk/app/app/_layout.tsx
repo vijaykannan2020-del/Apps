@@ -68,6 +68,12 @@ export default function Root() {
     if (!N?.addNotificationResponseReceivedListener) return;
     try {
       N.setNotificationHandler?.({ handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }) });
+      // Android: notifications need channels (the person can mute each one in Android settings).
+      if (Platform.OS === 'android' && N.setNotificationChannelAsync) {
+        const I = N.AndroidImportance ?? {};
+        N.setNotificationChannelAsync('default', { name: 'Reminders and case updates', importance: I.HIGH ?? 4 }).catch(() => {});
+        N.setNotificationChannelAsync('news', { name: 'News and Visa Bulletin', importance: I.DEFAULT ?? 3 }).catch(() => {});
+      }
       const open = (r: any) => { const url = r?.notification?.request?.content?.data?.url; if (url) router.push(url); };
       N.getLastNotificationResponseAsync?.().then(open).catch(() => {});
       const sub = N.addNotificationResponseReceivedListener(open);

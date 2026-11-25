@@ -41,6 +41,7 @@ yarn-error.*
 /android
 credentials/*
 !credentials/ios.enc
+!credentials/android.enc
 credentials.json
 asc.p8
 __pycache__/

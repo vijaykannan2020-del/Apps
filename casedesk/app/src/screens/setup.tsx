@@ -28,7 +28,7 @@ import { newId } from '../data/store';
 import { startFlow, typeIn, upload } from '../data/flow';
 import { askNotificationPermission, openNotificationSettings, reminderItems } from '../native/reminders';
 import { authenticate, canUseBiometrics, success, tap } from '../native/device';
-import { supportText } from '../native/icloud';
+import { hasICloudModule, supportText } from '../native/icloud';
 import { icloudSettings } from '../data/icloudBackup';
 import { forgetPassword } from '../native/secret';
 import type { Source } from '../native/files';
@@ -42,7 +42,7 @@ import { BirthCountryField, COUNTRIES, Confirm, statusGroups } from './sheets';
 import { go, home } from './common';
 import { usePermission } from './notify';
 import { useGuide } from './guide';
-import { ICloudPasswordSheet, useICloudSupport } from './icloud';
+import { connectGoogleDrive, ICloudPasswordSheet, useICloudSupport } from './icloud';
 
 // ---------- answers (what this setup collects before it is saved) ----------
 type PrincipalDraft = { id: string; name: string; relation: 'spouse' | 'parent'; status: StatusCategory; track: 'docs' | 'track'; touched?: boolean };
@@ -1165,20 +1165,20 @@ function ProtectStep({ f, toast }: StepCtx) {
   const ic = icloudSettings(f.settings);
   const faceId = async (on: boolean) => {
     tap();
-    if (on && !bio) { toast('Set up Face ID or a passcode in the system settings first'); return; }
-    if (on && !(await authenticate('Turn on Face ID lock'))) return;
-    await f.actions.updateSettings({ faceId: on, hideInSwitcher: on }); toast(on ? 'Face ID on' : 'Face ID off');
+    if (on && !bio) { toast(`Set up ${LOCK_NAME} or a passcode in the system settings first`); return; }
+    if (on && !(await authenticate(`Turn on ${LOCK_NAME} lock`))) return;
+    await f.actions.updateSettings({ faceId: on, hideInSwitcher: on }); toast(on ? `${LOCK_NAME} on` : `${LOCK_NAME} off`);
   };
   return (
     <View>
       <H1>Keep it private and safe</H1>
       <Why>Your documents live only on this phone. Lock them, and keep a copy only you can open.</Why>
       <Card style={{ marginTop: 18, paddingVertical: 6 }}>
-        <ProtectRow icon="face" tone="sage" title="Face ID lock" sub={bio === false ? 'Set up Face ID or a passcode on this phone first' : 'Asks for Face ID when you open the app and hides documents in the app switcher.'}
-          right={<Switch value={!!f.settings.faceId} label="Face ID lock" onValueChange={faceId} />} />
-        <ProtectRow icon="backup" tone="sky" title="iCloud backup" first={false}
-          sub={!sup ? 'Checking iCloud…' : sup.ok ? (ic.on ? 'On · daily and after changes, locked with your password' : 'A locked copy in your iCloud every day. Only you can open it.') : Platform.OS === 'ios' ? supportText(sup) : 'On this phone, back up to a file from Settings → Backup.'}
-          right={sup?.ok ? <Switch value={ic.on} label="iCloud backup" onValueChange={async (on) => { tap(); if (on) { sheet.open('Turn on iCloud backup', <ICloudPasswordSheet mode="enable" />); return; } await f.actions.updateSettings({ icloud: { ...ic, on: false } }); await forgetPassword(); toast('iCloud backup off'); }} /> : undefined} />
+        <ProtectRow icon="face" tone="sage" title={`${LOCK_NAME} lock`} sub={bio === false ? `Set up ${LOCK_NAME} or a passcode on this phone first` : `Asks for ${LOCK_NAME} when you open the app and hides documents in the app switcher.`}
+          right={<Switch value={!!f.settings.faceId} label={`${LOCK_NAME} lock`} onValueChange={faceId} />} />
+        <ProtectRow icon="backup" tone="sky" title={`${CLOUD_NAME} backup`} first={false}
+          sub={!sup ? `Checking ${CLOUD_NAME}…` : sup.ok ? (ic.on ? 'On · daily and after changes, locked with your password' : `A locked copy in your ${CLOUD_NAME} every day. Only you can open it.`) : Platform.OS === 'ios' || (sup && !sup.ok && sup.reason === 'connect-google') ? supportText(sup) : 'On this phone, back up to a file from Settings → Backup.'}
+          right={sup && !sup.ok && sup.reason === 'connect-google' ? <Button size="sm" kind="tint" title="Connect" onPress={() => connectGoogleDrive(toast)} /> : sup?.ok ? <Switch value={ic.on} label={`${CLOUD_NAME} backup`} onValueChange={async (on) => { tap(); if (on) { sheet.open(`Turn on ${CLOUD_NAME} backup`, <ICloudPasswordSheet mode="enable" />); return; } await f.actions.updateSettings({ icloud: { ...ic, on: false } }); await forgetPassword(); toast(`${CLOUD_NAME} backup off`); }} /> : undefined} />
       </Card>
     </View>
   );
@@ -1195,6 +1195,7 @@ function ProtectRow({ icon, tone, title, sub, right, first = true }: { icon: str
 }
 
 import { FamilyWalletRow } from './wallet';
+import { CLOUD_NAME, LOCK_NAME } from '../ui/platformWords';
 function DoneStep({ f }: StepCtx) {
   const t = useTheme();
   const me = f.main;
@@ -1263,7 +1264,7 @@ const PREVIEW: Record<SetupStep, [string, PastelTone, string]> = {
   work: ['building', 'sky', 'H-1B work sites tie to a metro area.'], gc: ['card', 'mint', 'The family follows the main applicant’s PERM and I-140.'],
   family: ['users', 'blush', 'Dependents’ dates follow the main applicant.'], docs: ['doc', 'sky', 'Read on this phone. Never uploaded.'],
   cases: ['clock', 'butter', 'Receipts stay on this phone.'], alerts: ['bell', 'butter', 'Reminders at the times each document needs.'],
-  protect: ['lock', 'sage', 'Face ID and a backup only you can open.'], done: ['checkc', 'sage', 'Everything is saved on this phone.'],
+  protect: ['lock', 'sage', `${LOCK_NAME} and a backup only you can open.`], done: ['checkc', 'sage', 'Everything is saved on this phone.'],
 };
 function SetupPreview({ step, a }: { step: SetupStep; a: Answers }) {
   const t = useTheme();
@@ -1356,7 +1357,7 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
           <Button kind="ghost" size="sm" icon="download" title="I have a shared file" onPress={() => router.push('/share-import' as never)} />
           <Button kind="ghost" size="sm" icon="restore" title="Restore a backup" onPress={() => router.push('/restore' as never)} />
-          {Platform.OS === 'ios' ? <Button kind="ghost" size="sm" icon="backup" title="iCloud" label="Restore from iCloud" onPress={() => router.push('/restore-icloud' as never)} /> : null}
+          {Platform.OS === 'ios' || hasICloudModule() ? <Button kind="ghost" size="sm" icon="backup" title={`${CLOUD_NAME}`} label={`Restore from ${CLOUD_NAME}`} onPress={() => router.push('/restore-icloud' as never)} /> : null}
         </View>
         <Pressable onPress={() => router.push('/demo' as never)} accessibilityRole="button" accessibilityLabel="Look around with an example family" style={{ minHeight: MIN_TOUCH, justifyContent: 'center' }}>
           <T tone="text2" style={[font.foot, { textAlign: 'center', fontWeight: '600' }]}>Look around with an example family</T>

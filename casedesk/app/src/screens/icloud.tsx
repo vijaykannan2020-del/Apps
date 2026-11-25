@@ -1,22 +1,36 @@
 // Settings → iCloud backup rows, the turn-on sheet, and "Restore from iCloud" (Settings + Welcome).
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { fmt } from '../core/dates';
 import { useFamily } from '../data/FamilyProvider';
 import { backUpToICloud, iCloudBackups, icloudSettings, readICloudBackup, type ICloudFile } from '../data/icloudBackup';
-import { iCloudSupport, supportText, type Support } from '../native/icloud';
+import { androidDrive, iCloudSupport, supportText, type Support } from '../native/icloud';
 import { forgetPassword, hasKeychain, savePassword } from '../native/secret';
 import { Button, Field, Group, Hint, Meter, Note, Row, Screen, SheetButtons, Spinner, Switch, T, Why, font, useSheet, useToast, TourButton, TourScope, TourTarget, useSheetTour } from '../ui';
 import { RestorePanel } from './profile';
 import { back, home } from './common';
+import { CLOUD_NAME } from '../ui/platformWords';
 
 const when = (iso?: string) => { if (!iso) return 'Never'; try { const d = new Date(iso); return `${fmt(iso.slice(0, 10))} · ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`; } catch { return fmt(iso.slice(0, 10)); } };
 
+const supportListeners = new Set<() => void>();
 export function useICloudSupport() {
   const [s, setS] = useState<Support | null>(null);
-  useEffect(() => { iCloudSupport().then(setS).catch(() => setS({ ok: false, reason: 'old-build' })); }, []);
+  useEffect(() => {
+    const load = () => { iCloudSupport().then(setS).catch(() => setS({ ok: false, reason: 'old-build' })); };
+    load(); supportListeners.add(load);
+    return () => { supportListeners.delete(load); };
+  }, []);
   return s;
 }
+/** Android: pick a Google account and allow the app's private Drive folder, then refresh every backup row. */
+export async function connectGoogleDrive(toast: (s: string) => void): Promise<boolean> {
+  const ok = await androidDrive.connect();
+  toast(ok ? 'Google Drive connected' : 'Google Drive wasn’t connected');
+  supportListeners.forEach((f) => f());
+  return ok;
+}
+const needsGoogle = (s: Support | null) => !!s && !s.ok && s.reason === 'connect-google';
 
 /** Rows for Settings → Backup & restore. */
 export function ICloudRows() {
@@ -24,25 +38,25 @@ export function ICloudRows() {
   const sup = useICloudSupport();
   const ic = icloudSettings(f.settings);
   const [busy, setBusy] = useState(false);
-  if (!sup) return <Row icon="backup" title="iCloud backup" subtitle="Checking iCloud…" />;
-  if (!sup.ok) return <Row icon="backup" title="iCloud backup" subtitle={supportText(sup)} />;
+  if (!sup) return <Row icon="backup" title={`${CLOUD_NAME} backup`} subtitle={`Checking ${CLOUD_NAME}…`} />;
+  if (!sup.ok) return <Row icon="backup" title={`${CLOUD_NAME} backup`} subtitle={supportText(sup)} onPress={needsGoogle(sup) ? () => connectGoogleDrive(toast) : undefined} chevron={needsGoogle(sup)} />;
   const set = (patch: Partial<typeof ic>) => f.actions.updateSettings({ icloud: { ...ic, ...patch } });
   const now = async () => {
-    if (!hasKeychain() || !ic.on) { sheet.open('Back up to iCloud', <ICloudPasswordSheet mode="once" />); return; }
+    if (!hasKeychain() || !ic.on) { sheet.open(`Back up to ${CLOUD_NAME}`, <ICloudPasswordSheet mode="once" />); return; }
     setBusy(true); const r = await backUpToICloud(f.store); setBusy(false);
-    toast(r.ok ? 'Backed up to iCloud' : r.error ?? 'Couldn’t back up to iCloud');
+    toast(r.ok ? `Backed up to ${CLOUD_NAME}` : r.error ?? `Couldn’t back up to ${CLOUD_NAME}`);
   };
   return (
     <>
-      <Row icon="backup" title="iCloud backup" subtitle={ic.on ? `Automatic · daily and after changes · keeps the last 3` : 'Off — turn on to back up automatically'}
-        trailing={<Switch value={ic.on} label="iCloud backup" onValueChange={async (on) => {
-          if (on) { sheet.open('Turn on iCloud backup', <ICloudPasswordSheet mode="enable" />); return; }
-          await set({ on: false }); await forgetPassword(); toast('iCloud backup off');
+      <Row icon="backup" title={`${CLOUD_NAME} backup`} subtitle={ic.on ? `Automatic · daily and after changes · keeps the last 3` : 'Off — turn on to back up automatically'}
+        trailing={<Switch value={ic.on} label={`${CLOUD_NAME} backup`} onValueChange={async (on) => {
+          if (on) { sheet.open(`Turn on ${CLOUD_NAME} backup`, <ICloudPasswordSheet mode="enable" />); return; }
+          await set({ on: false }); await forgetPassword(); toast(`${CLOUD_NAME} backup off`);
         }} />} />
       {ic.on ? <Row icon="globe" title="Only on Wi-Fi" subtitle="Skip automatic backups on cellular" trailing={<Switch value={ic.wifiOnly} label="Only on Wi-Fi" onValueChange={(v) => set({ wifiOnly: v })} />} /> : null}
-      <Row icon="clock" title="Last iCloud backup" subtitle={ic.lastError ? `${when(ic.lastAt)} · last try failed: ${ic.lastError}` : when(ic.lastAt)} />
-      <Row icon="refresh" title={busy ? 'Backing up…' : 'Back up to iCloud now'} chevron={false} onPress={busy ? undefined : now} />
-      <Row icon="restore" title="Restore from iCloud" subtitle="Your last 3 iCloud backups" onPress={() => sheet.open('Restore from iCloud', <ICloudRestore onDone={sheet.close} />)} chevron={false} />
+      <Row icon="clock" title={`Last ${CLOUD_NAME} backup`} subtitle={ic.lastError ? `${when(ic.lastAt)} · last try failed: ${ic.lastError}` : when(ic.lastAt)} />
+      <Row icon="refresh" title={busy ? 'Backing up…' : `Back up to ${CLOUD_NAME} now`} chevron={false} onPress={busy ? undefined : now} />
+      <Row icon="restore" title={`Restore from ${CLOUD_NAME}`} subtitle={`Your last 3 ${CLOUD_NAME} backups`} onPress={() => sheet.open(`Restore from ${CLOUD_NAME}`, <ICloudRestore onDone={sheet.close} />)} chevron={false} />
     </>
   );
 }
@@ -64,13 +78,13 @@ export function ICloudPasswordSheet({ mode }: { mode: 'enable' | 'once' }) {
     }
     const r = await backUpToICloud(f.store, pw, (x) => setPct(Math.round(x * 100)));
     setBusy(false); s.close();
-    toast(r.ok ? (mode === 'enable' ? 'iCloud backup on · first backup done' : 'Backed up to iCloud') : r.error ?? 'Couldn’t back up to iCloud');
+    toast(r.ok ? (mode === 'enable' ? `${CLOUD_NAME} backup on · first backup done` : `Backed up to ${CLOUD_NAME}`) : r.error ?? `Couldn’t back up to ${CLOUD_NAME}`);
   };
   return (
     <TourScope tour={tour}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}><TourTarget id="toggle" style={{ flex: 1 }}><Why>{mode === 'enable'
-        ? 'Like WhatsApp: Immigration Wallet backs up to your iCloud every day and after you change something, and keeps the last 3 backups. The file is locked with this password — Apple can’t read it, and neither can we.'
-        : 'One backup to your iCloud, locked with this password.'}</Why></TourTarget><TourButton /></View>
+        ? `Like WhatsApp: Immigration Wallet backs up to your ${CLOUD_NAME} every day and after you change something, and keeps the last 3 backups. The file is locked with this password — ${Platform.OS === 'android' ? 'Google' : 'Apple'} can’t read it, and neither can we.`
+        : `One backup to your ${CLOUD_NAME}, locked with this password.`}</Why></TourTarget><TourButton /></View>
       {mode === 'enable' && !keychain ? <Note tone="amber">This version can’t keep the password in the keychain, so backups can’t run on their own. Update the app from the App Store for automatic backups.</Note> : null}
       <TourTarget id="password"><Field label="Backup password" value={pw} onChangeText={setPw} secure placeholder="At least 8 characters" autoCapitalize="none" /></TourTarget>
       <Field label="Type it again" value={pw2} onChangeText={setPw2} secure autoCapitalize="none" />
@@ -89,7 +103,7 @@ export function ICloudRestore({ onDone }: { onDone: () => void }) {
   const [picked, setPicked] = useState<{ text: string; name: string } | null>(null);
   useEffect(() => { if (sup?.ok) iCloudBackups().then(setFiles).catch(() => setFiles([])); }, [sup?.ok]);
   if (!sup) return <Spinner />;
-  if (!sup.ok) return <View><Why>{supportText(sup)}</Why><SheetButtons><Button grow title="OK" onPress={onDone} /></SheetButtons></View>;
+  if (!sup.ok) return <View><Why>{supportText(sup)}</Why><SheetButtons>{needsGoogle(sup) ? <><Button kind="ghost" title="Close" onPress={onDone} /><Button grow title="Connect Google" onPress={() => connectGoogleDrive(toast)} /></> : <Button grow title="OK" onPress={onDone} />}</SheetButtons></View>;
   if (picked) return <RestorePanel initial={picked} onDone={onDone} onCancel={() => setPicked(null)} />;
   return (
     <View>
@@ -97,10 +111,10 @@ export function ICloudRestore({ onDone }: { onDone: () => void }) {
       {files == null ? <View style={{ marginTop: 14 }}><Spinner /></View> : files.length ? (
         <Group style={{ marginTop: 12 }}>
           {files.map((x, i) => <Row key={x.name} icon="backup" title={i === 0 ? 'Latest backup' : `Backup ${i + 1}`} subtitle={when(x.at)} onPress={async () => {
-            try { setPicked({ text: await readICloudBackup(x.name), name: x.name }); } catch { toast('Couldn’t download this backup from iCloud yet — try again in a moment'); }
+            try { setPicked({ text: await readICloudBackup(x.name), name: x.name }); } catch { toast(`Couldn’t download this backup from ${CLOUD_NAME} yet — try again in a moment`); }
           }} />)}
         </Group>
-      ) : <Note tone="blue">No Immigration Wallet backups in this iCloud account yet.</Note>}
+      ) : <Note tone="blue">{`No Immigration Wallet backups in this ${CLOUD_NAME} account yet.`}</Note>}
       <SheetButtons><Button kind="ghost" title="Close" onPress={onDone} /></SheetButtons>
     </View>
   );
@@ -110,7 +124,7 @@ export function ICloudRestore({ onDone }: { onDone: () => void }) {
 export function ICloudRestoreScreen() {
   return (
     <Screen nav={{ back: 'Welcome', onBack: back, title: 'Restore' }}>
-      <T a11y="header" style={font.title}>Restore from iCloud</T>
+      <T a11y="header" style={font.title}>{`Restore from ${CLOUD_NAME}`}</T>
       <ICloudRestore onDone={home} />
     </Screen>
   );
@@ -124,10 +138,10 @@ export function ICloudAfterRestore() {
   const dismiss = () => f.actions.updateSettings({ icloudAsk: false });
   return (
     <Note tone="blue" style={{ marginTop: 12 }} actions={<>
-      <Button size="sm" kind="tint" title="Turn on" onPress={() => { dismiss(); sheet.open('Turn on iCloud backup', <ICloudPasswordSheet mode="enable" />); }} />
+      <Button size="sm" kind="tint" title="Turn on" onPress={() => { dismiss(); sheet.open(`Turn on ${CLOUD_NAME} backup`, <ICloudPasswordSheet mode="enable" />); }} />
       <Button size="sm" kind="ghost" title="Not now" onPress={dismiss} />
     </>}>
-      <T style={[font.sub, { fontWeight: '600' }]}>Turn on iCloud backup on this phone?</T>
+      <T style={[font.sub, { fontWeight: '600' }]}>{`Turn on ${CLOUD_NAME} backup on this phone?`}</T>
       <T tone="text2" style={[font.foot, { marginTop: 2 }]}>Your data was restored. Backups from the old phone’s settings aren’t copied — set a password to back up from this phone.</T>
     </Note>
   );
@@ -137,7 +151,7 @@ export function ICloudAfterRestore() {
  *  then the other ways (file backup, restore from a file, import a family member's share file). */
 export function backupSummary(settings: Parameters<typeof icloudSettings>[0] & { lastBackupAt?: string }): string {
   const ic = icloudSettings(settings);
-  if (ic.on) return `iCloud · ${when(ic.lastAt)}`;
+  if (ic.on) return `${CLOUD_NAME} · ${when(ic.lastAt)}`;
   return settings.lastBackupAt ? `File · ${fmt(settings.lastBackupAt.slice(0, 10))}` : 'Not backed up yet';
 }
 export function BackupPage({ fileBackup, fileRestore, importShared }: { fileBackup: () => void; fileRestore: () => void; importShared: React.ReactNode }) {
@@ -149,16 +163,16 @@ export function BackupPage({ fileBackup, fileRestore, importShared }: { fileBack
   const set = (patch: Partial<typeof ic>) => f.actions.updateSettings({ icloud: { ...ic, ...patch } });
   const now = async () => {
     if (!ok) { fileBackup(); return; }
-    if (!hasKeychain() || !ic.on) { sheet.open('Back up to iCloud', <ICloudPasswordSheet mode="once" />); return; }
+    if (!hasKeychain() || !ic.on) { sheet.open(`Back up to ${CLOUD_NAME}`, <ICloudPasswordSheet mode="once" />); return; }
     setBusy(true); const r = await backUpToICloud(f.store); setBusy(false);
-    toast(r.ok ? 'Backed up to iCloud' : r.error ?? 'Couldn’t back up to iCloud');
+    toast(r.ok ? `Backed up to ${CLOUD_NAME}` : r.error ?? `Couldn’t back up to ${CLOUD_NAME}`);
   };
   const restore = () => {
     if (!ok) { fileRestore(); return; }
     sheet.open('Restore', (
       <View>
         <Group>
-          <Row icon="backup" title="From iCloud" subtitle="Your last 3 iCloud backups" onPress={() => sheet.open('Restore from iCloud', <ICloudRestore onDone={sheet.close} />)} />
+          <Row icon="backup" title={`From ${CLOUD_NAME}`} subtitle={`Your last 3 ${CLOUD_NAME} backups`} onPress={() => sheet.open(`Restore from ${CLOUD_NAME}`, <ICloudRestore onDone={sheet.close} />)} />
           <Row icon="restore" title="From a backup file" subtitle="A file you saved to Files, Drive or AirDrop" onPress={() => { sheet.close(); setTimeout(fileRestore, 300); }} />
         </Group>
         <SheetButtons><Button kind="ghost" title="Cancel" onPress={sheet.close} /></SheetButtons>
@@ -166,12 +180,12 @@ export function BackupPage({ fileBackup, fileRestore, importShared }: { fileBack
     ));
   };
   const backedUp = ok && ic.on && !!ic.lastAt;
-  const status = !sup ? 'Checking iCloud…' : backedUp ? 'Backed up to iCloud' : ic.on ? 'iCloud backup is on' : f.settings.lastBackupAt ? 'Backed up to a file' : 'Not backed up yet';
-  const detail = !sup ? '' : !ok ? supportText(sup) : ic.on ? `${when(ic.lastAt)} · automatic, daily and after changes · last 3 kept${ic.lastError ? ` · last try failed: ${ic.lastError}` : ''}` : f.settings.lastBackupAt ? `${fmt(f.settings.lastBackupAt.slice(0, 10))} · turn on iCloud backup to keep it up to date` : 'Turn on iCloud backup, or back up to a file';
+  const status = !sup ? `Checking ${CLOUD_NAME}…` : backedUp ? `Backed up to ${CLOUD_NAME}` : ic.on ? `${CLOUD_NAME} backup is on` : f.settings.lastBackupAt ? 'Backed up to a file' : 'Not backed up yet';
+  const detail = !sup ? '' : !ok ? supportText(sup) : ic.on ? `${when(ic.lastAt)} · automatic, daily and after changes · last 3 kept${ic.lastError ? ` · last try failed: ${ic.lastError}` : ''}` : f.settings.lastBackupAt ? `${fmt(f.settings.lastBackupAt.slice(0, 10))} · turn on ${CLOUD_NAME} backup to keep it up to date` : `Turn on ${CLOUD_NAME} backup, or back up to a file`;
   return (
     <>
       <Group>
-        <Row icon={backedUp || f.settings.lastBackupAt ? 'check' : 'backup'} iconTone={backedUp ? 'green' : undefined} title={status} subtitle={detail} chevron={false} />
+        <Row icon={backedUp || f.settings.lastBackupAt ? 'check' : 'backup'} iconTone={backedUp ? 'green' : undefined} title={status} subtitle={detail} chevron={needsGoogle(sup)} onPress={needsGoogle(sup) ? () => connectGoogleDrive(toast) : undefined} />
       </Group>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
         <Button grow title={busy ? 'Backing up…' : 'Back up now'} busy={busy} onPress={now} />
@@ -179,10 +193,10 @@ export function BackupPage({ fileBackup, fileRestore, importShared }: { fileBack
       </View>
       {ok ? (
         <Group style={{ marginTop: 16 }}>
-          <Row icon="backup" title="Automatic iCloud backup" subtitle={ic.on ? 'Daily and after changes · keeps the last 3' : 'Off'}
-            trailing={<Switch value={ic.on} label="Automatic iCloud backup" onValueChange={async (on) => {
-              if (on) { sheet.open('Turn on iCloud backup', <ICloudPasswordSheet mode="enable" />); return; }
-              await set({ on: false }); await forgetPassword(); toast('iCloud backup off');
+          <Row icon="backup" title={`Automatic ${CLOUD_NAME} backup`} subtitle={ic.on ? 'Daily and after changes · keeps the last 3' : 'Off'}
+            trailing={<Switch value={ic.on} label={`Automatic ${CLOUD_NAME} backup`} onValueChange={async (on) => {
+              if (on) { sheet.open(`Turn on ${CLOUD_NAME} backup`, <ICloudPasswordSheet mode="enable" />); return; }
+              await set({ on: false }); await forgetPassword(); toast(`${CLOUD_NAME} backup off`);
             }} />} />
           {ic.on ? <Row icon="globe" title="Only on Wi-Fi" subtitle="Skip automatic backups on cellular" trailing={<Switch value={ic.wifiOnly} label="Only on Wi-Fi" onValueChange={(v) => set({ wifiOnly: v })} />} /> : null}
         </Group>

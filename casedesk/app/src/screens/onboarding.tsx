@@ -6,6 +6,7 @@ import { Platform, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Redirect, router } from 'expo-router';
 import { Button, Icon, T, font, useTheme, Footer } from '../ui';
 import { replace } from './common';
+import { LOCK_NAME } from '../ui/platformWords';
 
 // v3.0: first run is the multi-step onboarding (screens/setup.tsx). The old Welcome and About you
 // routes open it (About you starts at the name step).
@@ -16,7 +17,7 @@ export function AboutYou() { return <Redirect href={{ pathname: '/welcome', para
 const SLIDES: [string, string, string][] = [
   ['users', 'Your family’s US status in one place', 'See how long everyone can stay, which document proves it, and what to do next.'],
   ['list', 'How it works', '1 · Tell us your situation and add your family\n2 · Add each person’s documents\n3 · See what needs attention'],
-  ['lock', 'Read on your phone — nothing is uploaded', 'Documents are read and saved only on this phone. No account. No tracking. Lock it with Face ID.'],
+  ['lock', 'Read on your phone — nothing is uploaded', `Documents are read and saved only on this phone. No account. No tracking. Lock it with ${LOCK_NAME}.`],
   ['checkc', 'Ready when you are', 'You can skip any document and add it later.'],
 ];
 export function Tour() {

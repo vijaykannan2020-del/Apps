@@ -128,6 +128,29 @@
       "permissions": [
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "category": [
+            "DEFAULT",
+            "BROWSABLE"
+          ],
+          "data": [
+            {
+              "scheme": "content",
+              "mimeType": "application/x-immigration-wallet-share"
+            },
+            {
+              "scheme": "file",
+              "mimeType": "application/x-immigration-wallet-share"
+            }
+          ]
+        }
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     },
     "web": {
@@ -189,7 +212,26 @@
       "expo-secure-store",
       "expo-apple-authentication",
       "./plugins/withGoogleSignIn",
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "Family",
+              "label": "Immigration Wallet",
+              "description": "Your family's next dates and case updates",
+              "minWidth": "250dp",
+              "minHeight": "140dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "widgetCategory": "home_screen",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ]
     ],
     "extra": {
       "apiBase": "https://casedeskapp.duckdns.org",
@@ -202,7 +244,8 @@
       },
       "eas": {
         "projectId": "1e15ecfc-86cb-4e35-884f-f39c9db7969d"
-      }
+      },
+      "googleWebClientId": ""
     },
     "owner": "vijayakannankrishnans-team",
     "runtimeVersion": {
