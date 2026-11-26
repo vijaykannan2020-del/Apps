@@ -22,6 +22,8 @@ export default function Cast() {
   const canPlay = (!live || tryLive) && !!src;
   const player = useVideoPlayer(canPlay ? { uri: String(src), headers: { 'User-Agent': 'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG200 stbapp ver: 4 rev: 2721 Safari/533.3' } } : null, p => {
     p.allowsExternalPlayback = true;
+    p.staysActiveInBackground = true;        // keep sending to the TV when the app is in the background
+    p.showNowPlayingNotification = true;     // lock-screen play/pause while casting
     const at = Number(params.at || 0);
     if (at > 5) p.currentTime = at;
     p.play();
