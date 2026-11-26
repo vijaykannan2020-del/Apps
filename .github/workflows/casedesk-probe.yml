@@ -5,5 +5,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          for p in /api/visa-bulletin /api/visa-waits /api/health; do echo "== $p"; curl -s -m 60 "https://casedeskapp.duckdns.org$p" | head -c 2500; echo; done
-          echo "== flag"; curl -s -o /tmp/f.html -w '%{http_code} %{size_download}\n' -A 'CaseDesk/1.0' https://flag.dol.gov/wage-data/wage-data-downloads; grep -oiE 'href="[^"]*OFLC_Wages_[^"]*\.zip"' /tmp/f.html | head -3
+          for p in /api/health; do echo "== $p"; curl -s -m 60 "https://casedeskapp.duckdns.org$p" | head -c 1500; echo; done
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+          for u in \
+            https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html \
+            https://travel.state.gov/content/dam/visas/Bulletins/visabulletin_November2026.pdf \
+            https://www.uscis.gov/green-card/green-card-processes-and-procedures/visa-availability-priority-dates/adjustment-of-status-filing-charts-from-the-visa-bulletin \
+            https://www.uscis.gov/visabulletininfo ; do
+            echo "== $u"; curl -s -L -m 60 -A "$UA" -H 'Accept-Language: en-US,en;q=0.9' -o /tmp/p -w '%{http_code} %{size_download}\n' "$u"; grep -oiE 'visa bulletin for [a-z]+ [0-9]{4}|Employment-[A-Za-z]+' /tmp/p | sort | uniq -c | head -5
+          done
