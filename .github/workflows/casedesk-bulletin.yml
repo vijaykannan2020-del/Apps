@@ -1,0 +1,33 @@
+# Visa Bulletin backup copy: travel.state.gov blocks the app server's network (HTTP 403), so every day this
+# job reads the bulletin from GitHub's network and saves it to casedesk/site/visa-bulletin.json. The server
+# (auto-update.sh keeps site/ current) uses it when its own fetch fails or when it holds a newer month —
+# then the new-bulletin alert goes out. Runs several times a day around mid-month, when bulletins come out.
+name: CaseDesk Visa Bulletin copy
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency: { group: casedesk-bulletin, cancel-in-progress: false }
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults: { run: { working-directory: casedesk/server } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Read the bulletin
+        run: node scripts/bulletin-mirror.mjs
+      - name: Save if it changed
+        working-directory: .
+        run: |
+          if git diff --quiet -- casedesk/site/visa-bulletin.json && git ls-files --error-unmatch casedesk/site/visa-bulletin.json >/dev/null 2>&1; then echo "No change"; exit 0; fi
+          M=$(jq -r .month casedesk/site/visa-bulletin.json)
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git add casedesk/site/visa-bulletin.json
+          git commit -q -m "Visa Bulletin copy: $M"
+          git pull --rebase -q && git push -q
+          echo "Saved $M ✓"

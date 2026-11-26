@@ -18,7 +18,17 @@ const CATS = [
 
 let state = null;
 let lastError = null;
-const UA_HEADERS = { headers: { 'User-Agent': 'CaseDesk/1.0 (immigration info app; +https://casedeskapp.duckdns.org)', Accept: 'text/html' } };
+// travel.state.gov's CDN refuses unknown clients (HTTP 403), so look like a normal browser.
+const UA_HEADERS = { headers: {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+} };
+// Backup copy: a daily GitHub job (casedesk-bulletin.yml) reads the bulletin from GitHub's network and saves
+// it in casedesk/site/visa-bulletin.json, which auto-update.sh keeps current on this server. Used when our
+// own fetch is blocked, and whenever it holds a newer month than ours.
+const SEED = path.resolve(process.env.BULLETIN_SEED || 'site/visa-bulletin.json');
+let seedSeen = 0;
 // Every fetch gets its own 20 s timeout so a hanging travel.state.gov never stalls /api/visa-bulletin.
 const ua = () => ({ ...UA_HEADERS, signal: AbortSignal.timeout(20000) });
 export const bulletinStatus = () => ({ loaded: !!state, month: state?.month || null, historyMonths: state?.history?.length ?? 0, error: lastError });
@@ -178,9 +188,32 @@ export async function ensureBulletinHistory(opts) {
   try { return await backfillHistory(opts); } catch (e) { console.error('bulletin history:', e.message); return 0; }
 }
 
+/** Take the GitHub copy when it is newer (new month, or the same month with more history). Never throws. */
+export function adoptSeed({ file = SEED, force = false } = {}) {
+  try {
+    const mt = fs.statSync(file).mtimeMs;
+    if (!force && mt === seedSeen) return false;
+    seedSeen = mt;
+    const seed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (!seed?.month || !Array.isArray(seed.rows) || !seed.rows.length) return false;
+    const a = monthKey(seed.month), b = monthKey(state?.month); // 'YYYY-MM' strings compare in order
+    if (!a) return false;
+    if (state && (a < b || (a === b && (seed.history?.length ?? 0) <= (state.history?.length ?? 0)))) return false;
+    const prev = state;
+    const history = mergeHistory(seed.history, prev && a > b ? [{ month: prev.month, rows: prev.rows }, ...(prev.history || [])] : prev?.history || [], seed.month);
+    state = { ...seed, uscisChart: process.env.USCIS_EB_CHART || seed.uscisChart || prev?.uscisChart || 'filing', history, previous: history[history.length - 1] };
+    fs.mkdirSync(path.dirname(FILE), { recursive: true });
+    fs.writeFileSync(FILE, JSON.stringify(state, null, 2));
+    if (prev && a > b) notifyBulletin(prev, state).catch((e) => console.error('notify bulletin', e.message));
+    lastError = null;
+    return true;
+  } catch { return false; }
+}
+
 export async function getBulletin({ backfill = true } = {}) {
+  adoptSeed();
   if (!state || Date.now() - (fs.existsSync(FILE) ? fs.statSync(FILE).mtimeMs : 0) > 24 * 3600e3) {
-    try { await refreshBulletin(); lastError = null; } catch (e) { lastError = e.message; console.error('bulletin:', e.message); }
+    try { await refreshBulletin(); lastError = null; } catch (e) { lastError = e.message; console.error('bulletin:', e.message); if (adoptSeed({ force: true })) lastError = `${e.message} (using the GitHub copy)`; }
   }
   if (!state) throw Object.assign(new Error('Visa Bulletin not loaded yet'), { status: 503 });
   if (backfill && (state.history?.length ?? 0) < HISTORY_MAX && !backfilling && Date.now() - lastBackfill > 24 * 3600e3) backfillHistory().catch((e) => console.error('bulletin history:', e.message));
