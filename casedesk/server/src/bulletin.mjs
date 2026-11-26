@@ -90,12 +90,15 @@ export function mergeHistory(prev, add, currentMonth) {
 // The same pages are published on other state.gov hostnames, which travel.state.gov's bot filter doesn't cover.
 const HOSTS = ['travel.state.gov', 'adoption.state.gov', 'childabduction.state.gov'];
 let goodHost = HOSTS[0];
+let pageFetch = (u) => fetch(u, ua());
+/** The GitHub copy job swaps in a real browser here (travel.state.gov blocks plain HTTP clients). */
+export function setPageFetcher(fn) { pageFetch = fn; }
 /** GET a travel.state.gov page, trying the other state.gov hostnames when one refuses. */
 async function stateGet(url) {
   let last = null;
   for (const h of [goodHost, ...HOSTS.filter((x) => x !== goodHost)]) {
     try {
-      const r = await fetch(url.replace(/^https:\/\/[^/]+/, `https://${h}`), ua());
+      const r = await pageFetch(url.replace(/^https:\/\/[^/]+/, `https://${h}`));
       if (r.ok) { goodHost = h; return r; }
       last = r;
       if (r.status === 404) return r;
