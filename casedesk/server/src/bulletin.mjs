@@ -87,14 +87,33 @@ export function mergeHistory(prev, add, currentMonth) {
   return [...by.entries()].filter(([k]) => k).sort(([a], [b]) => a.localeCompare(b)).slice(-HISTORY_MAX).map(([, v]) => v);
 }
 
+// The same pages are published on other state.gov hostnames, which travel.state.gov's bot filter doesn't cover.
+const HOSTS = ['travel.state.gov', 'adoption.state.gov', 'childabduction.state.gov'];
+let goodHost = HOSTS[0];
+/** GET a travel.state.gov page, trying the other state.gov hostnames when one refuses. */
+async function stateGet(url) {
+  let last = null;
+  for (const h of [goodHost, ...HOSTS.filter((x) => x !== goodHost)]) {
+    try {
+      const r = await fetch(url.replace(/^https:\/\/[^/]+/, `https://${h}`), ua());
+      if (r.ok) { goodHost = h; return r; }
+      last = r;
+      if (r.status === 404) return r;
+    } catch (e) { last = { ok: false, status: 0, error: e }; }
+  }
+  return last;
+}
+
 export async function refreshBulletin() {
-  const r0 = await fetch(INDEX, ua());
-  if (!r0.ok) throw new Error(`HTTP ${r0.status}`);
+  const r0 = await stateGet(INDEX);
+  if (!r0?.ok) throw new Error(`HTTP ${r0?.status ?? 'error'}`);
   const idx = await r0.text();
   const link = idx.match(/href="([^"]*visa-bulletin-for-[a-z]+-\d{4}\.html)"/i)?.[1];
   if (!link) throw new Error('Visa Bulletin link not found');
   const url = link.startsWith('http') ? link : `https://travel.state.gov${link}`;
-  const html = await (await fetch(url, ua())).text();
+  const r1 = await stateGet(url);
+  if (!r1?.ok) throw new Error(`HTTP ${r1?.status ?? 'error'} for ${url}`);
+  const html = await r1.text();
   const parsed = parseBulletin(html, url);
   if (!parsed?.month) throw new Error('Could not parse Final Action table');
   const prev = state;
@@ -152,7 +171,7 @@ let lastBackfill = 0;
 let backfilling = null;
 export async function backfillHistory(opts = {}) {
   if (typeof opts === 'number') opts = { months: opts };
-  const { months = HISTORY_MAX, fetcher = (u) => fetch(u, ua()), delayMs = 1500, retries = 2, giveUpAfter = 3, sleep = wait } = opts;
+  const { months = HISTORY_MAX, fetcher = (u) => stateGet(u), delayMs = 1500, retries = 2, giveUpAfter = 3, sleep = wait } = opts;
   if (!state?.month) return 0;
   if (backfilling) return backfilling;
   lastBackfill = Date.now();
