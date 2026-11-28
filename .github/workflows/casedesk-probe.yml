@@ -5,8 +5,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          U=https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin/2027/visa-bulletin-for-november-2026.html
-          I=https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html
-          echo "== availability"; curl -s -m 60 "https://archive.org/wayback/available?url=$U"; echo; curl -s -m 60 "https://archive.org/wayback/available?url=$I"; echo
-          echo "== raw copy"; curl -s -L -m 90 -o /tmp/w.html -w '%{http_code} %{size_download}\n' "https://web.archive.org/web/2026id_/$U"; grep -c "FINAL ACTION DATES\|Final Action Dates" /tmp/w.html; grep -oE "[0-9]{2}[A-Z]{3}[0-9]{2}" /tmp/w.html | head -5 | tr '\n' ' '; echo
-          echo "== index copy"; curl -s -L -m 90 -o /tmp/i.html -w '%{http_code} %{size_download}\n' "https://web.archive.org/web/2026id_/$I"; grep -oiE 'visa-bulletin-for-[a-z]+-[0-9]{4}' /tmp/i.html | sort -u | head -4
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+          curl -s -L -m 60 -A "$UA" -o /tmp/p.html https://www.uscis.gov/green-card/green-card-processes-and-procedures/visa-availability-priority-dates/adjustment-of-status-filing-charts-from-the-visa-bulletin
+          python3 -c "
+          import re,html
+          s=open('/tmp/p.html',encoding='utf-8',errors='ignore').read()
+          for m in re.finditer(r'<p[^>]*>(.*?)</p>', s, re.S):
+            t=html.unescape(re.sub(r'<[^>]+>','',m.group(1))).strip()
+            if re.search(r'must use|Visa Bulletin for', t): print('P', t[:300])
+          "
