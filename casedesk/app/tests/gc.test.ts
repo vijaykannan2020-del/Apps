@@ -197,7 +197,7 @@ test('planner: pace from bulletin history, estimate only with enough months, gat
   assert.deepEqual(plan.processing.map((p) => p.form), ['I-140', 'I-485']);
   // a year of history: EB-2 India filing date moved 6 months → about 182 days a year
   const rowsAt = (filing: string) => BULLETIN.rows.map((r) => (r.cat === 'EB-2' ? { ...r, filing: { ...r.filing, india: filing } } : r));
-  const hist: VisaBulletin = { ...BULLETIN, history: [{ month: 'November 2025', rows: rowsAt('2014-07-15') }] };
+  const hist: VisaBulletin = { ...BULLETIN, history: [{ month: 'December 2025', rows: rowsAt('2014-07-15') }] };
   const pace = paceOf(hist, 'EB-2', 'india', 'filing')!;
   assert.equal(pace.months, 12);
   assert.ok(pace.daysPerYear > 150 && pace.daysPerYear < 200);

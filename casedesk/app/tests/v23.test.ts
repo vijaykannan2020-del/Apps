@@ -130,9 +130,9 @@ test('data sources: every built-in data set has a date, an official source and a
   for (const d of DATA_SOURCES) { assert.ok(d.asOf && d.asOf !== '—', d.id); assert.match(d.source.url, /^https:\/\//); assert.ok(d.note.length > 10); }
   for (const id of ['bulletin', 'processing', 'fees', 'waits', 'wage', 'h1b']) assert.ok(DATA_SOURCES.some((d) => d.id === id), id);
 });
-test('bulletin: built-in EB-2 India matches the November 2026 bulletin (final Nov 1, 2013 · filing Jan 15, 2015)', () => {
+test('bulletin: built-in EB-2 India matches the December 2026 bulletin (final Nov 1, 2013 · filing Jan 15, 2015)', () => {
   const eb2 = BULLETIN.rows.find((r) => r.cat === 'EB-2')!;
-  assert.equal(BULLETIN.month, 'November 2026');
+  assert.equal(BULLETIN.month, 'December 2026');
   assert.equal(eb2.final.india, '2013-11-01');
   assert.equal(eb2.filing.india, '2015-01-15');
   const news = readFileSync(new URL('../src/content/news.ts', import.meta.url), 'utf8');
