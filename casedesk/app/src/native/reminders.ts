@@ -9,7 +9,7 @@ import type { PersonRecord } from '../core/record';
 import { addDays, fmt, today } from '../core/dates';
 import { REMINDER_TYPES, typeDates, typeOfFinding, typeSetting, type ReminderType } from '../core/reminders';
 
-type Item = { at: string; title: string; body: string; url: string };
+type Item = { at: string; title: string; body: string; url: string; hour?: number };
 
 export function reminderItems(people: Person[], records: Record<string, PersonRecord>, results: Record<string, PersonResult>, keyDates: { ownerId: string; label: string; date: string; caseId: string }[]): Item[] {
   const items: Item[] = [];
@@ -54,7 +54,7 @@ export async function scheduleReminders(items: Item[], ask = false) {
       const [y, m, d] = it.at.split('-').map(Number);
       await N.scheduleNotificationAsync({
         content: { title: it.title, body: it.body, data: { cd2: true, url: it.url } },
-        trigger: { type: N.SchedulableTriggerInputTypes?.DATE ?? 'date', date: new Date(y, m - 1, d, 9, 0, 0) },
+        trigger: { type: N.SchedulableTriggerInputTypes?.DATE ?? 'date', date: new Date(y, m - 1, d, it.hour ?? 9, 0, 0) },
       });
     }
     return true;

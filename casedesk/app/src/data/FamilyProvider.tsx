@@ -20,6 +20,8 @@ import { bindDraft, draftFiles, restoreDraft, type Flow } from './flow';
 import { sweepOrphans } from '../native/files';
 import { referencedFiles } from '../core/files';
 import { notifyNow, reminderItems, scheduleReminders } from '../native/reminders';
+import { dailyItems } from '../core/daily';
+import { today } from '../core/dates';
 import { alertOn, bulletinAlert, caseChanges, pushTopics, statusMap } from '../core/notify';
 import { syncPushAlerts } from './pushAlerts';
 import { useICloudAuto } from './icloudBackup';
@@ -94,8 +96,15 @@ export function FamilyProvider({ children, store = appStore() }: { children: Rea
   useEffect(() => {
     if (!ready || !snap.people.length) return;
     const kd = derived.caseList.flatMap((c) => c.keyDates.map((k) => ({ ownerId: c.ownerId, label: `${c.form ?? 'Case'}: ${k.label}`, date: k.date, caseId: c.id })));
-    scheduleReminders(alertOn(snap.settings, 'docs') ? reminderItems(derived.people, derived.records, derived.results, kd) : []).catch(() => {});
-  }, [ready, derived, snap.people.length]);
+    const rem = alertOn(snap.settings, 'docs') ? reminderItems(derived.people, derived.records, derived.results, kd) : [];
+    // Daily check-in (10 AM, one topic a day, the next 7 days; re-made each time the app opens)
+    const daily = alertOn(snap.settings, 'daily') ? dailyItems({
+      today: today(), people: derived.people, records: derived.records, bulletin: bulletin.data, docs: snap.docs.length,
+      cases: derived.caseList.map((c) => ({ form: c.form, status: c.status })), backupOn: !!snap.settings.icloud,
+      busyDays: new Set(rem.map((r) => r.at)),
+    }).map((d) => ({ at: d.at, title: d.title, body: d.body, url: d.url, hour: 10 })) : [];
+    scheduleReminders([...rem.slice(0, 64 - daily.length - 2), ...daily]).catch(() => {});
+  }, [ready, derived, snap.people.length, snap.settings.alerts, bulletin.data.month]);
 
   // Alerts (v2.3): a case's status changed (paste-back, pick, or any later check) …
   const lastStatus = useRef<Record<string, string> | null>(null);

@@ -17,7 +17,7 @@ export function shouldAskNotifications(o: { perm: Perm; settings: Pick<Settings,
   return o.docs + o.cases > 0;
 }
 
-export type AlertKind = 'cases' | 'bulletin' | 'docs' | 'news';
+export type AlertKind = 'cases' | 'bulletin' | 'docs' | 'news' | 'daily';
 /** Each alert kind is on unless the user turned it off in Settings. */
 export const alertOn = (s: Pick<Settings, 'alerts'>, k: AlertKind) => s.alerts?.[k] !== false;
 

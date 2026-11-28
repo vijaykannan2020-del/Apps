@@ -100,6 +100,7 @@ export function NotifyRows() {
         {toggle('cases', 'Case status changes', 'When a check shows a new status')}
         {toggle('docs', 'Document expiry reminders', 'Before passports, I-94s, approvals and cards expire')}
         {toggle('bulletin', 'New Visa Bulletin', bulletinSub)}
+        {toggle('daily', 'Daily check-in', 'One short tip or reminder a day, 10 AM — a different topic each day')}
         {toggle('news', 'Immigration news', `USCIS and DOL updates · ${newsTopicsText(topics)}`)}
         {alertOn(f.settings, 'news') ? toggle('newsAll', 'Every news update', 'Off: only important changes') : null}
         <Row title="Community replies" subtitle={cu.user ? 'Answers to your posts and comments' : 'Sign in to Community to get replies'}

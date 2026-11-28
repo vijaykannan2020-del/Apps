@@ -301,7 +301,7 @@ export type Settings = {
   toursOff?: boolean; // "Skip all tips"
   toursAll?: boolean; // v2.7: "Show tips on each screen" (off by default — only Home's one tip auto-shows)
   notifAskedAt?: string; // when the notification explainer was shown
-  alerts?: { cases?: boolean; bulletin?: boolean; docs?: boolean; news?: boolean; newsAll?: boolean }; // which alerts (default all on; newsAll = every update, not just important)
+  alerts?: { cases?: boolean; bulletin?: boolean; docs?: boolean; news?: boolean; newsAll?: boolean; daily?: boolean }; // which alerts (default all on; newsAll = every update, not just important)
   bulletinPush?: boolean; // the server sends this phone's Visa Bulletin alert (so the app doesn't send its own too)
   bulletinSeen?: string; // last Visa Bulletin month the app saw (for the new-bulletin alert)
   icloud?: { on: boolean; wifiOnly: boolean; lastAt?: string; lastError?: string; lastAttemptAt?: string; failures?: number }; // iCloud automatic backup (v2.2)
