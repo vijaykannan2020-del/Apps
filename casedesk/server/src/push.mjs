@@ -36,6 +36,26 @@ export function unsubscribe(body) {
   return { ok: true };
 }
 
+// Settings → Notifications → Send a test notification: one push to the asking phone, with Expo's answer,
+// so delivery problems (e.g. missing Apple push credentials) show up instead of failing silently.
+const lastTest = new Map();
+export async function testPush(body) {
+  const token = body?.token;
+  if (!TOKEN_RE.test(token || '')) throw err(400, 'Invalid push token');
+  const now = Date.now();
+  if (now - (lastTest.get(token) || 0) < 30_000) throw err(429, 'Wait a few seconds and try again');
+  lastTest.set(token, now);
+  if (lastTest.size > 5000) lastTest.clear();
+  try {
+    const r = await fetch('https://exp.host/--/api/v2/push/send', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify([{ to: token, title: 'Immigration Wallet', body: 'Test notification — alerts from the server reach this phone ✓', sound: 'default', channelId: 'news', data: { url: '/settings-page/notifications' } }]) });
+    const j = await r.json();
+    const t = j?.data?.[0];
+    if (t?.status === 'ok') return { ok: true };
+    return { ok: false, error: t?.details?.error || t?.message || j?.errors?.[0]?.message || `HTTP ${r.status}` };
+  } catch (e) { return { ok: false, error: e.message }; }
+}
+
 export const pushStatus = () => ({ subscribers: Object.keys(subs).length });
 
 // Community: one-off pushes (e.g. 'New answer to your question') to tokens the forum stores per account.

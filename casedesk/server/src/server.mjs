@@ -9,7 +9,7 @@ import { searchSoc, searchArea, wage, wageStatus, states, counties } from './wag
 import { top, employer, h1bStatus } from './h1b.mjs';
 import { getBulletin } from './bulletin.mjs';
 import { guides, processingTimes } from './content.mjs';
-import { subscribe, unsubscribe, pushStatus } from './push.mjs';
+import { subscribe, unsubscribe, pushStatus, testPush } from './push.mjs';
 import { getWaits, waitsStatus } from './waits.mjs';
 import { submit as communitySubmit, remove as communityRemove, stats as communityStats, communityStatus } from './community.mjs';
 import { bulletinStatus, ensureBulletinHistory } from './bulletin.mjs';
@@ -122,11 +122,12 @@ const server = http.createServer(async (req, res) => {
       if (out) return send(200, out);
     }
     // Write endpoints: alerts sign-up (token + topics) and anonymous community timelines. Tiny JSON bodies.
-    if ((url.pathname === '/api/alerts' || url.pathname === '/api/community') && (req.method === 'POST' || req.method === 'DELETE')) {
+    if ((url.pathname === '/api/alerts' || url.pathname === '/api/alerts/test' || url.pathname === '/api/community') && (req.method === 'POST' || req.method === 'DELETE')) {
       let raw = '';
       for await (const chunk of req) { raw += chunk; if (raw.length > 4096) return send(413, { error: 'Too large' }); }
       let body; try { body = JSON.parse(raw || '{}'); } catch { return send(400, { error: 'Bad JSON' }); }
       if (url.pathname === '/api/community') return send(200, req.method === 'POST' ? communitySubmit(body) : communityRemove(body));
+      if (url.pathname === '/api/alerts/test') return send(200, await testPush(body));
       return send(200, req.method === 'POST' ? subscribe(body) : unsubscribe(body));
     }
     if (req.method !== 'GET') return send(405, { error: 'Method not allowed' });

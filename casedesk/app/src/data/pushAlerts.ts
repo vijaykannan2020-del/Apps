@@ -38,3 +38,17 @@ export async function syncPushAlerts(topics: PushTopics): Promise<boolean> {
     return true;
   } catch { return false; }
 }
+
+/** Settings → Notifications: ask the server to push one test notification to this phone. */
+export async function sendTestPush(): Promise<{ ok: boolean; error?: string }> {
+  const b = apiBase();
+  if (!b) return { ok: false, error: 'No server connection' };
+  const token = await pushToken();
+  if (!token) return { ok: false, error: 'Notifications aren’t allowed for this app yet' };
+  try {
+    const r = await fetch(b + '/api/alerts/test', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ token }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, error: j?.error || `Server error ${r.status}` };
+    return j?.ok ? { ok: true } : { ok: false, error: j?.error || 'Not delivered' };
+  } catch { return { ok: false, error: 'No internet connection' }; }
+}

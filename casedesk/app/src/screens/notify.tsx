@@ -10,6 +10,7 @@ import { alertOn, newsTopicsText, permText, pushTopics, shouldAskNotifications, 
 import { router } from 'expo-router';
 import { useCommunityUser } from '../data/communityApi';
 import { disableAnswerPush, enableAnswerPush } from '../data/communityAuth';
+import { sendTestPush } from '../data/pushAlerts';
 import { Button, Group, Icon, Row, SheetButtons, Switch, T, TourTarget, Why, font, useSheet, useTheme, useToast, useTourActive } from '../ui';
 import { OS_SETTINGS } from '../ui/platformWords';
 
@@ -108,6 +109,14 @@ export function NotifyRows() {
             else await disableAnswerPush();
           }} /> : undefined}
           onPress={cu.user ? undefined : () => router.push('/community/account' as any)} chevron={!cu.user} />
+        {perm === 'granted' ? (
+          <Row title="Send a test notification" subtitle="Arrives in a few seconds — you can lock the phone" chevron={false}
+            onPress={async () => {
+              toast('Sending…');
+              const r = await sendTestPush();
+              toast(r.ok ? 'Sent — it should arrive in a few seconds' : `Couldn’t send: ${r.error}`);
+            }} />
+        ) : null}
       </Group>
     </TourTarget>
   );
