@@ -11,7 +11,9 @@ export type Alert = { title: string; body: string; url?: string };
 /** Ask once, at a useful moment: after the first case or document is saved, never before. */
 export function shouldAskNotifications(o: { perm: Perm; settings: Pick<Settings, 'notifAskedAt'>; docs: number; cases: number }): boolean {
   if (o.perm !== 'undetermined') return false;
-  if (o.settings.notifAskedAt) return false;
+  // Asked before but iOS still says "not decided": either "Not now" on this phone (ask again after 14 days)
+  // or the date came from a backup made on another phone.
+  if (o.settings.notifAskedAt && Date.now() - Date.parse(o.settings.notifAskedAt) < 14 * 864e5) return false;
   return o.docs + o.cases > 0;
 }
 

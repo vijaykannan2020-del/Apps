@@ -46,7 +46,9 @@ test('notify: ask only after the first case or document, once, and only if iOS h
   assert.equal(shouldAskNotifications({ perm: 'undetermined', settings: s, docs: 0, cases: 0 }), false);
   assert.equal(shouldAskNotifications({ perm: 'undetermined', settings: s, docs: 1, cases: 0 }), true);
   assert.equal(shouldAskNotifications({ perm: 'undetermined', settings: s, docs: 0, cases: 1 }), true);
-  assert.equal(shouldAskNotifications({ perm: 'undetermined', settings: { notifAskedAt: '2026-11-18T00:00:00Z' }, docs: 3, cases: 0 }), false);
+  assert.equal(shouldAskNotifications({ perm: 'undetermined', settings: { notifAskedAt: new Date(Date.now() - 2 * 864e5).toISOString() }, docs: 3, cases: 0 }), false);
+  // still undecided long after ("Not now", or the date came from another phone's backup): ask again
+  assert.equal(shouldAskNotifications({ perm: 'undetermined', settings: { notifAskedAt: new Date(Date.now() - 20 * 864e5).toISOString() }, docs: 3, cases: 0 }), true);
   assert.equal(shouldAskNotifications({ perm: 'granted', settings: s, docs: 3, cases: 0 }), false);
   assert.equal(shouldAskNotifications({ perm: 'denied', settings: s, docs: 3, cases: 0 }), false);
   assert.equal(shouldAskNotifications({ perm: 'unavailable', settings: s, docs: 3, cases: 0 }), false);

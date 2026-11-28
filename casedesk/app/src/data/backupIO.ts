@@ -72,8 +72,10 @@ export type MergeReport = { added: { people: string[]; docs: number; cases: numb
 /** Replace everything, or merge (add what isn't on this phone and say exactly what was added / skipped). */
 export async function restore(store: Store, p: BackupPayload, mode: 'replace' | 'merge'): Promise<MergeReport> {
   const docsIn = p.docs as Document[];
-  // iCloud backup and Face ID belong to the phone, never to the backup (older backups may carry them).
-  const { icloud: _ic, icloudAsk: _ask, faceId: _fid, ...fromBackup } = (p.settings ?? {}) as Settings;
+  // iCloud backup, Face ID, the notification question and the server alert sign-up belong to the phone,
+  // never to the backup (older backups may carry them). A restored "already asked about alerts" stopped a
+  // new phone from ever asking, so iOS had no Notifications switch for the app at all.
+  const { icloud: _ic, icloudAsk: _ask, faceId: _fid, notifAskedAt: _na, bulletinPush: _bp, ...fromBackup } = (p.settings ?? {}) as Settings;
   const peopleIn = p.people as Person[], casesIn = p.cases as Case[], settingsIn = { ...DEFAULT_SETTINGS, ...fromBackup };
   const snap = await store.snapshot();
   const report: MergeReport = { added: { people: [], docs: 0, cases: 0 }, skipped: { people: [], docs: 0, cases: 0 }, renamed: [] };
